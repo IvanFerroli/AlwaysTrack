@@ -16,6 +16,11 @@
 - `docs/runbooks/`: procedimentos operacionais de rotina, validacao e incidente.
 - `docs/operations/`: estado vivo dos kits e memoria operacional.
 
+## Mapa de rotas web (vivo)
+- `GET /`: dashboard de navegacao e indice central de rotas (web + api).
+- `GET /workspace`: superficie operacional completa (ingestao, approvals, applications, CV analyzer).
+- toda acao `POST` da interface web redireciona para `GET /workspace` com feedback de status.
+
 ## Convencoes minimas
 - IDs:
   - ADR: `ADR-###`

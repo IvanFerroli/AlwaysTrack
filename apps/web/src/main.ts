@@ -4,7 +4,8 @@ import { readFormBody } from "./core/http/read-form.js";
 import { sendHtml, sendJson } from "./core/http/send.js";
 import { loadDashboardData } from "./features/dashboard/load-dashboard.js";
 import { loadApiHealth } from "./features/health/load-health.js";
-import { renderHomePage } from "./features/home/render-home.js";
+import { renderDashboardPage } from "./features/home/render-dashboard.js";
+import { renderWorkbenchPage } from "./features/home/render-home.js";
 import {
   analyzeMainCv,
   approveExecution,
@@ -40,7 +41,7 @@ const server = createServer(async (request, response) => {
     const resumeProfileId = form.get("resumeProfileId")?.toString() ?? "";
     const resumeLookup = await loadResumeProfileById(env.apiBaseUrl, resumeProfileId);
     if (!resumeLookup.ok) {
-      response.writeHead(302, { location: `/?status=error&code=${resumeLookup.errorCode}` });
+      response.writeHead(302, { location: `/workspace?status=error&code=${resumeLookup.errorCode}` });
       response.end();
       return;
     }
@@ -62,13 +63,13 @@ const server = createServer(async (request, response) => {
       const suffix = outcome.deduplicated ? "dedup" : "created";
       const approvalSuffix = outcome.approvalRequestId ? `&approval=${outcome.approvalRequestId}` : "";
       response.writeHead(302, {
-        location: `/?status=success&result=${suffix}&score=${outcome.score ?? 0}${approvalSuffix}`
+        location: `/workspace?status=success&result=${suffix}&score=${outcome.score ?? 0}${approvalSuffix}`
       });
       response.end();
       return;
     }
 
-    response.writeHead(302, { location: `/?status=error&code=${outcome.errorCode ?? "UNKNOWN"}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${outcome.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }
@@ -81,11 +82,13 @@ const server = createServer(async (request, response) => {
       form.get("skills")?.toString() ?? ""
     );
     if (result.ok) {
-      response.writeHead(302, { location: `/?status=success&result=resume-created&resume=${result.resumeProfileId}` });
+      response.writeHead(302, {
+        location: `/workspace?status=success&result=resume-created&resume=${result.resumeProfileId}`
+      });
       response.end();
       return;
     }
-    response.writeHead(302, { location: `/?status=error&code=${result.errorCode}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode}` });
     response.end();
     return;
   }
@@ -98,12 +101,12 @@ const server = createServer(async (request, response) => {
     const result = await analyzeMainCv(env.apiBaseUrl, sourceFile, headline, extraSkills);
     if (result.ok) {
       response.writeHead(302, {
-        location: `/?status=success&result=main-cv-analyzed&resume=${result.resumeProfileId}&source=${encodeURIComponent(result.sourceFile)}&skills=${result.extractedSkillsCount}`
+        location: `/workspace?status=success&result=main-cv-analyzed&resume=${result.resumeProfileId}&source=${encodeURIComponent(result.sourceFile)}&skills=${result.extractedSkillsCount}`
       });
       response.end();
       return;
     }
-    response.writeHead(302, { location: `/?status=error&code=${result.errorCode}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode}` });
     response.end();
     return;
   }
@@ -114,12 +117,14 @@ const server = createServer(async (request, response) => {
     const approvedBy = form.get("approvedBy")?.toString() ?? "human-operator";
     const result = await approveExecution(env.apiBaseUrl, approvalRequestId, approvedBy);
     if (result.ok) {
-      response.writeHead(302, { location: `/?status=success&result=approved&application=${result.applicationId ?? ""}` });
+      response.writeHead(302, {
+        location: `/workspace?status=success&result=approved&application=${result.applicationId ?? ""}`
+      });
       response.end();
       return;
     }
 
-    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }
@@ -131,12 +136,14 @@ const server = createServer(async (request, response) => {
     const reason = form.get("reason")?.toString() ?? "Rejected by reviewer";
     const result = await rejectExecution(env.apiBaseUrl, approvalRequestId, rejectedBy, reason);
     if (result.ok) {
-      response.writeHead(302, { location: `/?status=success&result=rejected&approval=${approvalRequestId}` });
+      response.writeHead(302, {
+        location: `/workspace?status=success&result=rejected&approval=${approvalRequestId}`
+      });
       response.end();
       return;
     }
 
-    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }
@@ -149,7 +156,7 @@ const server = createServer(async (request, response) => {
     const reason = form.get("reason")?.toString() ?? "Status updated by operator";
 
     if (statusValue !== "interview" && statusValue !== "rejected") {
-      response.writeHead(302, { location: "/?status=error&code=INVALID_APPLICATION_STATUS" });
+      response.writeHead(302, { location: "/workspace?status=error&code=INVALID_APPLICATION_STATUS" });
       response.end();
       return;
     }
@@ -157,18 +164,27 @@ const server = createServer(async (request, response) => {
     const result = await updateApplicationStatus(env.apiBaseUrl, applicationId, statusValue, updatedBy, reason);
     if (result.ok) {
       response.writeHead(302, {
-        location: `/?status=success&result=application-${statusValue}&application=${applicationId}`
+        location: `/workspace?status=success&result=application-${statusValue}&application=${applicationId}`
       });
       response.end();
       return;
     }
 
-    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }
 
   if (pathname === "/") {
+    const [apiHealth, dashboard] = await Promise.all([
+      loadApiHealth(env.apiBaseUrl),
+      loadDashboardData(env.apiBaseUrl)
+    ]);
+    sendHtml(response, 200, renderDashboardPage(apiHealth, dashboard, env.apiBaseUrl));
+    return;
+  }
+
+  if (pathname === "/workspace") {
     const [apiHealth, dashboard] = await Promise.all([
       loadApiHealth(env.apiBaseUrl),
       loadDashboardData(env.apiBaseUrl)
@@ -191,7 +207,7 @@ const server = createServer(async (request, response) => {
     sendHtml(
       response,
       200,
-      renderHomePage(
+      renderWorkbenchPage(
         apiHealth,
         dashboard.jobs,
         dashboard.decisions,

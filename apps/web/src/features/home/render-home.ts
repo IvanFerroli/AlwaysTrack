@@ -65,7 +65,8 @@ function renderCvSourceOptions(items: MainCvSource[]): string {
 
 function renderRouteMenu(apiBaseUrl: string): string {
   const routes = [
-    { label: "Web /", href: "/" },
+    { label: "Web / (Dashboard)", href: "/" },
+    { label: "Web /workspace", href: "/workspace" },
     { label: "Web /health", href: "/health" },
     { label: "API /health", href: `${apiBaseUrl}/health` },
     { label: "API /v1/job-postings", href: `${apiBaseUrl}/v1/job-postings` },
@@ -216,7 +217,7 @@ function renderFlash(flash?: HomeFlash): string {
   return `<div class="${className}">${flash.message}</div>`;
 }
 
-export function renderHomePage(
+export function renderWorkbenchPage(
   apiHealth: ApiResult<HealthPayload>,
   jobs: ApiResult<ListPayload<JobPosting>>,
   decisions: ApiResult<ListPayload<DecisionLog>>,
@@ -257,7 +258,7 @@ export function renderHomePage(
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Olympus Climb</title>
+    <title>Olympus Climb - Workbench</title>
     <style>
       body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 2rem; }
       .layout { display: grid; gap: 1rem; max-width: 1000px; }
@@ -280,8 +281,8 @@ export function renderHomePage(
   <body>
     <main class="layout">
       <section class="panel">
-        <h1>Olympus Climb</h1>
-        <p>First functional slice: ingestion + dedupe + match + audit trace.</p>
+        <h1>Olympus Climb Workbench</h1>
+        <p>Operational workspace for ingestion, approvals and execution flow.</p>
         <p>${statusLine}</p>
         ${renderFlash(flash)}
       </section>

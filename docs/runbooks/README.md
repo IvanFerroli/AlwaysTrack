@@ -23,3 +23,7 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - spec de arquitetura;
 - task manifest;
 - texto narrativo sem passos operacionais.
+
+## Navegacao operacional atual
+- iniciar em `GET /` para visualizar o indice de rotas.
+- usar `GET /workspace` para executar fluxos operacionais de ponta a ponta.

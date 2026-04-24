@@ -75,6 +75,7 @@
 - runtime local de web/api foi materializado e validado com smoke tests
 - main CV analyzer por arquivo `.txt` em `doc/` foi materializado com criação de resume profile para matching
 - menu operacional de rotas foi materializado no dashboard web para inspeção rápida
+- contrato de navegacao web atualizado: `GET /` dashboard de rotas; `GET /workspace` superficie operacional detalhada
 
 ## Padrões já adotados
 - nenhuma task entra em execução pesada sem base documental suficiente
