@@ -27,6 +27,12 @@ export interface ResumeProfile {
   id: string;
   headline: string;
   skills: string[];
+  createdAt: string;
+}
+
+export interface ResumeProfileCreateInput {
+  headline: string;
+  skills: string[];
 }
 
 export interface JobPosting {
@@ -113,6 +119,9 @@ export interface ApprovalRequest {
   createdAt: string;
   approvedAt?: string;
   approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
 }
 
 export interface StrategyProposalInput {
@@ -137,6 +146,12 @@ export interface ApproveExecutionInput {
   approvedBy: string;
 }
 
+export interface RejectExecutionInput {
+  approvalRequestId: string;
+  rejectedBy: string;
+  reason: string;
+}
+
 export interface ApplicationRecord {
   id: string;
   jobPostingId: string;
@@ -152,9 +167,13 @@ export interface ApproveExecutionResult {
   application: ApplicationRecord;
 }
 
+export interface RejectExecutionResult {
+  approvalRequest: ApprovalRequest;
+}
+
 export interface MemoryEntry {
   id: string;
-  type: "APPLICATION_RESULT" | "STRATEGY_HINT";
+  type: "APPLICATION_RESULT" | "STRATEGY_HINT" | "APPROVAL_RESULT";
   key: string;
   value: string;
   tags: string[];
@@ -163,6 +182,7 @@ export interface MemoryEntry {
 
 export interface MetricsSnapshot {
   totalJobPostings: number;
+  totalResumeProfiles: number;
   ingestionAttempts: number;
   dedupeHits: number;
   dedupeRate: number;

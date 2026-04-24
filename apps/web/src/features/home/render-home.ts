@@ -7,7 +7,8 @@ import type {
   JobPosting,
   ListPayload,
   MemoryEntry,
-  MetricsSnapshot
+  MetricsSnapshot,
+  ResumeProfile
 } from "@olympus/shared-types";
 
 interface HomeFlash {
@@ -39,6 +40,16 @@ function renderJobs(items: JobPosting[]): string {
   </thead>
   <tbody>${rows}</tbody>
 </table>`;
+}
+
+function renderResumeProfileOptions(items: ResumeProfile[]): string {
+  if (items.length === 0) {
+    return '<option value="">No profiles available</option>';
+  }
+
+  return items
+    .map((item) => `<option value="${item.id}">${item.id} - ${item.headline} [${item.skills.join(", ")}]</option>`)
+    .join("");
 }
 
 function renderDecisions(items: DecisionLog[]): string {
@@ -74,6 +85,12 @@ function renderApprovals(items: ApprovalRequest[]): string {
       <input type="hidden" name="approvalRequestId" value="${item.id}" />
       <input name="approvedBy" value="human-operator" required />
       <button type="submit">Approve</button>
+    </form>
+    <form method="POST" action="/reject">
+      <input type="hidden" name="approvalRequestId" value="${item.id}" />
+      <input name="rejectedBy" value="human-operator" required />
+      <input name="reason" value="Not aligned with current strategy" required />
+      <button type="submit">Reject</button>
     </form>
   </td>
 </tr>`
@@ -120,6 +137,7 @@ function renderMemory(items: MemoryEntry[]): string {
 function renderMetrics(metrics: MetricsSnapshot): string {
   return `<ul>
   <li>Total postings: ${metrics.totalJobPostings}</li>
+  <li>Total resume profiles: ${metrics.totalResumeProfiles}</li>
   <li>Ingestion attempts: ${metrics.ingestionAttempts}</li>
   <li>Dedupe hits: ${metrics.dedupeHits}</li>
   <li>Dedupe rate: ${metrics.dedupeRate}</li>
@@ -143,6 +161,7 @@ export function renderHomePage(
   decisions: ApiResult<ListPayload<DecisionLog>>,
   approvals: ApiResult<ListPayload<ApprovalRequest>>,
   applications: ApiResult<ListPayload<ApplicationRecord>>,
+  resumeProfiles: ApiResult<ListPayload<ResumeProfile>>,
   memoryEntries: ApiResult<ListPayload<MemoryEntry>>,
   metrics: ApiResult<MetricsSnapshot>,
   flash?: HomeFlash
@@ -167,6 +186,7 @@ export function renderHomePage(
   const metricsSection = metrics.ok
     ? renderMetrics(metrics.data)
     : `<p>Could not load metrics (${metrics.error.code}).</p>`;
+  const profileOptions = resumeProfiles.ok ? renderResumeProfileOptions(resumeProfiles.data.items) : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -207,9 +227,19 @@ export function renderHomePage(
           <label>Source URL <input name="sourceUrl" placeholder="https://..." required /></label>
           <label>Location <input name="location" /></label>
           <label>Description <textarea name="description" rows="4" required></textarea></label>
-          <label>Resume Headline <input name="resumeHeadline" value="Software Engineer" required /></label>
-          <label>Resume Skills (comma separated) <input name="resumeSkills" value="node,typescript,api" required /></label>
+          <label>Resume Profile
+            <select name="resumeProfileId" required>
+              ${profileOptions}
+            </select>
+          </label>
           <button type="submit">Ingest + Score</button>
+        </form>
+        <hr />
+        <h3>Create Resume Profile</h3>
+        <form method="POST" action="/resume-profiles">
+          <label>Headline <input name="headline" required /></label>
+          <label>Skills (comma separated) <input name="skills" value="node,typescript,api" required /></label>
+          <button type="submit">Create Resume Profile</button>
         </form>
       </section>
 

@@ -6,6 +6,7 @@ import type {
   JobPosting,
   MemoryEntry,
   MetricsSnapshot,
+  ResumeProfile,
   SkillExecution
 } from "@olympus/shared-types";
 
@@ -17,6 +18,7 @@ interface Counters {
   approvalRequest: number;
   application: number;
   memoryEntry: number;
+  resumeProfile: number;
 }
 
 interface RuntimeCounters {
@@ -37,7 +39,8 @@ export class InMemoryStateStore {
     skillExecution: 1,
     approvalRequest: 1,
     application: 1,
-    memoryEntry: 1
+    memoryEntry: 1,
+    resumeProfile: 1
   };
 
   private runtimeCounters: RuntimeCounters = {
@@ -53,6 +56,14 @@ export class InMemoryStateStore {
   private readonly approvalRequests: ApprovalRequest[] = [];
   private readonly applications: ApplicationRecord[] = [];
   private readonly memoryEntries: MemoryEntry[] = [];
+  private readonly resumeProfiles: ResumeProfile[] = [];
+
+  constructor() {
+    this.createResumeProfile({
+      headline: "Software Engineer",
+      skills: ["node", "typescript", "api"]
+    });
+  }
 
   listJobPostings(): JobPosting[] {
     return [...this.jobPostings];
@@ -82,6 +93,10 @@ export class InMemoryStateStore {
     return [...this.memoryEntries];
   }
 
+  listResumeProfiles(): ResumeProfile[] {
+    return [...this.resumeProfiles];
+  }
+
   findJobPostingById(id: string): JobPosting | undefined {
     return this.jobPostings.find((item) => item.id === id);
   }
@@ -92,6 +107,10 @@ export class InMemoryStateStore {
 
   findApprovalRequestById(id: string): ApprovalRequest | undefined {
     return this.approvalRequests.find((item) => item.id === id);
+  }
+
+  findResumeProfileById(id: string): ResumeProfile | undefined {
+    return this.resumeProfiles.find((item) => item.id === id);
   }
 
   insertJobPosting(payload: Omit<JobPosting, "id" | "createdAt">): JobPosting {
@@ -186,6 +205,18 @@ export class InMemoryStateStore {
     return approval;
   }
 
+  rejectRequest(id: string, rejectedBy: string, reason: string): ApprovalRequest | undefined {
+    const approval = this.findApprovalRequestById(id);
+    if (!approval || approval.status !== "pending") {
+      return undefined;
+    }
+    approval.status = "rejected";
+    approval.rejectedBy = rejectedBy;
+    approval.rejectedAt = new Date().toISOString();
+    approval.rejectionReason = reason;
+    return approval;
+  }
+
   createApplication(
     payload: Omit<ApplicationRecord, "id" | "submittedAt" | "status">
   ): ApplicationRecord {
@@ -209,6 +240,16 @@ export class InMemoryStateStore {
     return entry;
   }
 
+  createResumeProfile(payload: Omit<ResumeProfile, "id" | "createdAt">): ResumeProfile {
+    const profile: ResumeProfile = {
+      ...payload,
+      id: nextId("resume", this.counters.resumeProfile++),
+      createdAt: new Date().toISOString()
+    };
+    this.resumeProfiles.unshift(profile);
+    return profile;
+  }
+
   recordIngestionAttempt(deduplicated: boolean): void {
     this.runtimeCounters.ingestionAttempts += 1;
     if (deduplicated) {
@@ -230,6 +271,7 @@ export class InMemoryStateStore {
 
     return {
       totalJobPostings: this.jobPostings.length,
+      totalResumeProfiles: this.resumeProfiles.length,
       ingestionAttempts: this.runtimeCounters.ingestionAttempts,
       dedupeHits: this.runtimeCounters.dedupeHits,
       dedupeRate,

@@ -5,16 +5,19 @@ import type {
   IngestJobPostingResult,
   MatchScoreInput,
   MatchScoreResult,
+  RejectExecutionInput,
+  RejectExecutionResult,
   ResumeProfile,
   StrategyProposalInput,
   StrategyProposalResult
 } from "@olympus/shared-types";
-import { postJson } from "../../core/http/fetch-json.js";
+import { fetchJson, postJson } from "../../core/http/fetch-json.js";
 
 export interface IngestionOutcome {
   ok: boolean;
   deduplicated?: boolean;
   score?: number;
+  resumeProfileId?: string;
   approvalRequestId?: string;
   strategyProposed?: boolean;
   errorCode?: string;
@@ -69,6 +72,7 @@ export async function submitJobPosting(
     ok: true,
     deduplicated: ingest.data.deduplicated,
     score: score.data.score,
+    resumeProfileId: resumeProfile.id,
     strategyProposed: strategy.data.proposed,
     approvalRequestId: strategy.data.approvalRequest?.id
   };
@@ -76,6 +80,39 @@ export async function submitJobPosting(
 
 export function parseResumeSkills(raw: string): string[] {
   return parseSkills(raw);
+}
+
+export async function loadResumeProfileById(
+  apiBaseUrl: string,
+  resumeProfileId: string
+): Promise<{ ok: true; profile: ResumeProfile } | { ok: false; errorCode: string }> {
+  const response = await fetchJson<ResumeProfile>(
+    `${apiBaseUrl}/v1/resume-profiles/get?id=${encodeURIComponent(resumeProfileId)}`
+  );
+
+  if (!response.ok) {
+    return { ok: false, errorCode: response.error.code };
+  }
+
+  return { ok: true, profile: response.data };
+}
+
+export async function createResumeProfile(
+  apiBaseUrl: string,
+  headline: string,
+  skillsRaw: string
+): Promise<{ ok: true; resumeProfileId: string } | { ok: false; errorCode: string }> {
+  const payload = {
+    headline,
+    skills: parseSkills(skillsRaw)
+  };
+
+  const response = await postJson<typeof payload, ResumeProfile>(`${apiBaseUrl}/v1/resume-profiles`, payload);
+  if (!response.ok) {
+    return { ok: false, errorCode: response.error.code };
+  }
+
+  return { ok: true, resumeProfileId: response.data.id };
 }
 
 export async function approveExecution(
@@ -94,4 +131,23 @@ export async function approveExecution(
   }
 
   return { ok: true, applicationId: result.data.application.id };
+}
+
+export async function rejectExecution(
+  apiBaseUrl: string,
+  approvalRequestId: string,
+  rejectedBy: string,
+  reason: string
+): Promise<{ ok: boolean; errorCode?: string }> {
+  const payload: RejectExecutionInput = { approvalRequestId, rejectedBy, reason };
+  const result = await postJson<RejectExecutionInput, RejectExecutionResult>(
+    `${apiBaseUrl}/v1/approval-queue/reject`,
+    payload
+  );
+
+  if (!result.ok) {
+    return { ok: false, errorCode: result.error.code };
+  }
+
+  return { ok: true };
 }

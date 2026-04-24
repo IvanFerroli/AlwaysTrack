@@ -29,7 +29,8 @@ test("execution approves pending request and creates submitted application", () 
     resumeProfile: {
       id: "resume-1",
       headline: "Backend Engineer",
-      skills: ["node", "typescript"]
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
     },
     minimumScore: 50,
     requestedBy: "tester"
@@ -54,4 +55,110 @@ test("execution approves pending request and creates submitted application", () 
   const memory = store.listMemoryEntries();
   assert.equal(memory.length > 0, true);
   assert.equal(memory[0]?.type, "APPLICATION_RESULT");
+});
+
+test("execution rejects pending request and stores rejection evidence", () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const strategy = new StrategyService(store);
+  const execution = new ExecutionService(store);
+
+  const ingested = ingestion.ingest({
+    title: "Backend Engineer Node",
+    companyName: "Olympus",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/execution-2",
+    description: "Node TypeScript observability",
+    location: "remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const proposal = strategy.propose({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Backend Engineer",
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
+    },
+    minimumScore: 50,
+    requestedBy: "tester"
+  });
+  assert.equal(proposal.ok, true);
+  if (!proposal.ok || !proposal.data.approvalRequest) {
+    throw new Error("expected strategy approval request");
+  }
+
+  const rejection = execution.reject({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    rejectedBy: "human-reviewer",
+    reason: "Not a strategic fit now"
+  });
+  assert.equal(rejection.ok, true);
+  if (!rejection.ok) {
+    throw new Error("expected execution rejection to succeed");
+  }
+
+  assert.equal(rejection.data.approvalRequest.status, "rejected");
+  assert.equal(rejection.data.approvalRequest.rejectionReason, "Not a strategic fit now");
+
+  const memory = store.listMemoryEntries();
+  assert.equal(memory.length > 0, true);
+  assert.equal(memory[0]?.type, "APPROVAL_RESULT");
+});
+
+test("execution cannot approve already rejected request", () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const strategy = new StrategyService(store);
+  const execution = new ExecutionService(store);
+
+  const ingested = ingestion.ingest({
+    title: "Backend Engineer Node",
+    companyName: "Olympus",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/execution-3",
+    description: "Node TypeScript observability",
+    location: "remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const proposal = strategy.propose({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Backend Engineer",
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
+    },
+    minimumScore: 50,
+    requestedBy: "tester"
+  });
+  assert.equal(proposal.ok, true);
+  if (!proposal.ok || !proposal.data.approvalRequest) {
+    throw new Error("expected strategy approval request");
+  }
+
+  const rejection = execution.reject({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    rejectedBy: "human-reviewer",
+    reason: "Not aligned"
+  });
+  assert.equal(rejection.ok, true);
+
+  const approval = execution.approve({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    approvedBy: "human-reviewer"
+  });
+  assert.equal(approval.ok, false);
+  if (approval.ok) {
+    throw new Error("expected approval to fail");
+  }
+  assert.equal(approval.error.code, "APPROVAL_NOT_PENDING");
 });

@@ -15,6 +15,8 @@ import { MatchService } from "./features/match/match.service.js";
 import { createMemoryHandlers } from "./features/memory/memory.handlers.js";
 import { createObservabilityHandlers } from "./features/observability/observability.handlers.js";
 import { pingHandler } from "./features/ping/ping.handlers.js";
+import { createResumeProfilesHandlers } from "./features/resume-profiles/resume-profiles.handlers.js";
+import { ResumeProfilesService } from "./features/resume-profiles/resume-profiles.service.js";
 import { createStrategyHandlers } from "./features/strategy/strategy.handlers.js";
 import { StrategyService } from "./features/strategy/strategy.service.js";
 
@@ -25,6 +27,7 @@ const ingestionService = new IngestionService(store);
 const matchService = new MatchService(store);
 const strategyService = new StrategyService(store);
 const executionService = new ExecutionService(store);
+const resumeProfilesService = new ResumeProfilesService(store);
 
 const notFoundHandler: HttpHandler = ({ response }) => {
   sendJson(response, 404, {
@@ -43,15 +46,20 @@ const executionHandlers = createExecutionHandlers(executionService);
 const auditHandlers = createAuditHandlers(store);
 const memoryHandlers = createMemoryHandlers(store);
 const observabilityHandlers = createObservabilityHandlers(store);
+const resumeProfilesHandlers = createResumeProfilesHandlers(resumeProfilesService);
 const router = createRouter(notFoundHandler);
 router.register("GET", "/health", createHealthHandler(startedAt));
 router.register("GET", "/ping", pingHandler);
 router.register("GET", "/v1/job-postings", ingestHandlers.list);
 router.register("POST", "/v1/job-postings/ingest", ingestHandlers.ingest);
+router.register("GET", "/v1/resume-profiles", resumeProfilesHandlers.list);
+router.register("POST", "/v1/resume-profiles", resumeProfilesHandlers.create);
+router.register("GET", "/v1/resume-profiles/get", resumeProfilesHandlers.getById);
 router.register("POST", "/v1/match/score", matchHandlers.score);
 router.register("POST", "/v1/strategy/propose", strategyHandlers.propose);
 router.register("GET", "/v1/approval-queue", executionHandlers.listApprovalQueue);
 router.register("POST", "/v1/approval-queue/approve", executionHandlers.approve);
+router.register("POST", "/v1/approval-queue/reject", executionHandlers.reject);
 router.register("GET", "/v1/applications", executionHandlers.listApplications);
 router.register("GET", "/v1/memory-entries", memoryHandlers.listMemory);
 router.register("GET", "/v1/metrics", observabilityHandlers.metrics);

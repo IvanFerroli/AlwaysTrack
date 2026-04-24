@@ -4,6 +4,8 @@ import type {
   ApproveExecutionResult,
   ApplicationRecord,
   ApprovalRequest,
+  RejectExecutionInput,
+  RejectExecutionResult,
   ListPayload
 } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
@@ -76,7 +78,55 @@ export class ExecutionService {
     });
   }
 
+  reject(input: RejectExecutionInput): ApiResult<RejectExecutionResult> {
+    const approval = this.store.findApprovalRequestById(input.approvalRequestId);
+    if (!approval) {
+      return fail("APPROVAL_NOT_FOUND", `Approval request ${input.approvalRequestId} not found`);
+    }
+    if (approval.status !== "pending") {
+      return fail("APPROVAL_NOT_PENDING", `Approval request ${approval.id} is already ${approval.status}`);
+    }
+
+    const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
+    const rejected = this.store.rejectRequest(approval.id, input.rejectedBy, input.reason);
+    if (!rejected) {
+      this.store.completeAgentRun(agentRun.id, "failed");
+      return fail("APPROVAL_TRANSITION_FAILED", `Approval request ${approval.id} could not be rejected`);
+    }
+
+    this.store.createMemoryEntry({
+      type: "APPROVAL_RESULT",
+      key: `${rejected.jobPostingId}:${rejected.resumeProfileId}`,
+      value: `Approval ${rejected.id} rejected by ${input.rejectedBy}: ${input.reason}`,
+      tags: ["execution", "approval", "rejected"]
+    });
+
+    this.store.createDecisionLog(
+      agentRun.id,
+      "Application rejected",
+      `Approval ${rejected.id} was rejected by ${input.rejectedBy} with reason: ${input.reason}`
+    );
+    this.store.createSkillExecution(
+      agentRun.id,
+      "application-reject-v1",
+      "success",
+      `approval=${rejected.id};rejectedBy=${input.rejectedBy}`
+    );
+    this.store.completeAgentRun(agentRun.id, "completed");
+
+    return ok({
+      approvalRequest: rejected
+    });
+  }
+
   failValidation(): ApiResult<never> {
     return fail("INVALID_EXECUTION_PAYLOAD", "Payload must include approvalRequestId and approvedBy");
+  }
+
+  failRejectValidation(): ApiResult<never> {
+    return fail(
+      "INVALID_EXECUTION_REJECT_PAYLOAD",
+      "Payload must include approvalRequestId, rejectedBy and reason"
+    );
   }
 }

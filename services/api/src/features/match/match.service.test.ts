@@ -28,7 +28,8 @@ test("match service scores based on normalized token overlap", () => {
     resumeProfile: {
       id: "resume-1",
       headline: "Backend developer",
-      skills: ["node", "typescript", "graphql"]
+      skills: ["node", "typescript", "graphql"],
+      createdAt: new Date().toISOString()
     }
   });
 

@@ -2,11 +2,12 @@ import type { HttpHandler } from "../../core/http/types.js";
 import { readJsonBody } from "../../core/http/read-json.js";
 import { sendApiResult } from "../../core/http/send.js";
 import { ExecutionService } from "./execution.service.js";
-import { validateExecutionPayload } from "./execution.validate.js";
+import { validateExecutionPayload, validateRejectExecutionPayload } from "./execution.validate.js";
 
 export function createExecutionHandlers(service: ExecutionService): {
   listApprovalQueue: HttpHandler;
   approve: HttpHandler;
+  reject: HttpHandler;
   listApplications: HttpHandler;
 } {
   const listApprovalQueue: HttpHandler = ({ response }) => {
@@ -22,9 +23,18 @@ export function createExecutionHandlers(service: ExecutionService): {
     sendApiResult(response, service.approve(payload));
   };
 
+  const reject: HttpHandler = async ({ request, response }) => {
+    const payload = await readJsonBody(request);
+    if (!validateRejectExecutionPayload(payload)) {
+      sendApiResult(response, service.failRejectValidation());
+      return;
+    }
+    sendApiResult(response, service.reject(payload));
+  };
+
   const listApplications: HttpHandler = ({ response }) => {
     sendApiResult(response, service.listApplications());
   };
 
-  return { listApprovalQueue, approve, listApplications };
+  return { listApprovalQueue, approve, reject, listApplications };
 }

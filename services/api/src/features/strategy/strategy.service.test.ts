@@ -28,7 +28,8 @@ test("strategy creates approval request when score meets threshold", () => {
     resumeProfile: {
       id: "resume-1",
       headline: "Backend Engineer",
-      skills: ["node", "typescript"]
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
     },
     minimumScore: 50,
     requestedBy: "tester"

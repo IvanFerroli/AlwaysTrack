@@ -11,3 +11,15 @@ export function validateExecutionPayload(payload: unknown): payload is ApproveEx
   const candidate = payload as Record<string, unknown>;
   return hasValue(candidate.approvalRequestId) && hasValue(candidate.approvedBy);
 }
+
+export function validateRejectExecutionPayload(payload: unknown): payload is {
+  approvalRequestId: string;
+  rejectedBy: string;
+  reason: string;
+} {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return hasValue(candidate.approvalRequestId) && hasValue(candidate.rejectedBy) && hasValue(candidate.reason);
+}

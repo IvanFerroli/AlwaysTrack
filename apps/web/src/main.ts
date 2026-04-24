@@ -5,7 +5,13 @@ import { sendHtml, sendJson } from "./core/http/send.js";
 import { loadDashboardData } from "./features/dashboard/load-dashboard.js";
 import { loadApiHealth } from "./features/health/load-health.js";
 import { renderHomePage } from "./features/home/render-home.js";
-import { approveExecution, parseResumeSkills, submitJobPosting } from "./features/ingestion/submit-job.js";
+import {
+  approveExecution,
+  createResumeProfile,
+  loadResumeProfileById,
+  rejectExecution,
+  submitJobPosting
+} from "./features/ingestion/submit-job.js";
 
 const env = loadWebEnv();
 
@@ -29,6 +35,14 @@ const server = createServer(async (request, response) => {
 
   if (pathname === "/ingest" && request.method === "POST") {
     const form = await readFormBody(request);
+    const resumeProfileId = form.get("resumeProfileId")?.toString() ?? "";
+    const resumeLookup = await loadResumeProfileById(env.apiBaseUrl, resumeProfileId);
+    if (!resumeLookup.ok) {
+      response.writeHead(302, { location: `/?status=error&code=${resumeLookup.errorCode}` });
+      response.end();
+      return;
+    }
+
     const outcome = await submitJobPosting(
       env.apiBaseUrl,
       {
@@ -39,11 +53,7 @@ const server = createServer(async (request, response) => {
         location: form.get("location")?.toString() ?? "",
         description: form.get("description")?.toString() ?? ""
       },
-      {
-        id: "resume-default",
-        headline: form.get("resumeHeadline")?.toString() ?? "Software Engineer",
-        skills: parseResumeSkills(form.get("resumeSkills")?.toString() ?? "")
-      }
+      resumeLookup.profile
     );
 
     if (outcome.ok) {
@@ -61,6 +71,23 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/resume-profiles" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const result = await createResumeProfile(
+      env.apiBaseUrl,
+      form.get("headline")?.toString() ?? "",
+      form.get("skills")?.toString() ?? ""
+    );
+    if (result.ok) {
+      response.writeHead(302, { location: `/?status=success&result=resume-created&resume=${result.resumeProfileId}` });
+      response.end();
+      return;
+    }
+    response.writeHead(302, { location: `/?status=error&code=${result.errorCode}` });
+    response.end();
+    return;
+  }
+
   if (pathname === "/approve" && request.method === "POST") {
     const form = await readFormBody(request);
     const approvalRequestId = form.get("approvalRequestId")?.toString() ?? "";
@@ -68,6 +95,23 @@ const server = createServer(async (request, response) => {
     const result = await approveExecution(env.apiBaseUrl, approvalRequestId, approvedBy);
     if (result.ok) {
       response.writeHead(302, { location: `/?status=success&result=approved&application=${result.applicationId ?? ""}` });
+      response.end();
+      return;
+    }
+
+    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/reject" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const approvalRequestId = form.get("approvalRequestId")?.toString() ?? "";
+    const rejectedBy = form.get("rejectedBy")?.toString() ?? "human-operator";
+    const reason = form.get("reason")?.toString() ?? "Rejected by reviewer";
+    const result = await rejectExecution(env.apiBaseUrl, approvalRequestId, rejectedBy, reason);
+    if (result.ok) {
+      response.writeHead(302, { location: `/?status=success&result=rejected&approval=${approvalRequestId}` });
       response.end();
       return;
     }
@@ -106,6 +150,7 @@ const server = createServer(async (request, response) => {
         dashboard.decisions,
         dashboard.approvals,
         dashboard.applications,
+        dashboard.resumeProfiles,
         dashboard.memoryEntries,
         dashboard.metrics,
         flash
