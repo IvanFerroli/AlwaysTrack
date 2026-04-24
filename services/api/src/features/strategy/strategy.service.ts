@@ -63,6 +63,49 @@ export class StrategyService {
       });
     }
 
+    const existingApplication = this.store.findSubmittedApplication(jobPosting.id, input.resumeProfile.id);
+    if (existingApplication) {
+      const rationale = `Application ${existingApplication.id} already submitted for this job and resume profile; no new approval required`;
+      this.store.createDecisionLog(agentRun.id, "Strategy skipped duplicated execution", rationale);
+      this.store.createSkillExecution(
+        agentRun.id,
+        "strategy-proposal-v1",
+        "success",
+        `job=${jobPosting.id};score=${score};proposed=false;reason=already-submitted`
+      );
+      this.store.completeAgentRun(agentRun.id, "completed");
+      return ok({
+        jobPostingId: jobPosting.id,
+        score,
+        matchedSkills,
+        missingSkills,
+        proposed: false,
+        rationale
+      });
+    }
+
+    const existingPending = this.store.findPendingApprovalRequest(jobPosting.id, input.resumeProfile.id);
+    if (existingPending) {
+      const rationale = `Score ${score} met threshold ${minimumScore}; reusing existing pending approval ${existingPending.id}`;
+      this.store.createDecisionLog(agentRun.id, "Strategy reused pending approval", rationale);
+      this.store.createSkillExecution(
+        agentRun.id,
+        "strategy-proposal-v1",
+        "success",
+        `job=${jobPosting.id};score=${score};approval=${existingPending.id};reused=true`
+      );
+      this.store.completeAgentRun(agentRun.id, "completed");
+      return ok({
+        jobPostingId: jobPosting.id,
+        score,
+        matchedSkills,
+        missingSkills,
+        proposed: true,
+        approvalRequest: existingPending,
+        rationale
+      });
+    }
+
     const approval = this.store.createApprovalRequest({
       actionType: "SEND_APPLICATION",
       jobPostingId: jobPosting.id,

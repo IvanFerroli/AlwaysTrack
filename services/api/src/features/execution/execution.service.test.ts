@@ -162,3 +162,72 @@ test("execution cannot approve already rejected request", () => {
   }
   assert.equal(approval.error.code, "APPROVAL_NOT_PENDING");
 });
+
+test("execution auto-rejects duplicate pending approval when application already exists", () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const strategy = new StrategyService(store);
+  const execution = new ExecutionService(store);
+
+  const ingested = ingestion.ingest({
+    title: "Backend Engineer Node",
+    companyName: "Olympus",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/execution-4",
+    description: "Node TypeScript observability",
+    location: "remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const resumeProfile = {
+    id: "resume-1",
+    headline: "Backend Engineer",
+    skills: ["node", "typescript"],
+    createdAt: new Date().toISOString()
+  };
+
+  const proposal = strategy.propose({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile,
+    minimumScore: 50,
+    requestedBy: "tester"
+  });
+  assert.equal(proposal.ok, true);
+  if (!proposal.ok || !proposal.data.approvalRequest) {
+    throw new Error("expected strategy approval request");
+  }
+
+  const firstApproval = execution.approve({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    approvedBy: "human-reviewer"
+  });
+  assert.equal(firstApproval.ok, true);
+  if (!firstApproval.ok) {
+    throw new Error("expected initial approval to succeed");
+  }
+
+  const duplicatePending = store.createApprovalRequest({
+    actionType: "SEND_APPLICATION",
+    jobPostingId: proposal.data.approvalRequest.jobPostingId,
+    resumeProfileId: proposal.data.approvalRequest.resumeProfileId,
+    requestedBy: "tester",
+    reason: "duplicate pending for test"
+  });
+
+  const duplicateApproval = execution.approve({
+    approvalRequestId: duplicatePending.id,
+    approvedBy: "human-reviewer"
+  });
+  assert.equal(duplicateApproval.ok, false);
+  if (duplicateApproval.ok) {
+    throw new Error("expected duplicate approval to fail");
+  }
+  assert.equal(duplicateApproval.error.code, "APPLICATION_ALREADY_SUBMITTED");
+
+  const refreshedDuplicate = store.findApprovalRequestById(duplicatePending.id);
+  assert.equal(refreshedDuplicate?.status, "rejected");
+  assert.match(refreshedDuplicate?.rejectionReason ?? "", /duplicate/i);
+});

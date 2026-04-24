@@ -40,6 +40,40 @@ export class ExecutionService {
     }
 
     const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
+    const existingApplication = this.store.findSubmittedApplication(
+      approval.jobPostingId,
+      approval.resumeProfileId
+    );
+    if (existingApplication) {
+      this.store.rejectRequest(
+        approval.id,
+        input.approvedBy,
+        `Duplicate approval ignored: application ${existingApplication.id} already submitted`
+      );
+      this.store.createMemoryEntry({
+        type: "APPROVAL_RESULT",
+        key: `${approval.jobPostingId}:${approval.resumeProfileId}`,
+        value: `Approval ${approval.id} auto-rejected: application ${existingApplication.id} already submitted`,
+        tags: ["execution", "approval", "rejected", "duplicate"]
+      });
+      this.store.createDecisionLog(
+        agentRun.id,
+        "Approval auto-rejected as duplicate",
+        `Approval ${approval.id} was auto-rejected because application ${existingApplication.id} already exists`
+      );
+      this.store.createSkillExecution(
+        agentRun.id,
+        "application-submit-v1",
+        "failure",
+        `approval=${approval.id};existingApplication=${existingApplication.id};reason=duplicate`
+      );
+      this.store.completeAgentRun(agentRun.id, "failed");
+      return fail(
+        "APPLICATION_ALREADY_SUBMITTED",
+        `Application ${existingApplication.id} already exists for approval pair`
+      );
+    }
+
     const approved = this.store.approveRequest(approval.id, input.approvedBy);
     if (!approved) {
       this.store.completeAgentRun(agentRun.id, "failed");

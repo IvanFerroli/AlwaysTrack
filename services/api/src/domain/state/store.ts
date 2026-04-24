@@ -109,6 +109,22 @@ export class InMemoryStateStore {
     return this.approvalRequests.find((item) => item.id === id);
   }
 
+  findPendingApprovalRequest(jobPostingId: string, resumeProfileId: string): ApprovalRequest | undefined {
+    return this.approvalRequests.find(
+      (item) =>
+        item.jobPostingId === jobPostingId &&
+        item.resumeProfileId === resumeProfileId &&
+        item.status === "pending"
+    );
+  }
+
+  findSubmittedApplication(jobPostingId: string, resumeProfileId: string): ApplicationRecord | undefined {
+    return this.applications.find(
+      (item) =>
+        item.jobPostingId === jobPostingId && item.resumeProfileId === resumeProfileId && item.status === "submitted"
+    );
+  }
+
   findResumeProfileById(id: string): ResumeProfile | undefined {
     return this.resumeProfiles.find((item) => item.id === id);
   }
