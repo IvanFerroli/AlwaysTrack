@@ -61,6 +61,7 @@ router.register("GET", "/v1/approval-queue", executionHandlers.listApprovalQueue
 router.register("POST", "/v1/approval-queue/approve", executionHandlers.approve);
 router.register("POST", "/v1/approval-queue/reject", executionHandlers.reject);
 router.register("GET", "/v1/applications", executionHandlers.listApplications);
+router.register("POST", "/v1/applications/update-status", executionHandlers.updateApplicationStatus);
 router.register("GET", "/v1/memory-entries", memoryHandlers.listMemory);
 router.register("GET", "/v1/metrics", observabilityHandlers.metrics);
 router.register("GET", "/v1/agent-runs", auditHandlers.listRuns);

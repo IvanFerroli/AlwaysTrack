@@ -125,6 +125,10 @@ export class InMemoryStateStore {
     );
   }
 
+  findApplicationById(id: string): ApplicationRecord | undefined {
+    return this.applications.find((item) => item.id === id);
+  }
+
   findResumeProfileById(id: string): ResumeProfile | undefined {
     return this.resumeProfiles.find((item) => item.id === id);
   }
@@ -243,6 +247,23 @@ export class InMemoryStateStore {
       submittedAt: new Date().toISOString()
     };
     this.applications.unshift(application);
+    return application;
+  }
+
+  updateApplicationStatus(
+    id: string,
+    status: "interview" | "rejected",
+    updatedBy: string,
+    reason: string
+  ): ApplicationRecord | undefined {
+    const application = this.findApplicationById(id);
+    if (!application) {
+      return undefined;
+    }
+    application.status = status;
+    application.outcomeBy = updatedBy;
+    application.outcomeAt = new Date().toISOString();
+    application.outcomeReason = reason;
     return application;
   }
 

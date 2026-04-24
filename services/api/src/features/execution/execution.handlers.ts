@@ -2,13 +2,18 @@ import type { HttpHandler } from "../../core/http/types.js";
 import { readJsonBody } from "../../core/http/read-json.js";
 import { sendApiResult } from "../../core/http/send.js";
 import { ExecutionService } from "./execution.service.js";
-import { validateExecutionPayload, validateRejectExecutionPayload } from "./execution.validate.js";
+import {
+  validateExecutionPayload,
+  validateRejectExecutionPayload,
+  validateUpdateApplicationStatusPayload
+} from "./execution.validate.js";
 
 export function createExecutionHandlers(service: ExecutionService): {
   listApprovalQueue: HttpHandler;
   approve: HttpHandler;
   reject: HttpHandler;
   listApplications: HttpHandler;
+  updateApplicationStatus: HttpHandler;
 } {
   const listApprovalQueue: HttpHandler = ({ response }) => {
     sendApiResult(response, service.listApprovalQueue());
@@ -36,5 +41,14 @@ export function createExecutionHandlers(service: ExecutionService): {
     sendApiResult(response, service.listApplications());
   };
 
-  return { listApprovalQueue, approve, reject, listApplications };
+  const updateApplicationStatus: HttpHandler = async ({ request, response }) => {
+    const payload = await readJsonBody(request);
+    if (!validateUpdateApplicationStatusPayload(payload)) {
+      sendApiResult(response, service.failUpdateApplicationValidation());
+      return;
+    }
+    sendApiResult(response, service.updateApplicationStatus(payload));
+  };
+
+  return { listApprovalQueue, approve, reject, listApplications, updateApplicationStatus };
 }

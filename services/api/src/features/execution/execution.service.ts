@@ -6,6 +6,8 @@ import type {
   ApprovalRequest,
   RejectExecutionInput,
   RejectExecutionResult,
+  UpdateApplicationStatusInput,
+  UpdateApplicationStatusResult,
   ListPayload
 } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
@@ -153,6 +155,55 @@ export class ExecutionService {
     });
   }
 
+  updateApplicationStatus(
+    input: UpdateApplicationStatusInput
+  ): ApiResult<UpdateApplicationStatusResult> {
+    const application = this.store.findApplicationById(input.applicationId);
+    if (!application) {
+      return fail("APPLICATION_NOT_FOUND", `Application ${input.applicationId} not found`);
+    }
+    if (application.status === input.status) {
+      return fail(
+        "APPLICATION_STATUS_ALREADY_SET",
+        `Application ${application.id} is already in status ${application.status}`
+      );
+    }
+
+    const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
+    const updated = this.store.updateApplicationStatus(
+      application.id,
+      input.status,
+      input.updatedBy,
+      input.reason
+    );
+    if (!updated) {
+      this.store.completeAgentRun(agentRun.id, "failed");
+      return fail("APPLICATION_STATUS_TRANSITION_FAILED", `Application ${application.id} could not be updated`);
+    }
+
+    this.store.createMemoryEntry({
+      type: "APPLICATION_RESULT",
+      key: `${updated.jobPostingId}:${updated.resumeProfileId}`,
+      value: `Application ${updated.id} moved to ${updated.status} by ${input.updatedBy}: ${input.reason}`,
+      tags: ["execution", "application", updated.status]
+    });
+
+    this.store.createDecisionLog(
+      agentRun.id,
+      "Application status updated",
+      `Application ${updated.id} moved to ${updated.status} by ${input.updatedBy} with reason: ${input.reason}`
+    );
+    this.store.createSkillExecution(
+      agentRun.id,
+      "application-status-update-v1",
+      "success",
+      `application=${updated.id};status=${updated.status};updatedBy=${input.updatedBy}`
+    );
+    this.store.completeAgentRun(agentRun.id, "completed");
+
+    return ok({ application: updated });
+  }
+
   failValidation(): ApiResult<never> {
     return fail("INVALID_EXECUTION_PAYLOAD", "Payload must include approvalRequestId and approvedBy");
   }
@@ -161,6 +212,13 @@ export class ExecutionService {
     return fail(
       "INVALID_EXECUTION_REJECT_PAYLOAD",
       "Payload must include approvalRequestId, rejectedBy and reason"
+    );
+  }
+
+  failUpdateApplicationValidation(): ApiResult<never> {
+    return fail(
+      "INVALID_APPLICATION_STATUS_PAYLOAD",
+      "Payload must include applicationId, status(interview|rejected), updatedBy and reason"
     );
   }
 }

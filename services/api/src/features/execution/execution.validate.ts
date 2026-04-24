@@ -1,4 +1,4 @@
-import type { ApproveExecutionInput } from "@olympus/shared-types";
+import type { ApproveExecutionInput, UpdateApplicationStatusInput } from "@olympus/shared-types";
 
 function hasValue(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -22,4 +22,23 @@ export function validateRejectExecutionPayload(payload: unknown): payload is {
   }
   const candidate = payload as Record<string, unknown>;
   return hasValue(candidate.approvalRequestId) && hasValue(candidate.rejectedBy) && hasValue(candidate.reason);
+}
+
+function isValidApplicationStatus(value: unknown): value is "interview" | "rejected" {
+  return value === "interview" || value === "rejected";
+}
+
+export function validateUpdateApplicationStatusPayload(
+  payload: unknown
+): payload is UpdateApplicationStatusInput {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const candidate = payload as Record<string, unknown>;
+  return (
+    hasValue(candidate.applicationId) &&
+    isValidApplicationStatus(candidate.status) &&
+    hasValue(candidate.updatedBy) &&
+    hasValue(candidate.reason)
+  );
 }

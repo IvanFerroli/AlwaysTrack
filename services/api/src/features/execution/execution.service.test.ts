@@ -231,3 +231,131 @@ test("execution auto-rejects duplicate pending approval when application already
   assert.equal(refreshedDuplicate?.status, "rejected");
   assert.match(refreshedDuplicate?.rejectionReason ?? "", /duplicate/i);
 });
+
+test("execution updates submitted application status to interview with evidence", () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const strategy = new StrategyService(store);
+  const execution = new ExecutionService(store);
+
+  const ingested = ingestion.ingest({
+    title: "Backend Engineer Node",
+    companyName: "Olympus",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/execution-5",
+    description: "Node TypeScript observability",
+    location: "remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const proposal = strategy.propose({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Backend Engineer",
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
+    },
+    minimumScore: 50,
+    requestedBy: "tester"
+  });
+  assert.equal(proposal.ok, true);
+  if (!proposal.ok || !proposal.data.approvalRequest) {
+    throw new Error("expected strategy approval request");
+  }
+
+  const approval = execution.approve({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    approvedBy: "human-reviewer"
+  });
+  assert.equal(approval.ok, true);
+  if (!approval.ok) {
+    throw new Error("expected execution approval to succeed");
+  }
+
+  const updated = execution.updateApplicationStatus({
+    applicationId: approval.data.application.id,
+    status: "interview",
+    updatedBy: "human-reviewer",
+    reason: "Strong fit for next stage"
+  });
+  assert.equal(updated.ok, true);
+  if (!updated.ok) {
+    throw new Error("expected application status update to succeed");
+  }
+  assert.equal(updated.data.application.status, "interview");
+  assert.equal(updated.data.application.outcomeBy, "human-reviewer");
+  assert.equal(updated.data.application.outcomeReason, "Strong fit for next stage");
+
+  const memory = store.listMemoryEntries();
+  assert.equal(memory.length > 0, true);
+  assert.match(memory[0]?.value ?? "", /moved to interview/i);
+});
+
+test("execution rejects invalid repeated status update", () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const strategy = new StrategyService(store);
+  const execution = new ExecutionService(store);
+
+  const ingested = ingestion.ingest({
+    title: "Backend Engineer Node",
+    companyName: "Olympus",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/execution-6",
+    description: "Node TypeScript observability",
+    location: "remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const proposal = strategy.propose({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Backend Engineer",
+      skills: ["node", "typescript"],
+      createdAt: new Date().toISOString()
+    },
+    minimumScore: 50,
+    requestedBy: "tester"
+  });
+  assert.equal(proposal.ok, true);
+  if (!proposal.ok || !proposal.data.approvalRequest) {
+    throw new Error("expected strategy approval request");
+  }
+
+  const approval = execution.approve({
+    approvalRequestId: proposal.data.approvalRequest.id,
+    approvedBy: "human-reviewer"
+  });
+  assert.equal(approval.ok, true);
+  if (!approval.ok) {
+    throw new Error("expected execution approval to succeed");
+  }
+
+  const firstUpdate = execution.updateApplicationStatus({
+    applicationId: approval.data.application.id,
+    status: "rejected",
+    updatedBy: "human-reviewer",
+    reason: "Not selected"
+  });
+  assert.equal(firstUpdate.ok, true);
+
+  const repeatedUpdate = execution.updateApplicationStatus({
+    applicationId: approval.data.application.id,
+    status: "rejected",
+    updatedBy: "human-reviewer",
+    reason: "Duplicate status"
+  });
+  assert.equal(repeatedUpdate.ok, false);
+  if (repeatedUpdate.ok) {
+    throw new Error("expected repeated status update to fail");
+  }
+  assert.equal(repeatedUpdate.error.code, "APPLICATION_STATUS_ALREADY_SET");
+});

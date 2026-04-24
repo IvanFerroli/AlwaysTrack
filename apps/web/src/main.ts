@@ -10,6 +10,7 @@ import {
   createResumeProfile,
   loadResumeProfileById,
   rejectExecution,
+  updateApplicationStatus,
   submitJobPosting
 } from "./features/ingestion/submit-job.js";
 
@@ -112,6 +113,33 @@ const server = createServer(async (request, response) => {
     const result = await rejectExecution(env.apiBaseUrl, approvalRequestId, rejectedBy, reason);
     if (result.ok) {
       response.writeHead(302, { location: `/?status=success&result=rejected&approval=${approvalRequestId}` });
+      response.end();
+      return;
+    }
+
+    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/applications/status" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const applicationId = form.get("applicationId")?.toString() ?? "";
+    const statusValue = form.get("status")?.toString() ?? "";
+    const updatedBy = form.get("updatedBy")?.toString() ?? "human-operator";
+    const reason = form.get("reason")?.toString() ?? "Status updated by operator";
+
+    if (statusValue !== "interview" && statusValue !== "rejected") {
+      response.writeHead(302, { location: "/?status=error&code=INVALID_APPLICATION_STATUS" });
+      response.end();
+      return;
+    }
+
+    const result = await updateApplicationStatus(env.apiBaseUrl, applicationId, statusValue, updatedBy, reason);
+    if (result.ok) {
+      response.writeHead(302, {
+        location: `/?status=success&result=application-${statusValue}&application=${applicationId}`
+      });
       response.end();
       return;
     }

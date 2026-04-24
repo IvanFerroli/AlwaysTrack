@@ -9,7 +9,9 @@ import type {
   RejectExecutionResult,
   ResumeProfile,
   StrategyProposalInput,
-  StrategyProposalResult
+  StrategyProposalResult,
+  UpdateApplicationStatusInput,
+  UpdateApplicationStatusResult
 } from "@olympus/shared-types";
 import { fetchJson, postJson } from "../../core/http/fetch-json.js";
 
@@ -142,6 +144,31 @@ export async function rejectExecution(
   const payload: RejectExecutionInput = { approvalRequestId, rejectedBy, reason };
   const result = await postJson<RejectExecutionInput, RejectExecutionResult>(
     `${apiBaseUrl}/v1/approval-queue/reject`,
+    payload
+  );
+
+  if (!result.ok) {
+    return { ok: false, errorCode: result.error.code };
+  }
+
+  return { ok: true };
+}
+
+export async function updateApplicationStatus(
+  apiBaseUrl: string,
+  applicationId: string,
+  status: "interview" | "rejected",
+  updatedBy: string,
+  reason: string
+): Promise<{ ok: boolean; errorCode?: string }> {
+  const payload: UpdateApplicationStatusInput = {
+    applicationId,
+    status,
+    updatedBy,
+    reason
+  };
+  const result = await postJson<UpdateApplicationStatusInput, UpdateApplicationStatusResult>(
+    `${apiBaseUrl}/v1/applications/update-status`,
     payload
   );
 

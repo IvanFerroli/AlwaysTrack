@@ -156,10 +156,13 @@ export interface ApplicationRecord {
   id: string;
   jobPostingId: string;
   resumeProfileId: string;
-  status: "submitted";
+  status: "submitted" | "interview" | "rejected";
   approvalRequestId: string;
   submittedAt: string;
   evidence: string;
+  outcomeAt?: string;
+  outcomeBy?: string;
+  outcomeReason?: string;
 }
 
 export interface ApproveExecutionResult {
@@ -169,6 +172,17 @@ export interface ApproveExecutionResult {
 
 export interface RejectExecutionResult {
   approvalRequest: ApprovalRequest;
+}
+
+export interface UpdateApplicationStatusInput {
+  applicationId: string;
+  status: "interview" | "rejected";
+  updatedBy: string;
+  reason: string;
+}
+
+export interface UpdateApplicationStatusResult {
+  application: ApplicationRecord;
 }
 
 export interface MemoryEntry {

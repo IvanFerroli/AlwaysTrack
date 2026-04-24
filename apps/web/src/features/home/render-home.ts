@@ -106,7 +106,7 @@ function renderApplications(items: ApplicationRecord[]): string {
 
   return `<table>
   <thead>
-    <tr><th>ID</th><th>Job</th><th>Resume</th><th>Status</th><th>Submitted</th></tr>
+    <tr><th>ID</th><th>Job</th><th>Resume</th><th>Status</th><th>Submitted</th><th>Outcome</th><th>Action</th></tr>
   </thead>
   <tbody>${items
     .slice(0, 8)
@@ -117,6 +117,35 @@ function renderApplications(items: ApplicationRecord[]): string {
   <td>${item.resumeProfileId}</td>
   <td>${item.status}</td>
   <td>${item.submittedAt}</td>
+  <td>${item.outcomeAt ? `${item.outcomeAt} by ${item.outcomeBy ?? "-"} (${item.outcomeReason ?? "-"})` : "-"}</td>
+  <td>
+    ${
+      item.status === "submitted"
+        ? `<form method="POST" action="/applications/status">
+      <input type="hidden" name="applicationId" value="${item.id}" />
+      <input type="hidden" name="status" value="interview" />
+      <input name="updatedBy" value="human-operator" required />
+      <input name="reason" value="Candidate selected for interview stage" required />
+      <button type="submit">Mark Interview</button>
+    </form>
+    <form method="POST" action="/applications/status">
+      <input type="hidden" name="applicationId" value="${item.id}" />
+      <input type="hidden" name="status" value="rejected" />
+      <input name="updatedBy" value="human-operator" required />
+      <input name="reason" value="Rejected after screening" required />
+      <button type="submit">Mark Rejected</button>
+    </form>`
+        : item.status === "interview"
+          ? `<form method="POST" action="/applications/status">
+      <input type="hidden" name="applicationId" value="${item.id}" />
+      <input type="hidden" name="status" value="rejected" />
+      <input name="updatedBy" value="human-operator" required />
+      <input name="reason" value="Rejected after interview" required />
+      <button type="submit">Close as Rejected</button>
+    </form>`
+          : "<span>Finalized</span>"
+    }
+  </td>
 </tr>`
     )
     .join("")}</tbody>
@@ -274,7 +303,7 @@ export function renderHomePage(
       </section>
 
       <section class="panel">
-        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
+        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/applications/update-status</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
       </section>
     </main>
   </body>
