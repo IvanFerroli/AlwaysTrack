@@ -5,18 +5,24 @@ import { sendJson } from "./core/http/send.js";
 import type { HttpHandler } from "./core/http/types.js";
 import { InMemoryStateStore } from "./domain/state/store.js";
 import { createAuditHandlers } from "./features/audit/audit.handlers.js";
+import { createExecutionHandlers } from "./features/execution/execution.handlers.js";
+import { ExecutionService } from "./features/execution/execution.service.js";
 import { createHealthHandler } from "./features/health/health.handlers.js";
 import { createIngestHandlers } from "./features/ingestion/ingestion.handlers.js";
 import { IngestionService } from "./features/ingestion/ingestion.service.js";
 import { createMatchHandlers } from "./features/match/match.handlers.js";
 import { MatchService } from "./features/match/match.service.js";
 import { pingHandler } from "./features/ping/ping.handlers.js";
+import { createStrategyHandlers } from "./features/strategy/strategy.handlers.js";
+import { StrategyService } from "./features/strategy/strategy.service.js";
 
 const env = loadApiEnv();
 const startedAt = Date.now();
 const store = new InMemoryStateStore();
 const ingestionService = new IngestionService(store);
 const matchService = new MatchService(store);
+const strategyService = new StrategyService(store);
+const executionService = new ExecutionService(store);
 
 const notFoundHandler: HttpHandler = ({ response }) => {
   sendJson(response, 404, {
@@ -30,6 +36,8 @@ const notFoundHandler: HttpHandler = ({ response }) => {
 
 const ingestHandlers = createIngestHandlers(ingestionService);
 const matchHandlers = createMatchHandlers(matchService);
+const strategyHandlers = createStrategyHandlers(strategyService);
+const executionHandlers = createExecutionHandlers(executionService);
 const auditHandlers = createAuditHandlers(store);
 const router = createRouter(notFoundHandler);
 router.register("GET", "/health", createHealthHandler(startedAt));
@@ -37,6 +45,10 @@ router.register("GET", "/ping", pingHandler);
 router.register("GET", "/v1/job-postings", ingestHandlers.list);
 router.register("POST", "/v1/job-postings/ingest", ingestHandlers.ingest);
 router.register("POST", "/v1/match/score", matchHandlers.score);
+router.register("POST", "/v1/strategy/propose", strategyHandlers.propose);
+router.register("GET", "/v1/approval-queue", executionHandlers.listApprovalQueue);
+router.register("POST", "/v1/approval-queue/approve", executionHandlers.approve);
+router.register("GET", "/v1/applications", executionHandlers.listApplications);
 router.register("GET", "/v1/agent-runs", auditHandlers.listRuns);
 router.register("GET", "/v1/decision-logs", auditHandlers.listDecisionLogs);
 router.register("GET", "/v1/skill-executions", auditHandlers.listSkillExecutions);

@@ -1,10 +1,19 @@
-import type { AgentRun, DecisionLog, JobPosting, SkillExecution } from "@olympus/shared-types";
+import type {
+  AgentRun,
+  ApplicationRecord,
+  ApprovalRequest,
+  DecisionLog,
+  JobPosting,
+  SkillExecution
+} from "@olympus/shared-types";
 
 interface Counters {
   jobPosting: number;
   agentRun: number;
   decisionLog: number;
   skillExecution: number;
+  approvalRequest: number;
+  application: number;
 }
 
 function nextId(prefix: string, value: number): string {
@@ -16,13 +25,17 @@ export class InMemoryStateStore {
     jobPosting: 1,
     agentRun: 1,
     decisionLog: 1,
-    skillExecution: 1
+    skillExecution: 1,
+    approvalRequest: 1,
+    application: 1
   };
 
   private readonly jobPostings: JobPosting[] = [];
   private readonly agentRuns: AgentRun[] = [];
   private readonly decisionLogs: DecisionLog[] = [];
   private readonly skillExecutions: SkillExecution[] = [];
+  private readonly approvalRequests: ApprovalRequest[] = [];
+  private readonly applications: ApplicationRecord[] = [];
 
   listJobPostings(): JobPosting[] {
     return [...this.jobPostings];
@@ -40,12 +53,24 @@ export class InMemoryStateStore {
     return [...this.skillExecutions];
   }
 
+  listApprovalRequests(): ApprovalRequest[] {
+    return [...this.approvalRequests];
+  }
+
+  listApplications(): ApplicationRecord[] {
+    return [...this.applications];
+  }
+
   findJobPostingById(id: string): JobPosting | undefined {
     return this.jobPostings.find((item) => item.id === id);
   }
 
   findJobPostingByDedupeKey(dedupeKey: string): JobPosting | undefined {
     return this.jobPostings.find((item) => item.dedupeKey === dedupeKey);
+  }
+
+  findApprovalRequestById(id: string): ApprovalRequest | undefined {
+    return this.approvalRequests.find((item) => item.id === id);
   }
 
   insertJobPosting(payload: Omit<JobPosting, "id" | "createdAt">): JobPosting {
@@ -113,5 +138,43 @@ export class InMemoryStateStore {
 
     this.skillExecutions.unshift(execution);
     return execution;
+  }
+
+  createApprovalRequest(
+    payload: Omit<ApprovalRequest, "id" | "createdAt" | "status">
+  ): ApprovalRequest {
+    const approval: ApprovalRequest = {
+      ...payload,
+      id: nextId("approval", this.counters.approvalRequest++),
+      status: "pending",
+      createdAt: new Date().toISOString()
+    };
+
+    this.approvalRequests.unshift(approval);
+    return approval;
+  }
+
+  approveRequest(id: string, approvedBy: string): ApprovalRequest | undefined {
+    const approval = this.findApprovalRequestById(id);
+    if (!approval || approval.status !== "pending") {
+      return undefined;
+    }
+    approval.status = "approved";
+    approval.approvedBy = approvedBy;
+    approval.approvedAt = new Date().toISOString();
+    return approval;
+  }
+
+  createApplication(
+    payload: Omit<ApplicationRecord, "id" | "submittedAt" | "status">
+  ): ApplicationRecord {
+    const application: ApplicationRecord = {
+      ...payload,
+      id: nextId("application", this.counters.application++),
+      status: "submitted",
+      submittedAt: new Date().toISOString()
+    };
+    this.applications.unshift(application);
+    return application;
   }
 }

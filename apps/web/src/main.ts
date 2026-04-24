@@ -5,7 +5,7 @@ import { sendHtml, sendJson } from "./core/http/send.js";
 import { loadDashboardData } from "./features/dashboard/load-dashboard.js";
 import { loadApiHealth } from "./features/health/load-health.js";
 import { renderHomePage } from "./features/home/render-home.js";
-import { parseResumeSkills, submitJobPosting } from "./features/ingestion/submit-job.js";
+import { approveExecution, parseResumeSkills, submitJobPosting } from "./features/ingestion/submit-job.js";
 
 const env = loadWebEnv();
 
@@ -48,12 +48,31 @@ const server = createServer(async (request, response) => {
 
     if (outcome.ok) {
       const suffix = outcome.deduplicated ? "dedup" : "created";
-      response.writeHead(302, { location: `/?status=success&result=${suffix}&score=${outcome.score ?? 0}` });
+      const approvalSuffix = outcome.approvalRequestId ? `&approval=${outcome.approvalRequestId}` : "";
+      response.writeHead(302, {
+        location: `/?status=success&result=${suffix}&score=${outcome.score ?? 0}${approvalSuffix}`
+      });
       response.end();
       return;
     }
 
     response.writeHead(302, { location: `/?status=error&code=${outcome.errorCode ?? "UNKNOWN"}` });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/approve" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const approvalRequestId = form.get("approvalRequestId")?.toString() ?? "";
+    const approvedBy = form.get("approvedBy")?.toString() ?? "human-operator";
+    const result = await approveExecution(env.apiBaseUrl, approvalRequestId, approvedBy);
+    if (result.ok) {
+      response.writeHead(302, { location: `/?status=success&result=approved&application=${result.applicationId ?? ""}` });
+      response.end();
+      return;
+    }
+
+    response.writeHead(302, { location: `/?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }
@@ -69,7 +88,7 @@ const server = createServer(async (request, response) => {
       status === "success"
         ? {
             kind: "success" as const,
-            message: `Job ${url.searchParams.get("result") ?? "processed"} with score ${url.searchParams.get("score") ?? "n/a"}`
+            message: `Action ${url.searchParams.get("result") ?? "processed"} | score=${url.searchParams.get("score") ?? "n/a"} | approval=${url.searchParams.get("approval") ?? "n/a"} | application=${url.searchParams.get("application") ?? "n/a"}`
           }
         : status === "error"
           ? {
@@ -78,7 +97,11 @@ const server = createServer(async (request, response) => {
             }
           : undefined;
 
-    sendHtml(response, 200, renderHomePage(apiHealth, dashboard.jobs, dashboard.decisions, flash));
+    sendHtml(
+      response,
+      200,
+      renderHomePage(apiHealth, dashboard.jobs, dashboard.decisions, dashboard.approvals, dashboard.applications, flash)
+    );
     return;
   }
 

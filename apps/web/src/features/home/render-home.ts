@@ -1,4 +1,12 @@
-import type { ApiResult, DecisionLog, HealthPayload, JobPosting, ListPayload } from "@olympus/shared-types";
+import type {
+  ApiResult,
+  ApplicationRecord,
+  ApprovalRequest,
+  DecisionLog,
+  HealthPayload,
+  JobPosting,
+  ListPayload
+} from "@olympus/shared-types";
 
 interface HomeFlash {
   kind: "success" | "error";
@@ -42,6 +50,60 @@ function renderDecisions(items: DecisionLog[]): string {
     .join("")}</ul>`;
 }
 
+function renderApprovals(items: ApprovalRequest[]): string {
+  if (items.length === 0) {
+    return "<p>No pending approvals.</p>";
+  }
+
+  return `<table>
+  <thead>
+    <tr><th>ID</th><th>Job</th><th>Requested By</th><th>Reason</th><th>Action</th></tr>
+  </thead>
+  <tbody>${items
+    .slice(0, 8)
+    .map(
+      (item) => `<tr>
+  <td>${item.id}</td>
+  <td>${item.jobPostingId}</td>
+  <td>${item.requestedBy}</td>
+  <td>${item.reason}</td>
+  <td>
+    <form method="POST" action="/approve">
+      <input type="hidden" name="approvalRequestId" value="${item.id}" />
+      <input name="approvedBy" value="human-operator" required />
+      <button type="submit">Approve</button>
+    </form>
+  </td>
+</tr>`
+    )
+    .join("")}</tbody>
+</table>`;
+}
+
+function renderApplications(items: ApplicationRecord[]): string {
+  if (items.length === 0) {
+    return "<p>No submitted applications yet.</p>";
+  }
+
+  return `<table>
+  <thead>
+    <tr><th>ID</th><th>Job</th><th>Resume</th><th>Status</th><th>Submitted</th></tr>
+  </thead>
+  <tbody>${items
+    .slice(0, 8)
+    .map(
+      (item) => `<tr>
+  <td>${item.id}</td>
+  <td>${item.jobPostingId}</td>
+  <td>${item.resumeProfileId}</td>
+  <td>${item.status}</td>
+  <td>${item.submittedAt}</td>
+</tr>`
+    )
+    .join("")}</tbody>
+</table>`;
+}
+
 function renderFlash(flash?: HomeFlash): string {
   if (!flash) {
     return "";
@@ -54,6 +116,8 @@ export function renderHomePage(
   apiHealth: ApiResult<HealthPayload>,
   jobs: ApiResult<ListPayload<JobPosting>>,
   decisions: ApiResult<ListPayload<DecisionLog>>,
+  approvals: ApiResult<ListPayload<ApprovalRequest>>,
+  applications: ApiResult<ListPayload<ApplicationRecord>>,
   flash?: HomeFlash
 ): string {
   const statusLine = apiHealth.ok
@@ -64,6 +128,12 @@ export function renderHomePage(
   const decisionsSection = decisions.ok
     ? renderDecisions(decisions.data.items)
     : `<p>Could not load decision logs (${decisions.error.code}).</p>`;
+  const approvalsSection = approvals.ok
+    ? renderApprovals(approvals.data.items)
+    : `<p>Could not load approval queue (${approvals.error.code}).</p>`;
+  const applicationsSection = applications.ok
+    ? renderApplications(applications.data.items)
+    : `<p>Could not load applications (${applications.error.code}).</p>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -121,7 +191,17 @@ export function renderHomePage(
       </section>
 
       <section class="panel">
-        <p>Operational endpoints: <code>/health</code>, <code>/v1/job-postings</code>, <code>/v1/match/score</code>.</p>
+        <h2>Approval Queue (Human Gate)</h2>
+        ${approvalsSection}
+      </section>
+
+      <section class="panel">
+        <h2>Submitted Applications</h2>
+        ${applicationsSection}
+      </section>
+
+      <section class="panel">
+        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>.</p>
       </section>
     </main>
   </body>

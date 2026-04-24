@@ -99,3 +99,55 @@ export interface SkillExecution {
 export interface ListPayload<T> {
   items: T[];
 }
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface ApprovalRequest {
+  id: string;
+  actionType: "SEND_APPLICATION";
+  jobPostingId: string;
+  resumeProfileId: string;
+  requestedBy: string;
+  status: ApprovalStatus;
+  reason: string;
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+export interface StrategyProposalInput {
+  jobPostingId: string;
+  resumeProfile: ResumeProfile;
+  minimumScore?: number;
+  requestedBy?: string;
+}
+
+export interface StrategyProposalResult {
+  jobPostingId: string;
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  proposed: boolean;
+  approvalRequest?: ApprovalRequest;
+  rationale: string;
+}
+
+export interface ApproveExecutionInput {
+  approvalRequestId: string;
+  approvedBy: string;
+}
+
+export interface ApplicationRecord {
+  id: string;
+  jobPostingId: string;
+  resumeProfileId: string;
+  status: "submitted";
+  approvalRequestId: string;
+  submittedAt: string;
+  evidence: string;
+}
+
+export interface ApproveExecutionResult {
+  approvalRequest: ApprovalRequest;
+  application: ApplicationRecord;
+}
