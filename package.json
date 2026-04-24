@@ -1,0 +1,18 @@
+{
+  "name": "olympus-climb",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run -ws --if-present build",
+    "typecheck": "npm run -ws --if-present typecheck"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*",
+    "infrastructure/*"
+  ],
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

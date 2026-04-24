@@ -1,0 +1,43 @@
+# EVAL PLAN — [NOME]
+
+## Finalidade
+Descreva o comportamento agentic ou operacional avaliado.
+
+## Origem documental
+- documento canônico:
+- ADRs relacionadas:
+- spec relacionada:
+- task relacionada:
+- contratos relacionados:
+
+## Escopo avaliado
+- capability:
+- skill/agente:
+- superfície:
+
+## Casos bons
+- ...
+- ...
+
+## Casos ruins
+- ...
+- ...
+
+## Casos ambíguos
+- ...
+- ...
+
+## Critérios de sucesso
+- ...
+- ...
+
+## Critérios de falha
+- ...
+- ...
+
+## Evidência esperada
+- ...
+- ...
+
+## Resultado esperado
+- ...
