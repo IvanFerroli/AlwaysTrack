@@ -50,4 +50,8 @@ test("execution approves pending request and creates submitted application", () 
   }
   assert.equal(approval.data.approvalRequest.status, "approved");
   assert.equal(approval.data.application.status, "submitted");
+
+  const memory = store.listMemoryEntries();
+  assert.equal(memory.length > 0, true);
+  assert.equal(memory[0]?.type, "APPLICATION_RESULT");
 });

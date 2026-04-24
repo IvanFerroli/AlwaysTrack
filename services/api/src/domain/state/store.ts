@@ -4,6 +4,8 @@ import type {
   ApprovalRequest,
   DecisionLog,
   JobPosting,
+  MemoryEntry,
+  MetricsSnapshot,
   SkillExecution
 } from "@olympus/shared-types";
 
@@ -14,6 +16,13 @@ interface Counters {
   skillExecution: number;
   approvalRequest: number;
   application: number;
+  memoryEntry: number;
+}
+
+interface RuntimeCounters {
+  ingestionAttempts: number;
+  dedupeHits: number;
+  strategyProposals: number;
 }
 
 function nextId(prefix: string, value: number): string {
@@ -27,7 +36,14 @@ export class InMemoryStateStore {
     decisionLog: 1,
     skillExecution: 1,
     approvalRequest: 1,
-    application: 1
+    application: 1,
+    memoryEntry: 1
+  };
+
+  private runtimeCounters: RuntimeCounters = {
+    ingestionAttempts: 0,
+    dedupeHits: 0,
+    strategyProposals: 0
   };
 
   private readonly jobPostings: JobPosting[] = [];
@@ -36,6 +52,7 @@ export class InMemoryStateStore {
   private readonly skillExecutions: SkillExecution[] = [];
   private readonly approvalRequests: ApprovalRequest[] = [];
   private readonly applications: ApplicationRecord[] = [];
+  private readonly memoryEntries: MemoryEntry[] = [];
 
   listJobPostings(): JobPosting[] {
     return [...this.jobPostings];
@@ -59,6 +76,10 @@ export class InMemoryStateStore {
 
   listApplications(): ApplicationRecord[] {
     return [...this.applications];
+  }
+
+  listMemoryEntries(): MemoryEntry[] {
+    return [...this.memoryEntries];
   }
 
   findJobPostingById(id: string): JobPosting | undefined {
@@ -176,5 +197,45 @@ export class InMemoryStateStore {
     };
     this.applications.unshift(application);
     return application;
+  }
+
+  createMemoryEntry(payload: Omit<MemoryEntry, "id" | "createdAt">): MemoryEntry {
+    const entry: MemoryEntry = {
+      ...payload,
+      id: nextId("memory", this.counters.memoryEntry++),
+      createdAt: new Date().toISOString()
+    };
+    this.memoryEntries.unshift(entry);
+    return entry;
+  }
+
+  recordIngestionAttempt(deduplicated: boolean): void {
+    this.runtimeCounters.ingestionAttempts += 1;
+    if (deduplicated) {
+      this.runtimeCounters.dedupeHits += 1;
+    }
+  }
+
+  recordStrategyProposal(): void {
+    this.runtimeCounters.strategyProposals += 1;
+  }
+
+  snapshotMetrics(): MetricsSnapshot {
+    const dedupeRate =
+      this.runtimeCounters.ingestionAttempts > 0
+        ? Number((this.runtimeCounters.dedupeHits / this.runtimeCounters.ingestionAttempts).toFixed(4))
+        : 0;
+
+    const pendingApprovals = this.approvalRequests.filter((item) => item.status === "pending").length;
+
+    return {
+      totalJobPostings: this.jobPostings.length,
+      ingestionAttempts: this.runtimeCounters.ingestionAttempts,
+      dedupeHits: this.runtimeCounters.dedupeHits,
+      dedupeRate,
+      strategyProposals: this.runtimeCounters.strategyProposals,
+      pendingApprovals,
+      submittedApplications: this.applications.length
+    };
   }
 }

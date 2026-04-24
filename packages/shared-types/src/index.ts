@@ -151,3 +151,22 @@ export interface ApproveExecutionResult {
   approvalRequest: ApprovalRequest;
   application: ApplicationRecord;
 }
+
+export interface MemoryEntry {
+  id: string;
+  type: "APPLICATION_RESULT" | "STRATEGY_HINT";
+  key: string;
+  value: string;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface MetricsSnapshot {
+  totalJobPostings: number;
+  ingestionAttempts: number;
+  dedupeHits: number;
+  dedupeRate: number;
+  strategyProposals: number;
+  pendingApprovals: number;
+  submittedApplications: number;
+}

@@ -50,6 +50,12 @@ export class ExecutionService {
       approvalRequestId: approved.id,
       evidence: `Application submitted by Execution Agent with human approval from ${input.approvedBy}`
     });
+    this.store.createMemoryEntry({
+      type: "APPLICATION_RESULT",
+      key: `${application.jobPostingId}:${application.resumeProfileId}`,
+      value: `Application ${application.id} submitted after approval ${approved.id}`,
+      tags: ["execution", "application", "approved"]
+    });
 
     this.store.createDecisionLog(
       agentRun.id,

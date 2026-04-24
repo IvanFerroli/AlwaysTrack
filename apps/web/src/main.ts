@@ -100,7 +100,16 @@ const server = createServer(async (request, response) => {
     sendHtml(
       response,
       200,
-      renderHomePage(apiHealth, dashboard.jobs, dashboard.decisions, dashboard.approvals, dashboard.applications, flash)
+      renderHomePage(
+        apiHealth,
+        dashboard.jobs,
+        dashboard.decisions,
+        dashboard.approvals,
+        dashboard.applications,
+        dashboard.memoryEntries,
+        dashboard.metrics,
+        flash
+      )
     );
     return;
   }

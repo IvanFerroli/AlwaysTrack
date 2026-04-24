@@ -39,6 +39,7 @@ export class StrategyService {
     const minimumScore = input.minimumScore ?? 50;
     const requestedBy = input.requestedBy ?? "strategy-agent";
     const proposed = score >= minimumScore;
+    this.store.recordStrategyProposal();
 
     const agentRun = this.store.createAgentRun("Strategy Agent", "Strategy");
 

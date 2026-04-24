@@ -30,6 +30,7 @@ export class IngestionService {
     const agentRun = this.store.createAgentRun("Normalizer Agent", "Normalization");
 
     if (existing) {
+      this.store.recordIngestionAttempt(true);
       this.store.createDecisionLog(
         agentRun.id,
         "Job posting deduplicated",
@@ -60,6 +61,7 @@ export class IngestionService {
       "Job posting ingested",
       `Created posting ${jobPosting.id} with ${normalizedTokens.length} normalized tokens`
     );
+    this.store.recordIngestionAttempt(false);
     this.store.createSkillExecution(
       agentRun.id,
       "job-posting-ingest-v1",

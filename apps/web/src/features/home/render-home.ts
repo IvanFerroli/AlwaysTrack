@@ -5,7 +5,9 @@ import type {
   DecisionLog,
   HealthPayload,
   JobPosting,
-  ListPayload
+  ListPayload,
+  MemoryEntry,
+  MetricsSnapshot
 } from "@olympus/shared-types";
 
 interface HomeFlash {
@@ -104,6 +106,29 @@ function renderApplications(items: ApplicationRecord[]): string {
 </table>`;
 }
 
+function renderMemory(items: MemoryEntry[]): string {
+  if (items.length === 0) {
+    return "<p>No memory entries yet.</p>";
+  }
+
+  return `<ul>${items
+    .slice(0, 8)
+    .map((item) => `<li><strong>${item.type}</strong> [${item.key}] - ${item.value}</li>`)
+    .join("")}</ul>`;
+}
+
+function renderMetrics(metrics: MetricsSnapshot): string {
+  return `<ul>
+  <li>Total postings: ${metrics.totalJobPostings}</li>
+  <li>Ingestion attempts: ${metrics.ingestionAttempts}</li>
+  <li>Dedupe hits: ${metrics.dedupeHits}</li>
+  <li>Dedupe rate: ${metrics.dedupeRate}</li>
+  <li>Strategy proposals: ${metrics.strategyProposals}</li>
+  <li>Pending approvals: ${metrics.pendingApprovals}</li>
+  <li>Submitted applications: ${metrics.submittedApplications}</li>
+</ul>`;
+}
+
 function renderFlash(flash?: HomeFlash): string {
   if (!flash) {
     return "";
@@ -118,6 +143,8 @@ export function renderHomePage(
   decisions: ApiResult<ListPayload<DecisionLog>>,
   approvals: ApiResult<ListPayload<ApprovalRequest>>,
   applications: ApiResult<ListPayload<ApplicationRecord>>,
+  memoryEntries: ApiResult<ListPayload<MemoryEntry>>,
+  metrics: ApiResult<MetricsSnapshot>,
   flash?: HomeFlash
 ): string {
   const statusLine = apiHealth.ok
@@ -134,6 +161,12 @@ export function renderHomePage(
   const applicationsSection = applications.ok
     ? renderApplications(applications.data.items)
     : `<p>Could not load applications (${applications.error.code}).</p>`;
+  const memorySection = memoryEntries.ok
+    ? renderMemory(memoryEntries.data.items)
+    : `<p>Could not load memory entries (${memoryEntries.error.code}).</p>`;
+  const metricsSection = metrics.ok
+    ? renderMetrics(metrics.data)
+    : `<p>Could not load metrics (${metrics.error.code}).</p>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -201,7 +234,17 @@ export function renderHomePage(
       </section>
 
       <section class="panel">
-        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>.</p>
+        <h2>Memory Entries</h2>
+        ${memorySection}
+      </section>
+
+      <section class="panel">
+        <h2>Metrics Snapshot</h2>
+        ${metricsSection}
+      </section>
+
+      <section class="panel">
+        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
       </section>
     </main>
   </body>
