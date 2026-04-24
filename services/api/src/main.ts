@@ -17,6 +17,7 @@ import { createObservabilityHandlers } from "./features/observability/observabil
 import { pingHandler } from "./features/ping/ping.handlers.js";
 import { createResumeProfilesHandlers } from "./features/resume-profiles/resume-profiles.handlers.js";
 import { ResumeProfilesService } from "./features/resume-profiles/resume-profiles.service.js";
+import { createScraperHandlers } from "./features/scraper/scraper.handlers.js";
 import { createStrategyHandlers } from "./features/strategy/strategy.handlers.js";
 import { StrategyService } from "./features/strategy/strategy.service.js";
 
@@ -47,6 +48,7 @@ const auditHandlers = createAuditHandlers(store);
 const memoryHandlers = createMemoryHandlers(store);
 const observabilityHandlers = createObservabilityHandlers(store);
 const resumeProfilesHandlers = createResumeProfilesHandlers(resumeProfilesService);
+const scraperHandlers = createScraperHandlers(ingestionService);
 const router = createRouter(notFoundHandler);
 router.register("GET", "/health", createHealthHandler(startedAt));
 router.register("GET", "/ping", pingHandler);
@@ -57,6 +59,7 @@ router.register("POST", "/v1/resume-profiles", resumeProfilesHandlers.create);
 router.register("GET", "/v1/resume-profiles/get", resumeProfilesHandlers.getById);
 router.register("GET", "/v1/main-cv/sources", resumeProfilesHandlers.listMainCvSources);
 router.register("POST", "/v1/main-cv/analyze", resumeProfilesHandlers.analyzeMainCv);
+router.register("POST", "/v1/scraper/run", scraperHandlers.run);
 router.register("POST", "/v1/match/score", matchHandlers.score);
 router.register("POST", "/v1/strategy/propose", strategyHandlers.propose);
 router.register("GET", "/v1/approval-queue", executionHandlers.listApprovalQueue);

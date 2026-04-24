@@ -17,11 +17,10 @@
 7. Legado compatível
 
 ## Capability atualmente ativa
-- formalização transversal de engenharia
+- job-scraping
 
 ## Frente atualmente ativa
-- gates documentais iniciais
-- cadeia inicial de ADRs, specs e task manifests orientada por evidencia
+- nucleo scraper de vagas (fetch + parse + ingestão via POST /v1/job-postings/ingest)
 
 ## ADRs aceitas relevantes
 - ADR-001 - governanca documental operacional (`docs/adr/ADR-001-governanca-documental-operacional.md`)
@@ -37,6 +36,7 @@
 - TASK-CTR-001 - contrato tipado compartilhado minimo (`docs/tasks/TASK-CTR-001-contrato-tipado-compartilhado-minimo.md`)
 - TASK-RTM-001 - bootstrap de runtime local (`docs/tasks/TASK-RTM-001-bootstrap-runtime-local.md`)
 - TASK-PRD-001 - main CV workbench e menu de rotas (`docs/tasks/TASK-PRD-001-main-cv-workbench-and-route-menu.md`)
+- TASK-SCR-001 - nucleo scraper de vagas (`docs/tasks/TASK-SCR-001-nucleo-scraper-vagas.md`)
 
 ## Tasks concluídas
 - TASK-DOC-002 - formalizar ADR-001 (aprovada no ciclo VER-DOC-002)
@@ -46,6 +46,7 @@
 - TASK-CTR-001 - contrato tipado compartilhado minimo (aprovada no ciclo VER-CTR-001)
 - TASK-RTM-001 - bootstrap de runtime local (aprovada no ciclo VER-RTM-001)
 - TASK-PRD-001 - main CV workbench e menu de rotas (entregue com evidencia local: check/build/smoke)
+- TASK-SCR-001 - nucleo scraper de vagas (aprovada no ciclo VER-SCR-001 — 20 vagas ingeridas da Remotive)
 
 ## Tasks em andamento
 - nenhuma
@@ -92,7 +93,7 @@
 - evitar confundir brainstorming com task executável
 
 ## Próxima menor tarefa útil sugerida
-- derivar task funcional minima de produto com ancora explicita no canônico/spec aceita
+- TASK-SCR-002 (agendamento automático do scraper) OU TASK-SCR-003 (strip HTML + múltiplas fontes)
 
 ## Notas de continuidade
 - esta memória deve ser atualizada a cada task gerada, concluída, bloqueada ou replanejada
@@ -104,3 +105,5 @@
 - ultimo ciclo concluido: TASK-CTR-001 -> EXEC-CTR-001 -> VER-CTR-001 (classificacao: aprovado)
 - ultimo ciclo concluido: TASK-RTM-001 -> EXEC-RTM-001 -> VER-RTM-001 (classificacao: aprovado)
 - ultimo ciclo concluido: TASK-PRD-001 -> EXEC-PRD-001 -> VER-PRD-001 (classificacao: aprovado localmente com evidencias de runtime)
+- pipeline kickoff iniciado: TASK-SCR-001 -> handoff para olympus-orchestrator (2026-04-24)
+- ultimo ciclo concluido: TASK-SCR-001 -> EXEC-SCR-001 -> VER-SCR-001 (classificacao: aprovado — 20 vagas Remotive, typecheck/lint verdes)
