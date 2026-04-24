@@ -11,7 +11,7 @@ export function createScraperHandlers(ingestionService: IngestionService): {
     const rawUrl = request.url ?? "";
     const queryStart = rawUrl.indexOf("?");
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
-    const sourceKey = params.get("source") ?? process.env["SCRAPER_SOURCE"] ?? "remotive";
+    const sourceKey = params.get("source") ?? process.env["SCRAPER_SOURCE"] ?? "all";
 
     try {
       const result = await runScraper(ingestionService, sourceKey);
@@ -23,7 +23,8 @@ export function createScraperHandlers(ingestionService: IngestionService): {
           fetched: result.fetched,
           ingested: result.ingested,
           deduplicated: result.deduplicated,
-          errors: result.errors
+          errors: result.errors,
+          sources: result.sources
         }
       });
     } catch (err) {
