@@ -86,9 +86,17 @@ export async function runScraper(
   sourceKey = process.env["SCRAPER_SOURCE"] ?? "all"
 ): Promise<ScraperRunResult> {
   if (sourceKey === "all") {
-    const results = await Promise.all(
+    const settledResults = await Promise.allSettled(
       Object.values(SCRAPER_SOURCES).map(src => runSingleSource(ingestionService, src))
     );
+
+    const results = settledResults
+      .filter((r): r is PromiseFulfilledResult<SourceRunResult> => r.status === "fulfilled")
+      .map(r => r.value);
+
+    const rejectedErrors = settledResults
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .map(r => `[source error] ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
 
     const total = results.reduce(
       (acc, res) => ({
@@ -97,7 +105,7 @@ export async function runScraper(
         deduplicated: acc.deduplicated + res.deduplicated,
         errors: [...acc.errors, ...res.errors]
       }),
-      { fetched: 0, ingested: 0, deduplicated: 0, errors: [] as string[] }
+      { fetched: 0, ingested: 0, deduplicated: 0, errors: rejectedErrors }
     );
 
     return {
