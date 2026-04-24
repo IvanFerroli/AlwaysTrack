@@ -1,9 +1,69 @@
-import type { ApiResult, HealthPayload } from "@olympus/shared-types";
+import type { ApiResult, DecisionLog, HealthPayload, JobPosting, ListPayload } from "@olympus/shared-types";
 
-export function renderHomePage(apiHealth: ApiResult<HealthPayload>): string {
+interface HomeFlash {
+  kind: "success" | "error";
+  message: string;
+}
+
+function renderJobs(items: JobPosting[]): string {
+  if (items.length === 0) {
+    return "<p>No job postings ingested yet.</p>";
+  }
+
+  const rows = items
+    .slice(0, 8)
+    .map(
+      (job) => `<tr>
+  <td>${job.id}</td>
+  <td>${job.title}</td>
+  <td>${job.companyName}</td>
+  <td>${job.sourceName}</td>
+  <td>${job.location ?? "-"}</td>
+</tr>`
+    )
+    .join("");
+
+  return `<table>
+  <thead>
+    <tr><th>ID</th><th>Title</th><th>Company</th><th>Source</th><th>Location</th></tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>`;
+}
+
+function renderDecisions(items: DecisionLog[]): string {
+  if (items.length === 0) {
+    return "<p>No decisions logged yet.</p>";
+  }
+
+  return `<ul>${items
+    .slice(0, 6)
+    .map((item) => `<li><strong>${item.summary}</strong> - ${item.rationale}</li>`)
+    .join("")}</ul>`;
+}
+
+function renderFlash(flash?: HomeFlash): string {
+  if (!flash) {
+    return "";
+  }
+  const className = flash.kind === "success" ? "flash-success" : "flash-error";
+  return `<div class="${className}">${flash.message}</div>`;
+}
+
+export function renderHomePage(
+  apiHealth: ApiResult<HealthPayload>,
+  jobs: ApiResult<ListPayload<JobPosting>>,
+  decisions: ApiResult<ListPayload<DecisionLog>>,
+  flash?: HomeFlash
+): string {
   const statusLine = apiHealth.ok
     ? `API status: ${apiHealth.data.status} (${apiHealth.data.uptimeMs}ms)`
     : `API status: error (${apiHealth.error.code})`;
+
+  const jobsSection = jobs.ok ? renderJobs(jobs.data.items) : `<p>Could not load jobs (${jobs.error.code}).</p>`;
+  const decisionsSection = decisions.ok
+    ? renderDecisions(decisions.data.items)
+    : `<p>Could not load decision logs (${decisions.error.code}).</p>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -13,16 +73,56 @@ export function renderHomePage(apiHealth: ApiResult<HealthPayload>): string {
     <title>Olympus Climb</title>
     <style>
       body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 2rem; }
-      .panel { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; max-width: 560px; }
+      .layout { display: grid; gap: 1rem; max-width: 1000px; }
+      .panel { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #fff; }
       code { background: #f4f4f4; padding: 0.125rem 0.375rem; border-radius: 4px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+      th, td { border-bottom: 1px solid #eee; text-align: left; padding: 0.5rem 0.25rem; vertical-align: top; }
+      form { display: grid; gap: 0.5rem; }
+      input, textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; }
+      button { width: fit-content; padding: 0.5rem 0.75rem; cursor: pointer; }
+      .flash-success, .flash-error { padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; }
+      .flash-success { background: #e9f7ef; border: 1px solid #b7e4c7; color: #1b4332; }
+      .flash-error { background: #fde8e8; border: 1px solid #f5c2c2; color: #7f1d1d; }
     </style>
   </head>
   <body>
-    <main class="panel">
-      <h1>Olympus Climb</h1>
-      <p>Runtime bootstrap ready for feature development.</p>
-      <p>${statusLine}</p>
-      <p>Try <code>/health</code> for web health and API health bridge.</p>
+    <main class="layout">
+      <section class="panel">
+        <h1>Olympus Climb</h1>
+        <p>First functional slice: ingestion + dedupe + match + audit trace.</p>
+        <p>${statusLine}</p>
+        ${renderFlash(flash)}
+      </section>
+
+      <section class="panel">
+        <h2>Ingest Job Posting</h2>
+        <form method="POST" action="/ingest">
+          <label>Title <input name="title" required /></label>
+          <label>Company <input name="companyName" required /></label>
+          <label>Source Name <input name="sourceName" value="manual" required /></label>
+          <label>Source URL <input name="sourceUrl" placeholder="https://..." required /></label>
+          <label>Location <input name="location" /></label>
+          <label>Description <textarea name="description" rows="4" required></textarea></label>
+          <label>Resume Headline <input name="resumeHeadline" value="Software Engineer" required /></label>
+          <label>Resume Skills (comma separated) <input name="resumeSkills" value="node,typescript,api" required /></label>
+          <button type="submit">Ingest + Score</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Recent Job Postings</h2>
+        ${jobsSection}
+      </section>
+
+      <section class="panel">
+        <h2>Recent Decisions</h2>
+        ${decisionsSection}
+      </section>
+
+      <section class="panel">
+        <p>Operational endpoints: <code>/health</code>, <code>/v1/job-postings</code>, <code>/v1/match/score</code>.</p>
+      </section>
     </main>
   </body>
 </html>`;

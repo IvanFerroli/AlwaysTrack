@@ -25,3 +25,28 @@ export async function fetchJson<T>(url: string): Promise<ApiResult<T>> {
     return toNetworkError(error instanceof Error ? error.message : "Unknown network error");
   }
 }
+
+export async function postJson<TInput, TOutput>(
+  url: string,
+  payload: TInput
+): Promise<ApiResult<TOutput>> {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = (await response.json()) as ApiResult<TOutput>;
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data.ok
+          ? { code: "UPSTREAM_ERROR", message: "Unexpected successful payload on error status" }
+          : data.error
+      };
+    }
+    return data;
+  } catch (error) {
+    return toNetworkError(error instanceof Error ? error.message : "Unknown network error");
+  }
+}
