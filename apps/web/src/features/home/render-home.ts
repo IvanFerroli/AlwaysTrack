@@ -6,6 +6,7 @@ import type {
   HealthPayload,
   JobPosting,
   ListPayload,
+  MainCvSource,
   MemoryEntry,
   MetricsSnapshot,
   ResumeProfile
@@ -50,6 +51,37 @@ function renderResumeProfileOptions(items: ResumeProfile[]): string {
   return items
     .map((item) => `<option value="${item.id}">${item.id} - ${item.headline} [${item.skills.join(", ")}]</option>`)
     .join("");
+}
+
+function renderCvSourceOptions(items: MainCvSource[]): string {
+  if (items.length === 0) {
+    return '<option value="">No .txt CV files found in doc/</option>';
+  }
+
+  return items
+    .map((item) => `<option value="${item.fileName}">${item.fileName} (${item.sizeBytes} bytes)</option>`)
+    .join("");
+}
+
+function renderRouteMenu(apiBaseUrl: string): string {
+  const routes = [
+    { label: "Web /", href: "/" },
+    { label: "Web /health", href: "/health" },
+    { label: "API /health", href: `${apiBaseUrl}/health` },
+    { label: "API /v1/job-postings", href: `${apiBaseUrl}/v1/job-postings` },
+    { label: "API /v1/resume-profiles", href: `${apiBaseUrl}/v1/resume-profiles` },
+    { label: "API /v1/main-cv/sources", href: `${apiBaseUrl}/v1/main-cv/sources` },
+    { label: "API /v1/approval-queue", href: `${apiBaseUrl}/v1/approval-queue` },
+    { label: "API /v1/applications", href: `${apiBaseUrl}/v1/applications` },
+    { label: "API /v1/memory-entries", href: `${apiBaseUrl}/v1/memory-entries` },
+    { label: "API /v1/metrics", href: `${apiBaseUrl}/v1/metrics` },
+    { label: "API /v1/decision-logs", href: `${apiBaseUrl}/v1/decision-logs` },
+    { label: "API /v1/skill-executions", href: `${apiBaseUrl}/v1/skill-executions` }
+  ];
+
+  return `<div class="route-grid">${routes
+    .map((route) => `<a class="route-btn" href="${route.href}" target="_blank" rel="noreferrer">${route.label}</a>`)
+    .join("")}</div>`;
 }
 
 function renderDecisions(items: DecisionLog[]): string {
@@ -191,8 +223,10 @@ export function renderHomePage(
   approvals: ApiResult<ListPayload<ApprovalRequest>>,
   applications: ApiResult<ListPayload<ApplicationRecord>>,
   resumeProfiles: ApiResult<ListPayload<ResumeProfile>>,
+  cvSources: ApiResult<ListPayload<MainCvSource>>,
   memoryEntries: ApiResult<ListPayload<MemoryEntry>>,
   metrics: ApiResult<MetricsSnapshot>,
+  apiBaseUrl: string,
   flash?: HomeFlash
 ): string {
   const statusLine = apiHealth.ok
@@ -216,6 +250,7 @@ export function renderHomePage(
     ? renderMetrics(metrics.data)
     : `<p>Could not load metrics (${metrics.error.code}).</p>`;
   const profileOptions = resumeProfiles.ok ? renderResumeProfileOptions(resumeProfiles.data.items) : "";
+  const cvSourceOptions = cvSources.ok ? renderCvSourceOptions(cvSources.data.items) : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -236,6 +271,10 @@ export function renderHomePage(
       .flash-success, .flash-error { padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; }
       .flash-success { background: #e9f7ef; border: 1px solid #b7e4c7; color: #1b4332; }
       .flash-error { background: #fde8e8; border: 1px solid #f5c2c2; color: #7f1d1d; }
+      .route-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem; }
+      .route-btn { display: inline-block; border: 1px solid #d1d5db; border-radius: 6px; padding: 0.45rem 0.6rem; text-decoration: none; color: #111827; background: #f8fafc; }
+      .route-btn:hover { background: #eef2ff; }
+      select { width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; }
     </style>
   </head>
   <body>
@@ -245,6 +284,12 @@ export function renderHomePage(
         <p>First functional slice: ingestion + dedupe + match + audit trace.</p>
         <p>${statusLine}</p>
         ${renderFlash(flash)}
+      </section>
+
+      <section class="panel">
+        <h2>Route Menu</h2>
+        <p>Atalhos rápidos para cada rota de leitura/inspeção.</p>
+        ${renderRouteMenu(apiBaseUrl)}
       </section>
 
       <section class="panel">
@@ -269,6 +314,23 @@ export function renderHomePage(
           <label>Headline <input name="headline" required /></label>
           <label>Skills (comma separated) <input name="skills" value="node,typescript,api" required /></label>
           <button type="submit">Create Resume Profile</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Main CV Analyzer</h2>
+        <p>Use seus arquivos em <code>doc/*.txt</code> para gerar um profile com skills extraídas e usar no matching.</p>
+        <form method="POST" action="/main-cv/analyze">
+          <label>CV text source (.txt)
+            <select name="sourceFile" required>
+              ${cvSourceOptions}
+            </select>
+          </label>
+          <label>Headline <input name="headline" value="Ivanilson Ferreira - Main CV" required /></label>
+          <label>Extra skills (comma separated)
+            <textarea name="extraSkills" rows="3" placeholder="ex: playwright,cypress,redis"></textarea>
+          </label>
+          <button type="submit">Analyze Main CV + Create Resume Profile</button>
         </form>
       </section>
 
@@ -303,7 +365,7 @@ export function renderHomePage(
       </section>
 
       <section class="panel">
-        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/applications/update-status</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
+        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/main-cv/sources</code>, <code>/v1/main-cv/analyze</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/applications/update-status</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
       </section>
     </main>
   </body>

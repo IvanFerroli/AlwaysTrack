@@ -35,6 +35,25 @@ export interface ResumeProfileCreateInput {
   skills: string[];
 }
 
+export interface MainCvSource {
+  fileName: string;
+  relativePath: string;
+  sizeBytes: number;
+  updatedAt: string;
+}
+
+export interface MainCvAnalyzeInput {
+  sourceFile: string;
+  headline: string;
+  extraSkills?: string[];
+}
+
+export interface MainCvAnalyzeResult {
+  source: MainCvSource;
+  extractedSkills: string[];
+  resumeProfile: ResumeProfile;
+}
+
 export interface JobPosting {
   id: string;
   title: string;

@@ -1,4 +1,4 @@
-import type { ResumeProfileCreateInput } from "@olympus/shared-types";
+import type { MainCvAnalyzeInput, ResumeProfileCreateInput } from "@olympus/shared-types";
 
 function hasValue(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -15,4 +15,24 @@ export function validateResumeProfilePayload(payload: unknown): payload is Resum
 
   const candidate = payload as Record<string, unknown>;
   return hasValue(candidate.headline) && hasSkills(candidate.skills);
+}
+
+function hasOptionalSkills(value: unknown): value is string[] | undefined {
+  if (value === undefined) {
+    return true;
+  }
+  return hasSkills(value);
+}
+
+export function validateMainCvAnalyzePayload(payload: unknown): payload is MainCvAnalyzeInput {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  return (
+    hasValue(candidate.sourceFile) &&
+    hasValue(candidate.headline) &&
+    hasOptionalSkills(candidate.extraSkills)
+  );
 }

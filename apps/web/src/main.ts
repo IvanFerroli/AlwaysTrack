@@ -6,6 +6,7 @@ import { loadDashboardData } from "./features/dashboard/load-dashboard.js";
 import { loadApiHealth } from "./features/health/load-health.js";
 import { renderHomePage } from "./features/home/render-home.js";
 import {
+  analyzeMainCv,
   approveExecution,
   createResumeProfile,
   loadResumeProfileById,
@@ -81,6 +82,24 @@ const server = createServer(async (request, response) => {
     );
     if (result.ok) {
       response.writeHead(302, { location: `/?status=success&result=resume-created&resume=${result.resumeProfileId}` });
+      response.end();
+      return;
+    }
+    response.writeHead(302, { location: `/?status=error&code=${result.errorCode}` });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/main-cv/analyze" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const sourceFile = form.get("sourceFile")?.toString() ?? "";
+    const headline = form.get("headline")?.toString() ?? "Main CV";
+    const extraSkills = form.get("extraSkills")?.toString() ?? "";
+    const result = await analyzeMainCv(env.apiBaseUrl, sourceFile, headline, extraSkills);
+    if (result.ok) {
+      response.writeHead(302, {
+        location: `/?status=success&result=main-cv-analyzed&resume=${result.resumeProfileId}&source=${encodeURIComponent(result.sourceFile)}&skills=${result.extractedSkillsCount}`
+      });
       response.end();
       return;
     }
@@ -179,8 +198,10 @@ const server = createServer(async (request, response) => {
         dashboard.approvals,
         dashboard.applications,
         dashboard.resumeProfiles,
+        dashboard.cvSources,
         dashboard.memoryEntries,
         dashboard.metrics,
+        env.apiBaseUrl,
         flash
       )
     );

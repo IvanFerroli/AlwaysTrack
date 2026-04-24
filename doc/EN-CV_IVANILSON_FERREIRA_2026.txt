@@ -1,0 +1,52 @@
+﻿Ivanilson Ferreira de Oliveira
+Full Stack Developer| Bachelor of Computer Engineering – IFPB
+ivanilson.ferreira.mec@gmail.com|github.com/IvanFerroli|linkedin.com/in/ivanilson-ferreira|+55 83 98674 8048
+Professional Summary
+Full Stack Developer with experience in delivering and evolving web products in international, product, and e-commerce environments. I work from interface to business logic, including responsive frontend, application logic, APIs, integrations, and technical documentation. I have hands-on experience with React, Next.js, TypeScript, Node.js, SQL, Prisma, Tailwind, and the modern JavaScript ecosystem, focusing on reliability, maintainability, and delivery speed.
+Tech Stack
+Linguagens: JavaScript, TypeScript, Python, C#, SQL, HTML5, CSS3
+Front-End: React, React Native, Next.js, TailwindCSS, Bootstrap, Redux
+Back-End: Node.js, Express, PHP, .NET, NestJS
+Banco de Dados: PostgreSQL, MySQL, MariaDB, MongoDB, Prisma ORM
+Infraestrutura & DevOps: Docker, Git, GitHub, GitFlow, Linux, Apache, Nginx, CI/CD, AWS
+AI applied to software development: Prompt engineering, creation and maintenance of agents/skills, automation of technical documentation, support for code review, testing, and standardization of delivery                                          Testing & QA: Jest, Playwright, Cypress, Postman, manual QA, testes unitários e E2E
+Other: WordPress, Figma, TypeDoc, Swagger, basic SEO, A11y, Debugging, RESTful APIs, Scrum, Kanban
+Professional Experience
+UNCODE® · Junior Software Developer (Remote – Atibaia, SP, Brazil) – Feb/2026 – Present
+* Involved in the development and refinement of store fronts, landing pages, and interface flows for multiple e-commerce clients, frequently working within the Olist, Nuvemshop, and VNDA ecosystems.
+* Translating Figma layouts into responsive and production-ready implementations, including theme customizations, visual adjustments, and interaction improvements across different client codebases.
+* Fixing frontend logic, debugging, and incremental evolution of components, states, and business rules, balancing visual quality, maintainability, and delivery speed.
+HealGuid · Software Engineer (Remote – United Kingdom) – Dec/2025 – Feb/2026 (Freelancer)
+* Freelance Software Engineer in the conception and delivery of a functional platform in 45 days, in an accelerated context of migrating a no-code/low-code solution to a custom implementation.
+* Defining stack, design patterns, and delivery strategy for an end-to-end flow of professional discovery, scheduling, payment, and status persistence.
+* Technical structuring of integrations with Stripe and Cal.com, including state handling, idempotent webhooks, UX resilience, and documentation of technical decisions for alignment with a lean international team.
+Ayn Rand Institute · Full Stack Developer (Remote – USA) - Nov/2024 – Nov/2025
+* Development and maintenance of systems using React, Node.js, PHP, TypeScript, WordPress, MySQL, and MariaDB;
+* Performance and architecture optimization for legacy and new applications;
+* Server configuration, troubleshooting, and deployment using command line and AWS;
+* Technical documentation, continuous integration, and working with an international team.
+Key Projects
+* NCART — Curated Cyberware
+Next.js, TypeScript, Tailwind CSS, Jest, Playwright, TypeDoc e Vercel. Functional mini e-commerce with its own API, product listing, PDP, mini overlay cart, search, filters, and sorting. Project focused on polished UX, onboarding DX, unit/E2E testing, technical documentation, and basic SEO.
+* HealGuid – Booking Flow (Cal.com + Stripe)
+Next.js 16 (App Router), TypeScript, Prisma, PostgreSQL (Neon), Stripe, Cal.com, Tailwind. End-to-end scheduling + payment demo: availability check, validated patient form, Stripe Checkout + webhooks, and status flow (pending/confirmed/cancelled/failed).
+* Furia Echo – Fan Community
+React, Node.js, TypeScript, MySQL, Firebase Auth, Tailwind, Docker, Botpress. Fullstack application. Features Firebase login, an AI chatbot (Botpress), chat with threads and reactions, customizable profile, administrative panel with awards, and an admin-only dashboard.
+* Brain Agriculture – Backend agrícola enterprise-grade
+NestJS, Prisma, PostgreSQL, Docker, Jest, TypeDoc. Complete modules for producers, farms, harvests, crops, and a dashboard with advanced filters. Deployment via Docker and automated technical documentation.
+Education
+IFPB – Instituto Federal da Paraíba - Bacharelado em Engenharia de Computação (em andamento)
+Cursos Complementares e Bootcamps
+   * Back-End Development (540h) – Potência Tech (Cubos Academy e IFood) – Nov/2023;
+   * Front-End Applications (210h) – Driven Education – Sep/2023;
+   * Single Page Applications (180h) – Driven Education  – Dec/2023;
+   * Fullstack Development (110h) – Digital Academy (Gama Academy e AeC) – Apr/2021.
+Languages
+English: Advanced Proficiency (Full professional fluency)
+Core Competencies
+   * Development of modern interfaces focusing on responsiveness and usability.
+   * Implementation and adjustment of business rules in the frontend and backend.
+   * Integration with APIs, payment methods, and scheduling tools.
+   * Debugging, evolutionary maintenance, and refinement of applications in production.
+   * Writing technical documentation and supporting architectural decisions.
+   * Experience in product, services, and e-commerce environments.

@@ -5,6 +5,8 @@ import type {
   IngestJobPostingResult,
   MatchScoreInput,
   MatchScoreResult,
+  MainCvAnalyzeInput,
+  MainCvAnalyzeResult,
   RejectExecutionInput,
   RejectExecutionResult,
   ResumeProfile,
@@ -152,6 +154,37 @@ export async function rejectExecution(
   }
 
   return { ok: true };
+}
+
+export async function analyzeMainCv(
+  apiBaseUrl: string,
+  sourceFile: string,
+  headline: string,
+  extraSkillsRaw: string
+): Promise<
+  | { ok: true; resumeProfileId: string; extractedSkillsCount: number; sourceFile: string }
+  | { ok: false; errorCode: string }
+> {
+  const payload: MainCvAnalyzeInput = {
+    sourceFile,
+    headline,
+    extraSkills: parseSkills(extraSkillsRaw)
+  };
+
+  const response = await postJson<MainCvAnalyzeInput, MainCvAnalyzeResult>(
+    `${apiBaseUrl}/v1/main-cv/analyze`,
+    payload
+  );
+  if (!response.ok) {
+    return { ok: false, errorCode: response.error.code };
+  }
+
+  return {
+    ok: true,
+    resumeProfileId: response.data.resumeProfile.id,
+    extractedSkillsCount: response.data.extractedSkills.length,
+    sourceFile: response.data.source.fileName
+  };
 }
 
 export async function updateApplicationStatus(

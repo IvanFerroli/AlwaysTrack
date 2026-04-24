@@ -36,6 +36,7 @@
 - TASK-QLT-002 - baseline de lint executavel (`docs/tasks/TASK-QLT-002-baseline-lint-executavel.md`)
 - TASK-CTR-001 - contrato tipado compartilhado minimo (`docs/tasks/TASK-CTR-001-contrato-tipado-compartilhado-minimo.md`)
 - TASK-RTM-001 - bootstrap de runtime local (`docs/tasks/TASK-RTM-001-bootstrap-runtime-local.md`)
+- TASK-PRD-001 - main CV workbench e menu de rotas (`docs/tasks/TASK-PRD-001-main-cv-workbench-and-route-menu.md`)
 
 ## Tasks concluídas
 - TASK-DOC-002 - formalizar ADR-001 (aprovada no ciclo VER-DOC-002)
@@ -44,6 +45,7 @@
 - TASK-QLT-002 - baseline de quality/lint (aprovada no ciclo VER-QLT-002)
 - TASK-CTR-001 - contrato tipado compartilhado minimo (aprovada no ciclo VER-CTR-001)
 - TASK-RTM-001 - bootstrap de runtime local (aprovada no ciclo VER-RTM-001)
+- TASK-PRD-001 - main CV workbench e menu de rotas (entregue com evidencia local: check/build/smoke)
 
 ## Tasks em andamento
 - nenhuma
@@ -55,7 +57,7 @@
 - specs mínimas obrigatórias
 - primeiros task manifests executáveis
 - rodar ciclos reais com o pipeline protocol e registrar evidência de continuidade
-- primeira task funcional de produto ancorada em spec/canonico
+- persistência durável para resume profiles e candidaturas
 
 ## Decisões práticas recentes
 - o consolidado canônico passa a governar o projeto
@@ -71,6 +73,8 @@
 - baseline de lint ficou executavel com `npm run lint` verde
 - contrato tipado compartilhado foi restabelecido entre web/api e shared-types
 - runtime local de web/api foi materializado e validado com smoke tests
+- main CV analyzer por arquivo `.txt` em `doc/` foi materializado com criação de resume profile para matching
+- menu operacional de rotas foi materializado no dashboard web para inspeção rápida
 
 ## Padrões já adotados
 - nenhuma task entra em execução pesada sem base documental suficiente
@@ -98,3 +102,4 @@
 - ultimo ciclo concluido: TASK-QLT-002 -> EXEC-QLT-002 -> VER-QLT-002 (classificacao: aprovado)
 - ultimo ciclo concluido: TASK-CTR-001 -> EXEC-CTR-001 -> VER-CTR-001 (classificacao: aprovado)
 - ultimo ciclo concluido: TASK-RTM-001 -> EXEC-RTM-001 -> VER-RTM-001 (classificacao: aprovado)
+- ultimo ciclo concluido: TASK-PRD-001 -> EXEC-PRD-001 -> VER-PRD-001 (classificacao: aprovado localmente com evidencias de runtime)
