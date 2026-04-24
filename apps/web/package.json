@@ -4,10 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "node dist/main.js"
   },
   "dependencies": {
-    "@olympus/shared-types": "workspace:*"
+    "@olympus/shared-types": "file:../../packages/shared-types"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
   }
 }

@@ -32,10 +32,18 @@
 ## Task manifests existentes
 - TASK-DOC-002 - formalizar ADR-001 (`docs/tasks/TASK-DOC-002-formalizar-adr-001.md`)
 - TASK-SCF-001 - materializar scaffold base de workspaces (`docs/tasks/TASK-SCF-001-workspaces-base-scaffold.md`)
+- TASK-QLT-001 - baseline de typecheck executavel (`docs/tasks/TASK-QLT-001-baseline-typecheck-executavel.md`)
+- TASK-QLT-002 - baseline de lint executavel (`docs/tasks/TASK-QLT-002-baseline-lint-executavel.md`)
+- TASK-CTR-001 - contrato tipado compartilhado minimo (`docs/tasks/TASK-CTR-001-contrato-tipado-compartilhado-minimo.md`)
+- TASK-RTM-001 - bootstrap de runtime local (`docs/tasks/TASK-RTM-001-bootstrap-runtime-local.md`)
 
 ## Tasks concluídas
 - TASK-DOC-002 - formalizar ADR-001 (aprovada no ciclo VER-DOC-002)
 - TASK-SCF-001 - scaffold base de workspaces (aprovada com ressalvas no ciclo VER-SCF-001)
+- TASK-QLT-001 - baseline de quality/typecheck (aprovada no ciclo VER-QLT-001)
+- TASK-QLT-002 - baseline de quality/lint (aprovada no ciclo VER-QLT-002)
+- TASK-CTR-001 - contrato tipado compartilhado minimo (aprovada no ciclo VER-CTR-001)
+- TASK-RTM-001 - bootstrap de runtime local (aprovada no ciclo VER-RTM-001)
 
 ## Tasks em andamento
 - nenhuma
@@ -47,7 +55,7 @@
 - specs mínimas obrigatórias
 - primeiros task manifests executáveis
 - rodar ciclos reais com o pipeline protocol e registrar evidência de continuidade
-- baseline de quality para validar scaffold automaticamente
+- primeira task funcional de produto ancorada em spec/canonico
 
 ## Decisões práticas recentes
 - o consolidado canônico passa a governar o projeto
@@ -59,6 +67,10 @@
 - modo padrão de saída do pipeline: Compact Docs-First Mode (detalhe em docs, chat curto)
 - ADR-001 foi formalizada e aceita como base documental operacional do pipeline
 - scaffold minimo de codigo em workspaces foi materializado sem abrir funcionalidade
+- baseline de quality ficou executavel com `npm install` + `npm run typecheck` verde
+- baseline de lint ficou executavel com `npm run lint` verde
+- contrato tipado compartilhado foi restabelecido entre web/api e shared-types
+- runtime local de web/api foi materializado e validado com smoke tests
 
 ## Padrões já adotados
 - nenhuma task entra em execução pesada sem base documental suficiente
@@ -75,10 +87,14 @@
 - evitar confundir brainstorming com task executável
 
 ## Próxima menor tarefa útil sugerida
-- derivar e executar TASK-QLT-001 para baseline minima de validacao automatica do scaffold (typecheck/lint)
+- derivar task funcional minima de produto com ancora explicita no canônico/spec aceita
 
 ## Notas de continuidade
 - esta memória deve ser atualizada a cada task gerada, concluída, bloqueada ou replanejada
 - o Taskyfier deve priorizar continuidade e feedback real sobre planejamento abstrato
 - ultimo ciclo concluido: TASK-DOC-002 -> EXEC-DOC-002 -> VER-DOC-002 (classificacao: aprovado)
 - ultimo ciclo concluido: TASK-SCF-001 -> EXEC-SCF-001 -> VER-SCF-001 (classificacao: aprovado com ressalvas)
+- ultimo ciclo concluido: TASK-QLT-001 -> EXEC-QLT-001 -> VER-QLT-001 (classificacao: aprovado)
+- ultimo ciclo concluido: TASK-QLT-002 -> EXEC-QLT-002 -> VER-QLT-002 (classificacao: aprovado)
+- ultimo ciclo concluido: TASK-CTR-001 -> EXEC-CTR-001 -> VER-CTR-001 (classificacao: aprovado)
+- ultimo ciclo concluido: TASK-RTM-001 -> EXEC-RTM-001 -> VER-RTM-001 (classificacao: aprovado)

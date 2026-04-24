@@ -21,10 +21,10 @@ Materializar partes pequenas, rastreáveis e seguras do runtime do Olympus Climb
 - vertical mínima
 
 ## Artefatos gerados
-- nenhum
+- TASK-RTM-001: bootstrap de runtime local para web/api com endpoints de smoke test e scripts de dev
 
 ## Lacunas runtime recorrentes
-- nenhuma ainda registrada
+- primeira logica funcional de produto ainda pendente de ancora em spec/canonico
 
 ## Padrões operacionais já adotados
 - runtime não substitui arquitetura
@@ -38,3 +38,4 @@ Materializar partes pequenas, rastreáveis e seguras do runtime do Olympus Climb
 - ele complementa a memória do Taskyfier
 - ele não substitui o documento canônico vigente
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
+- ultima execucao: TASK-RTM-001 concluida sem blockers

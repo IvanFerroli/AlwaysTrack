@@ -14,10 +14,11 @@ Formalizar e materializar mecanismos de qualidade que provem comportamento real,
 - Compact Docs-First Mode: artefatos de qualidade detalhados em arquivo-alvo, chat curto por padrão.
 
 ## Artefatos gerados
-- nenhum
+- TASK-QLT-001: baseline executavel de typecheck com lockfile materializado e gate verde
+- TASK-QLT-002: baseline executavel de lint com config materializada e gate verde
 
 ## Lacunas de qualidade recorrentes
-- nenhuma ainda registrada
+- nenhuma critica no baseline inicial de quality
 
 ## Padrões operacionais já adotados
 - sem coverage cosmético
@@ -31,3 +32,5 @@ Formalizar e materializar mecanismos de qualidade que provem comportamento real,
 - ele complementa a memória do Taskyfier
 - ele não substitui o documento canônico vigente
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
+- ultima execucao: TASK-QLT-001 concluida sem blockers
+- ultima execucao: TASK-QLT-002 concluida sem blockers

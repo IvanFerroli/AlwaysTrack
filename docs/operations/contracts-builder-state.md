@@ -13,10 +13,10 @@ Formalizar contratos estruturais explícitos para reduzir ambiguidade, segurar b
 - Compact Docs-First Mode: contratos detalhados em arquivo-alvo, chat curto por padrão.
 
 ## Artefatos gerados
-- nenhum
+- TASK-CTR-001: contrato tipado minimo compartilhado entre workspaces com import tipado restaurado
 
 ## Lacunas contratuais recorrentes
-- nenhuma ainda registrada
+- contrato de runtime ainda nao formalizado (fora deste ciclo)
 
 ## Padrões operacionais já adotados
 - contrato bom reduz improviso
@@ -30,3 +30,4 @@ Formalizar contratos estruturais explícitos para reduzir ambiguidade, segurar b
 - ele complementa a memória do Taskyfier
 - ele não substitui o documento canônico vigente
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
+- ultima execucao: TASK-CTR-001 concluida sem blockers

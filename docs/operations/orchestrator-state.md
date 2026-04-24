@@ -23,14 +23,26 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 ## Tasks recebidas
 - TASK-DOC-002 (documental, recebida via pipeline kickoff)
 - TASK-SCF-001 (scaffolding, recebida via pipeline kickoff)
+- TASK-QLT-001 (quality, recebida via pipeline kickoff)
+- TASK-QLT-002 (quality, recebida via pipeline kickoff)
+- TASK-CTR-001 (contracts, recebida via pipeline kickoff)
+- TASK-RTM-001 (runtime, recebida via pipeline kickoff)
 
 ## Tasks roteadas
 - TASK-DOC-002 -> olympus-docs-formalizer (`execution artifact mode`) [EXEC-DOC-002]
 - TASK-SCF-001 -> olympus-scaffolding-builder (`execution artifact mode`) [EXEC-SCF-001]
+- TASK-QLT-001 -> olympus-quality-builder (`execution artifact mode`) [EXEC-QLT-001]
+- TASK-QLT-002 -> olympus-quality-builder (`execution artifact mode`) [EXEC-QLT-002]
+- TASK-CTR-001 -> olympus-contracts-builder (`execution artifact mode`) [EXEC-CTR-001]
+- TASK-RTM-001 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-RTM-001]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
 - TASK-SCF-001 concluida com pacote de verificacao consolidado
+- TASK-QLT-001 concluida com pacote de verificacao consolidado
+- TASK-QLT-002 concluida com pacote de verificacao consolidado
+- TASK-CTR-001 concluida com pacote de verificacao consolidado
+- TASK-RTM-001 concluida com pacote de verificacao consolidado
 
 ## Blockers recorrentes
 - nenhum
@@ -48,3 +60,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
 - ultimo ciclo consolidado: TASK-DOC-002 / EXEC-DOC-002 (status: executada)
 - ultimo ciclo consolidado: TASK-SCF-001 / EXEC-SCF-001 (status: executada)
+- ultimo ciclo consolidado: TASK-QLT-001 / EXEC-QLT-001 (status: executada)
+- ultimo ciclo consolidado: TASK-QLT-002 / EXEC-QLT-002 (status: executada)
+- ultimo ciclo consolidado: TASK-CTR-001 / EXEC-CTR-001 (status: executada)
+- ultimo ciclo consolidado: TASK-RTM-001 / EXEC-RTM-001 (status: executada)
