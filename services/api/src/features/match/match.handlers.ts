@@ -28,8 +28,10 @@ export function createMatchHandlers(service: MatchService): {
     const status = (params.get("status") as any) ?? undefined;
     const tagsParam = params.get("tags");
     const tags = tagsParam ? tagsParam.split(",").map(t => t.trim()) : undefined;
+    const location = params.get("location") ?? undefined;
+    const sourceName = params.get("sourceName") ?? undefined;
 
-    sendApiResult(response, service.listRanked(resumeProfileId, { q, minScore, status, tags }));
+    sendApiResult(response, service.listRanked(resumeProfileId, { q, minScore, status, tags, location, sourceName }));
   };
 
   return { score, listRanked };

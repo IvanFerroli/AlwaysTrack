@@ -10,7 +10,7 @@ import type { ScraperRunResult, ScraperSourceConfig, SourceRunResult } from "./s
 export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   remotive: {
     name: "Remotive",
-    url: "https://remotive.com/api/remote-jobs?limit=50",
+    url: "https://remotive.com/api/remote-jobs?limit=250",
     format: "remotive-json"
   },
   arbeitnow: {
@@ -25,7 +25,7 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   },
   jobicy: {
     name: "Jobicy",
-    url: "https://jobicy.com/api/v2/remote-jobs",
+    url: "https://jobicy.com/api/v2/remote-jobs?count=200",
     format: "jobicy-json"
   }
 };

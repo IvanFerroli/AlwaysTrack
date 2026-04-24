@@ -6,6 +6,8 @@ export interface JobFilterOptions {
   minScore?: number;
   status?: JobUserStatus;
   tags?: string[];
+  location?: string;
+  sourceName?: string;
 }
 
 function ok<T>(data: T): ApiResult<T> {
@@ -77,6 +79,14 @@ export class MatchService {
       }
       if (filters.tags && filters.tags.length > 0) {
         jobs = jobs.filter(j => filters.tags!.every(tag => j.tags.includes(tag)));
+      }
+      if (filters.location) {
+        const locLower = filters.location.toLowerCase();
+        jobs = jobs.filter(j => j.location && j.location.toLowerCase().includes(locLower));
+      }
+      if (filters.sourceName) {
+        const srcLower = filters.sourceName.toLowerCase();
+        jobs = jobs.filter(j => j.sourceName.toLowerCase().includes(srcLower));
       }
       if (filters.q) {
         const qLower = filters.q.toLowerCase();

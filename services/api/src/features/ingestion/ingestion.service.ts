@@ -81,12 +81,23 @@ export class IngestionService {
     return ok({ items: this.store.listJobPostings() });
   }
 
-  updateJob(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): ApiResult<JobPosting> {
-    const job = this.store.updateJobPosting(id, updates);
-    if (!job) {
+  updateJob(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">> & { addTag?: string, removeTag?: string }): ApiResult<JobPosting> {
+    const existingJob = this.store.findJobPostingById(id);
+    if (!existingJob) {
       return fail("JOB_NOT_FOUND", `Job posting ${id} not found`);
     }
-    return ok(job);
+
+    let newTags = updates.tags ?? [...existingJob.tags];
+    if (updates.addTag) {
+      newTags.push(updates.addTag.trim());
+    }
+    if (updates.removeTag) {
+      newTags = newTags.filter(t => t !== updates.removeTag);
+    }
+    newTags = [...new Set(newTags)];
+
+    const job = this.store.updateJobPosting(id, { userStatus: updates.userStatus, tags: newTags });
+    return ok(job!);
   }
 
   failValidation(): ApiResult<never> {

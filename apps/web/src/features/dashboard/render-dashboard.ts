@@ -200,8 +200,16 @@ export function renderDashboardPage(data: DashboardData): string {
             <span class="info-icon" data-tooltip="Vagas ranqueadas por overlap de skills com seu resume profile ativo">i</span>
           </h2>
           
-          <form method="GET" action="/" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <form method="GET" action="/" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
             <input type="text" name="q" placeholder="Buscar por palavra-chave..." style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:150px;">
+            <input type="text" name="location" placeholder="Filtrar local/país..." style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;width:120px;">
+            <select name="sourceName" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
+              <option value="">Todas as fontes</option>
+              <option value="Remotive">Remotive</option>
+              <option value="Arbeitnow">Arbeitnow</option>
+              <option value="RemoteOK">RemoteOK</option>
+              <option value="Jobicy">Jobicy</option>
+            </select>
             <select name="status" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
               <option value="">Todos os status</option>
               <option value="new">New</option>
@@ -222,8 +230,9 @@ export function renderDashboardPage(data: DashboardData): string {
             ? '<p style="color:#666;">Nenhuma vaga ranqueada ainda. Rode <code>POST /v1/scraper/run</code> e crie um resume profile.</p>'
             : data.rankedJobs.data.items.length === 0
               ? '<p style="color:#666;">Nenhuma vaga corresponde aos filtros ou disponível.</p>'
-              : `<div style="display:grid;gap:0.75rem;">
-                  ${data.rankedJobs.data.items.slice(0, 30).map(job => {
+              : `<p style="font-size:0.8rem;color:#666;margin-bottom:0.5rem;">Exibindo ${Math.min(data.rankedJobs.data.items.length, 500)} vagas filtradas de ${data.rankedJobs.data.items.length} totais.</p>
+                 <div style="display:grid;gap:0.75rem;">
+                  ${data.rankedJobs.data.items.slice(0, 500).map(job => {
                     const scoreColor = job.score >= 60 ? '#22c55e' : job.score >= 30 ? '#f59e0b' : '#94a3b8';
                     const scoreBg   = job.score >= 60 ? '#f0fdf4' : job.score >= 30 ? '#fffbeb' : '#f8fafc';
                     const statusColor = job.userStatus === 'applied' ? '#3b82f6' : job.userStatus === 'discarded' ? '#ef4444' : '#64748b';
@@ -234,10 +243,15 @@ export function renderDashboardPage(data: DashboardData): string {
                       </div>
                       <div style="flex:1;min-width:0;">
                         <div style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${job.title} <span style="font-size:0.7rem;padding:0.1rem 0.3rem;background:${statusColor};color:white;border-radius:3px;vertical-align:middle;">${job.userStatus.toUpperCase()}</span></div>
-                        <div style="font-size:0.82rem;color:#555;">${job.companyName} · ${job.location} ${job.postedAt ? `· Postado: ${job.postedAt.split('T')[0]}` : ''}</div>
+                        <div style="font-size:0.82rem;color:#555;">${job.companyName} · ${job.location} ${job.postedAt ? `· Postado: ${job.postedAt.split('T')[0]}` : ''} · <em>${job.sourceName}</em></div>
                         ${job.matchedSkills.length > 0
                           ? `<div style="margin-top:0.25rem;">${job.matchedSkills.slice(0,5).map(s => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.75rem;margin:0.1rem;">${s}</span>`).join('')}</div>`
                           : ''}
+                        <div style="margin-top:0.4rem;display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center;">
+                          ${job.tags.map(t => `<span style="display:flex;align-items:center;gap:0.2rem;background:#e2e8f0;color:#334155;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.75rem;">${t} <button onclick="window.updateJobTag('${job.id}', null, '${t}')" style="background:transparent;border:none;color:#ef4444;cursor:pointer;padding:0;font-size:0.7rem;font-weight:bold;">x</button></span>`).join('')}
+                          <input type="text" id="tag-input-${job.id}" placeholder="Nova tag..." style="font-size:0.75rem;padding:0.1rem 0.3rem;border:1px solid #ccc;border-radius:3px;width:70px;" onkeydown="if(event.key === 'Enter') { window.updateJobTag('${job.id}', this.value); this.value=''; }">
+                          <button onclick="const inp = document.getElementById('tag-input-${job.id}'); window.updateJobTag('${job.id}', inp.value); inp.value='';" style="font-size:0.7rem;padding:0.1rem 0.3rem;background:#10b981;color:#fff;border:none;border-radius:3px;cursor:pointer;">+</button>
+                        </div>
                       </div>
                       <div style="display:flex;flex-direction:column;gap:0.3rem;">
                         <a href="${job.sourceUrl}" target="_blank" rel="noreferrer" style="font-size:0.85rem;color:#0066cc;text-decoration:none;white-space:nowrap;text-align:center;">Ver ↗</a>
@@ -298,10 +312,14 @@ export function renderDashboardPage(data: DashboardData): string {
       const q = params.get("q");
       const status = params.get("status");
       const minScore = params.get("minScore");
+      const location = params.get("location");
+      const sourceName = params.get("sourceName");
       
       if(q) document.querySelector('input[name="q"]').value = q;
+      if(location) document.querySelector('input[name="location"]').value = location;
       if(status) document.querySelector('select[name="status"]').value = status;
       if(minScore) document.querySelector('select[name="minScore"]').value = minScore;
+      if(sourceName) document.querySelector('select[name="sourceName"]').value = sourceName;
     });
 
     async function updateJobStatus(jobId, newStatus) {
@@ -313,7 +331,6 @@ export function renderDashboardPage(data: DashboardData): string {
         });
         const json = await res.json();
         if(json.ok) {
-          // Atualiza a página para refletir o novo estado nos filtros
           window.location.reload();
         } else {
           alert("Erro ao atualizar vaga: " + (json.error?.message || "Unknown error"));
@@ -322,6 +339,25 @@ export function renderDashboardPage(data: DashboardData): string {
         alert("Falha na rede: " + err);
       }
     }
+
+    window.updateJobTag = async function(jobId, addTag, removeTag) {
+      if (!addTag && !removeTag) return;
+      try {
+        const res = await fetch('${data.apiBaseUrl}/v1/jobs/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: jobId, addTag, removeTag })
+        });
+        const json = await res.json();
+        if(json.ok) {
+          window.location.reload();
+        } else {
+          alert("Erro ao atualizar tags: " + (json.error?.message || "Unknown error"));
+        }
+      } catch(err) {
+        alert("Falha na rede: " + err);
+      }
+    };
   </script>
 </body>
 </html>
