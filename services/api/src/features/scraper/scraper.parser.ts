@@ -6,6 +6,19 @@ function safeStr(value: unknown, fallback = ""): string {
   return fallback;
 }
 
+function safeDateStr(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim().length > 0) {
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  if (typeof value === "number") {
+    // try to handle unix timestamp in seconds
+    const d = new Date(value * 1000);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  return undefined;
+}
+
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "…";
@@ -37,6 +50,7 @@ function parseRemotiveItem(item: RawJobItem, sourceName: string): IngestJobPosti
   const sourceUrl = safeStr(item["url"]);
   const description = safeStr(item["description"]);
   const location = safeStr(item["candidate_required_location"], "Remote");
+  const postedAt = safeDateStr(item["publication_date"]);
 
   if (!title || !companyName || !sourceUrl || !description) return null;
 
@@ -46,6 +60,7 @@ function parseRemotiveItem(item: RawJobItem, sourceName: string): IngestJobPosti
     sourceName,
     sourceUrl,
     location,
+    postedAt,
     description: truncate(stripHtml(description), 4000)
   };
 }
@@ -59,6 +74,7 @@ function parseArbeitnowItem(item: RawJobItem, sourceName: string): IngestJobPost
   const sourceUrl = safeStr(item["url"]);
   const description = safeStr(item["description"]);
   const location = safeStr(item["location"], "Remote");
+  const postedAt = safeDateStr(item["created_at"]);
 
   if (!title || !companyName || !sourceUrl || !description) return null;
 
@@ -68,6 +84,7 @@ function parseArbeitnowItem(item: RawJobItem, sourceName: string): IngestJobPost
     sourceName,
     sourceUrl,
     location,
+    postedAt,
     description: truncate(stripHtml(description), 4000)
   };
 }
@@ -81,6 +98,7 @@ function parseRemoteOkItem(item: RawJobItem, sourceName: string): IngestJobPosti
   const sourceUrl = safeStr(item["url"]);
   const description = safeStr(item["description"]);
   const location = safeStr(item["location"], "Remote");
+  const postedAt = safeDateStr(item["date"]);
 
   if (!title || !companyName || !sourceUrl || !description) return null;
 
@@ -90,6 +108,7 @@ function parseRemoteOkItem(item: RawJobItem, sourceName: string): IngestJobPosti
     sourceName,
     sourceUrl,
     location,
+    postedAt,
     description: truncate(stripHtml(description), 4000)
   };
 }
@@ -103,6 +122,7 @@ function parseJobicyItem(item: RawJobItem, sourceName: string): IngestJobPosting
   const sourceUrl = safeStr(item["url"]);
   const description = safeStr(item["jobDescription"]);
   const location = safeStr(item["jobGeo"], "Remote");
+  const postedAt = safeDateStr(item["pubDate"]);
 
   if (!title || !companyName || !sourceUrl || !description) return null;
 
@@ -112,6 +132,7 @@ function parseJobicyItem(item: RawJobItem, sourceName: string): IngestJobPosting
     sourceName,
     sourceUrl,
     location,
+    postedAt,
     description: truncate(stripHtml(description), 4000)
   };
 }

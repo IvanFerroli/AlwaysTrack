@@ -144,6 +144,16 @@ export class InMemoryStateStore {
     return jobPosting;
   }
 
+  updateJobPosting(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): JobPosting | undefined {
+    const job = this.findJobPostingById(id);
+    if (!job) return undefined;
+
+    if (updates.userStatus) job.userStatus = updates.userStatus;
+    if (updates.tags) job.tags = updates.tags;
+
+    return job;
+  }
+
   createAgentRun(agent: string, capability: string): AgentRun {
     const agentRun: AgentRun = {
       id: nextId("run", this.counters.agentRun++),

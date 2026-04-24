@@ -54,6 +54,8 @@ export interface MainCvAnalyzeResult {
   resumeProfile: ResumeProfile;
 }
 
+export type JobUserStatus = "new" | "applied" | "discarded";
+
 export interface JobPosting {
   id: string;
   title: string;
@@ -65,6 +67,9 @@ export interface JobPosting {
   normalizedTokens: string[];
   dedupeKey: string;
   createdAt: string;
+  postedAt?: string;
+  userStatus: JobUserStatus;
+  tags: string[];
 }
 
 export interface IngestJobPostingInput {
@@ -74,6 +79,7 @@ export interface IngestJobPostingInput {
   sourceUrl: string;
   location?: string;
   description: string;
+  postedAt?: string;
 }
 
 export interface IngestJobPostingResult {

@@ -54,6 +54,7 @@ router.register("GET", "/health", createHealthHandler(startedAt));
 router.register("GET", "/ping", pingHandler);
 router.register("GET", "/v1/job-postings", ingestHandlers.list);
 router.register("POST", "/v1/job-postings/ingest", ingestHandlers.ingest);
+router.register("POST", "/v1/jobs/update", ingestHandlers.update);
 router.register("GET", "/v1/resume-profiles", resumeProfilesHandlers.list);
 router.register("POST", "/v1/resume-profiles", resumeProfilesHandlers.create);
 router.register("GET", "/v1/resume-profiles/get", resumeProfilesHandlers.getById);

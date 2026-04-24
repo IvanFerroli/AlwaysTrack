@@ -22,7 +22,14 @@ export function createMatchHandlers(service: MatchService): {
     const queryStart = rawUrl.indexOf("?");
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
     const resumeProfileId = params.get("resumeProfileId") ?? undefined;
-    sendApiResult(response, service.listRanked(resumeProfileId));
+    const q = params.get("q") ?? undefined;
+    const minScoreStr = params.get("minScore");
+    const minScore = minScoreStr ? parseInt(minScoreStr, 10) : undefined;
+    const status = (params.get("status") as any) ?? undefined;
+    const tagsParam = params.get("tags");
+    const tags = tagsParam ? tagsParam.split(",").map(t => t.trim()) : undefined;
+
+    sendApiResult(response, service.listRanked(resumeProfileId, { q, minScore, status, tags }));
   };
 
   return { score, listRanked };

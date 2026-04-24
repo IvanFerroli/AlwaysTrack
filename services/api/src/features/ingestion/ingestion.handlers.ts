@@ -7,6 +7,7 @@ import { validateIngestPayload } from "./ingestion.validate.js";
 export function createIngestHandlers(service: IngestionService): {
   ingest: HttpHandler;
   list: HttpHandler;
+  update: HttpHandler;
 } {
   const ingest: HttpHandler = async ({ request, response }) => {
     const payload = await readJsonBody(request);
@@ -21,5 +22,18 @@ export function createIngestHandlers(service: IngestionService): {
     sendApiResult(response, service.list());
   };
 
-  return { ingest, list };
+  const update: HttpHandler = async ({ request, response }) => {
+    try {
+      const payload = await readJsonBody(request);
+      if (!payload.id) {
+        sendApiResult(response, { ok: false, error: { code: "INVALID_PAYLOAD", message: "Missing job id" } });
+        return;
+      }
+      sendApiResult(response, service.updateJob(payload.id, payload));
+    } catch (err) {
+      sendApiResult(response, { ok: false, error: { code: "SERVER_ERROR", message: String(err) } });
+    }
+  };
+
+  return { ingest, list, update };
 }

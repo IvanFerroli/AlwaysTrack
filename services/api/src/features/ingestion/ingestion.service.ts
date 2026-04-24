@@ -53,7 +53,9 @@ export class IngestionService {
     const jobPosting: JobPosting = this.store.insertJobPosting({
       ...normalizedPayload,
       normalizedTokens,
-      dedupeKey
+      dedupeKey,
+      userStatus: "new",
+      tags: []
     });
 
     this.store.createDecisionLog(
@@ -77,6 +79,14 @@ export class IngestionService {
 
   list(): ApiResult<{ items: JobPosting[] }> {
     return ok({ items: this.store.listJobPostings() });
+  }
+
+  updateJob(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): ApiResult<JobPosting> {
+    const job = this.store.updateJobPosting(id, updates);
+    if (!job) {
+      return fail("JOB_NOT_FOUND", `Job posting ${id} not found`);
+    }
+    return ok(job);
   }
 
   failValidation(): ApiResult<never> {

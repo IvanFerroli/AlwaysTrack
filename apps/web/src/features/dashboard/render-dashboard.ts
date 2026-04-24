@@ -199,26 +199,51 @@ export function renderDashboardPage(data: DashboardData): string {
             🎯 Vagas por Afinidade
             <span class="info-icon" data-tooltip="Vagas ranqueadas por overlap de skills com seu resume profile ativo">i</span>
           </h2>
+          
+          <form method="GET" action="/" style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+            <input type="text" name="q" placeholder="Buscar por palavra-chave..." style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:150px;">
+            <select name="status" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
+              <option value="">Todos os status</option>
+              <option value="new">New</option>
+              <option value="applied">Applied</option>
+              <option value="discarded">Discarded</option>
+            </select>
+            <select name="minScore" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
+              <option value="0">Score: Qualquer</option>
+              <option value="30">Score: >30%</option>
+              <option value="60">Score: >60%</option>
+              <option value="90">Score: >90%</option>
+            </select>
+            <button type="submit" style="padding:0.4rem 1rem;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filtrar</button>
+            <a href="/" style="padding:0.4rem 1rem;background:#f0f0f0;color:#333;text-decoration:none;border-radius:4px;border:1px solid #ccc;">Limpar</a>
+          </form>
+
           ${!data.rankedJobs.ok
             ? '<p style="color:#666;">Nenhuma vaga ranqueada ainda. Rode <code>POST /v1/scraper/run</code> e crie um resume profile.</p>'
             : data.rankedJobs.data.items.length === 0
-              ? '<p style="color:#666;">Nenhuma vaga disponível. Rode o scraper primeiro.</p>'
+              ? '<p style="color:#666;">Nenhuma vaga corresponde aos filtros ou disponível.</p>'
               : `<div style="display:grid;gap:0.75rem;">
-                  ${data.rankedJobs.data.items.slice(0, 15).map(job => {
+                  ${data.rankedJobs.data.items.slice(0, 30).map(job => {
                     const scoreColor = job.score >= 60 ? '#22c55e' : job.score >= 30 ? '#f59e0b' : '#94a3b8';
                     const scoreBg   = job.score >= 60 ? '#f0fdf4' : job.score >= 30 ? '#fffbeb' : '#f8fafc';
+                    const statusColor = job.userStatus === 'applied' ? '#3b82f6' : job.userStatus === 'discarded' ? '#ef4444' : '#64748b';
+                    
                     return `<div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:${scoreBg};border-radius:6px;border-left:3px solid ${scoreColor};">
                       <div style="min-width:3.5rem;text-align:center;">
                         <strong style="font-size:1.1rem;color:${scoreColor};">${job.score}%</strong>
                       </div>
                       <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${job.title}</div>
-                        <div style="font-size:0.82rem;color:#555;">${job.companyName} · ${job.location}</div>
+                        <div style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${job.title} <span style="font-size:0.7rem;padding:0.1rem 0.3rem;background:${statusColor};color:white;border-radius:3px;vertical-align:middle;">${job.userStatus.toUpperCase()}</span></div>
+                        <div style="font-size:0.82rem;color:#555;">${job.companyName} · ${job.location} ${job.postedAt ? `· Postado: ${job.postedAt.split('T')[0]}` : ''}</div>
                         ${job.matchedSkills.length > 0
                           ? `<div style="margin-top:0.25rem;">${job.matchedSkills.slice(0,5).map(s => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.75rem;margin:0.1rem;">${s}</span>`).join('')}</div>`
                           : ''}
                       </div>
-                      <a href="${job.sourceUrl}" target="_blank" rel="noreferrer" style="font-size:0.85rem;color:#0066cc;text-decoration:none;white-space:nowrap;">Ver ↗</a>
+                      <div style="display:flex;flex-direction:column;gap:0.3rem;">
+                        <a href="${job.sourceUrl}" target="_blank" rel="noreferrer" style="font-size:0.85rem;color:#0066cc;text-decoration:none;white-space:nowrap;text-align:center;">Ver ↗</a>
+                        ${job.userStatus !== 'applied' ? `<button onclick="updateJobStatus('${job.id}', 'applied')" style="font-size:0.7rem;padding:0.2rem 0.4rem;background:#3b82f6;color:#fff;border:none;border-radius:3px;cursor:pointer;">Apply</button>` : ''}
+                        ${job.userStatus !== 'discarded' ? `<button onclick="updateJobStatus('${job.id}', 'discarded')" style="font-size:0.7rem;padding:0.2rem 0.4rem;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;">Discard</button>` : ''}
+                      </div>
                     </div>`;
                   }).join('')}
                 </div>`
@@ -265,6 +290,39 @@ export function renderDashboardPage(data: DashboardData): string {
 
     ${renderFooter()}
   </div>
+
+  <script>
+    // Recuperar filtros da URL e setar nos inputs do form
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("q");
+      const status = params.get("status");
+      const minScore = params.get("minScore");
+      
+      if(q) document.querySelector('input[name="q"]').value = q;
+      if(status) document.querySelector('select[name="status"]').value = status;
+      if(minScore) document.querySelector('select[name="minScore"]').value = minScore;
+    });
+
+    async function updateJobStatus(jobId, newStatus) {
+      try {
+        const res = await fetch('${data.apiBaseUrl}/v1/jobs/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: jobId, userStatus: newStatus })
+        });
+        const json = await res.json();
+        if(json.ok) {
+          // Atualiza a página para refletir o novo estado nos filtros
+          window.location.reload();
+        } else {
+          alert("Erro ao atualizar vaga: " + (json.error?.message || "Unknown error"));
+        }
+      } catch(err) {
+        alert("Falha na rede: " + err);
+      }
+    }
+  </script>
 </body>
 </html>
   `;

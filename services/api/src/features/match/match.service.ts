@@ -1,5 +1,12 @@
-import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting } from "@olympus/shared-types";
+import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting, JobUserStatus } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
+
+export interface JobFilterOptions {
+  q?: string;
+  minScore?: number;
+  status?: JobUserStatus;
+  tags?: string[];
+}
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -58,23 +65,47 @@ export class MatchService {
     return ok(result);
   }
 
-  listRanked(resumeProfileId?: string): ApiResult<{ items: RankedJobPosting[] }> {
-    const jobs = this.store.listJobPostings();
-    const profiles = this.store.listResumeProfiles();
+  listRanked(
+    resumeProfileId?: string,
+    filters?: JobFilterOptions
+  ): ApiResult<{ items: RankedJobPosting[] }> {
+    let jobs = this.store.listJobPostings();
 
+    if (filters) {
+      if (filters.status) {
+        jobs = jobs.filter(j => j.userStatus === filters.status);
+      }
+      if (filters.tags && filters.tags.length > 0) {
+        jobs = jobs.filter(j => filters.tags!.every(tag => j.tags.includes(tag)));
+      }
+      if (filters.q) {
+        const qLower = filters.q.toLowerCase();
+        jobs = jobs.filter(j => 
+          j.title.toLowerCase().includes(qLower) || 
+          j.companyName.toLowerCase().includes(qLower) ||
+          j.description.toLowerCase().includes(qLower)
+        );
+      }
+    }
+
+    const profiles = this.store.listResumeProfiles();
     const profile = resumeProfileId
       ? profiles.find((p) => p.id === resumeProfileId)
       : profiles[0];
 
     if (!profile || jobs.length === 0) {
-      return ok({ items: jobs.map((j) => ({ ...j, score: 0, matchedSkills: [] })) });
+      let unranked: RankedJobPosting[] = jobs.map((j) => ({ ...j, score: 0, matchedSkills: [] }));
+      if (filters?.minScore && filters.minScore > 0) {
+        unranked = unranked.filter(j => j.score >= filters.minScore!);
+      }
+      return ok({ items: unranked });
     }
 
     const normalizedSkills = profile.skills
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s.length > 0);
 
-    const ranked: RankedJobPosting[] = jobs.map((job) => {
+    let ranked: RankedJobPosting[] = jobs.map((job) => {
       const tokenSet = new Set(job.normalizedTokens);
       const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
       const score = normalizedSkills.length > 0
@@ -82,6 +113,10 @@ export class MatchService {
         : 0;
       return { ...job, score, matchedSkills };
     });
+
+    if (filters?.minScore && filters.minScore > 0) {
+      ranked = ranked.filter(j => j.score >= filters.minScore!);
+    }
 
     ranked.sort((a, b) => b.score - a.score);
     return ok({ items: ranked });

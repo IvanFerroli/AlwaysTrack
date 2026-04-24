@@ -25,11 +25,11 @@ export interface DashboardData {
   cvSources: ApiResult<ListPayload<MainCvSource>>;
 }
 
-export async function loadDashboardData(apiBaseUrl: string): Promise<DashboardData> {
+export async function loadDashboardData(apiBaseUrl: string, queryString: string = ""): Promise<DashboardData> {
   const [jobs, rankedJobs, decisions, approvals, applications, memoryEntries, metrics, resumeProfiles, cvSources] =
     await Promise.all([
       fetchJson<ListPayload<JobPosting>>(`${apiBaseUrl}/v1/job-postings`),
-      fetchJson<ListPayload<RankedJobPosting>>(`${apiBaseUrl}/v1/jobs/ranked`),
+      fetchJson<ListPayload<RankedJobPosting>>(`${apiBaseUrl}/v1/jobs/ranked${queryString ? `?${queryString}` : ""}`),
       fetchJson<ListPayload<DecisionLog>>(`${apiBaseUrl}/v1/decision-logs`),
       fetchJson<ListPayload<ApprovalRequest>>(`${apiBaseUrl}/v1/approval-queue`),
       fetchJson<ListPayload<ApplicationRecord>>(`${apiBaseUrl}/v1/applications`),

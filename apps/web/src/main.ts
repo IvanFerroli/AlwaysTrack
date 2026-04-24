@@ -179,7 +179,7 @@ const server = createServer(async (request, response) => {
   if (pathname === "/") {
     const [apiHealth, dashboard] = await Promise.all([
       loadApiHealth(env.apiBaseUrl),
-      loadDashboardData(env.apiBaseUrl)
+      loadDashboardData(env.apiBaseUrl, url.searchParams.toString())
     ]);
     sendHtml(
       response,
