@@ -9,6 +9,7 @@ import type {
   ListPayload,
   MetricsSnapshot,
   JobPosting,
+  RankedJobPosting,
   ApprovalRequest,
   ApplicationRecord,
   DecisionLog,
@@ -20,6 +21,7 @@ interface DashboardData {
   health: ApiResult<HealthPayload>;
   metrics: ApiResult<MetricsSnapshot>;
   jobs: ApiResult<ListPayload<JobPosting>>;
+  rankedJobs: ApiResult<ListPayload<RankedJobPosting>>;
   approvals: ApiResult<ListPayload<ApprovalRequest>>;
   applications: ApiResult<ListPayload<ApplicationRecord>>;
   decisions: ApiResult<ListPayload<DecisionLog>>;
@@ -88,6 +90,8 @@ function renderRouteTable(apiBaseUrl: string): string {
     { method: "GET", route: "/v1/decision-logs", desc: "List decisions", category: "api" },
     { method: "GET", route: "/v1/memory-entries", desc: "List memory entries", category: "api" },
     { method: "GET", route: "/v1/metrics", desc: "Get metrics snapshot", category: "api" },
+    { method: "GET", route: "/v1/jobs/ranked", desc: "Vagas ranqueadas por afinidade", category: "api" },
+    { method: "POST", route: "/v1/scraper/run", desc: "Disparar scraping de vagas", category: "api" },
     { method: "POST", route: "/v1/job-postings/ingest", desc: "Ingest job (direct)", category: "api" },
     { method: "POST", route: "/v1/resume-profiles/create", desc: "Create profile (direct)", category: "api" },
     { method: "POST", route: "/v1/main-cv/analyze", desc: "Analyze CV (direct)", category: "api" },
@@ -160,6 +164,9 @@ export function renderDashboardPage(data: DashboardData): string {
           </h2>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <a href="/workspace" style="padding: 0.6rem 1rem; background: #0066cc; color: #fff; text-decoration: none; border-radius: 4px; display: inline-block;">→ Ir para Workspace</a>
+            <form action="/v1/scraper/run" method="POST" target="_blank" style="margin: 0;">
+              <button type="submit" style="padding: 0.6rem 1rem; background: #22c55e; color: #fff; text-decoration: none; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 600; display: inline-block;">🚀 Start Climbing (Run Scraper)</button>
+            </form>
             <a href="/health" style="padding: 0.6rem 1rem; background: #f0f0f0; color: #333; text-decoration: none; border-radius: 4px; display: inline-block; border: 1px solid #ddd;">📊 Ver Health</a>
             <a href="/guide" style="padding: 0.6rem 1rem; background: #f0f0f0; color: #333; text-decoration: none; border-radius: 4px; display: inline-block; border: 1px solid #ddd;">📚 Como Usar</a>
           </div>
@@ -186,6 +193,38 @@ export function renderDashboardPage(data: DashboardData): string {
           ${renderRouteTable(data.apiBaseUrl)}
         </section>
 
+        <!-- Affinity Ranking -->
+        <section class="panel">
+          <h2>
+            🎯 Vagas por Afinidade
+            <span class="info-icon" data-tooltip="Vagas ranqueadas por overlap de skills com seu resume profile ativo">i</span>
+          </h2>
+          ${!data.rankedJobs.ok
+            ? '<p style="color:#666;">Nenhuma vaga ranqueada ainda. Rode <code>POST /v1/scraper/run</code> e crie um resume profile.</p>'
+            : data.rankedJobs.data.items.length === 0
+              ? '<p style="color:#666;">Nenhuma vaga disponível. Rode o scraper primeiro.</p>'
+              : `<div style="display:grid;gap:0.75rem;">
+                  ${data.rankedJobs.data.items.slice(0, 15).map(job => {
+                    const scoreColor = job.score >= 60 ? '#22c55e' : job.score >= 30 ? '#f59e0b' : '#94a3b8';
+                    const scoreBg   = job.score >= 60 ? '#f0fdf4' : job.score >= 30 ? '#fffbeb' : '#f8fafc';
+                    return `<div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:${scoreBg};border-radius:6px;border-left:3px solid ${scoreColor};">
+                      <div style="min-width:3.5rem;text-align:center;">
+                        <strong style="font-size:1.1rem;color:${scoreColor};">${job.score}%</strong>
+                      </div>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${job.title}</div>
+                        <div style="font-size:0.82rem;color:#555;">${job.companyName} · ${job.location}</div>
+                        ${job.matchedSkills.length > 0
+                          ? `<div style="margin-top:0.25rem;">${job.matchedSkills.slice(0,5).map(s => `<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.75rem;margin:0.1rem;">${s}</span>`).join('')}</div>`
+                          : ''}
+                      </div>
+                      <a href="${job.sourceUrl}" target="_blank" rel="noreferrer" style="font-size:0.85rem;color:#0066cc;text-decoration:none;white-space:nowrap;">Ver ↗</a>
+                    </div>`;
+                  }).join('')}
+                </div>`
+          }
+        </section>
+
         <!-- Quick Stats -->
         <section class="panel">
           <h2>
@@ -204,8 +243,9 @@ export function renderDashboardPage(data: DashboardData): string {
             </div>
             <div>
               <h3 style="margin-top: 0; font-size: 1rem;">Recent Activity</h3>
-              <small style="color: #666;">
+               <small style="color: #666;">
                 Jobs: ${data.jobs.ok ? data.jobs.data.items.length : "?"} •
+                Ranked: ${data.rankedJobs.ok ? data.rankedJobs.data.items.length : "?"} •
                 Approvals: ${data.approvals.ok ? data.approvals.data.items.length : "?"} •
                 Applications: ${data.applications.ok ? data.applications.data.items.length : "?"}
               </small>

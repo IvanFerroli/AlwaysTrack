@@ -94,6 +94,11 @@ export interface MatchScoreResult {
   rationale: string;
 }
 
+export interface RankedJobPosting extends JobPosting {
+  score: number;
+  matchedSkills: string[];
+}
+
 export interface AgentRun {
   id: string;
   agent: string;

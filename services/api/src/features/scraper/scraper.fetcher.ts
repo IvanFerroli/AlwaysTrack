@@ -46,5 +46,24 @@ export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJob
     return payload.data;
   }
 
+  if (source.format === "remoteok-json") {
+    // RemoteOK: array onde índice 0 é meta e os restantes são jobs
+    const arr = data as RawJobItem[];
+    if (!Array.isArray(arr) || arr.length < 2) {
+      throw new Error(`[scraper.fetcher] RemoteOK response invalid array`);
+    }
+    // Remove o índice 0 (legal/meta)
+    return arr.slice(1);
+  }
+
+  if (source.format === "jobicy-json") {
+    // Jobicy: { jobs: [...] }
+    const payload = data as { jobs?: RawJobItem[] };
+    if (!Array.isArray(payload.jobs)) {
+      throw new Error(`[scraper.fetcher] Jobicy response missing 'jobs' array`);
+    }
+    return payload.jobs;
+  }
+
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);
 }

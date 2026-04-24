@@ -188,6 +188,7 @@ const server = createServer(async (request, response) => {
         health: apiHealth,
         metrics: dashboard.metrics,
         jobs: dashboard.jobs,
+        rankedJobs: dashboard.rankedJobs,
         approvals: dashboard.approvals,
         applications: dashboard.applications,
         decisions: dashboard.decisions,

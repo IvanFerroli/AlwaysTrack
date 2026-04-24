@@ -1,4 +1,4 @@
-import type { ApiResult, MatchScoreInput, MatchScoreResult } from "@olympus/shared-types";
+import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 
 function ok<T>(data: T): ApiResult<T> {
@@ -56,6 +56,35 @@ export class MatchService {
     this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok(result);
+  }
+
+  listRanked(resumeProfileId?: string): ApiResult<{ items: RankedJobPosting[] }> {
+    const jobs = this.store.listJobPostings();
+    const profiles = this.store.listResumeProfiles();
+
+    const profile = resumeProfileId
+      ? profiles.find((p) => p.id === resumeProfileId)
+      : profiles[0];
+
+    if (!profile || jobs.length === 0) {
+      return ok({ items: jobs.map((j) => ({ ...j, score: 0, matchedSkills: [] })) });
+    }
+
+    const normalizedSkills = profile.skills
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0);
+
+    const ranked: RankedJobPosting[] = jobs.map((job) => {
+      const tokenSet = new Set(job.normalizedTokens);
+      const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
+      const score = normalizedSkills.length > 0
+        ? Math.round((matchedSkills.length / normalizedSkills.length) * 100)
+        : 0;
+      return { ...job, score, matchedSkills };
+    });
+
+    ranked.sort((a, b) => b.score - a.score);
+    return ok({ items: ranked });
   }
 
   failValidation(): ApiResult<never> {

@@ -1,7 +1,7 @@
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { fetchJobItems } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
-import type { ScraperRunResult, ScraperSourceConfig } from "./scraper.types.js";
+import type { ScraperRunResult, ScraperSourceConfig, SourceRunResult } from "./scraper.types.js";
 
 /**
  * Fontes padrão configuradas.
@@ -17,25 +17,23 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     name: "Arbeitnow",
     url: "https://www.arbeitnow.com/api/job-board-api",
     format: "arbeitnow-json"
+  },
+  remoteok: {
+    name: "RemoteOK",
+    url: "https://remoteok.com/api",
+    format: "remoteok-json"
+  },
+  jobicy: {
+    name: "Jobicy",
+    url: "https://jobicy.com/api/v2/remote-jobs",
+    format: "jobicy-json"
   }
 };
 
-/**
- * Orquestra o ciclo completo: fetch → parse → ingest.
- * Delega ao IngestionService para manter deduplicação e auditoria.
- */
-export async function runScraper(
+async function runSingleSource(
   ingestionService: IngestionService,
-  sourceKey = process.env["SCRAPER_SOURCE"] ?? "remotive"
-): Promise<ScraperRunResult> {
-  const source = SCRAPER_SOURCES[sourceKey];
-
-  if (!source) {
-    throw new Error(
-      `[scraper.runner] unknown source key: "${sourceKey}". Available: ${Object.keys(SCRAPER_SOURCES).join(", ")}`
-    );
-  }
-
+  source: ScraperSourceConfig
+): Promise<SourceRunResult> {
   const rawItems = await fetchJobItems(source);
   const parsedItems = parseJobItems(rawItems, source);
 
@@ -61,10 +59,57 @@ export async function runScraper(
   }
 
   return {
-    source: source.name,
+    name: source.name,
     fetched: rawItems.length,
     ingested,
     deduplicated,
     errors
+  };
+}
+
+/**
+ * Orquestra o ciclo completo: fetch → parse → ingest.
+ * Delega ao IngestionService para manter deduplicação e auditoria.
+ */
+export async function runScraper(
+  ingestionService: IngestionService,
+  sourceKey = process.env["SCRAPER_SOURCE"] ?? "all"
+): Promise<ScraperRunResult> {
+  if (sourceKey === "all") {
+    const results = await Promise.all(
+      Object.values(SCRAPER_SOURCES).map(src => runSingleSource(ingestionService, src))
+    );
+
+    const total = results.reduce(
+      (acc, res) => ({
+        fetched: acc.fetched + res.fetched,
+        ingested: acc.ingested + res.ingested,
+        deduplicated: acc.deduplicated + res.deduplicated,
+        errors: [...acc.errors, ...res.errors]
+      }),
+      { fetched: 0, ingested: 0, deduplicated: 0, errors: [] as string[] }
+    );
+
+    return {
+      source: "All Sources",
+      ...total,
+      sources: results
+    };
+  }
+
+  const source = SCRAPER_SOURCES[sourceKey];
+  if (!source) {
+    throw new Error(
+      `[scraper.runner] unknown source key: "${sourceKey}". Available: all, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
+    );
+  }
+
+  const res = await runSingleSource(ingestionService, source);
+  return {
+    source: res.name,
+    fetched: res.fetched,
+    ingested: res.ingested,
+    deduplicated: res.deduplicated,
+    errors: res.errors
   };
 }

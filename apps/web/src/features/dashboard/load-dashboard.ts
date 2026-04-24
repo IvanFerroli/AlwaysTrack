@@ -8,12 +8,14 @@ import type {
   ListPayload,
   MemoryEntry,
   MetricsSnapshot,
+  RankedJobPosting,
   ResumeProfile
 } from "@olympus/shared-types";
 import { fetchJson } from "../../core/http/fetch-json.js";
 
 export interface DashboardData {
   jobs: ApiResult<ListPayload<JobPosting>>;
+  rankedJobs: ApiResult<ListPayload<RankedJobPosting>>;
   decisions: ApiResult<ListPayload<DecisionLog>>;
   approvals: ApiResult<ListPayload<ApprovalRequest>>;
   applications: ApiResult<ListPayload<ApplicationRecord>>;
@@ -24,9 +26,10 @@ export interface DashboardData {
 }
 
 export async function loadDashboardData(apiBaseUrl: string): Promise<DashboardData> {
-  const [jobs, decisions, approvals, applications, memoryEntries, metrics, resumeProfiles, cvSources] =
+  const [jobs, rankedJobs, decisions, approvals, applications, memoryEntries, metrics, resumeProfiles, cvSources] =
     await Promise.all([
       fetchJson<ListPayload<JobPosting>>(`${apiBaseUrl}/v1/job-postings`),
+      fetchJson<ListPayload<RankedJobPosting>>(`${apiBaseUrl}/v1/jobs/ranked`),
       fetchJson<ListPayload<DecisionLog>>(`${apiBaseUrl}/v1/decision-logs`),
       fetchJson<ListPayload<ApprovalRequest>>(`${apiBaseUrl}/v1/approval-queue`),
       fetchJson<ListPayload<ApplicationRecord>>(`${apiBaseUrl}/v1/applications`),
@@ -36,5 +39,5 @@ export async function loadDashboardData(apiBaseUrl: string): Promise<DashboardDa
       fetchJson<ListPayload<MainCvSource>>(`${apiBaseUrl}/v1/main-cv/sources`)
     ]);
 
-  return { jobs, decisions, approvals, applications, memoryEntries, metrics, resumeProfiles, cvSources };
+  return { jobs, rankedJobs, decisions, approvals, applications, memoryEntries, metrics, resumeProfiles, cvSources };
 }
