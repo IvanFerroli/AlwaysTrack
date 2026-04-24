@@ -138,6 +138,59 @@ function parseJobicyItem(item: RawJobItem, sourceName: string): IngestJobPosting
 }
 
 /**
+ * Converte um item bruto do formato Himalayas para IngestJobPostingInput.
+ */
+function parseHimalayasItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["title"]);
+  const companyName = safeStr(item["companyName"]);
+  const sourceUrl = safeStr(item["applicationLink"]);
+  const description = safeStr(item["description"]);
+  
+  let location = "Remote";
+  if (Array.isArray(item["locationRestrictions"]) && item["locationRestrictions"].length > 0) {
+    location = String(item["locationRestrictions"].join(", "));
+  }
+
+  const postedAt = safeDateStr(item["pubDate"]);
+
+  if (!title || !companyName || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
+/**
+ * Converte um item bruto do formato CryptoJobsList para IngestJobPostingInput.
+ */
+function parseCryptoJobsListItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["jobTitle"]);
+  const companyName = safeStr(item["companyName"]);
+  const sourceUrl = safeStr(item["applicationLink"]);
+  const description = safeStr(item["jobDescription"]);
+  const location = safeStr(item["location"], "Remote");
+  const postedAt = safeDateStr(item["publishedAt"]);
+
+  if (!title || !companyName || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
+/**
  * Converte uma lista de itens brutos para IngestJobPostingInput[],
  * descartando silenciosamente itens inválidos ou incompletos.
  */
@@ -158,6 +211,10 @@ export function parseJobItems(
       parsed = parseRemoteOkItem(item, source.name);
     } else if (source.format === "jobicy-json") {
       parsed = parseJobicyItem(item, source.name);
+    } else if (source.format === "himalayas-json") {
+      parsed = parseHimalayasItem(item, source.name);
+    } else if (source.format === "cryptojobslist-json") {
+      parsed = parseCryptoJobsListItem(item, source.name);
     }
 
     if (parsed) results.push(parsed);

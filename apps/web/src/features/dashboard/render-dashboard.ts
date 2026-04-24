@@ -209,6 +209,8 @@ export function renderDashboardPage(data: DashboardData): string {
               <option value="Arbeitnow">Arbeitnow</option>
               <option value="RemoteOK">RemoteOK</option>
               <option value="Jobicy">Jobicy</option>
+              <option value="Himalayas">Himalayas</option>
+              <option value="CryptoJobsList">CryptoJobsList</option>
             </select>
             <select name="status" style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;">
               <option value="">Todos os status</option>

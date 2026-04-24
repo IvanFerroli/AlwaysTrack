@@ -25,8 +25,18 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   },
   jobicy: {
     name: "Jobicy",
-    url: "https://jobicy.com/api/v2/remote-jobs?count=200",
+    url: "https://jobicy.com/api/v2/remote-jobs?count=50",
     format: "jobicy-json"
+  },
+  himalayas: {
+    name: "Himalayas",
+    url: "https://himalayas.app/jobs/api?limit=150",
+    format: "himalayas-json"
+  },
+  cryptojobslist: {
+    name: "CryptoJobsList",
+    url: "https://cryptojobslist.com/api/jobs",
+    format: "cryptojobslist-json"
   }
 };
 

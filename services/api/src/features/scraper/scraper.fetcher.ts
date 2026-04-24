@@ -65,5 +65,21 @@ export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJob
     return payload.jobs;
   }
 
+  if (source.format === "himalayas-json") {
+    const payload = data as { jobs?: RawJobItem[] };
+    if (!Array.isArray(payload.jobs)) {
+      throw new Error(`[scraper.fetcher] Himalayas response missing 'jobs' array`);
+    }
+    return payload.jobs;
+  }
+
+  if (source.format === "cryptojobslist-json") {
+    const arr = data as RawJobItem[];
+    if (!Array.isArray(arr)) {
+      throw new Error(`[scraper.fetcher] CryptoJobsList response invalid array`);
+    }
+    return arr;
+  }
+
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);
 }
