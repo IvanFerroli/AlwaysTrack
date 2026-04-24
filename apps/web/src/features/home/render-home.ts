@@ -11,6 +11,7 @@ import type {
   MetricsSnapshot,
   ResumeProfile
 } from "@olympus/shared-types";
+import { globalStyles, renderHeader, renderBreadcrumb, renderFooter, renderFlash as renderFlashComponent } from "../../core/styles.js";
 
 interface HomeFlash {
   kind: "success" | "error";
@@ -213,8 +214,8 @@ function renderFlash(flash?: HomeFlash): string {
   if (!flash) {
     return "";
   }
-  const className = flash.kind === "success" ? "flash-success" : "flash-error";
-  return `<div class="${className}">${flash.message}</div>`;
+  const messageType = flash.kind === "success" ? "success" : "error";
+  return renderFlashComponent([{ type: messageType, text: flash.message }]);
 }
 
 export function renderWorkbenchPage(
@@ -230,9 +231,6 @@ export function renderWorkbenchPage(
   apiBaseUrl: string,
   flash?: HomeFlash
 ): string {
-  const statusLine = apiHealth.ok
-    ? `API status: ${apiHealth.data.status} (${apiHealth.data.uptimeMs}ms)`
-    : `API status: error (${apiHealth.error.code})`;
 
   const jobsSection = jobs.ok ? renderJobs(jobs.data.items) : `<p>Could not load jobs (${jobs.error.code}).</p>`;
   const decisionsSection = decisions.ok
@@ -259,116 +257,194 @@ export function renderWorkbenchPage(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Olympus Climb - Workbench</title>
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 2rem; }
-      .layout { display: grid; gap: 1rem; max-width: 1000px; }
-      .panel { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: #fff; }
-      code { background: #f4f4f4; padding: 0.125rem 0.375rem; border-radius: 4px; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-      th, td { border-bottom: 1px solid #eee; text-align: left; padding: 0.5rem 0.25rem; vertical-align: top; }
-      form { display: grid; gap: 0.5rem; }
-      input, textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; }
-      button { width: fit-content; padding: 0.5rem 0.75rem; cursor: pointer; }
-      .flash-success, .flash-error { padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; }
-      .flash-success { background: #e9f7ef; border: 1px solid #b7e4c7; color: #1b4332; }
-      .flash-error { background: #fde8e8; border: 1px solid #f5c2c2; color: #7f1d1d; }
-      .route-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem; }
-      .route-btn { display: inline-block; border: 1px solid #d1d5db; border-radius: 6px; padding: 0.45rem 0.6rem; text-decoration: none; color: #111827; background: #f8fafc; }
-      .route-btn:hover { background: #eef2ff; }
-      select { width: 100%; box-sizing: border-box; padding: 0.5rem; font: inherit; }
-    </style>
+    <style>${globalStyles}</style>
   </head>
   <body>
-    <main class="layout">
-      <section class="panel">
-        <h1>Olympus Climb Workbench</h1>
-        <p>Operational workspace for ingestion, approvals and execution flow.</p>
-        <p>${statusLine}</p>
-        ${renderFlash(flash)}
-      </section>
+    <div class="page-container">
+      ${renderHeader("Olympus Climb Workbench", apiHealth.ok ? "ok" : "error", apiHealth.ok ? apiHealth.data.uptimeMs : undefined, "/workspace")}
+      ${renderBreadcrumb([
+        { label: "Dashboard", href: "/" },
+        { label: "Workspace" }
+      ])}
+      
+      <main class="page-content">
+        <div class="layout">
+          <!-- Flash Messages -->
+          ${renderFlash(flash)}
 
-      <section class="panel">
-        <h2>Route Menu</h2>
-        <p>Atalhos rápidos para cada rota de leitura/inspeção.</p>
-        ${renderRouteMenu(apiBaseUrl)}
-      </section>
+          <!-- Route Menu -->
+          <section class="panel">
+            <h2>
+              Route Menu 
+              <span class="info-icon" data-tooltip="Atalhos rápidos para inspecionar rotas web e endpoints da API">i</span>
+            </h2>
+            ${renderRouteMenu(apiBaseUrl)}
+          </section>
 
-      <section class="panel">
-        <h2>Ingest Job Posting</h2>
-        <form method="POST" action="/ingest">
-          <label>Title <input name="title" required /></label>
-          <label>Company <input name="companyName" required /></label>
-          <label>Source Name <input name="sourceName" value="manual" required /></label>
-          <label>Source URL <input name="sourceUrl" placeholder="https://..." required /></label>
-          <label>Location <input name="location" /></label>
-          <label>Description <textarea name="description" rows="4" required></textarea></label>
-          <label>Resume Profile
-            <select name="resumeProfileId" required>
-              ${profileOptions}
-            </select>
-          </label>
-          <button type="submit">Ingest + Score</button>
-        </form>
-        <hr />
-        <h3>Create Resume Profile</h3>
-        <form method="POST" action="/resume-profiles">
-          <label>Headline <input name="headline" required /></label>
-          <label>Skills (comma separated) <input name="skills" value="node,typescript,api" required /></label>
-          <button type="submit">Create Resume Profile</button>
-        </form>
-      </section>
+          <!-- Ingest & Create Profile -->
+          <section class="panel">
+            <h2>
+              Ingest Job Posting 
+              <span class="info-icon" data-tooltip="Adicione uma nova oportunidade para análise e scoring">i</span>
+            </h2>
+            <form method="POST" action="/ingest">
+              <label>
+                Title
+                <span class="info-icon" data-tooltip="Título da vaga (ex: Senior Software Engineer)">i</span>
+                <input name="title" required />
+              </label>
+              <label>
+                Company
+                <span class="info-icon" data-tooltip="Nome da empresa">i</span>
+                <input name="companyName" required />
+              </label>
+              <label>
+                Source Name
+                <span class="info-icon" data-tooltip="Origem (ex: LinkedIn, internal, etc)">i</span>
+                <input name="sourceName" value="manual" required />
+              </label>
+              <label>
+                Source URL
+                <span class="info-icon" data-tooltip="Link para a vaga (https://...)">i</span>
+                <input name="sourceUrl" placeholder="https://..." required />
+              </label>
+              <label>
+                Location
+                <span class="info-icon" data-tooltip="Local do trabalho (opcional)">i</span>
+                <input name="location" />
+              </label>
+              <label>
+                Description
+                <span class="info-icon" data-tooltip="Descrição completa da vaga">i</span>
+                <textarea name="description" rows="4" required></textarea>
+              </label>
+              <label>
+                Resume Profile
+                <span class="info-icon" data-tooltip="Perfil de candidato para matching">i</span>
+                <select name="resumeProfileId" required>
+                  ${profileOptions}
+                </select>
+              </label>
+              <button type="submit" class="primary">✓ Ingest + Score</button>
+            </form>
 
-      <section class="panel">
-        <h2>Main CV Analyzer</h2>
-        <p>Use seus arquivos em <code>doc/*.txt</code> para gerar um profile com skills extraídas e usar no matching.</p>
-        <form method="POST" action="/main-cv/analyze">
-          <label>CV text source (.txt)
-            <select name="sourceFile" required>
-              ${cvSourceOptions}
-            </select>
-          </label>
-          <label>Headline <input name="headline" value="Ivanilson Ferreira - Main CV" required /></label>
-          <label>Extra skills (comma separated)
-            <textarea name="extraSkills" rows="3" placeholder="ex: playwright,cypress,redis"></textarea>
-          </label>
-          <button type="submit">Analyze Main CV + Create Resume Profile</button>
-        </form>
-      </section>
+            <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #ddd;" />
 
-      <section class="panel">
-        <h2>Recent Job Postings</h2>
-        ${jobsSection}
-      </section>
+            <h3>Create Resume Profile</h3>
+            <form method="POST" action="/resume-profiles">
+              <label>
+                Headline
+                <span class="info-icon" data-tooltip="Descrição do perfil (ex: Senior Node.js Developer)">i</span>
+                <input name="headline" required />
+              </label>
+              <label>
+                Skills (comma separated)
+                <span class="info-icon" data-tooltip="Skills principais (ex: TypeScript, React, Node.js)">i</span>
+                <input name="skills" value="node,typescript,api" required />
+              </label>
+              <button type="submit" class="primary">✓ Create Profile</button>
+            </form>
+          </section>
 
-      <section class="panel">
-        <h2>Recent Decisions</h2>
-        ${decisionsSection}
-      </section>
+          <!-- Main CV Analyzer -->
+          <section class="panel">
+            <h2>
+              Main CV Analyzer
+              <span class="info-icon" data-tooltip="Analise seu CV principal contra oportunidades disponíveis">i</span>
+            </h2>
+            <p>Use seus arquivos em <code style="background: #f0f0f0; padding: 0.25rem 0.5rem; border-radius: 2px;">doc/*.txt</code> para gerar um profile com skills extraídas e usar no matching.</p>
+            <form method="POST" action="/main-cv/analyze">
+              <label>
+                CV text source (.txt)
+                <span class="info-icon" data-tooltip="Selecione qual CV analisar">i</span>
+                <select name="sourceFile" required>
+                  ${cvSourceOptions}
+                </select>
+              </label>
+              <label>
+                Headline
+                <span class="info-icon" data-tooltip="Nome descritivo para este profile">i</span>
+                <input name="headline" value="Ivanilson Ferreira - Main CV" required />
+              </label>
+              <label>
+                Extra skills (comma separated)
+                <span class="info-icon" data-tooltip="Skills adicionais não mencionadas no CV">i</span>
+                <textarea name="extraSkills" rows="3" placeholder="ex: playwright,cypress,redis"></textarea>
+              </label>
+              <button type="submit" class="primary">✓ Analyze Main CV + Create Profile</button>
+            </form>
+          </section>
 
-      <section class="panel">
-        <h2>Approval Queue (Human Gate)</h2>
-        ${approvalsSection}
-      </section>
+          <!-- Recent Job Postings -->
+          <section class="panel">
+            <h2>
+              Recent Job Postings
+              <span class="info-icon" data-tooltip="Últimos jobs ingeridos com scores">i</span>
+            </h2>
+            ${jobsSection}
+          </section>
 
-      <section class="panel">
-        <h2>Submitted Applications</h2>
-        ${applicationsSection}
-      </section>
+          <!-- Recent Decisions -->
+          <section class="panel">
+            <h2>
+              Recent Decisions
+              <span class="info-icon" data-tooltip="Decisões tomadas em matching e approvals">i</span>
+            </h2>
+            ${decisionsSection}
+          </section>
 
-      <section class="panel">
-        <h2>Memory Entries</h2>
-        ${memorySection}
-      </section>
+          <!-- Approval Queue -->
+          <section class="panel">
+            <h2>
+              Approval Queue (Human Gate)
+              <span class="info-icon" data-tooltip="Decisões aguardando aprovação manual">i</span>
+            </h2>
+            ${approvalsSection}
+          </section>
 
-      <section class="panel">
-        <h2>Metrics Snapshot</h2>
-        ${metricsSection}
-      </section>
+          <!-- Submitted Applications -->
+          <section class="panel">
+            <h2>
+              Submitted Applications
+              <span class="info-icon" data-tooltip="Status das aplicações enviadas (submitted → interview → rejected)">i</span>
+            </h2>
+            ${applicationsSection}
+          </section>
 
-      <section class="panel">
-        <p>Operational endpoints: <code>/v1/job-postings/ingest</code>, <code>/v1/main-cv/sources</code>, <code>/v1/main-cv/analyze</code>, <code>/v1/strategy/propose</code>, <code>/v1/approval-queue/approve</code>, <code>/v1/applications/update-status</code>, <code>/v1/memory-entries</code>, <code>/v1/metrics</code>.</p>
-      </section>
-    </main>
+          <!-- Memory Entries -->
+          <section class="panel">
+            <h2>
+              Memory Entries
+              <span class="info-icon" data-tooltip="Histórico de operações e contexto da plataforma">i</span>
+            </h2>
+            ${memorySection}
+          </section>
+
+          <!-- Metrics Snapshot -->
+          <section class="panel">
+            <h2>
+              Metrics Snapshot
+              <span class="info-icon" data-tooltip="KPIs e métricas em tempo real">i</span>
+            </h2>
+            ${metricsSection}
+          </section>
+
+          <!-- Footer Info -->
+          <section class="panel" style="background: #f9f9f9; border-top: 3px solid #0066cc;">
+            <p style="font-size: 0.85rem; color: #666; margin: 0;">
+              <strong>Operational endpoints:</strong> 
+              <code style="background: #fff; padding: 0.25rem 0.5rem;">/v1/job-postings/ingest</code>,
+              <code style="background: #fff; padding: 0.25rem 0.5rem;">/v1/main-cv/sources</code>,
+              <code style="background: #fff; padding: 0.25rem 0.5rem;">/v1/main-cv/analyze</code>,
+              <code style="background: #fff; padding: 0.25rem 0.5rem;">/v1/strategy/propose</code>,
+              <code style="background: #fff; padding: 0.25rem 0.5rem;">/v1/approval-queue/approve</code>.
+            </p>
+          </section>
+        </div>
+      </main>
+
+      ${renderFooter()}
+    </div>
   </body>
 </html>`;
 }

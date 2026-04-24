@@ -4,8 +4,9 @@ import { readFormBody } from "./core/http/read-form.js";
 import { sendHtml, sendJson } from "./core/http/send.js";
 import { loadDashboardData } from "./features/dashboard/load-dashboard.js";
 import { loadApiHealth } from "./features/health/load-health.js";
-import { renderDashboardPage } from "./features/home/render-dashboard.js";
+import { renderDashboardPage } from "./features/dashboard/render-dashboard.js";
 import { renderWorkbenchPage } from "./features/home/render-home.js";
+import { renderGuidePage } from "./features/home/render-guide.js";
 import {
   analyzeMainCv,
   approveExecution,
@@ -180,7 +181,33 @@ const server = createServer(async (request, response) => {
       loadApiHealth(env.apiBaseUrl),
       loadDashboardData(env.apiBaseUrl)
     ]);
-    sendHtml(response, 200, renderDashboardPage(apiHealth, dashboard, env.apiBaseUrl));
+    sendHtml(
+      response,
+      200,
+      renderDashboardPage({
+        health: apiHealth,
+        metrics: dashboard.metrics,
+        jobs: dashboard.jobs,
+        approvals: dashboard.approvals,
+        applications: dashboard.applications,
+        decisions: dashboard.decisions,
+        memoryEntries: dashboard.memoryEntries,
+        apiBaseUrl: env.apiBaseUrl
+      })
+    );
+    return;
+  }
+
+  if (pathname === "/guide") {
+    const apiHealth = await loadApiHealth(env.apiBaseUrl);
+    sendHtml(
+      response,
+      200,
+      renderGuidePage({
+        apiStatus: apiHealth.ok ? "ok" : "error",
+        apiTime: apiHealth.ok ? apiHealth.data.uptimeMs : undefined
+      })
+    );
     return;
   }
 
