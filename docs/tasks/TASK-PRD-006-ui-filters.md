@@ -1,9 +1,9 @@
 # TASK-PRD-006 - Frontend: UI de Filtros e Ações de Vaga
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
-- last-updated: 2026-04-24
+- last-updated: 2026-04-25
 
 ## Modo
 - mode: planning

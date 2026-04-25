@@ -2,7 +2,7 @@
 
 ## Fonte viva
 - `docs/` e a fonte viva e canonica de documentacao operacional e de engenharia.
-- `doc/` permanece como arquivo historico (PDFs legados).
+- `doc/` permanece como arquivo historico (PDFs legados e CVs locais).
 
 ## Decisao operacional de superficie ADR
 - ADRs devem ser registradas em `docs/adr/`.
@@ -12,27 +12,84 @@
 ## Mapa minimo de superficies
 - `docs/adr/`: registros de decisao arquitetural (ADRs).
 - `docs/specs/`: especificacoes executaveis por capacidade/eixo.
-- `docs/tasks/`: manifests de task executavel.
+- `docs/tasks/`: manifests de task executavel e evidencias historicas.
 - `docs/runbooks/`: procedimentos operacionais de rotina, validacao e incidente.
-- `docs/operations/`: estado vivo dos kits e memoria operacional.
+- `docs/operations/`: estado vivo dos kits, memoria operacional e auditorias.
 
-## Mapa de rotas web (vivo)
-- `GET /`: dashboard de navegacao e indice central de rotas (web + api).
-- `GET /workspace`: superficie operacional completa (ingestao, approvals, applications, CV analyzer).
-- toda acao `POST` da interface web redireciona para `GET /workspace` com feedback de status.
+## Estado implementado atual
+- O projeto possui um alpha local funcional em memoria.
+- O runtime web/API roda pela raiz com `npm run dev`.
+- A validacao de sanidade usa `npm run check`.
+- O estado runtime ainda nao e persistido; reiniciar a API limpa vagas, approvals, applications e profiles criados em memoria.
+
+## Mapa de rotas web
+- `GET /`: dashboard, indice central de rotas e vagas ranqueadas.
+- `GET /workspace`: superficie operacional para ingest manual, resume profiles, CV analyzer, approvals, applications, memory e metrics.
+- `GET /guide`: guia vivo de uso do alpha local.
+- `GET /health`: health JSON do web com status da API.
+- `POST /ingest`: cria vaga manual e dispara score/strategy.
+- `POST /resume-profiles`: cria resume profile manual.
+- `POST /main-cv/analyze`: cria resume profile a partir de arquivo `.txt` em `doc/`.
+- `POST /approve`: aprova approval request.
+- `POST /reject`: rejeita approval request.
+- `POST /applications/status`: atualiza application para `interview` ou `rejected`.
+
+## Mapa de rotas API
+- `GET /health`: health da API.
+- `GET /ping`: ping simples.
+- `GET /v1/job-postings`: lista vagas ingeridas.
+- `POST /v1/job-postings/ingest`: ingere vaga via JSON.
+- `POST /v1/jobs/update`: atualiza status/tags de vaga.
+- `GET /v1/jobs/ranked`: lista vagas ranqueadas com filtros.
+- `GET /v1/resume-profiles`: lista profiles.
+- `POST /v1/resume-profiles`: cria profile.
+- `POST /v1/resume-profiles/update`: atualiza profile.
+- `GET /v1/resume-profiles/get`: busca profile por `id`.
+- `GET /v1/main-cv/sources`: lista arquivos `.txt` em `doc/`.
+- `POST /v1/main-cv/analyze`: analisa CV e cria profile.
+- `POST /v1/scraper/run`: roda scraper com `source` e `keyword` opcionais.
+  - Fontes padrao em `source=all`: Remotive, Arbeitnow, RemoteOK, Jobicy e Himalayas.
+  - CryptoJobsList permanece nomeada no codigo, mas fora de `source=all` ate existir parser/feed operacional confiavel.
+- `POST /v1/match/score`: score local por overlap de skills.
+- `POST /v1/match/deep-score`: score LLM com Gemini quando `GEMINI_API_KEY` existe.
+- `POST /v1/strategy/propose`: propoe candidatura com gate humano.
+- `GET /v1/approval-queue`: lista approvals pendentes.
+- `POST /v1/approval-queue/approve`: aprova request.
+- `POST /v1/approval-queue/reject`: rejeita request.
+- `GET /v1/applications`: lista applications.
+- `POST /v1/applications/update-status`: atualiza status de application.
+- `GET /v1/memory-entries`: lista memoria runtime.
+- `GET /v1/metrics`: snapshot de metricas.
+- `GET /v1/agent-runs`: lista runs internos.
+- `GET /v1/decision-logs`: lista decisoes.
+- `GET /v1/skill-executions`: lista execucoes/evidencias.
+
+## Capacidades implementadas
+- Ingestao manual de vagas com dedupe e auditoria.
+- Scraper multi-fonte com tolerancia parcial por fonte e keyword apenas em fontes com query validada.
+- Strip HTML em descricoes de feeds.
+- Ranking por afinidade com filtros de busca, local, fonte, status e score minimo.
+- Tags e status manuais por vaga.
+- Resume profiles manuais e editaveis.
+- CV analyzer baseado em arquivos `.txt` de `doc/`.
+- Deep Score com Gemini quando habilitado por chave local.
+- Strategy proposal com approval queue.
+- Approval/rejection e application status tracking.
+- Memory entries, decision logs, skill executions e metrics.
 
 ## Convencoes minimas
 - IDs:
   - ADR: `ADR-###`
   - SPEC: `SPEC-###`
-  - TASK: `TASK-###`
+  - TASK: `TASK-<TRACK>-###` (ex.: `TASK-PRD-005`, `TASK-SCR-001`, `TASK-QLT-001`)
   - RUNBOOK: `RUNBOOK-###`
 - Campos de governanca obrigatorios em todo artefato:
   - `status`
   - `owner`
   - `last-updated`
-  - `source-of-truth`
+  - `source-of-truth` para novos artefatos canonicos ou quando o artefato declarar decisao operacional
 
 ## Regra de escopo
-- Esta superficie organiza formalizacao.
-- Nao e local para implementar funcionalidade de produto.
+- `docs/` organiza formalizacao viva e evidencias.
+- Produto deve continuar capability-driven, spec-driven e orientado por gates.
+- Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.

@@ -36,9 +36,37 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   cryptojobslist: {
     name: "CryptoJobsList",
     url: "https://cryptojobslist.com/api/jobs",
-    format: "cryptojobslist-json"
+    format: "cryptojobslist-json",
+    enabledByDefault: false,
+    unavailableReason: "JSON endpoint currently returns Cloudflare/404; RSS integration needs a dedicated parser task"
   }
 };
+
+export class ScraperInputError extends Error {
+  constructor(
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+    this.name = "ScraperInputError";
+  }
+}
+
+export function applyKeywordToSource(
+  source: ScraperSourceConfig,
+  keyword?: string
+): ScraperSourceConfig {
+  const trimmedKeyword = keyword?.trim();
+  if (!trimmedKeyword) return source;
+
+  const url = new URL(source.url);
+  if (source.format === "remotive-json") url.searchParams.set("search", trimmedKeyword);
+  if (source.format === "arbeitnow-json") url.searchParams.set("search", trimmedKeyword);
+  if (source.format === "himalayas-json") url.searchParams.set("q", trimmedKeyword);
+  if (source.format === "jobicy-json") url.searchParams.set("tag", trimmedKeyword);
+
+  return { ...source, url: url.toString() };
+}
 
 async function runSingleSource(
   ingestionService: IngestionService,
@@ -86,22 +114,10 @@ export async function runScraper(
   sourceKey = process.env["SCRAPER_SOURCE"] ?? "all",
   keyword?: string
 ): Promise<ScraperRunResult> {
-  // Helpers to inject search keyword
-  const getSourceConfig = (src: ScraperSourceConfig) => {
-    if (!keyword) return src;
-    const kw = encodeURIComponent(keyword.trim());
-    let newUrl = src.url;
-    if (src.format === "remotive-json") newUrl += `&search=${kw}`;
-    if (src.format === "arbeitnow-json") newUrl += `&search=${kw}`;
-    if (src.format === "himalayas-json") newUrl += `&q=${kw}`;
-    if (src.format === "jobicy-json") newUrl += `&term=${kw}`;
-    if (src.format === "remoteok-json") newUrl += `&tags=${kw}`;
-    return { ...src, url: newUrl };
-  };
-
   if (sourceKey === "all") {
+    const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
     const settledResults = await Promise.allSettled(
-      Object.values(SCRAPER_SOURCES).map(src => runSingleSource(ingestionService, getSourceConfig(src)))
+      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keyword)))
     );
 
     const results = settledResults
@@ -131,12 +147,19 @@ export async function runScraper(
 
   const source = SCRAPER_SOURCES[sourceKey];
   if (!source) {
-    throw new Error(
+    throw new ScraperInputError(
+      "UNKNOWN_SCRAPER_SOURCE",
       `[scraper.runner] unknown source key: "${sourceKey}". Available: all, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
     );
   }
+  if (source.enabledByDefault === false) {
+    throw new ScraperInputError(
+      "UNAVAILABLE_SCRAPER_SOURCE",
+      `[scraper.runner] source "${sourceKey}" is currently unavailable: ${source.unavailableReason ?? "no operational endpoint"}`
+    );
+  }
 
-  const res = await runSingleSource(ingestionService, getSourceConfig(source));
+  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keyword));
   return {
     source: res.name,
     fetched: res.fetched,

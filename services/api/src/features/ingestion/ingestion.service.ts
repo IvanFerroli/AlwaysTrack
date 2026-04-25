@@ -10,6 +10,7 @@ import {
   normalizeIngestPayload,
   tokenizeJobText
 } from "./ingestion.normalize.js";
+import { validateIngestPayload } from "./ingestion.validate.js";
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -23,6 +24,10 @@ export class IngestionService {
   constructor(private readonly store: InMemoryStateStore) {}
 
   ingest(payload: IngestJobPostingInput): ApiResult<IngestJobPostingResult> {
+    if (!validateIngestPayload(payload)) {
+      return this.failValidation();
+    }
+
     const normalizedPayload = normalizeIngestPayload(payload);
     const dedupeKey = computeDedupeKey(normalizedPayload);
     const existing = this.store.findJobPostingByDedupeKey(dedupeKey);
@@ -88,8 +93,9 @@ export class IngestionService {
     }
 
     let newTags = updates.tags ?? [...existingJob.tags];
-    if (updates.addTag) {
-      newTags.push(updates.addTag.trim());
+    const tagToAdd = updates.addTag?.trim();
+    if (tagToAdd) {
+      newTags.push(tagToAdd);
     }
     if (updates.removeTag) {
       newTags = newTags.filter(t => t !== updates.removeTag);

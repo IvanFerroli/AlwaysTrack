@@ -1,8 +1,50 @@
+import type { JobPosting, JobUserStatus } from "@olympus/shared-types";
 import type { HttpHandler } from "../../core/http/types.js";
 import { readJsonBody } from "../../core/http/read-json.js";
 import { sendApiResult } from "../../core/http/send.js";
 import { IngestionService } from "./ingestion.service.js";
 import { validateIngestPayload } from "./ingestion.validate.js";
+
+type UpdateJobPayload = Partial<Pick<JobPosting, "userStatus" | "tags">> & {
+  id: string;
+  addTag?: string;
+  removeTag?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+function isJobUserStatus(value: unknown): value is JobUserStatus {
+  return value === "new" || value === "applied" || value === "discarded";
+}
+
+function validateUpdateJobPayload(payload: unknown): payload is UpdateJobPayload {
+  if (!isRecord(payload) || typeof payload["id"] !== "string" || payload["id"].trim().length === 0) {
+    return false;
+  }
+
+  if (payload["userStatus"] !== undefined && !isJobUserStatus(payload["userStatus"])) {
+    return false;
+  }
+
+  if (
+    payload["tags"] !== undefined &&
+    (!Array.isArray(payload["tags"]) || !payload["tags"].every((item) => typeof item === "string"))
+  ) {
+    return false;
+  }
+
+  if (payload["addTag"] !== undefined && typeof payload["addTag"] !== "string") {
+    return false;
+  }
+
+  if (payload["removeTag"] !== undefined && typeof payload["removeTag"] !== "string") {
+    return false;
+  }
+
+  return true;
+}
 
 export function createIngestHandlers(service: IngestionService): {
   ingest: HttpHandler;
@@ -25,7 +67,7 @@ export function createIngestHandlers(service: IngestionService): {
   const update: HttpHandler = async ({ request, response }) => {
     try {
       const payload = await readJsonBody(request);
-      if (!payload.id) {
+      if (!validateUpdateJobPayload(payload)) {
         sendApiResult(response, { ok: false, error: { code: "INVALID_PAYLOAD", message: "Missing job id" } });
         return;
       }

@@ -1,9 +1,9 @@
 # TASK-PRD-007 - Expansão de Filtros e Tags Customizadas
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
-- last-updated: 2026-04-24
+- last-updated: 2026-04-25
 
 ## Modo
 - mode: planning

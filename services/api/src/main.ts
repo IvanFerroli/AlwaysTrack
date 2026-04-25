@@ -86,16 +86,22 @@ const server = createServer(async (request, response) => {
   try {
     await router.handle(request, response);
   } catch (error) {
-    sendJson(response, 500, {
+    const isTooLarge = error instanceof Error && error.message === "REQUEST_BODY_TOO_LARGE";
+    const isInvalidJson = error instanceof SyntaxError;
+    const statusCode = isTooLarge ? 413 : isInvalidJson ? 400 : 500;
+    const code = isTooLarge ? "REQUEST_BODY_TOO_LARGE" : isInvalidJson ? "INVALID_JSON" : "INTERNAL_ERROR";
+    const message = error instanceof Error ? error.message : "Unknown error";
+
+    sendJson(response, statusCode, {
       ok: false,
       error: {
-        code: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Unknown error"
+        code,
+        message
       }
     });
   }
 });
 
-server.listen(env.port, () => {
-  console.log(`[api] runtime scaffold listening on :${env.port} (${env.nodeEnv})`);
+server.listen(env.port, env.host, () => {
+  console.log(`[api] runtime scaffold listening on ${env.host}:${env.port} (${env.nodeEnv})`);
 });

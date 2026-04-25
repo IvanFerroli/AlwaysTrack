@@ -358,3 +358,23 @@ F12 → Elements → Procure por .info-icon, .header, .breadcrumb
 ✅ **DOCUMENTAÇÃO: COMPLETA**
 
 **Você pode usar o que existe agora com confiança!** 🚀
+
+---
+
+## Auditoria de sanidade posterior - 2026-04-25
+
+Status deste documento: historico.
+
+Uma auditoria posterior identificou que a implementacao de UX registrada acima ficou divergente do codigo atual em alguns pontos: classes utilitarias sem CSS local garantido, markup truncado no Workspace, rotas documentadas de forma imprecisa e claims de validacao sem evidencia material suficiente no proprio arquivo.
+
+O estado vivo atual deve ser consultado em:
+- `docs/operations/repository-audit-2026-04-25.md`
+- `docs/README.md`
+- `docs/runbooks/README.md`
+- `docs/operations/taskyfier-memory.md`
+
+Validacao atual de referencia:
+- `npm run typecheck`
+- `npm run lint`
+- `npm run test`
+- `npm run check`

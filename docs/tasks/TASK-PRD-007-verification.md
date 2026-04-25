@@ -6,10 +6,11 @@
 - verifier: olympus-task-verifier
 - date: 2026-04-24
 - classification: aprovado
+- audit-note: verificacao historica; nao usar como prova vigente sem gates materiais atuais
 
 ## Julgamento
 - objetivo unico: atendido — UI e API expandidas para comportar tags e os dois novos filtros.
-- acceptance criteria: todos implementados de ponta-a-ponta, testados mentalmente.
+- acceptance criteria: historicamente marcados como atendidos; auditoria 2026-04-25 exige evidencia material para sustentar aprovacao vigente.
 - escopo: respeitado, mutações implementadas num modelo simples via form submission/JS.
 
 ## Justificativa curta

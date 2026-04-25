@@ -1,9 +1,9 @@
 # TASK-SCR-005 - Boost de Ingestão do Scraper
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
-- last-updated: 2026-04-24
+- last-updated: 2026-04-25
 
 ## Modo
 - mode: planning
@@ -18,8 +18,9 @@ Remotive estava configurado com `?limit=50`. Arbeitnow e RemoteOK já tendem a t
 1. Modificar `SCRAPER_SOURCES` no `scraper.runner.ts` para aumentar/remover limits.
    - Remotive: `limit=250`
    - Jobicy: Checar limite ou pegar feed amplo.
+   - Estado implementado em 2026-04-25: Jobicy opera com `count=50`; aumento para `count=200` nao esta materializado no codigo atual.
 2. Garantir que a promessa `Promise.all` não crasheie a memória na hora do ingest, visto que agora faremos mass-insert de centenas de vagas.
 
 ## Definition of Done
 - URIs modificadas visando maior volume de retorno.
-- Run resultando em 500+ vagas em vez de 300.
+- Run resultando em maior volume quando as fontes responderem, sem promessa fixa de quantidade.

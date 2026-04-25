@@ -1,4 +1,5 @@
 import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting, JobUserStatus } from "@olympus/shared-types";
+import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
@@ -19,20 +20,6 @@ function fail(code: string, message: string): ApiResult<never> {
   return { ok: false, error: { code, message } };
 }
 
-function normalizeSkills(skills: string[]): string[] {
-  return skills
-    .map((item) => item.trim().toLowerCase())
-    .filter((item) => item.length > 0);
-}
-
-function computeScore(matched: number, totalProfileSkills: number): number {
-  if (matched <= 0) return 0;
-  // A job shouldn't require all 40 skills of a profile. 
-  // Let's assume hitting 5 skills is a perfect 100% match.
-  const baseScore = matched * 20; 
-  return Math.min(100, baseScore);
-}
-
 export class MatchService {
   constructor(private readonly store: InMemoryStateStore) {}
 
@@ -42,18 +29,11 @@ export class MatchService {
       return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
     }
 
-    const normalizedSkills = normalizeSkills(input.resumeProfile.skills);
-    const tokenSet = new Set(jobPosting.normalizedTokens);
-    const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
-    const missingSkills = normalizedSkills.filter((skill) => !tokenSet.has(skill));
-    
-    let titleBoost = 0;
-    const jobTitleLower = jobPosting.title.toLowerCase();
-    const profileHeadlineWords = input.resumeProfile.headline.toLowerCase().split(" ");
-    for (const w of profileHeadlineWords) {
-        if (w.length > 3 && jobTitleLower.includes(w)) titleBoost += 15;
-    }
-    const score = Math.min(100, computeScore(matchedSkills.length, normalizedSkills.length) + titleBoost);
+    const { normalizedSkills, matchedSkills, missingSkills } = computeSkillOverlap(
+      input.resumeProfile.skills,
+      jobPosting.normalizedTokens
+    );
+    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title);
 
     const agentRun = this.store.createAgentRun("Match Agent", "Match");
     const result: MatchScoreResult = {
@@ -159,25 +139,9 @@ export class MatchService {
       return ok({ items: unranked });
     }
 
-    const normalizedSkills = profile.skills
-      .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length > 0);
-
     let ranked: RankedJobPosting[] = jobs.map((job) => {
-      const tokenSet = new Set(job.normalizedTokens);
-      const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
-      
-      let score = 0;
-      if (matchedSkills.length > 0) {
-        let titleBoost = 0;
-        const jobTitleLower = job.title.toLowerCase();
-        const profileHeadlineWords = profile.headline.toLowerCase().split(" ");
-        for (const w of profileHeadlineWords) {
-            if (w.length > 3 && jobTitleLower.includes(w)) titleBoost += 15;
-        }
-        const baseScore = matchedSkills.length * 20; // 5 skills = 100%
-        score = Math.min(100, baseScore + titleBoost);
-      }
+      const { matchedSkills } = computeSkillOverlap(profile.skills, job.normalizedTokens);
+      const score = computeMatchScore(matchedSkills.length, profile.headline, job.title);
       return { ...job, score, matchedSkills };
     });
 

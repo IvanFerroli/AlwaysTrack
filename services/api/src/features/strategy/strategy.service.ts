@@ -1,4 +1,5 @@
 import type { ApiResult, StrategyProposalInput, StrategyProposalResult } from "@olympus/shared-types";
+import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 
 function ok<T>(data: T): ApiResult<T> {
@@ -7,19 +8,6 @@ function ok<T>(data: T): ApiResult<T> {
 
 function fail(code: string, message: string): ApiResult<never> {
   return { ok: false, error: { code, message } };
-}
-
-function normalizeSkills(skills: string[]): string[] {
-  return skills
-    .map((item) => item.trim().toLowerCase())
-    .filter((item) => item.length > 0);
-}
-
-function computeScore(matched: number, total: number): number {
-  if (total <= 0) {
-    return 0;
-  }
-  return Math.round((matched / total) * 100);
 }
 
 export class StrategyService {
@@ -31,11 +19,11 @@ export class StrategyService {
       return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
     }
 
-    const normalizedSkills = normalizeSkills(input.resumeProfile.skills);
-    const tokenSet = new Set(jobPosting.normalizedTokens);
-    const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
-    const missingSkills = normalizedSkills.filter((skill) => !tokenSet.has(skill));
-    const score = computeScore(matchedSkills.length, normalizedSkills.length);
+    const { matchedSkills, missingSkills } = computeSkillOverlap(
+      input.resumeProfile.skills,
+      jobPosting.normalizedTokens
+    );
+    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title);
     const minimumScore = input.minimumScore ?? 50;
     const requestedBy = input.requestedBy ?? "strategy-agent";
     const proposed = score >= minimumScore;

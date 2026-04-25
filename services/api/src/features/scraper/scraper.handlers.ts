@@ -1,7 +1,7 @@
 import type { HttpHandler } from "../../core/http/types.js";
 import { sendApiResult, sendJson } from "../../core/http/send.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
-import { runScraper } from "./scraper.runner.js";
+import { runScraper, ScraperInputError } from "./scraper.runner.js";
 
 export function createScraperHandlers(ingestionService: IngestionService): {
   run: HttpHandler;
@@ -29,10 +29,11 @@ export function createScraperHandlers(ingestionService: IngestionService): {
         }
       });
     } catch (err) {
-      sendJson(response, 500, {
+      const isInputError = err instanceof ScraperInputError;
+      sendJson(response, isInputError ? 400 : 500, {
         ok: false,
         error: {
-          code: "SCRAPER_ERROR",
+          code: isInputError ? err.code : "SCRAPER_ERROR",
           message: err instanceof Error ? err.message : "Unknown scraper error"
         }
       });

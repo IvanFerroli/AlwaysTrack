@@ -1,11 +1,23 @@
 /** Config de uma fonte de scraping */
+export type ScraperSourceFormat =
+  | "remotive-json"
+  | "arbeitnow-json"
+  | "remoteok-json"
+  | "jobicy-json"
+  | "himalayas-json"
+  | "cryptojobslist-json";
+
 export interface ScraperSourceConfig {
   /** Nome amigável da fonte, ex: "Remotive" */
   name: string;
   /** URL do feed JSON/HTML público */
   url: string;
   /** Tipo do payload retornado */
-  format: "remotive-json" | "arbeitnow-json" | "remoteok-json" | "jobicy-json";
+  format: ScraperSourceFormat;
+  /** Quando false, fica fora do `source=all` sem remover o naming da fonte. */
+  enabledByDefault?: boolean;
+  /** Motivo operacional para fonte mantida, mas indisponivel. */
+  unavailableReason?: string;
 }
 
 /** Item bruto retornado pela fonte antes do parse */

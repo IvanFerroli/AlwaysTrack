@@ -12,9 +12,11 @@ function inferErrorStatus(code: string): number {
 }
 
 export function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {
+  const allowedOrigin = process.env["WEB_ORIGIN"] ?? "http://localhost:3000";
+
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
-    "access-control-allow-origin": "*",
+    "access-control-allow-origin": allowedOrigin,
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "content-type"
   });

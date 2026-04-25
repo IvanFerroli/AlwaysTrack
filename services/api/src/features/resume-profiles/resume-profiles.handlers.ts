@@ -1,8 +1,36 @@
+import type { ResumeProfile } from "@olympus/shared-types";
 import type { HttpHandler } from "../../core/http/types.js";
 import { readJsonBody } from "../../core/http/read-json.js";
 import { sendApiResult } from "../../core/http/send.js";
 import { ResumeProfilesService } from "./resume-profiles.service.js";
 import { validateMainCvAnalyzePayload, validateResumeProfilePayload } from "./resume-profiles.validate.js";
+
+type ResumeProfileUpdatePayload = Partial<Pick<ResumeProfile, "headline" | "skills">> & {
+  id: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+function validateResumeProfileUpdatePayload(payload: unknown): payload is ResumeProfileUpdatePayload {
+  if (!isRecord(payload) || typeof payload["id"] !== "string" || payload["id"].trim().length === 0) {
+    return false;
+  }
+
+  if (payload["headline"] !== undefined && typeof payload["headline"] !== "string") {
+    return false;
+  }
+
+  if (
+    payload["skills"] !== undefined &&
+    (!Array.isArray(payload["skills"]) || !payload["skills"].every((item) => typeof item === "string"))
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 export function createResumeProfilesHandlers(service: ResumeProfilesService): {
   list: HttpHandler;
@@ -53,7 +81,7 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
 
   const update: HttpHandler = async ({ request, response }) => {
     const payload = await readJsonBody(request);
-    if (!payload.id) {
+    if (!validateResumeProfileUpdatePayload(payload)) {
       sendApiResult(response, { ok: false, error: { code: "MISSING_ID", message: "ID is required for update" } });
       return;
     }

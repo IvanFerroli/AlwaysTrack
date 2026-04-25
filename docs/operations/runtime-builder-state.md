@@ -22,9 +22,11 @@ Materializar partes pequenas, rastreáveis e seguras do runtime do Olympus Climb
 
 ## Artefatos gerados
 - TASK-RTM-001: bootstrap de runtime local para web/api com endpoints de smoke test e scripts de dev
+- Checkpoint 2026-04-25: runtime local ja possui scraper multi-fonte, ranking, filtros, tags/status, resume profiles, CV analyzer, Deep Score, approvals e metrics; ver `docs/operations/taskyfier-memory.md`.
 
 ## Lacunas runtime recorrentes
-- primeira logica funcional de produto ainda pendente de ancora em spec/canonico
+- persistencia local ainda pendente; estado atual segue em memoria
+- seguranca para exposicao externa ainda pendente; uso recomendado permanece local
 
 ## Padrões operacionais já adotados
 - runtime não substitui arquitetura

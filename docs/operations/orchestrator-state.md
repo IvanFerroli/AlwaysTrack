@@ -28,6 +28,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-CTR-001 (contracts, recebida via pipeline kickoff)
 - TASK-RTM-001 (runtime, recebida via pipeline kickoff)
 - TASK-SCR-001 (runtime, recebida via pipeline kickoff)
+- Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
 - TASK-DOC-002 -> olympus-docs-formalizer (`execution artifact mode`) [EXEC-DOC-002]
@@ -61,6 +62,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - ele não substitui a memória do Taskyfier
 - ele complementa o ciclo de execução
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
+- em caso de divergencia, usar `docs/operations/taskyfier-memory.md` como memoria macro mais atual
 - ultimo ciclo consolidado: TASK-DOC-002 / EXEC-DOC-002 (status: executada)
 - ultimo ciclo consolidado: TASK-SCF-001 / EXEC-SCF-001 (status: executada)
 - ultimo ciclo consolidado: TASK-QLT-001 / EXEC-QLT-001 (status: executada)

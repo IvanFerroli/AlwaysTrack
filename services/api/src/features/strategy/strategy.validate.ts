@@ -15,12 +15,15 @@ export function validateStrategyPayload(payload: unknown): payload is StrategyPr
 
   const candidate = payload as Record<string, unknown>;
   const resume = candidate.resumeProfile as Record<string, unknown> | undefined;
+  const minimumScore = candidate.minimumScore;
 
   return (
     hasValue(candidate.jobPostingId) &&
     !!resume &&
     hasValue(resume.id) &&
     hasValue(resume.headline) &&
-    hasSkills(resume.skills)
+    hasSkills(resume.skills) &&
+    (minimumScore === undefined ||
+      (typeof minimumScore === "number" && Number.isFinite(minimumScore) && minimumScore >= 0 && minimumScore <= 100))
   );
 }

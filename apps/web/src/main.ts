@@ -261,6 +261,6 @@ const server = createServer(async (request, response) => {
   });
 });
 
-server.listen(env.port, () => {
-  console.log(`[web] runtime scaffold listening on :${env.port} (${env.nodeEnv})`);
+server.listen(env.port, env.host, () => {
+  console.log(`[web] runtime scaffold listening on ${env.host}:${env.port} (${env.nodeEnv})`);
 });
