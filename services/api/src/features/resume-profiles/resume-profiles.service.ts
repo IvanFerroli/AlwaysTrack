@@ -10,6 +10,7 @@ import type {
   ResumeProfileCreateInput
 } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
+import { extractSkillsWithGemini } from "../../core/llm/gemini.js";
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -166,13 +167,24 @@ export class ResumeProfilesService {
 
     try {
       const [text, sourceInfo] = await Promise.all([readFile(sourcePath, "utf-8"), stat(sourcePath)]);
-      const extractedSkills = extractSkillsFromCvText(text);
+      
+      let extractedSkills: string[] = [];
+      const hasApiKey = !!process.env["GEMINI_API_KEY"];
+      
+      if (hasApiKey) {
+        // Agentic Core: Using Gemini to read between the lines and extract everything
+        extractedSkills = await extractSkillsWithGemini(text);
+      } else {
+        // Fallback to primitive parsing
+        extractedSkills = extractSkillsFromCvText(text);
+      }
+
       const mergedSkills = normalizeSkills([...(payload.extraSkills ?? []), ...extractedSkills]);
 
       if (mergedSkills.length === 0) {
         return fail(
           "CV_SKILLS_NOT_FOUND",
-          `No skills could be extracted from ${sourceFileName}; provide extraSkills manually`
+          `No skills could be extracted from ${sourceFileName}; provide extraSkills manually or add GEMINI_API_KEY`
         );
       }
 
