@@ -97,28 +97,28 @@ export class ResumeProfilesService {
     this.cvSourcesDir = options.cvSourcesDir ?? path.resolve(process.cwd(), "doc");
   }
 
-  list(): ApiResult<ListPayload<ResumeProfile>> {
-    return ok({ items: this.store.listResumeProfiles() });
+  async list(): Promise<ApiResult<ListPayload<ResumeProfile>>> {
+    return ok({ items: await this.store.listResumeProfiles() });
   }
 
-  create(payload: ResumeProfileCreateInput): ApiResult<ResumeProfile> {
-    const profile = this.store.createResumeProfile({
+  async create(payload: ResumeProfileCreateInput): Promise<ApiResult<ResumeProfile>> {
+    const profile = await this.store.createResumeProfile({
       headline: payload.headline.trim(),
       skills: normalizeSkills(payload.skills)
     });
     return ok(profile);
   }
 
-  getById(id: string): ApiResult<ResumeProfile> {
-    const profile = this.store.findResumeProfileById(id);
+  async getById(id: string): Promise<ApiResult<ResumeProfile>> {
+    const profile = await this.store.findResumeProfileById(id);
     if (!profile) {
       return fail("RESUME_PROFILE_NOT_FOUND", `Resume profile ${id} not found`);
     }
     return ok(profile);
   }
 
-  update(id: string, payload: Partial<Pick<ResumeProfile, "headline" | "skills">>): ApiResult<ResumeProfile> {
-    const profile = this.store.updateResumeProfile(id, {
+  async update(id: string, payload: Partial<Pick<ResumeProfile, "headline" | "skills">>): Promise<ApiResult<ResumeProfile>> {
+    const profile = await this.store.updateResumeProfile(id, {
       headline: payload.headline?.trim(),
       skills: payload.skills ? normalizeSkills(payload.skills) : undefined
     });
@@ -188,7 +188,7 @@ export class ResumeProfilesService {
         );
       }
 
-      const profile = this.store.createResumeProfile({
+      const profile = await this.store.createResumeProfile({
         headline: payload.headline.trim(),
         skills: mergedSkills
       });

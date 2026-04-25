@@ -23,8 +23,8 @@ function fail(code: string, message: string): ApiResult<never> {
 export class MatchService {
   constructor(private readonly store: InMemoryStateStore) {}
 
-  score(input: MatchScoreInput): ApiResult<MatchScoreResult> {
-    const jobPosting = this.store.findJobPostingById(input.jobPostingId);
+  async score(input: MatchScoreInput): Promise<ApiResult<MatchScoreResult>> {
+    const jobPosting = await this.store.findJobPostingById(input.jobPostingId);
     if (!jobPosting) {
       return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
     }
@@ -35,7 +35,7 @@ export class MatchService {
     );
     const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title);
 
-    const agentRun = this.store.createAgentRun("Match Agent", "Match");
+    const agentRun = await this.store.createAgentRun("Match Agent", "Match");
     const result: MatchScoreResult = {
       jobPostingId: jobPosting.id,
       score,
@@ -44,20 +44,20 @@ export class MatchService {
       rationale: `Matched ${matchedSkills.length} of ${normalizedSkills.length} provided skills against normalized job tokens`
     };
 
-    this.store.createDecisionLog(agentRun.id, "Match score computed", result.rationale);
-    this.store.createSkillExecution(
+    await this.store.createDecisionLog(agentRun.id, "Match score computed", result.rationale);
+    await this.store.createSkillExecution(
       agentRun.id,
       "match-score-v1",
       "success",
       `posting=${jobPosting.id};score=${score}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok(result);
   }
 
   async deepScore(input: MatchScoreInput): Promise<ApiResult<MatchScoreResult>> {
-    const jobPosting = this.store.findJobPostingById(input.jobPostingId);
+    const jobPosting = await this.store.findJobPostingById(input.jobPostingId);
     if (!jobPosting) {
       return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
     }
@@ -74,7 +74,7 @@ export class MatchService {
       jobPosting.description
     );
 
-    const agentRun = this.store.createAgentRun("Match Agent (LLM)", "DeepMatch");
+    const agentRun = await this.store.createAgentRun("Match Agent (LLM)", "DeepMatch");
     const result: MatchScoreResult = {
       jobPostingId: jobPosting.id,
       score,
@@ -83,23 +83,23 @@ export class MatchService {
       rationale: `[Deep AI Analysis]: ${rationale}`
     };
 
-    this.store.createDecisionLog(agentRun.id, "LLM Deep Score computed", result.rationale);
-    this.store.createSkillExecution(
+    await this.store.createDecisionLog(agentRun.id, "LLM Deep Score computed", result.rationale);
+    await this.store.createSkillExecution(
       agentRun.id,
       "deep-match-score-v1",
       "success",
       `posting=${jobPosting.id};score=${score}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok(result);
   }
 
-  listRanked(
+  async listRanked(
     resumeProfileId?: string,
     filters?: JobFilterOptions
-  ): ApiResult<{ items: RankedJobPosting[] }> {
-    let jobs = this.store.listJobPostings();
+  ): Promise<ApiResult<{ items: RankedJobPosting[] }>> {
+    let jobs = await this.store.listJobPostings();
 
     if (filters) {
       if (filters.status) {
@@ -126,7 +126,7 @@ export class MatchService {
       }
     }
 
-    const profiles = this.store.listResumeProfiles();
+    const profiles = await this.store.listResumeProfiles();
     const profile = resumeProfileId
       ? profiles.find((p) => p.id === resumeProfileId)
       : profiles[0];

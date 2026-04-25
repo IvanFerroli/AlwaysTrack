@@ -81,7 +81,7 @@ async function runSingleSource(
 
   for (const item of parsedItems) {
     try {
-      const result = ingestionService.ingest(item);
+      const result = await ingestionService.ingest(item);
       if (result.ok) {
         if (result.data.deduplicated) {
           deduplicated++;

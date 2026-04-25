@@ -11,7 +11,7 @@ export function createStrategyHandlers(service: StrategyService): { propose: Htt
       sendApiResult(response, service.failValidation());
       return;
     }
-    sendApiResult(response, service.propose(payload));
+    sendApiResult(response, await service.propose(payload));
   };
 
   return { propose };

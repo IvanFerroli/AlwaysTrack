@@ -23,31 +23,31 @@ function fail(code: string, message: string): ApiResult<never> {
 export class IngestionService {
   constructor(private readonly store: InMemoryStateStore) {}
 
-  ingest(payload: IngestJobPostingInput): ApiResult<IngestJobPostingResult> {
+  async ingest(payload: IngestJobPostingInput): Promise<ApiResult<IngestJobPostingResult>> {
     if (!validateIngestPayload(payload)) {
       return this.failValidation();
     }
 
     const normalizedPayload = normalizeIngestPayload(payload);
     const dedupeKey = computeDedupeKey(normalizedPayload);
-    const existing = this.store.findJobPostingByDedupeKey(dedupeKey);
+    const existing = await this.store.findJobPostingByDedupeKey(dedupeKey);
 
-    const agentRun = this.store.createAgentRun("Normalizer Agent", "Normalization");
+    const agentRun = await this.store.createAgentRun("Normalizer Agent", "Normalization");
 
     if (existing) {
-      this.store.recordIngestionAttempt(true);
-      this.store.createDecisionLog(
+      await this.store.recordIngestionAttempt(true);
+      await this.store.createDecisionLog(
         agentRun.id,
         "Job posting deduplicated",
         `Found existing posting by dedupeKey=${dedupeKey}`
       );
-      this.store.createSkillExecution(
+      await this.store.createSkillExecution(
         agentRun.id,
         "job-posting-ingest-v1",
         "success",
         "existing posting reused"
       );
-      this.store.completeAgentRun(agentRun.id, "completed");
+      await this.store.completeAgentRun(agentRun.id, "completed");
       return ok({
         jobPosting: existing,
         deduplicated: true
@@ -55,7 +55,7 @@ export class IngestionService {
     }
 
     const normalizedTokens = tokenizeJobText(normalizedPayload);
-    const jobPosting: JobPosting = this.store.insertJobPosting({
+    const jobPosting: JobPosting = await this.store.insertJobPosting({
       ...normalizedPayload,
       normalizedTokens,
       dedupeKey,
@@ -63,31 +63,31 @@ export class IngestionService {
       tags: []
     });
 
-    this.store.createDecisionLog(
+    await this.store.createDecisionLog(
       agentRun.id,
       "Job posting ingested",
       `Created posting ${jobPosting.id} with ${normalizedTokens.length} normalized tokens`
     );
-    this.store.recordIngestionAttempt(false);
-    this.store.createSkillExecution(
+    await this.store.recordIngestionAttempt(false);
+    await this.store.createSkillExecution(
       agentRun.id,
       "job-posting-ingest-v1",
       "success",
       `posting=${jobPosting.id}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
     return ok({
       jobPosting,
       deduplicated: false
     });
   }
 
-  list(): ApiResult<{ items: JobPosting[] }> {
-    return ok({ items: this.store.listJobPostings() });
+  async list(): Promise<ApiResult<{ items: JobPosting[] }>> {
+    return ok({ items: await this.store.listJobPostings() });
   }
 
-  updateJob(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">> & { addTag?: string, removeTag?: string }): ApiResult<JobPosting> {
-    const existingJob = this.store.findJobPostingById(id);
+  async updateJob(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">> & { addTag?: string, removeTag?: string }): Promise<ApiResult<JobPosting>> {
+    const existingJob = await this.store.findJobPostingById(id);
     if (!existingJob) {
       return fail("JOB_NOT_FOUND", `Job posting ${id} not found`);
     }
@@ -102,7 +102,7 @@ export class IngestionService {
     }
     newTags = [...new Set(newTags)];
 
-    const job = this.store.updateJobPosting(id, { userStatus: updates.userStatus, tags: newTags });
+    const job = await this.store.updateJobPosting(id, { userStatus: updates.userStatus, tags: newTags });
     return ok(job!);
   }
 

@@ -3,6 +3,8 @@ import type {
   ApproveExecutionResult,
   IngestJobPostingInput,
   IngestJobPostingResult,
+  JobAcquisitionInput,
+  JobAcquisitionResult,
   MatchScoreInput,
   MatchScoreResult,
   MainCvAnalyzeInput,
@@ -210,4 +212,20 @@ export async function updateApplicationStatus(
   }
 
   return { ok: true };
+}
+
+export async function acquireJob(
+  apiBaseUrl: string,
+  payload: JobAcquisitionInput
+): Promise<{ ok: true; data: JobAcquisitionResult } | { ok: false; errorCode: string }> {
+  const result = await postJson<JobAcquisitionInput, JobAcquisitionResult>(
+    `${apiBaseUrl}/v1/jobs/acquire`,
+    payload
+  );
+
+  if (!result.ok) {
+    return { ok: false, errorCode: result.error.code };
+  }
+
+  return { ok: true, data: result.data };
 }

@@ -23,17 +23,17 @@ function fail(code: string, message: string): ApiResult<never> {
 export class ExecutionService {
   constructor(private readonly store: InMemoryStateStore) {}
 
-  listApprovalQueue(): ApiResult<ListPayload<ApprovalRequest>> {
-    const pending = this.store.listApprovalRequests().filter((item) => item.status === "pending");
+  async listApprovalQueue(): Promise<ApiResult<ListPayload<ApprovalRequest>>> {
+    const pending = (await this.store.listApprovalRequests()).filter((item) => item.status === "pending");
     return ok({ items: pending });
   }
 
-  listApplications(): ApiResult<ListPayload<ApplicationRecord>> {
-    return ok({ items: this.store.listApplications() });
+  async listApplications(): Promise<ApiResult<ListPayload<ApplicationRecord>>> {
+    return ok({ items: await this.store.listApplications() });
   }
 
-  approve(input: ApproveExecutionInput): ApiResult<ApproveExecutionResult> {
-    const approval = this.store.findApprovalRequestById(input.approvalRequestId);
+  async approve(input: ApproveExecutionInput): Promise<ApiResult<ApproveExecutionResult>> {
+    const approval = await this.store.findApprovalRequestById(input.approvalRequestId);
     if (!approval) {
       return fail("APPROVAL_NOT_FOUND", `Approval request ${input.approvalRequestId} not found`);
     }
@@ -41,72 +41,72 @@ export class ExecutionService {
       return fail("APPROVAL_NOT_PENDING", `Approval request ${approval.id} is already ${approval.status}`);
     }
 
-    const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
-    const existingApplication = this.store.findSubmittedApplication(
+    const agentRun = await this.store.createAgentRun("Execution Agent", "Execution");
+    const existingApplication = await this.store.findSubmittedApplication(
       approval.jobPostingId,
       approval.resumeProfileId
     );
     if (existingApplication) {
-      this.store.rejectRequest(
+      await this.store.rejectRequest(
         approval.id,
         input.approvedBy,
         `Duplicate approval ignored: application ${existingApplication.id} already submitted`
       );
-      this.store.createMemoryEntry({
+      await this.store.createMemoryEntry({
         type: "APPROVAL_RESULT",
         key: `${approval.jobPostingId}:${approval.resumeProfileId}`,
         value: `Approval ${approval.id} auto-rejected: application ${existingApplication.id} already submitted`,
         tags: ["execution", "approval", "rejected", "duplicate"]
       });
-      this.store.createDecisionLog(
+      await this.store.createDecisionLog(
         agentRun.id,
         "Approval auto-rejected as duplicate",
         `Approval ${approval.id} was auto-rejected because application ${existingApplication.id} already exists`
       );
-      this.store.createSkillExecution(
+      await this.store.createSkillExecution(
         agentRun.id,
         "application-submit-v1",
         "failure",
         `approval=${approval.id};existingApplication=${existingApplication.id};reason=duplicate`
       );
-      this.store.completeAgentRun(agentRun.id, "failed");
+      await this.store.completeAgentRun(agentRun.id, "failed");
       return fail(
         "APPLICATION_ALREADY_SUBMITTED",
         `Application ${existingApplication.id} already exists for approval pair`
       );
     }
 
-    const approved = this.store.approveRequest(approval.id, input.approvedBy);
+    const approved = await this.store.approveRequest(approval.id, input.approvedBy);
     if (!approved) {
-      this.store.completeAgentRun(agentRun.id, "failed");
+      await this.store.completeAgentRun(agentRun.id, "failed");
       return fail("APPROVAL_TRANSITION_FAILED", `Approval request ${approval.id} could not be approved`);
     }
 
-    const application = this.store.createApplication({
+    const application = await this.store.createApplication({
       jobPostingId: approved.jobPostingId,
       resumeProfileId: approved.resumeProfileId,
       approvalRequestId: approved.id,
       evidence: `Application submitted by Execution Agent with human approval from ${input.approvedBy}`
     });
-    this.store.createMemoryEntry({
+    await this.store.createMemoryEntry({
       type: "APPLICATION_RESULT",
       key: `${application.jobPostingId}:${application.resumeProfileId}`,
       value: `Application ${application.id} submitted after approval ${approved.id}`,
       tags: ["execution", "application", "approved"]
     });
 
-    this.store.createDecisionLog(
+    await this.store.createDecisionLog(
       agentRun.id,
       "Application submitted",
       `Approval ${approved.id} was accepted by ${input.approvedBy} and produced application ${application.id}`
     );
-    this.store.createSkillExecution(
+    await this.store.createSkillExecution(
       agentRun.id,
       "application-submit-v1",
       "success",
       `approval=${approved.id};application=${application.id}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok({
       approvalRequest: approved,
@@ -114,8 +114,8 @@ export class ExecutionService {
     });
   }
 
-  reject(input: RejectExecutionInput): ApiResult<RejectExecutionResult> {
-    const approval = this.store.findApprovalRequestById(input.approvalRequestId);
+  async reject(input: RejectExecutionInput): Promise<ApiResult<RejectExecutionResult>> {
+    const approval = await this.store.findApprovalRequestById(input.approvalRequestId);
     if (!approval) {
       return fail("APPROVAL_NOT_FOUND", `Approval request ${input.approvalRequestId} not found`);
     }
@@ -123,42 +123,42 @@ export class ExecutionService {
       return fail("APPROVAL_NOT_PENDING", `Approval request ${approval.id} is already ${approval.status}`);
     }
 
-    const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
-    const rejected = this.store.rejectRequest(approval.id, input.rejectedBy, input.reason);
+    const agentRun = await this.store.createAgentRun("Execution Agent", "Execution");
+    const rejected = await this.store.rejectRequest(approval.id, input.rejectedBy, input.reason);
     if (!rejected) {
-      this.store.completeAgentRun(agentRun.id, "failed");
+      await this.store.completeAgentRun(agentRun.id, "failed");
       return fail("APPROVAL_TRANSITION_FAILED", `Approval request ${approval.id} could not be rejected`);
     }
 
-    this.store.createMemoryEntry({
+    await this.store.createMemoryEntry({
       type: "APPROVAL_RESULT",
       key: `${rejected.jobPostingId}:${rejected.resumeProfileId}`,
       value: `Approval ${rejected.id} rejected by ${input.rejectedBy}: ${input.reason}`,
       tags: ["execution", "approval", "rejected"]
     });
 
-    this.store.createDecisionLog(
+    await this.store.createDecisionLog(
       agentRun.id,
       "Application rejected",
       `Approval ${rejected.id} was rejected by ${input.rejectedBy} with reason: ${input.reason}`
     );
-    this.store.createSkillExecution(
+    await this.store.createSkillExecution(
       agentRun.id,
       "application-reject-v1",
       "success",
       `approval=${rejected.id};rejectedBy=${input.rejectedBy}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok({
       approvalRequest: rejected
     });
   }
 
-  updateApplicationStatus(
+  async updateApplicationStatus(
     input: UpdateApplicationStatusInput
-  ): ApiResult<UpdateApplicationStatusResult> {
-    const application = this.store.findApplicationById(input.applicationId);
+  ): Promise<ApiResult<UpdateApplicationStatusResult>> {
+    const application = await this.store.findApplicationById(input.applicationId);
     if (!application) {
       return fail("APPLICATION_NOT_FOUND", `Application ${input.applicationId} not found`);
     }
@@ -169,37 +169,37 @@ export class ExecutionService {
       );
     }
 
-    const agentRun = this.store.createAgentRun("Execution Agent", "Execution");
-    const updated = this.store.updateApplicationStatus(
+    const agentRun = await this.store.createAgentRun("Execution Agent", "Execution");
+    const updated = await this.store.updateApplicationStatus(
       application.id,
       input.status,
       input.updatedBy,
       input.reason
     );
     if (!updated) {
-      this.store.completeAgentRun(agentRun.id, "failed");
+      await this.store.completeAgentRun(agentRun.id, "failed");
       return fail("APPLICATION_STATUS_TRANSITION_FAILED", `Application ${application.id} could not be updated`);
     }
 
-    this.store.createMemoryEntry({
+    await this.store.createMemoryEntry({
       type: "APPLICATION_RESULT",
       key: `${updated.jobPostingId}:${updated.resumeProfileId}`,
       value: `Application ${updated.id} moved to ${updated.status} by ${input.updatedBy}: ${input.reason}`,
       tags: ["execution", "application", updated.status]
     });
 
-    this.store.createDecisionLog(
+    await this.store.createDecisionLog(
       agentRun.id,
       "Application status updated",
       `Application ${updated.id} moved to ${updated.status} by ${input.updatedBy} with reason: ${input.reason}`
     );
-    this.store.createSkillExecution(
+    await this.store.createSkillExecution(
       agentRun.id,
       "application-status-update-v1",
       "success",
       `application=${updated.id};status=${updated.status};updatedBy=${input.updatedBy}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok({ application: updated });
   }

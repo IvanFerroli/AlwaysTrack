@@ -10,6 +10,50 @@ import type {
   SkillExecution
 } from "@olympus/shared-types";
 
+export interface StateStore {
+  listJobPostings(): Promise<JobPosting[]>;
+  listAgentRuns(): Promise<AgentRun[]>;
+  listDecisionLogs(): Promise<DecisionLog[]>;
+  listSkillExecutions(): Promise<SkillExecution[]>;
+  listApprovalRequests(): Promise<ApprovalRequest[]>;
+  listApplications(): Promise<ApplicationRecord[]>;
+  listMemoryEntries(): Promise<MemoryEntry[]>;
+  listResumeProfiles(): Promise<ResumeProfile[]>;
+
+  findJobPostingById(id: string): Promise<JobPosting | undefined>;
+  findJobPostingByDedupeKey(dedupeKey: string): Promise<JobPosting | undefined>;
+  findApprovalRequestById(id: string): Promise<ApprovalRequest | undefined>;
+  findPendingApprovalRequest(jobPostingId: string, resumeProfileId: string): Promise<ApprovalRequest | undefined>;
+  findSubmittedApplication(jobPostingId: string, resumeProfileId: string): Promise<ApplicationRecord | undefined>;
+  findApplicationById(id: string): Promise<ApplicationRecord | undefined>;
+  findResumeProfileById(id: string): Promise<ResumeProfile | undefined>;
+
+  insertJobPosting(payload: Omit<JobPosting, "id" | "createdAt">): Promise<JobPosting>;
+  updateJobPosting(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): Promise<JobPosting | undefined>;
+
+  createAgentRun(agent: string, capability: string): Promise<AgentRun>;
+  completeAgentRun(agentRunId: string, status: "completed" | "failed"): Promise<void>;
+
+  createDecisionLog(agentRunId: string, summary: string, rationale: string): Promise<DecisionLog>;
+  createSkillExecution(agentRunId: string, skillName: string, status: "success" | "failure", evidence: string): Promise<SkillExecution>;
+
+  createApprovalRequest(payload: Omit<ApprovalRequest, "id" | "createdAt" | "status">): Promise<ApprovalRequest>;
+  approveRequest(id: string, approvedBy: string): Promise<ApprovalRequest | undefined>;
+  rejectRequest(id: string, rejectedBy: string, reason: string): Promise<ApprovalRequest | undefined>;
+
+  createApplication(payload: Omit<ApplicationRecord, "id" | "submittedAt" | "status">): Promise<ApplicationRecord>;
+  updateApplicationStatus(id: string, status: "interview" | "rejected", updatedBy: string, reason: string): Promise<ApplicationRecord | undefined>;
+
+  createMemoryEntry(payload: Omit<MemoryEntry, "id" | "createdAt">): Promise<MemoryEntry>;
+
+  createResumeProfile(payload: Omit<ResumeProfile, "id" | "createdAt">): Promise<ResumeProfile>;
+  updateResumeProfile(id: string, updates: Partial<Pick<ResumeProfile, "headline" | "skills">>): Promise<ResumeProfile | undefined>;
+
+  recordIngestionAttempt(deduplicated: boolean): Promise<void>;
+  recordStrategyProposal(): Promise<void>;
+  snapshotMetrics(): Promise<MetricsSnapshot>;
+}
+
 interface Counters {
   jobPosting: number;
   agentRun: number;
@@ -31,7 +75,7 @@ function nextId(prefix: string, value: number): string {
   return `${prefix}-${value.toString().padStart(6, "0")}`;
 }
 
-export class InMemoryStateStore {
+export class InMemoryStateStore implements StateStore {
   private counters: Counters = {
     jobPosting: 1,
     agentRun: 1,
@@ -65,51 +109,51 @@ export class InMemoryStateStore {
     });
   }
 
-  listJobPostings(): JobPosting[] {
+  async listJobPostings(): Promise<JobPosting[]> {
     return [...this.jobPostings];
   }
 
-  listAgentRuns(): AgentRun[] {
+  async listAgentRuns(): Promise<AgentRun[]> {
     return [...this.agentRuns];
   }
 
-  listDecisionLogs(): DecisionLog[] {
+  async listDecisionLogs(): Promise<DecisionLog[]> {
     return [...this.decisionLogs];
   }
 
-  listSkillExecutions(): SkillExecution[] {
+  async listSkillExecutions(): Promise<SkillExecution[]> {
     return [...this.skillExecutions];
   }
 
-  listApprovalRequests(): ApprovalRequest[] {
+  async listApprovalRequests(): Promise<ApprovalRequest[]> {
     return [...this.approvalRequests];
   }
 
-  listApplications(): ApplicationRecord[] {
+  async listApplications(): Promise<ApplicationRecord[]> {
     return [...this.applications];
   }
 
-  listMemoryEntries(): MemoryEntry[] {
+  async listMemoryEntries(): Promise<MemoryEntry[]> {
     return [...this.memoryEntries];
   }
 
-  listResumeProfiles(): ResumeProfile[] {
+  async listResumeProfiles(): Promise<ResumeProfile[]> {
     return [...this.resumeProfiles];
   }
 
-  findJobPostingById(id: string): JobPosting | undefined {
+  async findJobPostingById(id: string): Promise<JobPosting | undefined> {
     return this.jobPostings.find((item) => item.id === id);
   }
 
-  findJobPostingByDedupeKey(dedupeKey: string): JobPosting | undefined {
+  async findJobPostingByDedupeKey(dedupeKey: string): Promise<JobPosting | undefined> {
     return this.jobPostings.find((item) => item.dedupeKey === dedupeKey);
   }
 
-  findApprovalRequestById(id: string): ApprovalRequest | undefined {
+  async findApprovalRequestById(id: string): Promise<ApprovalRequest | undefined> {
     return this.approvalRequests.find((item) => item.id === id);
   }
 
-  findPendingApprovalRequest(jobPostingId: string, resumeProfileId: string): ApprovalRequest | undefined {
+  async findPendingApprovalRequest(jobPostingId: string, resumeProfileId: string): Promise<ApprovalRequest | undefined> {
     return this.approvalRequests.find(
       (item) =>
         item.jobPostingId === jobPostingId &&
@@ -118,22 +162,22 @@ export class InMemoryStateStore {
     );
   }
 
-  findSubmittedApplication(jobPostingId: string, resumeProfileId: string): ApplicationRecord | undefined {
+  async findSubmittedApplication(jobPostingId: string, resumeProfileId: string): Promise<ApplicationRecord | undefined> {
     return this.applications.find(
       (item) =>
         item.jobPostingId === jobPostingId && item.resumeProfileId === resumeProfileId && item.status === "submitted"
     );
   }
 
-  findApplicationById(id: string): ApplicationRecord | undefined {
+  async findApplicationById(id: string): Promise<ApplicationRecord | undefined> {
     return this.applications.find((item) => item.id === id);
   }
 
-  findResumeProfileById(id: string): ResumeProfile | undefined {
+  async findResumeProfileById(id: string): Promise<ResumeProfile | undefined> {
     return this.resumeProfiles.find((item) => item.id === id);
   }
 
-  insertJobPosting(payload: Omit<JobPosting, "id" | "createdAt">): JobPosting {
+  async insertJobPosting(payload: Omit<JobPosting, "id" | "createdAt">): Promise<JobPosting> {
     const jobPosting: JobPosting = {
       ...payload,
       id: nextId("job", this.counters.jobPosting++),
@@ -144,8 +188,8 @@ export class InMemoryStateStore {
     return jobPosting;
   }
 
-  updateJobPosting(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): JobPosting | undefined {
-    const job = this.findJobPostingById(id);
+  async updateJobPosting(id: string, updates: Partial<Pick<JobPosting, "userStatus" | "tags">>): Promise<JobPosting | undefined> {
+    const job = await this.findJobPostingById(id);
     if (!job) return undefined;
 
     if (updates.userStatus) job.userStatus = updates.userStatus;
@@ -154,7 +198,7 @@ export class InMemoryStateStore {
     return job;
   }
 
-  createAgentRun(agent: string, capability: string): AgentRun {
+  async createAgentRun(agent: string, capability: string): Promise<AgentRun> {
     const agentRun: AgentRun = {
       id: nextId("run", this.counters.agentRun++),
       agent,
@@ -167,7 +211,7 @@ export class InMemoryStateStore {
     return agentRun;
   }
 
-  completeAgentRun(agentRunId: string, status: "completed" | "failed"): void {
+  async completeAgentRun(agentRunId: string, status: "completed" | "failed"): Promise<void> {
     const agentRun = this.agentRuns.find((item) => item.id === agentRunId);
     if (!agentRun) {
       return;
@@ -176,7 +220,7 @@ export class InMemoryStateStore {
     agentRun.completedAt = new Date().toISOString();
   }
 
-  createDecisionLog(agentRunId: string, summary: string, rationale: string): DecisionLog {
+  async createDecisionLog(agentRunId: string, summary: string, rationale: string): Promise<DecisionLog> {
     const decision: DecisionLog = {
       id: nextId("decision", this.counters.decisionLog++),
       agentRunId,
@@ -189,12 +233,12 @@ export class InMemoryStateStore {
     return decision;
   }
 
-  createSkillExecution(
+  async createSkillExecution(
     agentRunId: string,
     skillName: string,
     status: "success" | "failure",
     evidence: string
-  ): SkillExecution {
+  ): Promise<SkillExecution> {
     const now = new Date().toISOString();
     const execution: SkillExecution = {
       id: nextId("skill", this.counters.skillExecution++),
@@ -210,9 +254,9 @@ export class InMemoryStateStore {
     return execution;
   }
 
-  createApprovalRequest(
+  async createApprovalRequest(
     payload: Omit<ApprovalRequest, "id" | "createdAt" | "status">
-  ): ApprovalRequest {
+  ): Promise<ApprovalRequest> {
     const approval: ApprovalRequest = {
       ...payload,
       id: nextId("approval", this.counters.approvalRequest++),
@@ -224,8 +268,8 @@ export class InMemoryStateStore {
     return approval;
   }
 
-  approveRequest(id: string, approvedBy: string): ApprovalRequest | undefined {
-    const approval = this.findApprovalRequestById(id);
+  async approveRequest(id: string, approvedBy: string): Promise<ApprovalRequest | undefined> {
+    const approval = await this.findApprovalRequestById(id);
     if (!approval || approval.status !== "pending") {
       return undefined;
     }
@@ -235,8 +279,8 @@ export class InMemoryStateStore {
     return approval;
   }
 
-  rejectRequest(id: string, rejectedBy: string, reason: string): ApprovalRequest | undefined {
-    const approval = this.findApprovalRequestById(id);
+  async rejectRequest(id: string, rejectedBy: string, reason: string): Promise<ApprovalRequest | undefined> {
+    const approval = await this.findApprovalRequestById(id);
     if (!approval || approval.status !== "pending") {
       return undefined;
     }
@@ -247,9 +291,9 @@ export class InMemoryStateStore {
     return approval;
   }
 
-  createApplication(
+  async createApplication(
     payload: Omit<ApplicationRecord, "id" | "submittedAt" | "status">
-  ): ApplicationRecord {
+  ): Promise<ApplicationRecord> {
     const application: ApplicationRecord = {
       ...payload,
       id: nextId("application", this.counters.application++),
@@ -260,13 +304,13 @@ export class InMemoryStateStore {
     return application;
   }
 
-  updateApplicationStatus(
+  async updateApplicationStatus(
     id: string,
     status: "interview" | "rejected",
     updatedBy: string,
     reason: string
-  ): ApplicationRecord | undefined {
-    const application = this.findApplicationById(id);
+  ): Promise<ApplicationRecord | undefined> {
+    const application = await this.findApplicationById(id);
     if (!application) {
       return undefined;
     }
@@ -277,7 +321,7 @@ export class InMemoryStateStore {
     return application;
   }
 
-  createMemoryEntry(payload: Omit<MemoryEntry, "id" | "createdAt">): MemoryEntry {
+  async createMemoryEntry(payload: Omit<MemoryEntry, "id" | "createdAt">): Promise<MemoryEntry> {
     const entry: MemoryEntry = {
       ...payload,
       id: nextId("memory", this.counters.memoryEntry++),
@@ -287,7 +331,7 @@ export class InMemoryStateStore {
     return entry;
   }
 
-  createResumeProfile(payload: Omit<ResumeProfile, "id" | "createdAt">): ResumeProfile {
+  async createResumeProfile(payload: Omit<ResumeProfile, "id" | "createdAt">): Promise<ResumeProfile> {
     const profile: ResumeProfile = {
       ...payload,
       id: nextId("resume", this.counters.resumeProfile++),
@@ -297,26 +341,26 @@ export class InMemoryStateStore {
     return profile;
   }
 
-  updateResumeProfile(id: string, updates: Partial<Pick<ResumeProfile, "headline" | "skills">>): ResumeProfile | undefined {
-    const profile = this.findResumeProfileById(id);
+  async updateResumeProfile(id: string, updates: Partial<Pick<ResumeProfile, "headline" | "skills">>): Promise<ResumeProfile | undefined> {
+    const profile = await this.findResumeProfileById(id);
     if (!profile) return undefined;
     if (updates.headline) profile.headline = updates.headline;
     if (updates.skills) profile.skills = updates.skills;
     return profile;
   }
 
-  recordIngestionAttempt(deduplicated: boolean): void {
+  async recordIngestionAttempt(deduplicated: boolean): Promise<void> {
     this.runtimeCounters.ingestionAttempts += 1;
     if (deduplicated) {
       this.runtimeCounters.dedupeHits += 1;
     }
   }
 
-  recordStrategyProposal(): void {
+  async recordStrategyProposal(): Promise<void> {
     this.runtimeCounters.strategyProposals += 1;
   }
 
-  snapshotMetrics(): MetricsSnapshot {
+  async snapshotMetrics(): Promise<MetricsSnapshot> {
     const dedupeRate =
       this.runtimeCounters.ingestionAttempts > 0
         ? Number((this.runtimeCounters.dedupeHits / this.runtimeCounters.ingestionAttempts).toFixed(4))

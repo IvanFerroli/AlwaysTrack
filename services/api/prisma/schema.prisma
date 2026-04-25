@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model JobPosting {
+  id               String   @id
+  title            String
+  companyName      String
+  sourceName       String
+  sourceUrl        String
+  location         String?
+  description      String
+  postedAt         String?
+  normalizedTokens String[]
+  dedupeKey        String   @unique
+  userStatus       String   // "new" | "applied" | "discarded"
+  tags             String[]
+  createdAt        DateTime @default(now())
+
+  // Relações
+  approvalRequests ApprovalRequest[]
+  applications     ApplicationRecord[]
+
+  @@map("job_postings")
+}
+
+model ResumeProfile {
+  id        String   @id
+  headline  String
+  skills    String[]
+  createdAt DateTime @default(now())
+
+  // Relações
+  approvalRequests ApprovalRequest[]
+  applications     ApplicationRecord[]
+
+  @@map("resume_profiles")
+}
+
+model AgentRun {
+  id          String    @id
+  agent       String
+  capability  String
+  status      String    // "started" | "completed" | "failed"
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  decisionLogs    DecisionLog[]
+  skillExecutions SkillExecution[]
+
+  @@map("agent_runs")
+}
+
+model DecisionLog {
+  id         String   @id
+  agentRunId String
+  summary    String
+  rationale  String
+  createdAt  DateTime @default(now())
+
+  agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@map("decision_logs")
+}
+
+model SkillExecution {
+  id         String   @id
+  agentRunId String
+  skillName  String
+  status     String   // "success" | "failure"
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  evidence   String
+
+  agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@map("skill_executions")
+}
+
+model ApprovalRequest {
+  id              String    @id
+  jobPostingId    String
+  resumeProfileId String
+  status          String    // "pending" | "approved" | "rejected"
+  requestedBy     String
+  reason          String
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+
+  jobPosting    JobPosting    @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  resumeProfile ResumeProfile @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+
+  @@map("approval_requests")
+}
+
+model ApplicationRecord {
+  id              String    @id
+  jobPostingId    String
+  resumeProfileId String
+  status          String    // "submitted" | "interview" | "rejected"
+  submittedAt     DateTime  @default(now())
+  outcomeBy       String?
+  outcomeAt       DateTime?
+  outcomeReason   String?
+
+  jobPosting    JobPosting    @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  resumeProfile ResumeProfile @relation(fields: [resumeProfileId], references: [id], onDelete: Cascade)
+
+  @@map("application_records")
+}
+
+model MemoryEntry {
+  id        String   @id
+  type      String   // "approval-history" | "application-history" | "skill-history" | "user-preference"
+  key       String
+  value     String
+  tags      String[]
+  createdAt DateTime @default(now())
+
+  @@index([type, key])
+  @@map("memory_entries")
+}

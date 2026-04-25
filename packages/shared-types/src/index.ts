@@ -87,6 +87,38 @@ export interface IngestJobPostingResult {
   deduplicated: boolean;
 }
 
+export type JobAcquisitionMethod =
+  | "smart-paste"
+  | "url-import"
+  | "ats-adapter"
+  | "browser-capture"
+  | "email-alert"
+  | "provider-json";
+
+export interface JobAcquisitionInput {
+  method: JobAcquisitionMethod;
+  sourceUrl?: string;
+  sourceName?: string;
+  rawText?: string;
+  html?: string;
+  providerPayload?: unknown;
+}
+
+export interface JobAcquisitionEvidence {
+  method: JobAcquisitionMethod;
+  sourceName: string;
+  sourceUrl: string;
+  parser: string;
+  confidence: "high" | "medium" | "low";
+  notes: string[];
+}
+
+export interface JobAcquisitionResult {
+  input: IngestJobPostingInput;
+  ingestion: IngestJobPostingResult;
+  evidence: JobAcquisitionEvidence;
+}
+
 export interface MatchScoreInput {
   jobPostingId: string;
   resumeProfile: ResumeProfile;

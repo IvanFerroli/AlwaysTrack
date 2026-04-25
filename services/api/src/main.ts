@@ -3,7 +3,8 @@ import { loadApiEnv } from "./config/env.js";
 import { createRouter } from "./core/http/router.js";
 import { sendJson } from "./core/http/send.js";
 import type { HttpHandler } from "./core/http/types.js";
-import { InMemoryStateStore } from "./domain/state/store.js";
+import { PrismaStateStore } from "./domain/state/prisma-store.js";
+import { PrismaClient } from "@prisma/client";
 import { createAuditHandlers } from "./features/audit/audit.handlers.js";
 import { createExecutionHandlers } from "./features/execution/execution.handlers.js";
 import { ExecutionService } from "./features/execution/execution.service.js";
@@ -17,18 +18,22 @@ import { createObservabilityHandlers } from "./features/observability/observabil
 import { pingHandler } from "./features/ping/ping.handlers.js";
 import { createResumeProfilesHandlers } from "./features/resume-profiles/resume-profiles.handlers.js";
 import { ResumeProfilesService } from "./features/resume-profiles/resume-profiles.service.js";
+import { createAcquisitionHandlers } from "./features/acquisition/acquisition.handlers.js";
+import { JobAcquisitionService } from "./features/acquisition/acquisition.service.js";
 import { createScraperHandlers } from "./features/scraper/scraper.handlers.js";
 import { createStrategyHandlers } from "./features/strategy/strategy.handlers.js";
 import { StrategyService } from "./features/strategy/strategy.service.js";
 
 const env = loadApiEnv();
 const startedAt = Date.now();
-const store = new InMemoryStateStore();
+const prisma = new PrismaClient();
+const store = new PrismaStateStore(prisma);
 const ingestionService = new IngestionService(store);
 const matchService = new MatchService(store);
 const strategyService = new StrategyService(store);
 const executionService = new ExecutionService(store);
 const resumeProfilesService = new ResumeProfilesService(store);
+const acquisitionService = new JobAcquisitionService(ingestionService);
 
 const notFoundHandler: HttpHandler = ({ response }) => {
   sendJson(response, 404, {
@@ -49,6 +54,7 @@ const memoryHandlers = createMemoryHandlers(store);
 const observabilityHandlers = createObservabilityHandlers(store);
 const resumeProfilesHandlers = createResumeProfilesHandlers(resumeProfilesService);
 const scraperHandlers = createScraperHandlers(ingestionService);
+const acquisitionHandlers = createAcquisitionHandlers(acquisitionService);
 const router = createRouter(notFoundHandler);
 router.register("GET", "/health", createHealthHandler(startedAt));
 router.register("GET", "/ping", pingHandler);
@@ -62,6 +68,7 @@ router.register("GET", "/v1/resume-profiles/get", resumeProfilesHandlers.getById
 router.register("GET", "/v1/main-cv/sources", resumeProfilesHandlers.listMainCvSources);
 router.register("POST", "/v1/main-cv/analyze", resumeProfilesHandlers.analyzeMainCv);
 router.register("POST", "/v1/scraper/run", scraperHandlers.run);
+router.register("POST", "/v1/jobs/acquire", acquisitionHandlers.acquire);
 router.register("POST", "/v1/match/score", matchHandlers.score);
 router.register("POST", "/v1/match/deep-score", matchHandlers.deepScore);
 router.register("GET", "/v1/jobs/ranked", matchHandlers.listRanked);

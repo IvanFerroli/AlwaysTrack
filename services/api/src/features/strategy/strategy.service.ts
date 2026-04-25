@@ -13,8 +13,8 @@ function fail(code: string, message: string): ApiResult<never> {
 export class StrategyService {
   constructor(private readonly store: InMemoryStateStore) {}
 
-  propose(input: StrategyProposalInput): ApiResult<StrategyProposalResult> {
-    const jobPosting = this.store.findJobPostingById(input.jobPostingId);
+  async propose(input: StrategyProposalInput): Promise<ApiResult<StrategyProposalResult>> {
+    const jobPosting = await this.store.findJobPostingById(input.jobPostingId);
     if (!jobPosting) {
       return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
     }
@@ -27,20 +27,20 @@ export class StrategyService {
     const minimumScore = input.minimumScore ?? 50;
     const requestedBy = input.requestedBy ?? "strategy-agent";
     const proposed = score >= minimumScore;
-    this.store.recordStrategyProposal();
+    await this.store.recordStrategyProposal();
 
-    const agentRun = this.store.createAgentRun("Strategy Agent", "Strategy");
+    const agentRun = await this.store.createAgentRun("Strategy Agent", "Strategy");
 
     if (!proposed) {
       const rationale = `Score ${score} below threshold ${minimumScore}; recommendation is to not execute application`;
-      this.store.createDecisionLog(agentRun.id, "Strategy rejected for low score", rationale);
-      this.store.createSkillExecution(
+      await this.store.createDecisionLog(agentRun.id, "Strategy rejected for low score", rationale);
+      await this.store.createSkillExecution(
         agentRun.id,
         "strategy-proposal-v1",
         "success",
         `job=${jobPosting.id};score=${score};proposed=false`
       );
-      this.store.completeAgentRun(agentRun.id, "completed");
+      await this.store.completeAgentRun(agentRun.id, "completed");
       return ok({
         jobPostingId: jobPosting.id,
         score,
@@ -51,17 +51,17 @@ export class StrategyService {
       });
     }
 
-    const existingApplication = this.store.findSubmittedApplication(jobPosting.id, input.resumeProfile.id);
+    const existingApplication = await this.store.findSubmittedApplication(jobPosting.id, input.resumeProfile.id);
     if (existingApplication) {
       const rationale = `Application ${existingApplication.id} already submitted for this job and resume profile; no new approval required`;
-      this.store.createDecisionLog(agentRun.id, "Strategy skipped duplicated execution", rationale);
-      this.store.createSkillExecution(
+      await this.store.createDecisionLog(agentRun.id, "Strategy skipped duplicated execution", rationale);
+      await this.store.createSkillExecution(
         agentRun.id,
         "strategy-proposal-v1",
         "success",
         `job=${jobPosting.id};score=${score};proposed=false;reason=already-submitted`
       );
-      this.store.completeAgentRun(agentRun.id, "completed");
+      await this.store.completeAgentRun(agentRun.id, "completed");
       return ok({
         jobPostingId: jobPosting.id,
         score,
@@ -72,17 +72,17 @@ export class StrategyService {
       });
     }
 
-    const existingPending = this.store.findPendingApprovalRequest(jobPosting.id, input.resumeProfile.id);
+    const existingPending = await this.store.findPendingApprovalRequest(jobPosting.id, input.resumeProfile.id);
     if (existingPending) {
       const rationale = `Score ${score} met threshold ${minimumScore}; reusing existing pending approval ${existingPending.id}`;
-      this.store.createDecisionLog(agentRun.id, "Strategy reused pending approval", rationale);
-      this.store.createSkillExecution(
+      await this.store.createDecisionLog(agentRun.id, "Strategy reused pending approval", rationale);
+      await this.store.createSkillExecution(
         agentRun.id,
         "strategy-proposal-v1",
         "success",
         `job=${jobPosting.id};score=${score};approval=${existingPending.id};reused=true`
       );
-      this.store.completeAgentRun(agentRun.id, "completed");
+      await this.store.completeAgentRun(agentRun.id, "completed");
       return ok({
         jobPostingId: jobPosting.id,
         score,
@@ -94,7 +94,7 @@ export class StrategyService {
       });
     }
 
-    const approval = this.store.createApprovalRequest({
+    const approval = await this.store.createApprovalRequest({
       actionType: "SEND_APPLICATION",
       jobPostingId: jobPosting.id,
       resumeProfileId: input.resumeProfile.id,
@@ -103,14 +103,14 @@ export class StrategyService {
     });
 
     const rationale = `Score ${score} met threshold ${minimumScore}; approval request ${approval.id} opened`;
-    this.store.createDecisionLog(agentRun.id, "Strategy proposed application", rationale);
-    this.store.createSkillExecution(
+    await this.store.createDecisionLog(agentRun.id, "Strategy proposed application", rationale);
+    await this.store.createSkillExecution(
       agentRun.id,
       "strategy-proposal-v1",
       "success",
       `job=${jobPosting.id};score=${score};approval=${approval.id}`
     );
-    this.store.completeAgentRun(agentRun.id, "completed");
+    await this.store.completeAgentRun(agentRun.id, "completed");
 
     return ok({
       jobPostingId: jobPosting.id,

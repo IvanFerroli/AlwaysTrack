@@ -57,11 +57,11 @@ export function createIngestHandlers(service: IngestionService): {
       sendApiResult(response, service.failValidation());
       return;
     }
-    sendApiResult(response, service.ingest(payload));
+    sendApiResult(response, await service.ingest(payload));
   };
 
-  const list: HttpHandler = ({ response }) => {
-    sendApiResult(response, service.list());
+  const list: HttpHandler = async ({ response }) => {
+    sendApiResult(response, await service.list());
   };
 
   const update: HttpHandler = async ({ request, response }) => {
@@ -71,7 +71,7 @@ export function createIngestHandlers(service: IngestionService): {
         sendApiResult(response, { ok: false, error: { code: "INVALID_PAYLOAD", message: "Missing job id" } });
         return;
       }
-      sendApiResult(response, service.updateJob(payload.id, payload));
+      sendApiResult(response, await service.updateJob(payload.id, payload));
     } catch (err) {
       sendApiResult(response, { ok: false, error: { code: "SERVER_ERROR", message: String(err) } });
     }

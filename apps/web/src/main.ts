@@ -8,6 +8,7 @@ import { renderDashboardPage } from "./features/dashboard/render-dashboard.js";
 import { renderWorkbenchPage } from "./features/home/render-home.js";
 import { renderGuidePage } from "./features/home/render-guide.js";
 import {
+  acquireJob,
   analyzeMainCv,
   approveExecution,
   createResumeProfile,
@@ -71,6 +72,44 @@ const server = createServer(async (request, response) => {
     }
 
     response.writeHead(302, { location: `/workspace?status=error&code=${outcome.errorCode ?? "UNKNOWN"}` });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/acquire" && request.method === "POST") {
+    const form = await readFormBody(request);
+    const method = form.get("method")?.toString() ?? "";
+    const sourceUrl = form.get("sourceUrl")?.toString() ?? "";
+    const sourceName = form.get("sourceName")?.toString() ?? "";
+    const rawText = form.get("rawText")?.toString() ?? "";
+    const html = form.get("html")?.toString() ?? "";
+
+    let providerPayload: unknown = undefined;
+    const providerRaw = form.get("providerPayload")?.toString() ?? "";
+    if (providerRaw) {
+      try { providerPayload = JSON.parse(providerRaw); } catch { /* keep undefined */ }
+    }
+
+    const result = await acquireJob(env.apiBaseUrl, {
+      method: method as import("@olympus/shared-types").JobAcquisitionMethod,
+      sourceUrl: sourceUrl || undefined,
+      sourceName: sourceName || undefined,
+      rawText: rawText || undefined,
+      html: html || undefined,
+      providerPayload
+    });
+
+    if (result.ok) {
+      const deduplicated = result.data.ingestion.deduplicated;
+      const suffix = deduplicated ? "dedup" : "acquired";
+      response.writeHead(302, {
+        location: `/workspace?status=success&result=${suffix}&method=${encodeURIComponent(method)}&confidence=${encodeURIComponent(result.data.evidence.confidence)}`
+      });
+      response.end();
+      return;
+    }
+
+    response.writeHead(302, { location: `/workspace?status=error&code=${result.errorCode ?? "UNKNOWN"}` });
     response.end();
     return;
   }

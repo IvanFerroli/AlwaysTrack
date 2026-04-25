@@ -396,6 +396,31 @@ export const headAssets = `
       .job-actions { display: flex; flex-wrap: wrap; min-width: 0; }
       .truncate { max-width: 14rem; }
     }
+
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .tab-btn {
+      background: rgba(2, 6, 23, 0.28);
+      border: 1px solid var(--line-soft);
+      border-radius: 0.65rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.4rem 0.75rem;
+      min-height: 2rem;
+      cursor: pointer;
+      transition: all 160ms ease;
+    }
+    .tab-btn:hover { border-color: rgba(56,189,248,0.4); color: var(--text); transform: translateY(-1px); }
+    .tab-btn.active { background: var(--brand-soft); border-color: rgba(56,189,248,0.55); color: #dff7ff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
   </style>
 `;
 

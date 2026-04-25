@@ -19,6 +19,7 @@
 8. Legado compativel
 
 ## Capabilities atualmente ativas
+- job-acquisition
 - job-ingestion
 - job-scraping
 - resume-profile-management
@@ -56,6 +57,8 @@
 - TASK-SCR-002 - strip HTML descricoes
 - TASK-SCR-003 - multi-source scraper
 - TASK-SCR-005 - scraper boost
+- TASK-ACQ-001 - job acquisition layer (wire + ui)
+- TASK-ACQ-002 - adaptadores ats específicos (gupy/sólides)
 
 ## Tasks concluidas ou operacionalmente incorporadas
 - TASK-DOC-002
@@ -75,6 +78,8 @@
 - TASK-SCR-002
 - TASK-SCR-003
 - TASK-SCR-005 (completed-with-remarks)
+- TASK-ACQ-001 (completed-with-remarks)
+- TASK-ACQ-002
 
 ## Tasks em andamento
 - auditoria de sanidade e normalizacao do repo (2026-04-25)

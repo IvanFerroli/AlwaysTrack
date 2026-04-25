@@ -39,10 +39,10 @@ export function createMatchHandlers(service: MatchService): {
       sendApiResult(response, service.failValidation());
       return;
     }
-    sendApiResult(response, service.score(payload));
+    sendApiResult(response, await service.score(payload));
   };
 
-  const listRanked: HttpHandler = ({ request, response }) => {
+  const listRanked: HttpHandler = async ({ request, response }) => {
     const rawUrl = request.url ?? "";
     const queryStart = rawUrl.indexOf("?");
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
@@ -81,7 +81,7 @@ export function createMatchHandlers(service: MatchService): {
     const location = trimmedQueryValue(params.get("location"), 200);
     const sourceName = trimmedQueryValue(params.get("sourceName"), 80);
 
-    sendApiResult(response, service.listRanked(resumeProfileId, { q, minScore, status, tags, location, sourceName }));
+    sendApiResult(response, await service.listRanked(resumeProfileId, { q, minScore, status, tags, location, sourceName }));
   };
 
   const deepScore: HttpHandler = async ({ request, response }) => {

@@ -228,6 +228,119 @@ function renderMetrics(metrics: MetricsSnapshot): string {
   return `<div class="cards">${rows.map(([label, value]) => `<div class="metric-card"><span class="metric-label">${escapeHtml(label)}</span><strong class="metric-value">${escapeHtml(value)}</strong></div>`).join("")}</div>`;
 }
 
+function renderAcquisitionLab(): string {
+  const tabs: { id: string; label: string; method: string; fields: string }[] = [
+    {
+      id: "smart-paste",
+      label: "📋 Smart Paste",
+      method: "smart-paste",
+      fields: `
+        <label><span class="label-row">Texto da vaga ${renderInfoIcon("Cole o texto copiado da vaga")}</span>
+          <textarea name="rawText" rows="7" required placeholder="Cole aqui o texto completo da vaga (título, empresa, descrição...)"></textarea></label>
+        <label><span class="label-row">URL da fonte ${renderInfoIcon("URL onde a vaga foi encontrada")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://..." pattern="https?://.+" /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Ex: LinkedIn, Glassdoor, Indeed")}</span>
+          <input name="sourceName" placeholder="Ex: LinkedIn" /></label>`
+    },
+    {
+      id: "url-import",
+      label: "🔗 Import por URL",
+      method: "url-import",
+      fields: `
+        <label><span class="label-row">URL da vaga ${renderInfoIcon("O backend buscará e tentará parsear a página pública")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://..." pattern="https?://.+" required /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Opcional — inferido da URL se omitido")}</span>
+          <input name="sourceName" placeholder="Ex: Gupy, Sólides, careers.empresa.com" /></label>`
+    },
+    {
+      id: "ats-adapter",
+      label: "🏢 ATS Adapter",
+      method: "ats-adapter",
+      fields: `
+        <label><span class="label-row">URL da vaga (ATS) ${renderInfoIcon("Greenhouse, Lever, Gupy, Sólides, Workday, etc.")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://boards.greenhouse.io/..." pattern="https?://.+" required /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Ex: Gupy, Lever, Greenhouse")}</span>
+          <input name="sourceName" placeholder="Ex: Gupy" /></label>`
+    },
+    {
+      id: "browser-capture",
+      label: "🌐 Browser Capture",
+      method: "browser-capture",
+      fields: `
+        <label><span class="label-row">Texto da página ${renderInfoIcon("Ctrl+A, Ctrl+C na página da vaga e cole aqui")}</span>
+          <textarea name="rawText" rows="6" placeholder="Cole aqui o texto selecionado da página da vaga..."></textarea></label>
+        <label><span class="label-row">URL da página ${renderInfoIcon("URL da aba do browser onde estava a vaga")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://..." pattern="https?://.+" required /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Ex: LinkedIn assisted capture")}</span>
+          <input name="sourceName" placeholder="Ex: LinkedIn" /></label>`
+    },
+    {
+      id: "email-alert",
+      label: "📧 Email Alert",
+      method: "email-alert",
+      fields: `
+        <label><span class="label-row">Texto do alerta ${renderInfoIcon("Cole o corpo do email de alerta de vagas (LinkedIn, Indeed, Glassdoor, etc.)")}</span>
+          <textarea name="rawText" rows="7" required placeholder="Cole aqui o corpo do email de alerta de vagas..."></textarea></label>
+        <label><span class="label-row">URL da vaga ${renderInfoIcon("Se o email contiver link direto para a vaga")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://..." pattern="https?://.+" /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Ex: LinkedIn Job Alert")}</span>
+          <input name="sourceName" placeholder="Ex: LinkedIn Job Alert" /></label>`
+    },
+    {
+      id: "provider-json",
+      label: "🔌 Provider JSON",
+      method: "provider-json",
+      fields: `
+        <label><span class="label-row">Payload JSON ${renderInfoIcon("JSON do provider externo (Apify, Proxycurl, SerpAPI, etc.) ou JSON-LD de JobPosting")}</span>
+          <textarea name="providerPayload" rows="8" required placeholder='{"title":"...", "companyName":"...", "description":"...", "url":"https://..."}'></textarea></label>
+        <label><span class="label-row">URL de referência ${renderInfoIcon("URL canônica da vaga se não estiver no JSON")}</span>
+          <input name="sourceUrl" type="url" placeholder="https://..." pattern="https?://.+" /></label>
+        <label><span class="label-row">Nome da fonte ${renderInfoIcon("Ex: Apify, Proxycurl")}</span>
+          <input name="sourceName" placeholder="Ex: Apify" /></label>`
+    }
+  ];
+
+  const tabButtons = tabs
+    .map((tab, i) => `<button type="button" class="tab-btn${i === 0 ? " active" : ""}" onclick="switchAcqTab('${tab.id}')" id="tab-btn-${tab.id}">${tab.label}</button>`)
+    .join("");
+
+  const tabPanels = tabs
+    .map(
+      (tab, i) => `<div id="tab-panel-${tab.id}" class="tab-panel${i === 0 ? " active" : ""}">
+        <form method="POST" action="/acquire" class="form-grid">
+          <input type="hidden" name="method" value="${tab.method}" />
+          ${tab.fields}
+          <div class="actions-row">
+            <button type="submit" class="btn-primary">Acquisitar vaga</button>
+          </div>
+        </form>
+      </div>`
+    )
+    .join("");
+
+  return `<section class="panel" id="acquisition-lab">
+    <div class="section-header">
+      <div>
+        <h2>Job Acquisition Lab</h2>
+        <p class="subtle">Capture vagas de qualquer fonte — todas alimentam o mesmo pipeline de dedup, match e scoring.</p>
+      </div>
+      ${renderInfoIcon("6 métodos de aquisição: Smart Paste, URL Import, ATS Adapter, Browser Capture, Email Alert, Provider JSON")}
+    </div>
+    <div class="tab-bar">${tabButtons}</div>
+    <div class="tab-content">${tabPanels}</div>
+    <script>
+      function switchAcqTab(id) {
+        document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        var btn = document.getElementById('tab-btn-' + id);
+        var panel = document.getElementById('tab-panel-' + id);
+        if (btn) btn.classList.add('active');
+        if (panel) panel.classList.add('active');
+      }
+    </script>
+  </section>`;
+}
+
 function renderFlash(flash?: HomeFlash): string {
   if (!flash) return "";
   return renderFlashComponent([{ type: flash.kind === "success" ? "success" : "error", text: flash.message }]);
@@ -287,6 +400,8 @@ export function renderWorkbenchPage(
               <div class="actions-row"><button type="submit" class="btn-primary">Ingest + Score</button><a class="btn-secondary" href="/">Ver ranking</a></div>
             </form>
           </section>
+
+          ${renderAcquisitionLab()}
 
           <section class="split-grid">
             <section class="panel">

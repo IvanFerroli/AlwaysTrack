@@ -40,8 +40,8 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
   listMainCvSources: HttpHandler;
   analyzeMainCv: HttpHandler;
 } {
-  const list: HttpHandler = ({ response }) => {
-    sendApiResult(response, service.list());
+  const list: HttpHandler = async ({ response }) => {
+    sendApiResult(response, await service.list());
   };
 
   const create: HttpHandler = async ({ request, response }) => {
@@ -50,10 +50,10 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
       sendApiResult(response, service.failValidation());
       return;
     }
-    sendApiResult(response, service.create(payload));
+    sendApiResult(response, await service.create(payload));
   };
 
-  const getById: HttpHandler = ({ request, response }) => {
+  const getById: HttpHandler = async ({ request, response }) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     const id = url.searchParams.get("id");
     if (!id) {
@@ -63,7 +63,7 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
       });
       return;
     }
-    sendApiResult(response, service.getById(id));
+    sendApiResult(response, await service.getById(id));
   };
 
   const listMainCvSources: HttpHandler = async ({ response }) => {
@@ -85,7 +85,7 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
       sendApiResult(response, { ok: false, error: { code: "MISSING_ID", message: "ID is required for update" } });
       return;
     }
-    sendApiResult(response, service.update(payload.id, payload));
+    sendApiResult(response, await service.update(payload.id, payload));
   };
 
   return { list, create, getById, update, listMainCvSources, analyzeMainCv };

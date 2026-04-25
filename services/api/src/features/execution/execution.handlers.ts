@@ -15,8 +15,8 @@ export function createExecutionHandlers(service: ExecutionService): {
   listApplications: HttpHandler;
   updateApplicationStatus: HttpHandler;
 } {
-  const listApprovalQueue: HttpHandler = ({ response }) => {
-    sendApiResult(response, service.listApprovalQueue());
+  const listApprovalQueue: HttpHandler = async ({ response }) => {
+    sendApiResult(response, await service.listApprovalQueue());
   };
 
   const approve: HttpHandler = async ({ request, response }) => {
@@ -25,7 +25,7 @@ export function createExecutionHandlers(service: ExecutionService): {
       sendApiResult(response, service.failValidation());
       return;
     }
-    sendApiResult(response, service.approve(payload));
+    sendApiResult(response, await service.approve(payload));
   };
 
   const reject: HttpHandler = async ({ request, response }) => {
@@ -34,11 +34,11 @@ export function createExecutionHandlers(service: ExecutionService): {
       sendApiResult(response, service.failRejectValidation());
       return;
     }
-    sendApiResult(response, service.reject(payload));
+    sendApiResult(response, await service.reject(payload));
   };
 
-  const listApplications: HttpHandler = ({ response }) => {
-    sendApiResult(response, service.listApplications());
+  const listApplications: HttpHandler = async ({ response }) => {
+    sendApiResult(response, await service.listApplications());
   };
 
   const updateApplicationStatus: HttpHandler = async ({ request, response }) => {
@@ -47,7 +47,7 @@ export function createExecutionHandlers(service: ExecutionService): {
       sendApiResult(response, service.failUpdateApplicationValidation());
       return;
     }
-    sendApiResult(response, service.updateApplicationStatus(payload));
+    sendApiResult(response, await service.updateApplicationStatus(payload));
   };
 
   return { listApprovalQueue, approve, reject, listApplications, updateApplicationStatus };
