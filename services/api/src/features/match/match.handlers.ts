@@ -6,6 +6,7 @@ import { validateMatchPayload } from "./match.validate.js";
 
 export function createMatchHandlers(service: MatchService): {
   score: HttpHandler;
+  deepScore: HttpHandler;
   listRanked: HttpHandler;
 } {
   const score: HttpHandler = async ({ request, response }) => {
@@ -34,5 +35,14 @@ export function createMatchHandlers(service: MatchService): {
     sendApiResult(response, service.listRanked(resumeProfileId, { q, minScore, status, tags, location, sourceName }));
   };
 
-  return { score, listRanked };
+  const deepScore: HttpHandler = async ({ request, response }) => {
+    const payload = await readJsonBody(request);
+    if (!validateMatchPayload(payload)) {
+      sendApiResult(response, service.failValidation());
+      return;
+    }
+    sendApiResult(response, await service.deepScore(payload));
+  };
+
+  return { score, deepScore, listRanked };
 }

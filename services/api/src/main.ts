@@ -63,6 +63,7 @@ router.register("GET", "/v1/main-cv/sources", resumeProfilesHandlers.listMainCvS
 router.register("POST", "/v1/main-cv/analyze", resumeProfilesHandlers.analyzeMainCv);
 router.register("POST", "/v1/scraper/run", scraperHandlers.run);
 router.register("POST", "/v1/match/score", matchHandlers.score);
+router.register("POST", "/v1/match/deep-score", matchHandlers.deepScore);
 router.register("GET", "/v1/jobs/ranked", matchHandlers.listRanked);
 router.register("POST", "/v1/strategy/propose", strategyHandlers.propose);
 router.register("GET", "/v1/approval-queue", executionHandlers.listApprovalQueue);

@@ -1,5 +1,6 @@
 import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting, JobUserStatus } from "@olympus/shared-types";
 import { InMemoryStateStore } from "../../domain/state/store.js";
+import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
 export interface JobFilterOptions {
   q?: string;
@@ -24,11 +25,12 @@ function normalizeSkills(skills: string[]): string[] {
     .filter((item) => item.length > 0);
 }
 
-function computeScore(matched: number, total: number): number {
-  if (total <= 0) {
-    return 0;
-  }
-  return Math.round((matched / total) * 100);
+function computeScore(matched: number, totalProfileSkills: number): number {
+  if (matched <= 0) return 0;
+  // A job shouldn't require all 40 skills of a profile. 
+  // Let's assume hitting 5 skills is a perfect 100% match.
+  const baseScore = matched * 20; 
+  return Math.min(100, baseScore);
 }
 
 export class MatchService {
@@ -44,7 +46,14 @@ export class MatchService {
     const tokenSet = new Set(jobPosting.normalizedTokens);
     const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
     const missingSkills = normalizedSkills.filter((skill) => !tokenSet.has(skill));
-    const score = computeScore(matchedSkills.length, normalizedSkills.length);
+    
+    let titleBoost = 0;
+    const jobTitleLower = jobPosting.title.toLowerCase();
+    const profileHeadlineWords = input.resumeProfile.headline.toLowerCase().split(" ");
+    for (const w of profileHeadlineWords) {
+        if (w.length > 3 && jobTitleLower.includes(w)) titleBoost += 15;
+    }
+    const score = Math.min(100, computeScore(matchedSkills.length, normalizedSkills.length) + titleBoost);
 
     const agentRun = this.store.createAgentRun("Match Agent", "Match");
     const result: MatchScoreResult = {
@@ -59,6 +68,45 @@ export class MatchService {
     this.store.createSkillExecution(
       agentRun.id,
       "match-score-v1",
+      "success",
+      `posting=${jobPosting.id};score=${score}`
+    );
+    this.store.completeAgentRun(agentRun.id, "completed");
+
+    return ok(result);
+  }
+
+  async deepScore(input: MatchScoreInput): Promise<ApiResult<MatchScoreResult>> {
+    const jobPosting = this.store.findJobPostingById(input.jobPostingId);
+    if (!jobPosting) {
+      return fail("JOB_POSTING_NOT_FOUND", `Job posting ${input.jobPostingId} not found`);
+    }
+
+    const hasApiKey = !!process.env["GEMINI_API_KEY"];
+    if (!hasApiKey) {
+      return fail("MISSING_API_KEY", "A avaliação profunda (Deep Score) requer a variável GEMINI_API_KEY.");
+    }
+
+    const { score, rationale } = await analyzeJobMatch(
+      input.resumeProfile.headline,
+      input.resumeProfile.skills,
+      jobPosting.title,
+      jobPosting.description
+    );
+
+    const agentRun = this.store.createAgentRun("Match Agent (LLM)", "DeepMatch");
+    const result: MatchScoreResult = {
+      jobPostingId: jobPosting.id,
+      score,
+      matchedSkills: [],
+      missingSkills: [],
+      rationale: `[Deep AI Analysis]: ${rationale}`
+    };
+
+    this.store.createDecisionLog(agentRun.id, "LLM Deep Score computed", result.rationale);
+    this.store.createSkillExecution(
+      agentRun.id,
+      "deep-match-score-v1",
       "success",
       `posting=${jobPosting.id};score=${score}`
     );
@@ -118,9 +166,18 @@ export class MatchService {
     let ranked: RankedJobPosting[] = jobs.map((job) => {
       const tokenSet = new Set(job.normalizedTokens);
       const matchedSkills = normalizedSkills.filter((skill) => tokenSet.has(skill));
-      const score = normalizedSkills.length > 0
-        ? Math.round((matchedSkills.length / normalizedSkills.length) * 100)
-        : 0;
+      
+      let score = 0;
+      if (matchedSkills.length > 0) {
+        let titleBoost = 0;
+        const jobTitleLower = job.title.toLowerCase();
+        const profileHeadlineWords = profile.headline.toLowerCase().split(" ");
+        for (const w of profileHeadlineWords) {
+            if (w.length > 3 && jobTitleLower.includes(w)) titleBoost += 15;
+        }
+        const baseScore = matchedSkills.length * 20; // 5 skills = 100%
+        score = Math.min(100, baseScore + titleBoost);
+      }
       return { ...job, score, matchedSkills };
     });
 

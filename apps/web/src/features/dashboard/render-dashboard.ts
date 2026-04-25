@@ -257,10 +257,14 @@ export function renderDashboardPage(data: DashboardData): string {
                         </div>
                       </div>
                       <div style="display:flex;flex-direction:column;gap:0.3rem;">
+                        <button onclick="runDeepMatch('${job.id}')" style="font-size:0.75rem;padding:0.2rem 0.4rem;background:#8b5cf6;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:bold;">🤖 Deep Score</button>
                         <a href="${job.sourceUrl}" target="_blank" rel="noreferrer" style="font-size:0.85rem;color:#0066cc;text-decoration:none;white-space:nowrap;text-align:center;">Ver ↗</a>
                         ${job.userStatus !== 'applied' ? `<button onclick="updateJobStatus('${job.id}', 'applied')" style="font-size:0.7rem;padding:0.2rem 0.4rem;background:#3b82f6;color:#fff;border:none;border-radius:3px;cursor:pointer;">Apply</button>` : ''}
                         ${job.userStatus !== 'discarded' ? `<button onclick="updateJobStatus('${job.id}', 'discarded')" style="font-size:0.7rem;padding:0.2rem 0.4rem;background:#ef4444;color:#fff;border:none;border-radius:3px;cursor:pointer;">Discard</button>` : ''}
                       </div>
+                    </div>
+                    <div id="deep-score-${job.id}" style="display:none; margin:0.5rem 0 1rem 0; padding:1rem; background:#f3e8ff; border:1px dashed #d8b4fe; border-radius:6px; font-size:0.85rem; color:#4c1d95;">
+                      <em>Analisando aderência profunda com AI...</em>
                     </div>`;
                   }).join('')}
                 </div>`
@@ -359,6 +363,42 @@ export function renderDashboardPage(data: DashboardData): string {
         }
       } catch(err) {
         alert("Falha na rede: " + err);
+      }
+    };
+
+    window.runDeepMatch = async function(jobId) {
+      const div = document.getElementById('deep-score-' + jobId);
+      div.style.display = 'block';
+      div.innerHTML = '<em>🤖 Consultando LLM (Gemini 2.5 Flash)... Aguarde a análise detalhada.</em>';
+      
+      try {
+        // Fetch the currently active profile ID
+        const profilesRes = await fetch('${data.apiBaseUrl}/v1/resume-profiles');
+        const profilesJson = await profilesRes.json();
+        if (!profilesJson.ok || profilesJson.data.items.length === 0) {
+           div.innerHTML = '<span style="color:red;">Erro: Nenhum Resume Profile encontrado.</span>';
+           return;
+        }
+        
+        const params = new URLSearchParams(window.location.search);
+        const profileId = params.get('resumeProfileId') || profilesJson.data.items[0].id;
+        const profile = profilesJson.data.items.find(p => p.id === profileId) || profilesJson.data.items[0];
+
+        const res = await fetch('${data.apiBaseUrl}/v1/match/deep-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobPostingId: jobId, resumeProfile: profile })
+        });
+        
+        const json = await res.json();
+        if (json.ok) {
+          const { score, rationale } = json.data;
+          div.innerHTML = '<strong>🤖 LLM Score: ' + score + '%</strong><br/>' + rationale;
+        } else {
+          div.innerHTML = '<span style="color:red;">Falha: ' + (json.error?.message || 'Erro desconhecido') + '</span>';
+        }
+      } catch(err) {
+        div.innerHTML = '<span style="color:red;">Erro de Rede: ' + err + '</span>';
       }
     };
   </script>
