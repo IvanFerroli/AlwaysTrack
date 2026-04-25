@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function extractSkillsWithGemini(cvText: string): Promise<string[]> {
   const apiKey = process.env["GEMINI_API_KEY"];
@@ -6,7 +6,8 @@ export async function extractSkillsWithGemini(cvText: string): Promise<string[]>
     throw new Error("GEMINI_API_KEY not found in environment variables");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
 Você é um especialista em recrutamento técnico de TI.
@@ -21,11 +22,7 @@ ${cvText}
 """
 `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-
-  const text = response.text || "";
+  const result = await model.generateContent(prompt);
+  const text = result.response.text() || "";
   return text.split(',').map(s => s.trim()).filter(s => s.length > 0);
 }
