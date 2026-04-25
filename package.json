@@ -8,8 +8,8 @@
     "lint": "eslint \"{apps,services,packages}/**/*.ts\"",
     "test": "npm run -ws --if-present test",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "dev:api": "tsx services/api/src/main.ts",
-    "dev:web": "tsx apps/web/src/main.ts",
+    "dev:api": "tsx --env-file=.env services/api/src/main.ts",
+    "dev:web": "tsx --env-file=.env apps/web/src/main.ts",
     "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "start:api": "npm --workspace @olympus/api run start",
     "start:web": "npm --workspace @olympus/web run start"
