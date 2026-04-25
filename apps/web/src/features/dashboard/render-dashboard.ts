@@ -164,7 +164,8 @@ export function renderDashboardPage(data: DashboardData): string {
           </h2>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <a href="/workspace" style="padding: 0.6rem 1rem; background: #0066cc; color: #fff; text-decoration: none; border-radius: 4px; display: inline-block;">→ Ir para Workspace</a>
-            <form action="${data.apiBaseUrl}/v1/scraper/run" method="POST" target="_blank" style="margin: 0;">
+            <form action="${data.apiBaseUrl}/v1/scraper/run" method="POST" target="_blank" style="margin: 0; display:flex; gap:0.5rem;" onsubmit="if(this.keyword.value) this.action = '${data.apiBaseUrl}/v1/scraper/run?keyword=' + encodeURIComponent(this.keyword.value); else this.action = '${data.apiBaseUrl}/v1/scraper/run';">
+              <input type="text" name="keyword" placeholder="Ex: React, Developer..." style="padding:0.4rem;border:1px solid #ccc;border-radius:4px;min-width:140px;">
               <button type="submit" style="padding: 0.6rem 1rem; background: #22c55e; color: #fff; text-decoration: none; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 600; display: inline-block;">🚀 Start Climbing (Run Scraper)</button>
             </form>
             <a href="/health" style="padding: 0.6rem 1rem; background: #f0f0f0; color: #333; text-decoration: none; border-radius: 4px; display: inline-block; border: 1px solid #ddd;">📊 Ver Health</a>

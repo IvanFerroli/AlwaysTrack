@@ -83,11 +83,25 @@ async function runSingleSource(
  */
 export async function runScraper(
   ingestionService: IngestionService,
-  sourceKey = process.env["SCRAPER_SOURCE"] ?? "all"
+  sourceKey = process.env["SCRAPER_SOURCE"] ?? "all",
+  keyword?: string
 ): Promise<ScraperRunResult> {
+  // Helpers to inject search keyword
+  const getSourceConfig = (src: ScraperSourceConfig) => {
+    if (!keyword) return src;
+    const kw = encodeURIComponent(keyword.trim());
+    let newUrl = src.url;
+    if (src.format === "remotive-json") newUrl += `&search=${kw}`;
+    if (src.format === "arbeitnow-json") newUrl += `&search=${kw}`;
+    if (src.format === "himalayas-json") newUrl += `&q=${kw}`;
+    if (src.format === "jobicy-json") newUrl += `&term=${kw}`;
+    if (src.format === "remoteok-json") newUrl += `&tags=${kw}`;
+    return { ...src, url: newUrl };
+  };
+
   if (sourceKey === "all") {
     const settledResults = await Promise.allSettled(
-      Object.values(SCRAPER_SOURCES).map(src => runSingleSource(ingestionService, src))
+      Object.values(SCRAPER_SOURCES).map(src => runSingleSource(ingestionService, getSourceConfig(src)))
     );
 
     const results = settledResults
@@ -122,7 +136,7 @@ export async function runScraper(
     );
   }
 
-  const res = await runSingleSource(ingestionService, source);
+  const res = await runSingleSource(ingestionService, getSourceConfig(source));
   return {
     source: res.name,
     fetched: res.fetched,

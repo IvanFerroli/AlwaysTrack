@@ -12,9 +12,10 @@ export function createScraperHandlers(ingestionService: IngestionService): {
     const queryStart = rawUrl.indexOf("?");
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
     const sourceKey = params.get("source") ?? process.env["SCRAPER_SOURCE"] ?? "all";
+    const keyword = params.get("keyword") ?? undefined;
 
     try {
-      const result = await runScraper(ingestionService, sourceKey);
+      const result = await runScraper(ingestionService, sourceKey, keyword);
       sendApiResult(response, {
         ok: true,
         data: {
