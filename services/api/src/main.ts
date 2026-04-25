@@ -57,6 +57,7 @@ router.register("POST", "/v1/job-postings/ingest", ingestHandlers.ingest);
 router.register("POST", "/v1/jobs/update", ingestHandlers.update);
 router.register("GET", "/v1/resume-profiles", resumeProfilesHandlers.list);
 router.register("POST", "/v1/resume-profiles", resumeProfilesHandlers.create);
+router.register("POST", "/v1/resume-profiles/update", resumeProfilesHandlers.update);
 router.register("GET", "/v1/resume-profiles/get", resumeProfilesHandlers.getById);
 router.register("GET", "/v1/main-cv/sources", resumeProfilesHandlers.listMainCvSources);
 router.register("POST", "/v1/main-cv/analyze", resumeProfilesHandlers.analyzeMainCv);

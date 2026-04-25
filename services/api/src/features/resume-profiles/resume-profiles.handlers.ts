@@ -8,6 +8,7 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
   list: HttpHandler;
   create: HttpHandler;
   getById: HttpHandler;
+  update: HttpHandler;
   listMainCvSources: HttpHandler;
   analyzeMainCv: HttpHandler;
 } {
@@ -50,5 +51,14 @@ export function createResumeProfilesHandlers(service: ResumeProfilesService): {
     sendApiResult(response, await service.analyzeMainCv(payload));
   };
 
-  return { list, create, getById, listMainCvSources, analyzeMainCv };
+  const update: HttpHandler = async ({ request, response }) => {
+    const payload = await readJsonBody(request);
+    if (!payload.id) {
+      sendApiResult(response, { ok: false, error: { code: "MISSING_ID", message: "ID is required for update" } });
+      return;
+    }
+    sendApiResult(response, service.update(payload.id, payload));
+  };
+
+  return { list, create, getById, update, listMainCvSources, analyzeMainCv };
 }

@@ -297,6 +297,14 @@ export class InMemoryStateStore {
     return profile;
   }
 
+  updateResumeProfile(id: string, updates: Partial<Pick<ResumeProfile, "headline" | "skills">>): ResumeProfile | undefined {
+    const profile = this.findResumeProfileById(id);
+    if (!profile) return undefined;
+    if (updates.headline) profile.headline = updates.headline;
+    if (updates.skills) profile.skills = updates.skills;
+    return profile;
+  }
+
   recordIngestionAttempt(deduplicated: boolean): void {
     this.runtimeCounters.ingestionAttempts += 1;
     if (deduplicated) {

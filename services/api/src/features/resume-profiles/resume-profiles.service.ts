@@ -116,6 +116,17 @@ export class ResumeProfilesService {
     return ok(profile);
   }
 
+  update(id: string, payload: Partial<Pick<ResumeProfile, "headline" | "skills">>): ApiResult<ResumeProfile> {
+    const profile = this.store.updateResumeProfile(id, {
+      headline: payload.headline?.trim(),
+      skills: payload.skills ? normalizeSkills(payload.skills) : undefined
+    });
+    if (!profile) {
+      return fail("RESUME_PROFILE_NOT_FOUND", `Resume profile ${id} not found`);
+    }
+    return ok(profile);
+  }
+
   failValidation(): ApiResult<never> {
     return fail("INVALID_RESUME_PROFILE_PAYLOAD", "Payload must include headline and skills[]");
   }

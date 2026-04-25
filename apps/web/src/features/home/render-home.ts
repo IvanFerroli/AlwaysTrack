@@ -50,8 +50,45 @@ function renderResumeProfileOptions(items: ResumeProfile[]): string {
   }
 
   return items
-    .map((item) => `<option value="${item.id}">${item.id} - ${item.headline} [${item.skills.join(", ")}]</option>`)
+    .map((item) => `<option value="${item.id}">${item.id} - ${item.headline}</option>`)
     .join("");
+}
+
+function renderProfileManager(items: ResumeProfile[]): string {
+  if (items.length === 0) return "<p>No profiles found.</p>";
+  
+  return `<div style="display:grid; gap:1rem;">
+    ${items.map(p => `
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+          <div>
+            <h4 style="margin:0 0 0.25rem 0; color:#0f172a; font-size:1.1rem;">${p.headline}</h4>
+            <span style="font-size:0.75rem; color:#64748b; font-family:monospace;">ID: ${p.id}</span>
+          </div>
+          <button onclick="document.getElementById('edit-profile-${p.id}').style.display = 'block'" style="background:transparent; border:1px solid #cbd5e1; padding:0.3rem 0.6rem; border-radius:4px; font-size:0.8rem; cursor:pointer;">Edit</button>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem;">
+          ${p.skills.map(s => `<span style="background:#e0e7ff; color:#3730a3; padding:0.2rem 0.5rem; border-radius:12px; font-size:0.8rem; font-weight:500;">${s}</span>`).join('')}
+        </div>
+        
+        <!-- Formulário de Edição Oculto -->
+        <div id="edit-profile-${p.id}" style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px dashed #cbd5e1;">
+          <form style="display:flex; flex-direction:column; gap:0.75rem;" onsubmit="event.preventDefault(); updateProfile('${p.id}', this.headline.value, this.skills.value)">
+            <label style="font-size:0.85rem; font-weight:600;">Headline:
+              <input name="headline" value="${p.headline}" style="width:100%; padding:0.4rem; margin-top:0.2rem; border:1px solid #ccc; border-radius:4px;" />
+            </label>
+            <label style="font-size:0.85rem; font-weight:600;">Skills (comma separated):
+              <textarea name="skills" rows="3" style="width:100%; padding:0.4rem; margin-top:0.2rem; border:1px solid #ccc; border-radius:4px;">${p.skills.join(', ')}</textarea>
+            </label>
+            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+              <button type="button" onclick="document.getElementById('edit-profile-${p.id}').style.display = 'none'" style="background:#f1f5f9; border:1px solid #cbd5e1; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer;">Cancel</button>
+              <button type="submit" style="background:#0ea5e9; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600;">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
 }
 
 function renderCvSourceOptions(items: MainCvSource[]): string {
@@ -249,6 +286,7 @@ export function renderWorkbenchPage(
     ? renderMetrics(metrics.data)
     : `<p>Could not load metrics (${metrics.error.code}).</p>`;
   const profileOptions = resumeProfiles.ok ? renderResumeProfileOptions(resumeProfiles.data.items) : "";
+  const profileManager = resumeProfiles.ok ? renderProfileManager(resumeProfiles.data.items) : "";
   const cvSourceOptions = cvSources.ok ? renderCvSourceOptions(cvSources.data.items) : "";
 
   return `<!doctype html>
@@ -328,50 +366,50 @@ export function renderWorkbenchPage(
               <button type="submit" class="primary">✓ Ingest + Score</button>
             </form>
 
-            <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #ddd;" />
+          <!-- Profile Manager -->
+          <section class="panel">
+            <h2>
+              Resume Profiles
+              <span class="info-icon" data-tooltip="Gerencie os perfis que afetam a afinidade do Scraper">i</span>
+            </h2>
+            <p style="color:#64748b; font-size:0.9rem; margin-bottom:1rem;">Visualize ou personalize facilmente o que foi derivado do seu CV. Alterações feitas aqui afetarão instantaneamente a pontuação do próximo Scraping.</p>
+            ${profileManager}
 
-            <h3>Create Resume Profile</h3>
+            <hr style="margin: 2rem 0; border: none; border-top: 1px solid #e2e8f0;" />
+
+            <h3>Create New Profile</h3>
             <form method="POST" action="/resume-profiles">
               <label>
                 Headline
-                <span class="info-icon" data-tooltip="Descrição do perfil (ex: Senior Node.js Developer)">i</span>
                 <input name="headline" required />
               </label>
               <label>
                 Skills (comma separated)
-                <span class="info-icon" data-tooltip="Skills principais (ex: TypeScript, React, Node.js)">i</span>
                 <input name="skills" value="node,typescript,api" required />
               </label>
-              <button type="submit" class="primary">✓ Create Profile</button>
+              <button type="submit" class="primary">✓ Create Blank Profile</button>
             </form>
-          </section>
 
-          <!-- Main CV Analyzer -->
-          <section class="panel">
-            <h2>
-              Main CV Analyzer
-              <span class="info-icon" data-tooltip="Analise seu CV principal contra oportunidades disponíveis">i</span>
-            </h2>
-            <p>Use seus arquivos em <code style="background: #f0f0f0; padding: 0.25rem 0.5rem; border-radius: 2px;">doc/*.txt</code> para gerar um profile com skills extraídas e usar no matching.</p>
+            <hr style="margin: 2rem 0; border: none; border-top: 1px solid #e2e8f0;" />
+
+            <h3>Main CV Analyzer</h3>
+            <p>Extraia atributos de um <code style="background: #f0f0f0; padding: 0.25rem 0.5rem; border-radius: 2px;">doc/*.txt</code>.</p>
             <form method="POST" action="/main-cv/analyze">
               <label>
                 CV text source (.txt)
-                <span class="info-icon" data-tooltip="Selecione qual CV analisar">i</span>
                 <select name="sourceFile" required>
                   ${cvSourceOptions}
                 </select>
               </label>
               <label>
                 Headline
-                <span class="info-icon" data-tooltip="Nome descritivo para este profile">i</span>
                 <input name="headline" value="Ivanilson Ferreira - Main CV" required />
               </label>
               <label>
                 Extra skills (comma separated)
-                <span class="info-icon" data-tooltip="Skills adicionais não mencionadas no CV">i</span>
                 <textarea name="extraSkills" rows="3" placeholder="ex: playwright,cypress,redis"></textarea>
               </label>
-              <button type="submit" class="primary">✓ Analyze Main CV + Create Profile</button>
+              <button type="submit" class="primary">✓ Analyze & Create Profile</button>
             </form>
           </section>
 
@@ -445,6 +483,26 @@ export function renderWorkbenchPage(
 
       ${renderFooter()}
     </div>
+    <script>
+      async function updateProfile(id, headline, skillsStr) {
+        try {
+          const skills = skillsStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+          const res = await fetch('${apiBaseUrl}/v1/resume-profiles/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, headline, skills })
+          });
+          const json = await res.json();
+          if (json.ok) {
+            window.location.href = '/workspace?status=success&result=profile-updated';
+          } else {
+            alert('Failed to update profile: ' + (json.error?.message || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('Network error: ' + err);
+        }
+      }
+    </script>
   </body>
 </html>`;
 }
