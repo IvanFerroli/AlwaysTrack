@@ -340,6 +340,16 @@ export const headAssets = `
     .split-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
     .stack { display: grid; gap: 0.75rem; }
     .empty { color: var(--muted); font-style: italic; margin: 0; }
+    .notice {
+      border: 1px solid var(--line-soft);
+      border-radius: 0.9rem;
+      background: rgba(2, 6, 23, 0.28);
+      color: var(--text);
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.75rem;
+      font-weight: 700;
+    }
+    .notice.warning { border-color: rgba(245, 158, 11, 0.32); color: #fde68a; background: rgba(245, 158, 11, 0.09); }
     .muted { color: var(--muted); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .truncate { max-width: 24rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

@@ -105,6 +105,7 @@
 - O runtime principal usa Prisma/Postgres; `DATABASE_URL` precisa estar configurada e o schema sincronizado.
 - O scoring local de Match e Strategy deve usar a mesma rotina compartilhada.
 - O scoring deve tratar skills pontuadas como `node.js`/`next.js` como grupos de tokens equivalentes quando os tokens da vaga baterem.
+- O scoring de afinidade local deve reconhecer aliases tecnicos comuns (`node`/`node.js`, `react`/`react.js`, `ts`/`typescript`) e evitar boost por palavras genericas como `developer`, `engineer`, `senior` sem skill tecnica.
 - Rotas POST no dashboard nao devem ser abertas como links GET; devem ser acionadas por form/fetch/curl.
 - Dados vindos de scraper, CV, profile, decision logs e LLM devem ser escapados antes de render HTML.
 - Servidores locais fazem bind em `127.0.0.1` por padrao.

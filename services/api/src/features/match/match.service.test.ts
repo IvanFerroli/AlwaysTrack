@@ -82,3 +82,109 @@ test("match service treats dotted skills as token groups", async () => {
   assert.equal(result.data.missingSkills.length, 0);
   assert.equal(result.data.score, 100);
 });
+
+test("match service scores public platform cards by title skill aliases", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+
+  const ingested = await ingestion.ingest({
+    title: "Junior Full Stack Developer | Node and React",
+    companyName: "Getnet",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/title-card",
+    description: "LinkedIn public search result. Open the source URL for the complete job description.",
+    location: "Brazil"
+  });
+
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const result = await match.score({
+    jobPostingId: ingested.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Main CV",
+      skills: ["node.js", "react", "typescript", "postgresql"],
+      createdAt: new Date().toISOString()
+    }
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) {
+    throw new Error("expected match to succeed");
+  }
+
+  assert.equal(result.data.matchedSkills.includes("node.js"), true);
+  assert.equal(result.data.matchedSkills.includes("react"), true);
+  assert.ok(result.data.score >= 70);
+});
+
+test("match service handles compact stack aliases without generic headline inflation", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+
+  const stackJob = await ingestion.ingest({
+    title: "Full-stack Node/React Developer",
+    companyName: "Stack Co",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/fullstack-node-react",
+    description: "Public card with compact title only.",
+    location: "Remote"
+  });
+
+  assert.equal(stackJob.ok, true);
+  if (!stackJob.ok) {
+    throw new Error("expected stack job ingestion to succeed");
+  }
+
+  const stackResult = await match.score({
+    jobPostingId: stackJob.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Senior Software Engineer",
+      skills: ["nodejs", "react.js", "postgresql"],
+      createdAt: new Date().toISOString()
+    }
+  });
+
+  assert.equal(stackResult.ok, true);
+  if (!stackResult.ok) {
+    throw new Error("expected stack match to succeed");
+  }
+  assert.deepEqual(stackResult.data.matchedSkills.sort(), ["nodejs", "react.js"]);
+  assert.ok(stackResult.data.score >= 70);
+
+  const genericJob = await ingestion.ingest({
+    title: "Senior Software Engineer",
+    companyName: "Generic Co",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/generic-engineer",
+    description: "Public card without technical stack.",
+    location: "Remote"
+  });
+
+  assert.equal(genericJob.ok, true);
+  if (!genericJob.ok) {
+    throw new Error("expected generic job ingestion to succeed");
+  }
+
+  const genericResult = await match.score({
+    jobPostingId: genericJob.data.jobPosting.id,
+    resumeProfile: {
+      id: "resume-1",
+      headline: "Senior Software Engineer",
+      skills: ["nodejs", "react.js", "postgresql"],
+      createdAt: new Date().toISOString()
+    }
+  });
+
+  assert.equal(genericResult.ok, true);
+  if (!genericResult.ok) {
+    throw new Error("expected generic match to succeed");
+  }
+  assert.equal(genericResult.data.score, 0);
+});

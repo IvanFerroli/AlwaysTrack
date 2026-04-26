@@ -33,7 +33,7 @@ export class MatchService {
       input.resumeProfile.skills,
       jobPosting.normalizedTokens
     );
-    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title);
+    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title, matchedSkills);
 
     const agentRun = await this.store.createAgentRun("Match Agent", "Match");
     const result: MatchScoreResult = {
@@ -141,7 +141,7 @@ export class MatchService {
 
     let ranked: RankedJobPosting[] = jobs.map((job) => {
       const { matchedSkills } = computeSkillOverlap(profile.skills, job.normalizedTokens);
-      const score = computeMatchScore(matchedSkills.length, profile.headline, job.title);
+      const score = computeMatchScore(matchedSkills.length, profile.headline, job.title, matchedSkills);
       return { ...job, score, matchedSkills };
     });
 

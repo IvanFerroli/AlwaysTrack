@@ -54,7 +54,7 @@
   - Fontes padrao em `source=all`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn e Gupy.
   - Fontes nomeadas, mas indisponiveis no runner automatico atual: Indeed e Glassdoor, por retornarem security check sem feed publico estavel neste ambiente.
   - CryptoJobsList permanece nomeada no codigo, mas fora de `source=all` ate existir parser/feed operacional confiavel.
-- `POST /v1/match/score`: score local por overlap de skills.
+- `POST /v1/match/score`: score local por skills encontradas, aliases tecnicos e boosts quando skills/headline aparecem no titulo.
 - `POST /v1/jobs/acquire`: acquisition multimodal com smart-paste, url-import, ats-adapter, browser-capture, email-alert e provider-json.
 - `POST /v1/match/deep-score`: score LLM com Gemini quando `GEMINI_API_KEY` existe.
 - `POST /v1/strategy/propose`: propoe candidatura com gate humano.
@@ -76,7 +76,8 @@
 - Scraper multi-fonte com tolerancia parcial por fonte e keyword apenas em fontes com query validada.
 - Platform scraper para LinkedIn public guest search e Gupy public portal, persistindo origem em `sourceName`.
 - Strip HTML em descricoes de feeds.
-- Ranking por afinidade com filtros de busca, local, fonte, status e score minimo.
+- Ranking por afinidade local com filtros de busca, local, fonte, status e score minimo.
+- Afinidade local usa tokens normalizados da vaga, aliases tecnicos (`node`/`node.js`, `react`/`react.js`, etc.) e boosts controlados por titulo.
 - Tags e status manuais por vaga.
 - Resume profiles manuais e editaveis.
 - CV analyzer baseado em arquivos `.txt` de `doc/`.

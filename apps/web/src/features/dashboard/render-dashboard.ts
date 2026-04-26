@@ -150,7 +150,12 @@ function renderRankedJobs(data: DashboardData): string {
     return `<p class="empty">Nenhuma vaga encontrada. Rode o scraper ou ajuste os filtros.</p>`;
   }
 
-  return `<div class="job-list" id="jobs-container">${data.rankedJobs.data.items.map(renderRankedJobCard).join("")}</div>`;
+  const allScoresAreZero = data.rankedJobs.data.items.every((job) => job.score === 0 && job.matchedSkills.length === 0);
+  const scoreNotice = allScoresAreZero
+    ? `<div class="notice warning">Scores zerados podem indicar ausência de resume profile ou nenhuma skill encontrada nos tokens das vagas. Ajuste seu profile no Workspace.</div>`
+    : "";
+
+  return `${scoreNotice}<div class="job-list" id="jobs-container">${data.rankedJobs.data.items.map(renderRankedJobCard).join("")}</div>`;
 }
 
 function scoreBand(score: number): "high" | "mid" | "low" {
@@ -176,15 +181,17 @@ function renderRankedJobCard(job: RankedJobPosting): string {
   const band = scoreBand(job.score);
   const statusClass = job.userStatus === "applied" ? "brand" : job.userStatus === "discarded" ? "danger" : "";
   const originalHref = safeHttpHref(job.sourceUrl);
+  const matchedSkills = job.matchedSkills.slice(0, 8);
   return `<article class="job-card ${band}">
-    <div class="score-box"><span class="score-value ${band}">${escapeHtml(job.score)}%</span><span class="muted">match</span></div>
+    <div class="score-box"><span class="score-value ${band}">${escapeHtml(job.score)}%</span><span class="muted">afinidade local</span></div>
     <div>
       <div class="job-title">
         <span>${escapeHtml(job.title)}</span>
         <span class="badge ${statusClass}">${escapeHtml(job.userStatus)}</span>
       </div>
       <div class="job-meta">${escapeHtml(job.companyName)} - ${escapeHtml(job.location ?? "Remote")} - ${escapeHtml(job.sourceName)} - ${escapeHtml(formatDate(job.postedAt))}</div>
-      ${job.matchedSkills.length > 0 ? `<div class="chip-row">${job.matchedSkills.slice(0, 8).map((skill) => `<span class="badge brand">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}
+      <p class="subtle">${matchedSkills.length > 0 ? `Skills encontradas: ${escapeHtml(matchedSkills.join(", "))}` : "Nenhuma skill do profile encontrada nos tokens desta vaga."}</p>
+      ${matchedSkills.length > 0 ? `<div class="chip-row">${matchedSkills.map((skill) => `<span class="badge brand">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}
       <div class="tag-control">
         ${job.tags.map((tag) => `<span class="badge">${escapeHtml(tag)} <button class="btn-small danger" onclick='window.updateJobTag(${jsonForHtml(job.id)}, null, ${jsonForHtml(tag)})' type="button">x</button></span>`).join("")}
         <input class="tag-input" id="tag-input-${escapeAttr(job.id)}" type="text" placeholder="nova tag" onkeydown='if(event.key === "Enter") { event.preventDefault(); window.updateJobTag(${jsonForHtml(job.id)}, this.value); this.value=""; }' />
@@ -261,7 +268,7 @@ export function renderDashboardPage(data: DashboardData): string {
         <section class="panel">
           <div class="section-header">
             <div><h2>Vagas por afinidade</h2><p class="subtle">Ranking por overlap de skills do profile ativo, com filtros e ações rápidas.</p></div>
-            ${renderInfoIcon("Score simples local; Deep Score chama Gemini quando GEMINI_API_KEY existe")}
+            ${renderInfoIcon("Afinidade local: skills encontradas nos tokens da vaga + boosts quando skills/headline aparecem no título. Deep Score chama Gemini quando GEMINI_API_KEY existe.")}
           </div>
           <form method="GET" action="/" class="form-grid two">
             <label><span class="label-row">Busca ${renderInfoIcon("Título, empresa ou descrição")}</span><input type="text" name="q" placeholder="React, backend, platform..." /></label>

@@ -23,7 +23,7 @@ export class StrategyService {
       input.resumeProfile.skills,
       jobPosting.normalizedTokens
     );
-    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title);
+    const score = computeMatchScore(matchedSkills.length, input.resumeProfile.headline, jobPosting.title, matchedSkills);
     const minimumScore = input.minimumScore ?? 50;
     const requestedBy = input.requestedBy ?? "strategy-agent";
     const proposed = score >= minimumScore;
