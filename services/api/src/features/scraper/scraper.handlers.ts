@@ -24,12 +24,14 @@ export function createScraperHandlers(ingestionService: IngestionService): {
           ok: result.errors.length === 0,
           source: result.source,
           fetched: result.fetched,
+          parsed: result.parsed,
           ingested: result.ingested,
           deduplicated: result.deduplicated,
           autoDiscarded: result.autoDiscarded,
           keywordRequested: result.keywordRequested,
           keywordEffective: result.keywordEffective,
           errors: result.errors,
+          sourceReports: result.sourceReports,
           sources: result.sources
         }
       });

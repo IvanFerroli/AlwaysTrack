@@ -36,6 +36,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-UX-002 (runtime, recebida via pipeline kickoff)
 - TASK-SCR-007 (runtime, recebida via pipeline kickoff)
 - TASK-SCR-008 (runtime, recebida para ajuste de scraper/ranking/auto-discard)
+- TASK-SCR-009 (runtime, recebida para throughput/timeout/observabilidade por fonte)
 - Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
@@ -50,6 +51,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-UX-002 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-UX-002]
 - TASK-SCR-007 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-007]
 - TASK-SCR-008 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-008]
+- TASK-SCR-009 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-009]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
@@ -63,6 +65,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-UX-002 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-SCR-007 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-SCR-008 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-SCR-009 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 
 ## Blockers recorrentes
 - nenhum
@@ -83,4 +86,6 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - ultimo ciclo consolidado: TASK-UX-002 / EXEC-UX-002 (status: executada — aprovado com ressalvas VER-UX-002)
 - ultimo ciclo consolidado: TASK-SCR-007 / EXEC-SCR-007 (status: executada — aprovado com ressalvas VER-SCR-007)
 - ultimo ciclo consolidado: TASK-SCR-008 / EXEC-SCR-008 (status: executada — aprovado com ressalvas VER-SCR-008)
+- ultimo ciclo consolidado: TASK-SCR-009 / EXEC-SCR-009 (status: executada — aprovado com ressalvas VER-SCR-009)
 - roteabilidade TASK-SCR-008: aprovada (escopo claro, sem dependencia externa bloqueante, capacidade mapeada para runtime + quality gates)
+- roteabilidade TASK-SCR-009: aprovada (escopo claro de runtime, sem dependencia externa bloqueante para implementacao local)

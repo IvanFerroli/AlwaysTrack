@@ -62,6 +62,12 @@
 - TASK-ACQ-001 - job acquisition layer (wire + ui)
 - TASK-ACQ-002 - adaptadores ats específicos (gupy/sólides)
 - TASK-UX-003 - hierarquia toggle e overhaul de filtros no dashboard
+- TASK-SCR-009 - scraper throughput e observabilidade por fonte
+- TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
+- TASK-MCH-002 - afinidade v2 com ponderação e calibração
+- TASK-MCH-003 - leitura LLM estruturada de vagas
+- TASK-PRD-008 - filtros reativos e performance
+- TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks concluidas ou operacionalmente incorporadas
 - TASK-DOC-002
@@ -84,6 +90,7 @@
 - TASK-SCR-006 (completed-with-remarks)
 - TASK-SCR-007 (completed-with-remarks)
 - TASK-SCR-008 (completed-with-remarks)
+- TASK-SCR-009 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
 - TASK-UX-001 (completed-with-remarks)
@@ -93,6 +100,13 @@
 
 ## Tasks em andamento
 - nenhuma
+
+## Tasks pendentes priorizadas (pipeline recomendado)
+1. TASK-MCH-002 - afinidade v2 com ponderação e calibração
+2. TASK-MCH-003 - leitura LLM estruturada de vagas
+3. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
+4. TASK-PRD-008 - filtros reativos e performance
+5. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -104,6 +118,8 @@
 - suite de smoke tests web/API alem dos testes unitarios de servico
 - decidir se CryptoJobsList volta via parser RSS dedicado ou permanece fora do `source=all`
 - persistir ou recalcular historicamente contadores runtime de metricas como ingestionAttempts/dedupeHits
+- baseline de calibracao de afinidade com dataset curado de vagas/perfis reais
+- policy de budget/limite por rodada para uso de LLM no enriquecimento de vagas
 
 ## Decisoes praticas recentes
 - `GET /` e dashboard central com rotas e ranking por afinidade.
@@ -147,7 +163,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- automatizar smoke test web/API minimo para `/`, `/workspace`, `/guide`, `/health`, `/v1/metrics` e um fluxo POST controlado
+- TASK-MCH-002 - consolidar afinidade v2 com ponderacao/calibracao antes de ampliar uso de LLM no pipeline
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

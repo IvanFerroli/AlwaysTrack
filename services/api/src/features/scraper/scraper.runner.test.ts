@@ -227,3 +227,122 @@ test("runScraper can disable autoDiscard and later apply it on deduped new posti
     globalThis.fetch = originalFetch;
   }
 });
+
+test("runScraper(all) limits concurrency and reports partial failures with timeout classification", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnabledByDefault = new Map<string, boolean | undefined>();
+
+  for (const [key, source] of Object.entries(SCRAPER_SOURCES)) {
+    originalEnabledByDefault.set(key, source.enabledByDefault);
+    source.enabledByDefault = false;
+  }
+  SCRAPER_SOURCES["remotive"].enabledByDefault = true;
+  SCRAPER_SOURCES["arbeitnow"].enabledByDefault = true;
+  SCRAPER_SOURCES["remoteok"].enabledByDefault = true;
+
+  let inFlight = 0;
+  let maxInFlight = 0;
+
+  globalThis.fetch = (async (input: string | URL | globalThis.Request, init?: RequestInit): Promise<Response> => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+
+    const release = () => {
+      inFlight--;
+    };
+
+    const url = String(input);
+    if (url.includes("remotive.com")) {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      release();
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({
+          jobs: [
+            {
+              title: "Backend Engineer",
+              company_name: "Acme",
+              url: "https://example.com/jobs/backend",
+              candidate_required_location: "Remote",
+              publication_date: "2026-04-26T00:00:00Z",
+              description: "Node.js and TypeScript"
+            }
+          ]
+        })
+      } as Response;
+    }
+
+    if (url.includes("arbeitnow.com")) {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      release();
+      return {
+        ok: false,
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({})
+      } as Response;
+    }
+
+    if (url.includes("remoteok.com")) {
+      return await new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          release();
+          resolve({
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            headers: new Headers({ "content-type": "application/json" }),
+            json: async () => ([{ legal: "meta" }])
+          } as Response);
+        }, 2_000);
+
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          release();
+          reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+        });
+      });
+    }
+
+    release();
+    throw new Error(`unexpected URL in test: ${url}`);
+  }) as typeof globalThis.fetch;
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "all", undefined, {
+      autoDiscard: false,
+      maxConcurrency: 2,
+      sourceTimeoutMs: 1_000
+    });
+
+    assert.equal(result.source, "All Sources");
+    assert.equal(result.ingested, 1);
+    assert.equal(result.deduplicated, 0);
+    assert.ok(Array.isArray(result.sourceReports));
+    assert.equal(result.sourceReports?.length, 3);
+    assert.ok(maxInFlight <= 2);
+
+    const remotiveReport = result.sourceReports?.find((item) => item.name === "Remotive");
+    const arbeitnowReport = result.sourceReports?.find((item) => item.name === "Arbeitnow");
+    const remoteOkReport = result.sourceReports?.find((item) => item.name === "RemoteOK");
+
+    assert.equal(remotiveReport?.fetched, 1);
+    assert.equal(remotiveReport?.parsed, 1);
+    assert.equal(remotiveReport?.ingested, 1);
+    assert.equal(remotiveReport?.failureType, undefined);
+
+    assert.equal(arbeitnowReport?.failureType, "http");
+    assert.equal(remoteOkReport?.failureType, "timeout");
+    assert.ok((result.errors ?? []).length >= 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, enabledByDefault] of originalEnabledByDefault.entries()) {
+      SCRAPER_SOURCES[key].enabledByDefault = enabledByDefault;
+    }
+  }
+});

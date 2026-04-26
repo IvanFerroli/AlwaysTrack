@@ -26,13 +26,18 @@ export interface ScraperSourceConfig {
 /** Item bruto retornado pela fonte antes do parse */
 export type RawJobItem = Record<string, unknown>;
 
+export type SourceFailureType = "timeout" | "http" | "parse" | "security-check" | "unknown";
+
 /** Resultado de uma fonte individual */
 export interface SourceRunResult {
   name: string;
+  latencyMs: number;
   fetched: number;
+  parsed: number;
   ingested: number;
   deduplicated: number;
-  autoDiscarded: number;
+  discarded: number;
+  failureType?: SourceFailureType;
   keywordEffective?: string;
   errors: string[];
 }
@@ -41,11 +46,14 @@ export interface SourceRunResult {
 export interface ScraperRunResult {
   source: string;
   fetched: number;
+  parsed: number;
   ingested: number;
   deduplicated: number;
   autoDiscarded: number;
   keywordRequested?: string;
   keywordEffective?: string;
   errors: string[];
+  sourceReports?: SourceRunResult[];
+  /** Compat legado: manter até consumidores migrarem para `sourceReports`. */
   sources?: SourceRunResult[];
 }

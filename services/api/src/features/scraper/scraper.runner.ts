@@ -2,7 +2,7 @@ import { computeSkillOverlap } from "../../domain/matching/scoring.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { fetchJobItems } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
-import type { ScraperRunResult, ScraperSourceConfig, SourceRunResult } from "./scraper.types.js";
+import type { ScraperRunResult, ScraperSourceConfig, SourceFailureType, SourceRunResult } from "./scraper.types.js";
 
 const SENIORITY_ALIASES: Record<string, string[]> = {
   junior: ["junior", "jr", "entry", "entry-level", "trainee"],
@@ -22,6 +22,8 @@ const KEYWORD_ALIASES: Record<string, string[]> = {
 };
 
 const DEFAULT_AUTO_DISCARD_TAG = "auto-discard-no-match";
+const DEFAULT_MAX_CONCURRENCY = 3;
+const DEFAULT_SOURCE_TIMEOUT_MS = 15_000;
 
 const TERM_TO_CANONICAL = new Map<string, string>();
 for (const [canonical, variants] of Object.entries(SENIORITY_ALIASES)) {
@@ -51,6 +53,8 @@ interface KeywordPlan {
 
 interface RunScraperOptions {
   autoDiscard?: boolean;
+  maxConcurrency?: number;
+  sourceTimeoutMs?: number;
 }
 
 /**
@@ -194,6 +198,85 @@ function matchesVariants(text: string, tokens: Set<string>, variants: string[]):
   });
 }
 
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function resolveConcurrency(options?: RunScraperOptions): number {
+  if (typeof options?.maxConcurrency === "number" && Number.isFinite(options.maxConcurrency)) {
+    return Math.max(1, Math.min(10, Math.floor(options.maxConcurrency)));
+  }
+  return envInt("SCRAPER_MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY, 1, 10);
+}
+
+function resolveSourceTimeoutMs(options?: RunScraperOptions): number {
+  if (typeof options?.sourceTimeoutMs === "number" && Number.isFinite(options.sourceTimeoutMs)) {
+    return Math.max(1_000, Math.min(120_000, Math.floor(options.sourceTimeoutMs)));
+  }
+  return envInt("SCRAPER_SOURCE_TIMEOUT_MS", DEFAULT_SOURCE_TIMEOUT_MS, 1_000, 120_000);
+}
+
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, maxConcurrency: number): Promise<T[]> {
+  const concurrency = Math.max(1, Math.min(maxConcurrency, tasks.length));
+  const results: T[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    for (;;) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= tasks.length) return;
+      results[index] = await tasks[index]();
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  return results;
+}
+
+function classifyFailure(error: unknown): SourceFailureType {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  if (
+    message.includes("timeout") ||
+    message.includes("abort") ||
+    message.includes("timed out") ||
+    message.includes("aborted")
+  ) {
+    return "timeout";
+  }
+
+  if (
+    message.includes("security-check") ||
+    message.includes("cloudflare") ||
+    (message.includes("unexpected content-type") && message.includes("text/html")) ||
+    message.includes("http 403") ||
+    message.includes("http 429")
+  ) {
+    return "security-check";
+  }
+
+  if (
+    message.includes("missing") ||
+    message.includes("invalid") ||
+    message.includes("unsupported format") ||
+    message.includes("unexpected content-type") ||
+    message.includes("parse")
+  ) {
+    return "parse";
+  }
+
+  if (message.includes("http ")) {
+    return "http";
+  }
+
+  return "unknown";
+}
+
 export function applyKeywordToSource(
   source: ScraperSourceConfig,
   keyword?: string
@@ -221,74 +304,95 @@ async function runSingleSource(
   ingestionService: IngestionService,
   source: ScraperSourceConfig,
   keywordPlan: KeywordPlan,
+  sourceTimeoutMs: number,
   options?: RunScraperOptions
 ): Promise<SourceRunResult> {
+  const startedAt = Date.now();
   const autoDiscardEnabled = options?.autoDiscard ?? true;
-  const rawItems = await fetchJobItems(source);
-  const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keywordPlan.effective);
-  const defaultProfile = await ingestionService.getDefaultResumeProfile();
 
-  const errors: string[] = [];
-  let ingested = 0;
-  let deduplicated = 0;
-  let autoDiscarded = 0;
+  try {
+    const rawItems = await fetchJobItems(source, sourceTimeoutMs);
+    const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keywordPlan.effective);
+    const defaultProfile = await ingestionService.getDefaultResumeProfile();
 
-  for (const item of parsedItems) {
-    try {
-      const result = await ingestionService.ingest(item);
-      if (result.ok) {
-        const shouldDiscard =
-          autoDiscardEnabled &&
-          defaultProfile &&
-          result.data.jobPosting.userStatus === "new" &&
-          shouldAutoDiscardNoMatch(result.data.jobPosting.normalizedTokens, defaultProfile.skills);
+    const errors: string[] = [];
+    let ingested = 0;
+    let deduplicated = 0;
+    let discarded = 0;
 
-        if (result.data.deduplicated) {
-          deduplicated++;
+    for (const item of parsedItems) {
+      try {
+        const result = await ingestionService.ingest(item);
+        if (result.ok) {
+          const shouldDiscard =
+            autoDiscardEnabled &&
+            defaultProfile &&
+            result.data.jobPosting.userStatus === "new" &&
+            shouldAutoDiscardNoMatch(result.data.jobPosting.normalizedTokens, defaultProfile.skills);
+
+          if (result.data.deduplicated) {
+            deduplicated++;
+            if (shouldDiscard) {
+              const autoDiscardResult = await ingestionService.autoDiscardJobNoMatch(
+                result.data.jobPosting.id,
+                DEFAULT_AUTO_DISCARD_TAG
+              );
+              if (autoDiscardResult.ok) {
+                discarded++;
+              } else {
+                errors.push(`[${item.title}] auto-discard failed: ${autoDiscardResult.error.message}`);
+              }
+            }
+            continue;
+          }
+
+          ingested++;
+
           if (shouldDiscard) {
-            const discarded = await ingestionService.autoDiscardJobNoMatch(
+            const autoDiscardResult = await ingestionService.autoDiscardJobNoMatch(
               result.data.jobPosting.id,
               DEFAULT_AUTO_DISCARD_TAG
             );
-            if (discarded.ok) {
-              autoDiscarded++;
+            if (autoDiscardResult.ok) {
+              discarded++;
             } else {
-              errors.push(`[${item.title}] auto-discard failed: ${discarded.error.message}`);
+              errors.push(`[${item.title}] auto-discard failed: ${autoDiscardResult.error.message}`);
             }
           }
-          continue;
+        } else {
+          errors.push(`[${item.title}] ${result.error.message}`);
         }
-
-        ingested++;
-
-        if (shouldDiscard) {
-          const discarded = await ingestionService.autoDiscardJobNoMatch(
-            result.data.jobPosting.id,
-            DEFAULT_AUTO_DISCARD_TAG
-          );
-          if (discarded.ok) {
-            autoDiscarded++;
-          } else {
-            errors.push(`[${item.title}] auto-discard failed: ${discarded.error.message}`);
-          }
-        }
-      } else {
-        errors.push(`[${item.title}] ${result.error.message}`);
+      } catch (err) {
+        errors.push(`[${item.title}] unexpected error: ${err instanceof Error ? err.message : String(err)}`);
       }
-    } catch (err) {
-      errors.push(`[${item.title}] unexpected error: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }
 
-  return {
-    name: source.name,
-    fetched: rawItems.length,
-    ingested,
-    deduplicated,
-    autoDiscarded,
-    keywordEffective: keywordPlan.effective,
-    errors
-  };
+    return {
+      name: source.name,
+      latencyMs: Date.now() - startedAt,
+      fetched: rawItems.length,
+      parsed: parsedItems.length,
+      ingested,
+      deduplicated,
+      discarded,
+      keywordEffective: keywordPlan.effective,
+      errors
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      name: source.name,
+      latencyMs: Date.now() - startedAt,
+      fetched: 0,
+      parsed: 0,
+      ingested: 0,
+      deduplicated: 0,
+      discarded: 0,
+      failureType: classifyFailure(error),
+      keywordEffective: keywordPlan.effective,
+      errors: [message]
+    };
+  }
 }
 
 export function filterParsedItemsByKeyword<T extends { title: string; companyName: string; sourceName: string; location?: string; description: string }>(
@@ -333,35 +437,35 @@ export async function runScraper(
   options?: RunScraperOptions
 ): Promise<ScraperRunResult> {
   const keywordPlan = buildKeywordPlan(keyword);
+  const sourceTimeoutMs = resolveSourceTimeoutMs(options);
 
   if (sourceKey === "all") {
     const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
-    const settledResults = await Promise.allSettled(
-      defaultSources.map((src) => runSingleSource(
-        ingestionService,
-        applyKeywordToSource(src, keywordPlan.effective),
-        keywordPlan,
-        options
-      ))
+    const maxConcurrency = resolveConcurrency(options);
+
+    const reports = await runWithConcurrency(
+      defaultSources.map((src) => () =>
+        runSingleSource(
+          ingestionService,
+          applyKeywordToSource(src, keywordPlan.effective),
+          keywordPlan,
+          sourceTimeoutMs,
+          options
+        )
+      ),
+      maxConcurrency
     );
 
-    const results = settledResults
-      .filter((r): r is PromiseFulfilledResult<SourceRunResult> => r.status === "fulfilled")
-      .map((r) => r.value);
-
-    const rejectedErrors = settledResults
-      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
-      .map((r) => `[source error] ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
-
-    const total = results.reduce(
-      (acc, res) => ({
-        fetched: acc.fetched + res.fetched,
-        ingested: acc.ingested + res.ingested,
-        deduplicated: acc.deduplicated + res.deduplicated,
-        autoDiscarded: acc.autoDiscarded + res.autoDiscarded,
-        errors: [...acc.errors, ...res.errors]
+    const total = reports.reduce(
+      (acc, report) => ({
+        fetched: acc.fetched + report.fetched,
+        parsed: acc.parsed + report.parsed,
+        ingested: acc.ingested + report.ingested,
+        deduplicated: acc.deduplicated + report.deduplicated,
+        autoDiscarded: acc.autoDiscarded + report.discarded,
+        errors: [...acc.errors, ...report.errors]
       }),
-      { fetched: 0, ingested: 0, deduplicated: 0, autoDiscarded: 0, errors: rejectedErrors }
+      { fetched: 0, parsed: 0, ingested: 0, deduplicated: 0, autoDiscarded: 0, errors: [] as string[] }
     );
 
     return {
@@ -369,7 +473,8 @@ export async function runScraper(
       ...total,
       keywordRequested: keywordPlan.requested,
       keywordEffective: keywordPlan.effective,
-      sources: results
+      sourceReports: reports,
+      sources: reports
     };
   }
 
@@ -387,21 +492,26 @@ export async function runScraper(
     );
   }
 
-  const res = await runSingleSource(
+  const report = await runSingleSource(
     ingestionService,
     applyKeywordToSource(source, keywordPlan.effective),
     keywordPlan,
+    sourceTimeoutMs,
     options
   );
+
   return {
-    source: res.name,
-    fetched: res.fetched,
-    ingested: res.ingested,
-    deduplicated: res.deduplicated,
-    autoDiscarded: res.autoDiscarded,
+    source: report.name,
+    fetched: report.fetched,
+    parsed: report.parsed,
+    ingested: report.ingested,
+    deduplicated: report.deduplicated,
+    autoDiscarded: report.discarded,
     keywordRequested: keywordPlan.requested,
     keywordEffective: keywordPlan.effective,
-    errors: res.errors
+    errors: report.errors,
+    sourceReports: [report],
+    sources: [report]
   };
 }
 

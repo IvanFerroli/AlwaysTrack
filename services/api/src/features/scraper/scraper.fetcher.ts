@@ -4,13 +4,16 @@ import type { ScraperSourceConfig, RawJobItem } from "./scraper.types.js";
  * Faz fetch do feed público da fonte e retorna os itens brutos.
  * Usa `fetch` nativo do Node 18+. Sem browser headless.
  */
-export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJobItem[]> {
+export async function fetchJobItems(
+  source: ScraperSourceConfig,
+  timeoutMs = 15_000
+): Promise<RawJobItem[]> {
   const response = await fetch(source.url, {
     headers: {
       "user-agent": "olympus-climb-scraper/1.0 (job-matching-tool; contact: dev@olympus-climb.local)",
       "accept": source.format === "linkedin-guest-html" ? "text/html" : "application/json"
     },
-    signal: AbortSignal.timeout(15_000)
+    signal: AbortSignal.timeout(timeoutMs)
   });
 
   if (!response.ok) {

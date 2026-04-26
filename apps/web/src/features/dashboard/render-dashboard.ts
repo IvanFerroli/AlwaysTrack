@@ -718,7 +718,15 @@ export function renderDashboardPage(data: DashboardData): string {
         if (feedback) {
           const keywordNote = info.keywordEffective ? ' keyword="' + info.keywordEffective + '"' : "";
           const autoDiscardNote = typeof info.autoDiscarded === "number" ? ", auto-discard=" + info.autoDiscarded : "";
-          feedback.textContent = "ok: ingested=" + info.ingested + ", dedup=" + info.deduplicated + autoDiscardNote + keywordNote;
+          const sourceReports = Array.isArray(info.sourceReports) ? info.sourceReports : (Array.isArray(info.sources) ? info.sources : []);
+          if (sourceReports.length > 0) {
+            const failures = sourceReports.filter((report) => report.failureType || (Array.isArray(report.errors) && report.errors.length > 0)).length;
+            const slowest = sourceReports.reduce((acc, report) => (Number(report.latencyMs || 0) > Number(acc.latencyMs || 0) ? report : acc), sourceReports[0]);
+            const slowestLabel = slowest ? ", slowest=" + (slowest.name || "n/a") + ":" + Number(slowest.latencyMs || 0) + "ms" : "";
+            feedback.textContent = "ok: ingested=" + info.ingested + ", dedup=" + info.deduplicated + autoDiscardNote + ", src=" + sourceReports.length + ", fail=" + failures + slowestLabel + keywordNote;
+          } else {
+            feedback.textContent = "ok: ingested=" + info.ingested + ", dedup=" + info.deduplicated + autoDiscardNote + keywordNote;
+          }
         }
         const nextParams = new URLSearchParams(window.location.search);
         if (info.keywordEffective) {
