@@ -1,5 +1,14 @@
-import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting, JobUserStatus } from "@olympus/shared-types";
+import type {
+  ApiResult,
+  ListPayload,
+  JobSeniority,
+  JobUserStatus,
+  MatchScoreInput,
+  MatchScoreResult,
+  RankedJobPosting
+} from "@olympus/shared-types";
 import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
+import { inferJobSeniority, withSeniorityTag } from "../../domain/matching/seniority.js";
 import type { StateStore } from "../../domain/state/store.js";
 import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
@@ -10,6 +19,10 @@ export interface JobFilterOptions {
   tags?: string[];
   location?: string[];
   sourceName?: string[];
+  seniority?: JobSeniority[];
+  sortByDate?: "newest" | "oldest";
+  page?: number;
+  pageSize?: number;
 }
 
 function keywordHitCount(job: Pick<RankedJobPosting, "title" | "companyName" | "location" | "sourceName" | "description">, terms: string[]): number {
@@ -115,17 +128,30 @@ export class MatchService {
   async listRanked(
     resumeProfileId?: string,
     filters?: JobFilterOptions
-  ): Promise<ApiResult<{ items: RankedJobPosting[] }>> {
-    let jobs = await this.store.listJobPostings();
+  ): Promise<ApiResult<ListPayload<RankedJobPosting>>> {
+    const sortByDate = filters?.sortByDate ?? "newest";
+    const page = filters?.page ?? 1;
+    const pageSize = filters?.pageSize ?? 20;
+    let jobs = (await this.store.listJobPostings()).map((job) => {
+      const seniority = inferJobSeniority(job);
+      return {
+        ...job,
+        seniority,
+        tags: withSeniorityTag(job.tags, seniority)
+      };
+    });
 
     if (filters) {
       if (filters.status && filters.status.length > 0) {
         jobs = jobs.filter(j => filters.status!.includes(j.userStatus));
       }
+      if (filters.seniority && filters.seniority.length > 0) {
+        jobs = jobs.filter((j) => filters.seniority!.includes(j.seniority));
+      }
       if (filters.tags && filters.tags.length > 0) {
         jobs = jobs.filter(j => filters.tags!.some(tag => {
           const lowerTag = tag.toLowerCase();
-          return j.tags.includes(tag) || j.normalizedTokens.includes(lowerTag);
+          return j.tags.some((item) => item.toLowerCase() === lowerTag) || j.normalizedTokens.includes(lowerTag);
         }));
       }
       if (filters.location && filters.location.length > 0) {
@@ -155,7 +181,27 @@ export class MatchService {
       if (filters?.minScore && filters.minScore > 0) {
         unranked = unranked.filter(j => j.score >= filters.minScore!);
       }
-      return ok({ items: unranked });
+      const sortDirection = sortByDate === "oldest" ? 1 : -1;
+      const timestamp = (date: string | undefined): number => {
+        if (!date) return 0;
+        const parsed = Date.parse(date);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      unranked.sort(
+        (a, b) =>
+          (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection
+      );
+      const total = unranked.length;
+      const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+      const start = (page - 1) * pageSize;
+      return ok({
+        items: unranked.slice(start, start + pageSize),
+        total,
+        page,
+        pageSize,
+        totalPages,
+        sortByDate
+      });
     }
 
     let ranked: RankedJobPosting[] = jobs.map((job) => {
@@ -169,12 +215,30 @@ export class MatchService {
     }
 
     const queryTerms = filters?.q?.map((term) => term.toLowerCase()) ?? [];
+    const sortDirection = sortByDate === "oldest" ? 1 : -1;
+    const timestamp = (date: string | undefined): number => {
+      if (!date) return 0;
+      const parsed = Date.parse(date);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
     ranked.sort((a, b) => {
+      const dateDelta = (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection;
+      if (dateDelta !== 0) return dateDelta;
       const keywordDelta = keywordHitCount(b, queryTerms) - keywordHitCount(a, queryTerms);
       if (keywordDelta !== 0) return keywordDelta;
       return b.score - a.score;
     });
-    return ok({ items: ranked });
+    const total = ranked.length;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+    const start = (page - 1) * pageSize;
+    return ok({
+      items: ranked.slice(start, start + pageSize),
+      total,
+      page,
+      pageSize,
+      totalPages,
+      sortByDate
+    });
   }
 
   failValidation(): ApiResult<never> {

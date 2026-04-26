@@ -13,7 +13,8 @@ import type {
   ApprovalRequest,
   ApplicationRecord,
   DecisionLog,
-  MemoryEntry
+  MemoryEntry,
+  JobSeniority
 } from "@olympus/shared-types";
 import {
   escapeAttr,
@@ -51,6 +52,7 @@ interface FilterOptions {
   locations: string[];
   sources: string[];
   statuses: string[];
+  seniorities: JobSeniority[];
 }
 
 function formatDate(value?: string): string {
@@ -64,6 +66,55 @@ function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function detectSeniorityFromText(value: string): JobSeniority {
+  const text = ` ${normalizeText(value)} `;
+
+  const seniorPatterns = [
+    /\bsenior\b/,
+    /\bsr\b/,
+    /\bstaff\b/,
+    /\bprincipal\b/,
+    /\btech lead\b/,
+    /\bespecialista\b/,
+    /\bexpert\b/
+  ];
+  if (seniorPatterns.some((pattern) => pattern.test(text))) return "senior";
+
+  const leadPatterns = [/\blead\b/, /\bteam lead\b/, /\btechlead\b/];
+  if (leadPatterns.some((pattern) => pattern.test(text))) return "lead";
+
+  const juniorPatterns = [
+    /\bjunior\b/,
+    /\bjr\b/,
+    /\bentry level\b/,
+    /\bentry-level\b/,
+    /\bestagio\b/,
+    /\bestagiario\b/,
+    /\btrainee\b/,
+    /\bintern\b/
+  ];
+  if (juniorPatterns.some((pattern) => pattern.test(text))) return "junior";
+
+  const midPatterns = [/\bpleno\b/, /\bmid\b/, /\bmid level\b/, /\bmid-level\b/, /\bintermediate\b/, /\bintermediario\b/];
+  if (midPatterns.some((pattern) => pattern.test(text))) return "mid";
+
+  return "mid";
+}
+
+function detectSeniority(job: RankedJobPosting): JobSeniority {
+  if (job.seniority) return job.seniority;
+  const fromTags = detectSeniorityFromText(job.tags.join(" "));
+  if (fromTags !== "mid") return fromTags;
+  return detectSeniorityFromText(`${job.title} ${job.description}`);
+}
+
 function buildFilterOptions(data: DashboardData): FilterOptions {
   const jobs = data.jobs.ok ? data.jobs.data.items : [];
   const rankedJobs = data.rankedJobs.ok ? data.rankedJobs.data.items : [];
@@ -75,7 +126,8 @@ function buildFilterOptions(data: DashboardData): FilterOptions {
     tags: uniqueSorted([...manualTags, ...skillTags]),
     locations: uniqueSorted(jobs.map((job) => job.location ?? "").filter(Boolean)),
     sources: uniqueSorted(jobs.map((job) => job.sourceName)),
-    statuses: ["new", "applied", "discarded"]
+    statuses: ["new", "applied", "discarded"],
+    seniorities: uniqueSorted([...rankedJobs.map((job) => detectSeniority(job)), "junior", "mid", "senior", "lead"]) as JobSeniority[]
   };
 }
 
@@ -227,7 +279,10 @@ function renderRankedJobCard(job: RankedJobPosting): string {
   const statusClass = job.userStatus === "applied" ? "brand" : job.userStatus === "discarded" ? "danger" : "";
   const originalHref = safeHttpHref(job.sourceUrl);
   const matchedSkills = job.matchedSkills.slice(0, 8);
-  return `<article class="job-card ${band}">
+  const seniority = detectSeniority(job);
+  const postedTs = job.postedAt ? new Date(job.postedAt).getTime() : new Date(job.createdAt).getTime();
+  const postedAtTs = Number.isNaN(postedTs) ? 0 : postedTs;
+  return `<article class="job-card ${band}" data-job-id="${escapeAttr(job.id)}" data-score="${escapeAttr(String(job.score))}" data-status="${escapeAttr(job.userStatus)}" data-location="${escapeAttr((job.location ?? "remote").toLowerCase())}" data-source="${escapeAttr(job.sourceName.toLowerCase())}" data-tags="${escapeAttr(job.tags.join(",").toLowerCase())}" data-seniority="${escapeAttr(seniority)}" data-posted-at="${escapeAttr(String(postedAtTs))}" data-search="${escapeAttr(`${job.title} ${job.companyName} ${job.location ?? ""}`.toLowerCase())}">
     <div class="score-box"><span class="score-value ${band}">${escapeHtml(job.score)}%</span><span class="muted">afinidade local</span></div>
     <div>
       <div class="job-title">
@@ -238,6 +293,7 @@ function renderRankedJobCard(job: RankedJobPosting): string {
         </span>
       </div>
       <div class="job-meta">${escapeHtml(job.companyName)} - ${escapeHtml(job.location ?? "Remote")} - ${escapeHtml(job.sourceName)} - ${escapeHtml(formatDate(job.postedAt))}</div>
+      <div class="chip-row"><span class="badge">${escapeHtml(seniority)}</span></div>
       <p class="subtle">${matchedSkills.length > 0 ? `Skills encontradas: ${escapeHtml(matchedSkills.join(", "))}` : "Nenhuma skill do profile encontrada nos tokens desta vaga."}</p>
       ${matchedSkills.length > 0 ? `<div class="chip-row">${matchedSkills.map((skill) => `<span class="badge brand">${escapeHtml(skill)}</span>`).join("")}</div>` : ""}
       <div class="tag-control">
@@ -270,7 +326,19 @@ function renderRankedJobCard(job: RankedJobPosting): string {
 
 export function renderDashboardPage(data: DashboardData): string {
   const memoryCount = data.memoryEntries.ok ? data.memoryEntries.data.items.length : 0;
-  const rankedCount = data.rankedJobs.ok ? data.rankedJobs.data.items.length : 0;
+  const rankedCount = data.rankedJobs.ok
+    ? typeof data.rankedJobs.data.total === "number"
+      ? data.rankedJobs.data.total
+      : data.rankedJobs.data.items.length
+    : 0;
+  const paginationMeta = data.rankedJobs.ok
+    ? {
+        page: data.rankedJobs.data.page ?? 1,
+        pageSize: data.rankedJobs.data.pageSize ?? data.rankedJobs.data.items.length,
+        total: data.rankedJobs.data.total ?? data.rankedJobs.data.items.length,
+        totalPages: data.rankedJobs.data.totalPages ?? 1
+      }
+    : null;
   const filterOptions = buildFilterOptions(data);
   const quickActions = `<div class="actions-row">
     <a class="btn-primary" href="/workspace">Abrir Workspace</a>
@@ -299,10 +367,15 @@ export function renderDashboardPage(data: DashboardData): string {
     <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-seleção aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
     <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem; multi-selecao aplica OR")}</span><select name="sourceName" multiple size="5">${renderOptions(filterOptions.sources)}</select></label>
     <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga; multi-selecao aplica OR")}</span><select name="status" multiple size="3">${renderOptions(filterOptions.statuses)}</select></label>
+    <label><span class="label-row">Senioridade ${renderInfoIcon("Classificação inferida de título/descrição/tags; sem indicação explícita vira mid/pleno")}</span><select name="seniority" multiple size="3">${renderOptions(filterOptions.seniorities)}</select></label>
     <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
-    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Clique nas opções para selecionar/desmarcar várias.</span></div>
+    <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><select name="sortByDate"><option value="newest">Mais novo primeiro</option><option value="oldest">Mais antigo primeiro</option></select></label>
+    <label><span class="label-row">Itens por página ${renderInfoIcon("Paginação da API (todos os filtros combinados)")}</span><select name="pageSize"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
+    <input type="hidden" name="page" value="1" />
+    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Todos os filtros combinam entre si; paginação e ordenação vão pela URL.</span></div>
   </form>
-  ${renderRankedJobs(data)}`;
+  ${renderRankedJobs(data)}
+  <div class="actions-row" id="jobs-pagination" aria-live="polite"></div>`;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -334,42 +407,13 @@ export function renderDashboardPage(data: DashboardData): string {
       background: var(--danger);
       border-color: var(--danger);
     }
-    .filter-dropdown-menu select[multiple] {
-      scrollbar-width: thin;
-      scrollbar-color: var(--line) transparent;
+    .form-grid select[multiple] option {
+      color: #dbeafe;
+      background: rgba(2, 6, 23, 0.96);
     }
-    .filter-dropdown-menu select[multiple] option {
-      cursor: pointer;
-      border-radius: 0.35rem;
-      padding: 0.5rem 0.6rem;
-    }
-    .filter-dropdown-menu select[multiple] option:hover {
-      background: rgba(56, 189, 248, 0.1);
-    }
-    /* Fix for multi-select tag display */
-    .filter-dropdown-compact {
-      display: flex;
-      gap: 0.35rem;
-      flex-wrap: wrap;
-      align-items: center;
-      min-height: 2.45rem;
-      padding: 0.45rem 0.75rem;
-      border: 1px solid var(--line-soft);
-      border-radius: 0.75rem;
-      background: rgba(2, 6, 23, 0.34);
-      cursor: pointer;
-    }
-    .filter-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.2rem 0.45rem;
-      background: var(--brand-soft);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 0.4rem;
-      color: #dff7ff;
-      font-size: 0.75rem;
-      font-weight: 700;
+    .form-grid select[multiple] option:checked {
+      color: #e0f2fe;
+      background: rgba(37, 99, 235, 0.75);
     }
   </style>
 </head>
@@ -389,20 +433,34 @@ export function renderDashboardPage(data: DashboardData): string {
   </div>
 
   <script>
+    const rankedPaginationMeta = ${jsonForHtml(paginationMeta)};
+
     document.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
-      for (const name of ["q", "tags", "location", "sourceName", "status"]) {
+      for (const name of ["q", "tags", "location", "sourceName", "status", "seniority"]) {
         const values = params.getAll(name).flatMap((value) => value.split(",")).filter(Boolean);
         const field = document.querySelector('[name="' + name + '"]');
         if (field && field instanceof HTMLSelectElement && field.multiple) {
           for (const option of field.options) option.selected = values.includes(option.value);
         }
       }
-      const minScoreField = document.querySelector('[name="minScore"]');
-      const minScoreValue = params.get("minScore");
-      if (minScoreField && minScoreValue !== null) {
-        minScoreField.value = minScoreValue;
+      for (const name of ["minScore", "sortByDate", "pageSize"]) {
+        const field = document.querySelector('[name="' + name + '"]');
+        const value = params.get(name);
+        if (field && value !== null) {
+          field.value = value;
+        }
       }
+
+      const filterForm = document.querySelector('form[action="/"]');
+      if (filterForm instanceof HTMLFormElement) {
+        filterForm.addEventListener("submit", () => {
+          const pageInput = filterForm.querySelector('input[name="page"]');
+          if (pageInput instanceof HTMLInputElement) pageInput.value = "1";
+        });
+      }
+
+      setupPagination();
     });
 
     window.updateJobStatus = async function(jobId, userStatus) {
@@ -496,144 +554,44 @@ export function renderDashboardPage(data: DashboardData): string {
       return false;
     };
 
-    // Enhanced multi-select dropdowns with compact UI
-    function setupCompactDropdowns() {
-      for (const name of ["q", "tags", "location", "sourceName", "status"]) {
-        const field = document.querySelector('[name="' + name + '"]');
-        if (!field || !(field instanceof HTMLSelectElement) || !field.multiple) continue;
+    function setupPagination() {
+      const pagination = document.getElementById("jobs-pagination");
+      if (!pagination || !rankedPaginationMeta) return;
+      const page = Number(rankedPaginationMeta.page || 1);
+      const totalPages = Number(rankedPaginationMeta.totalPages || 1);
+      const total = Number(rankedPaginationMeta.total || 0);
+      const params = new URLSearchParams(window.location.search);
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "btn-secondary";
+      prevBtn.textContent = "Prev";
+      prevBtn.disabled = page <= 1;
+      prevBtn.addEventListener("click", () => {
+        const next = new URLSearchParams(params);
+        next.set("page", String(page - 1));
+        window.location.search = next.toString();
+      });
 
-        const wrapper = field.parentElement;
-        if (!wrapper) continue;
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "btn-secondary";
+      nextBtn.textContent = "Next";
+      nextBtn.disabled = page >= totalPages;
+      nextBtn.addEventListener("click", () => {
+        const next = new URLSearchParams(params);
+        next.set("page", String(page + 1));
+        window.location.search = next.toString();
+      });
 
-        // Create compact display
-        const display = document.createElement("div");
-        display.className = "filter-dropdown-compact";
-        display.setAttribute("data-name", name);
-        display.setAttribute("role", "button");
-        display.setAttribute("tabindex", "0");
-        display.setAttribute("aria-label", "Toggle " + name + " filter");
-        display.setAttribute("aria-expanded", "false");
+      const label = document.createElement("span");
+      label.className = "field-hint";
+      label.textContent = "Página " + page + "/" + totalPages + " • " + total + " vagas";
 
-        // Hide original select
-        field.style.display = "none";
-        field.style.position = "absolute";
-
-        function closeDropdown() {
-          field.style.display = "none";
-          field.style.position = "absolute";
-          display.classList.remove("active");
-          display.setAttribute("aria-expanded", "false");
-        }
-
-        function openDropdown() {
-          field.style.display = "block";
-          field.style.position = "static";
-          display.classList.add("active");
-          display.setAttribute("aria-expanded", "true");
-          field.focus();
-          setTimeout(() => field.size = Math.min(field.options.length, 12), 0);
-        }
-
-        function updateDisplay() {
-          const selected = Array.from(field.options)
-            .filter((opt) => opt.selected)
-            .map((opt) => opt.value);
-
-          display.textContent = "";
-          if (selected.length === 0) {
-            const muted = document.createElement("span");
-            muted.className = "muted";
-            muted.textContent = "Qualquer";
-            display.appendChild(muted);
-          } else {
-            for (const value of selected) {
-              const chip = document.createElement("span");
-              chip.className = "filter-tag";
-              chip.appendChild(document.createTextNode(value));
-
-              const remove = document.createElement("button");
-              remove.className = "filter-tag-remove";
-              remove.type = "button";
-              remove.dataset.value = value;
-              remove.textContent = "×";
-              remove.addEventListener("click", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const selectedValue = remove.dataset.value;
-                const opt = Array.from(field.options).find((item) => item.value === selectedValue);
-                if (opt) {
-                  opt.selected = false;
-                  field.dispatchEvent(new Event("change"));
-                }
-              });
-              chip.appendChild(remove);
-              display.appendChild(chip);
-            }
-          }
-
-          const arrow = document.createElement("span");
-          arrow.className = "filter-dropdown-arrow";
-          arrow.style.marginLeft = "auto";
-          arrow.textContent = "▼";
-          display.appendChild(arrow);
-        }
-
-        function toggleDropdown(event) {
-          event.preventDefault();
-          if (field.style.display === "block") {
-            closeDropdown();
-            updateDisplay();
-            return;
-          }
-          openDropdown();
-        }
-
-        display.addEventListener("click", toggleDropdown);
-        display.addEventListener("keydown", (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            toggleDropdown(event);
-          }
-        });
-
-        field.addEventListener("keydown", (event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeDropdown();
-            updateDisplay();
-            display.focus();
-          }
-        });
-
-        updateDisplay();
-
-        // Allow multi-select with simple click (no Ctrl/Cmd needed)
-        field.addEventListener("mousedown", (event) => {
-          const opt = event.target;
-          if (opt instanceof HTMLOptionElement) {
-            event.preventDefault();
-            opt.selected = !opt.selected;
-            field.dispatchEvent(new Event("change"));
-            field.focus();
-          }
-        });
-
-        field.addEventListener("change", () => {
-          updateDisplay();
-        });
-
-        document.addEventListener("click", (event) => {
-          if (!wrapper.contains(event.target)) {
-            closeDropdown();
-            updateDisplay();
-          }
-        });
-
-        // Insert display before select
-        wrapper.insertBefore(display, field);
-      }
+      pagination.textContent = "";
+      pagination.appendChild(prevBtn);
+      pagination.appendChild(nextBtn);
+      pagination.appendChild(label);
     }
-
-    setupCompactDropdowns();
   </script>
 </body>
 </html>`;

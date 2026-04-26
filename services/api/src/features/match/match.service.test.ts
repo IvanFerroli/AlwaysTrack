@@ -294,3 +294,158 @@ test("match service uses resume-000001 as default ranking profile", async () => 
   // resume-000001 default profile is node/typescript/api and should not match pure React posting.
   assert.equal(ranked.data.items[0]?.score, 0);
 });
+
+test("match service infers seniority and defaults to mid when unspecified", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+
+  const juniorJob = await ingestion.ingest({
+    title: "Junior React Developer",
+    companyName: "Alpha",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/seniority-jr",
+    description: "Frontend React role",
+    location: "Remote"
+  });
+  assert.equal(juniorJob.ok, true);
+
+  const midJob = await ingestion.ingest({
+    title: "React Developer",
+    companyName: "Beta",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/seniority-mid-default",
+    description: "Product engineering role",
+    location: "Remote"
+  });
+  assert.equal(midJob.ok, true);
+
+  const ranked = await match.listRanked(undefined, { seniority: ["mid"] });
+  assert.equal(ranked.ok, true);
+  if (!ranked.ok) {
+    throw new Error("expected ranked list to succeed");
+  }
+
+  assert.equal(ranked.data.items.length, 1);
+  assert.equal(ranked.data.items[0]?.title, "React Developer");
+  assert.equal(ranked.data.items[0]?.seniority, "mid");
+  assert.equal(ranked.data.items[0]?.tags.includes("seniority:mid"), true);
+});
+
+test("match service composes filters with seniority, date sort and pagination", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  const profile = await store.createResumeProfile({
+    headline: "React Engineer",
+    skills: ["react", "typescript", "node.js"]
+  });
+
+  const junior = await ingestion.ingest({
+    title: "Junior React Developer",
+    companyName: "A",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/compose-1",
+    description: "React and Typescript",
+    location: "Brazil",
+    postedAt: "2026-04-20T12:00:00.000Z"
+  });
+  assert.equal(junior.ok, true);
+  if (!junior.ok) throw new Error("expected junior ingestion");
+  await ingestion.updateJob(junior.data.jobPosting.id, { addTag: "focus-react" });
+
+  const mid = await ingestion.ingest({
+    title: "React Developer",
+    companyName: "B",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/compose-2",
+    description: "React frontend and node integrations",
+    location: "Brazil",
+    postedAt: "2026-04-21T12:00:00.000Z"
+  });
+  assert.equal(mid.ok, true);
+  if (!mid.ok) throw new Error("expected mid ingestion");
+  await ingestion.updateJob(mid.data.jobPosting.id, { addTag: "focus-react" });
+
+  const senior = await ingestion.ingest({
+    title: "Senior React Engineer",
+    companyName: "C",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/compose-3",
+    description: "React architecture",
+    location: "Brazil",
+    postedAt: "2026-04-22T12:00:00.000Z"
+  });
+  assert.equal(senior.ok, true);
+  if (!senior.ok) throw new Error("expected senior ingestion");
+  await ingestion.updateJob(senior.data.jobPosting.id, { addTag: "focus-react" });
+
+  const nonMatchingSource = await ingestion.ingest({
+    title: "React Developer",
+    companyName: "D",
+    sourceName: "Gupy",
+    sourceUrl: "https://gupy.test/job/compose-4",
+    description: "React frontend",
+    location: "Brazil",
+    postedAt: "2026-04-23T12:00:00.000Z"
+  });
+  assert.equal(nonMatchingSource.ok, true);
+  if (!nonMatchingSource.ok) throw new Error("expected fallback ingestion");
+  await ingestion.updateJob(nonMatchingSource.data.jobPosting.id, { addTag: "focus-react" });
+
+  const page1 = await match.listRanked(profile.id, {
+    q: ["react"],
+    status: ["new"],
+    sourceName: ["linkedin"],
+    location: ["brazil"],
+    tags: ["focus-react"],
+    seniority: ["junior", "mid"],
+    sortByDate: "newest",
+    page: 1,
+    pageSize: 1
+  });
+  assert.equal(page1.ok, true);
+  if (!page1.ok) throw new Error("expected ranked list page 1");
+
+  assert.equal(page1.data.total, 2);
+  assert.equal(page1.data.totalPages, 2);
+  assert.equal(page1.data.page, 1);
+  assert.equal(page1.data.pageSize, 1);
+  assert.equal(page1.data.items.length, 1);
+  assert.equal(page1.data.items[0]?.title, "React Developer");
+  assert.equal(page1.data.items[0]?.seniority, "mid");
+
+  const page2 = await match.listRanked(profile.id, {
+    q: ["react"],
+    status: ["new"],
+    sourceName: ["linkedin"],
+    location: ["brazil"],
+    tags: ["focus-react"],
+    seniority: ["junior", "mid"],
+    sortByDate: "newest",
+    page: 2,
+    pageSize: 1
+  });
+  assert.equal(page2.ok, true);
+  if (!page2.ok) throw new Error("expected ranked list page 2");
+
+  assert.equal(page2.data.items.length, 1);
+  assert.equal(page2.data.items[0]?.title, "Junior React Developer");
+  assert.equal(page2.data.items[0]?.seniority, "junior");
+
+  const oldestFirst = await match.listRanked(profile.id, {
+    status: ["new"],
+    sourceName: ["linkedin"],
+    location: ["brazil"],
+    tags: ["focus-react"],
+    seniority: ["junior", "mid"],
+    sortByDate: "oldest",
+    page: 1,
+    pageSize: 2
+  });
+  assert.equal(oldestFirst.ok, true);
+  if (!oldestFirst.ok) throw new Error("expected ranked list oldest first");
+
+  assert.equal(oldestFirst.data.items[0]?.title, "Junior React Developer");
+  assert.equal(oldestFirst.data.items[1]?.title, "React Developer");
+});

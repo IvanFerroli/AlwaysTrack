@@ -1,4 +1,5 @@
-import type { JobUserStatus } from "@olympus/shared-types";
+import type { JobSeniority, JobUserStatus } from "@olympus/shared-types";
+import { JOB_SENIORITY_LEVELS } from "../../domain/matching/seniority.js";
 import type { HttpHandler } from "../../core/http/types.js";
 import { readJsonBody } from "../../core/http/read-json.js";
 import { sendApiResult, sendJson } from "../../core/http/send.js";
@@ -10,6 +11,12 @@ function parseJobUserStatus(value: string | null): JobUserStatus | undefined {
     return value;
   }
   return undefined;
+}
+
+function parseJobSeniority(value: string | null): JobSeniority | undefined {
+  if (!value) return undefined;
+  const lower = value.toLowerCase();
+  return JOB_SENIORITY_LEVELS.find((level) => level === lower);
 }
 
 function trimmedQueryValue(value: string | null, maxLength: number): string | undefined {
@@ -37,6 +44,16 @@ function invalidFilters(response: Parameters<HttpHandler>[0]["response"], messag
       message
     }
   });
+}
+
+function parsePositiveInt(value: string | null, min: number, max: number): number | undefined {
+  if (value == null) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^\d+$/.test(trimmed)) return Number.NaN;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (parsed < min || parsed > max) return Number.NaN;
+  return parsed;
 }
 
 export function createMatchHandlers(service: MatchService): {
@@ -90,6 +107,38 @@ export function createMatchHandlers(service: MatchService): {
 
     const location = trimmedQueryValues(params, "location", 200);
     const sourceName = trimmedQueryValues(params, "sourceName", 80);
+    const rawSeniorities = params
+      .getAll("seniority")
+      .flatMap((value) => value.split(","))
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const seniority = rawSeniorities.map(parseJobSeniority);
+    if (rawSeniorities.length > 0 && seniority.some((item) => !item)) {
+      invalidFilters(response, "seniority must contain only: junior, mid, senior, lead");
+      return;
+    }
+
+    const sortByDateRaw = params.get("sortByDate")?.trim().toLowerCase();
+    let sortByDate: "newest" | "oldest" | undefined;
+    if (sortByDateRaw) {
+      if (sortByDateRaw !== "newest" && sortByDateRaw !== "oldest") {
+        invalidFilters(response, "sortByDate must be either newest or oldest");
+        return;
+      }
+      sortByDate = sortByDateRaw;
+    }
+
+    const page = parsePositiveInt(params.get("page"), 1, 10_000);
+    if (Number.isNaN(page)) {
+      invalidFilters(response, "page must be an integer between 1 and 10000");
+      return;
+    }
+
+    const pageSize = parsePositiveInt(params.get("pageSize"), 1, 100);
+    if (Number.isNaN(pageSize)) {
+      invalidFilters(response, "pageSize must be an integer between 1 and 100");
+      return;
+    }
 
     sendApiResult(response, await service.listRanked(resumeProfileId, {
       q,
@@ -97,7 +146,11 @@ export function createMatchHandlers(service: MatchService): {
       status: status.filter((item): item is JobUserStatus => Boolean(item)),
       tags,
       location,
-      sourceName
+      sourceName,
+      seniority: seniority.filter((item): item is JobSeniority => Boolean(item)),
+      sortByDate,
+      page,
+      pageSize
     }));
   };
 

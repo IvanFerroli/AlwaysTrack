@@ -55,6 +55,7 @@ export interface MainCvAnalyzeResult {
 }
 
 export type JobUserStatus = "new" | "applied" | "discarded";
+export type JobSeniority = "junior" | "mid" | "senior" | "lead";
 
 export interface JobPosting {
   id: string;
@@ -135,6 +136,7 @@ export interface MatchScoreResult {
 export interface RankedJobPosting extends JobPosting {
   score: number;
   matchedSkills: string[];
+  seniority: JobSeniority;
 }
 
 export interface AgentRun {
@@ -166,6 +168,11 @@ export interface SkillExecution {
 
 export interface ListPayload<T> {
   items: T[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  sortByDate?: "newest" | "oldest";
 }
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
