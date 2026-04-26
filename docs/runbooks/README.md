@@ -47,3 +47,5 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - Deep Score e CV parsing LLM dependem de `GEMINI_API_KEY` local.
 - Servidores fazem bind em `127.0.0.1` por padrao; ajuste `HOST` apenas se quiser expor conscientemente.
 - O script `npm run up` nao mata a porta `5432` e nao roda `npm install`; ele assume dependencias ja instaladas e preserva o Postgres local.
+- Se `docker` nao estiver instalado, `npm run up` usa o Postgres local configurado em `DATABASE_URL` e deixa o `prisma db push` validar a conexao.
+- Para validar apenas setup sem iniciar servidores: `node scripts/start-all.js --setup-only`.

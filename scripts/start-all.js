@@ -18,7 +18,17 @@ function run(cmd, desc) {
   });
 }
 
+function commandExists(cmd) {
+  return new Promise((resolve) => {
+    exec(`command -v ${cmd}`, (err) => {
+      resolve(!err);
+    });
+  });
+}
+
 async function main() {
+  const setupOnly = process.argv.includes("--setup-only");
+
   console.log("\n====================================================");
   console.log("🚀 OLYMPUS CLIMB - STARTUP COMPLETO (V3)");
   console.log("====================================================\n");
@@ -26,12 +36,22 @@ async function main() {
   // 1. Limpar apenas processos locais do app. O Postgres em 5432 pertence ao Docker Compose.
   await run("fuser -k 3000/tcp 3001/tcp 5555/tcp 2>/dev/null || true", "Limpando processos órfãos do app");
 
-  // 2. Subir Banco (se docker existir)
-  await run("docker compose up -d", "Iniciando infraestrutura Docker");
+  // 2. Subir Banco quando Docker estiver disponivel; caso contrario, usar o Postgres local configurado.
+  if (await commandExists("docker")) {
+    await run("docker compose up -d", "Iniciando infraestrutura Docker");
+  } else {
+    console.warn("\n[Olympus Setup] ⚠️  Docker não encontrado; usando Postgres local de DATABASE_URL.");
+    console.warn("[Olympus Setup] ⚠️  Se o próximo passo falhar, suba/instale o Postgres ou ajuste .env.");
+  }
 
   // 3. Sincronizar e gerar client.
   await run("npx prisma db push --schema=services/api/prisma/schema.prisma", "Sincronizando Schema");
   await run("npx prisma generate --schema=services/api/prisma/schema.prisma", "Gerando Prisma Client (Fix para o Studio)");
+
+  if (setupOnly) {
+    console.log("\n✅ Setup validado. Use `npm run up` para iniciar API, WebApp e Prisma Studio.");
+    return;
+  }
 
   console.log("\n🔥 Iniciando API, WebApp e Prisma Studio...");
   
