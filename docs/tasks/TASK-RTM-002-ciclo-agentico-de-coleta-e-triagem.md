@@ -1,7 +1,7 @@
 # TASK-RTM-002 - Ciclo agêntico de coleta e triagem de vagas
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-RTM-002-ciclo-agentico-de-coleta-e-triagem.md

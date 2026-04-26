@@ -20,6 +20,8 @@ import { createResumeProfilesHandlers } from "./features/resume-profiles/resume-
 import { ResumeProfilesService } from "./features/resume-profiles/resume-profiles.service.js";
 import { createAcquisitionHandlers } from "./features/acquisition/acquisition.handlers.js";
 import { JobAcquisitionService } from "./features/acquisition/acquisition.service.js";
+import { createPipelineHandlers } from "./features/pipeline/pipeline.handlers.js";
+import { PipelineService } from "./features/pipeline/pipeline.service.js";
 import { createScraperHandlers } from "./features/scraper/scraper.handlers.js";
 import { createStrategyHandlers } from "./features/strategy/strategy.handlers.js";
 import { StrategyService } from "./features/strategy/strategy.service.js";
@@ -34,6 +36,7 @@ const strategyService = new StrategyService(store);
 const executionService = new ExecutionService(store);
 const resumeProfilesService = new ResumeProfilesService(store);
 const acquisitionService = new JobAcquisitionService(ingestionService);
+const pipelineService = new PipelineService(store, ingestionService, matchService);
 
 const notFoundHandler: HttpHandler = ({ response }) => {
   sendJson(response, 404, {
@@ -55,6 +58,7 @@ const observabilityHandlers = createObservabilityHandlers(store);
 const resumeProfilesHandlers = createResumeProfilesHandlers(resumeProfilesService);
 const scraperHandlers = createScraperHandlers(ingestionService);
 const acquisitionHandlers = createAcquisitionHandlers(acquisitionService);
+const pipelineHandlers = createPipelineHandlers(pipelineService);
 const router = createRouter(notFoundHandler);
 router.register("GET", "/health", createHealthHandler(startedAt));
 router.register("GET", "/ping", pingHandler);
@@ -69,6 +73,7 @@ router.register("GET", "/v1/main-cv/sources", resumeProfilesHandlers.listMainCvS
 router.register("POST", "/v1/main-cv/analyze", resumeProfilesHandlers.analyzeMainCv);
 router.register("POST", "/v1/scraper/run", scraperHandlers.run);
 router.register("POST", "/v1/jobs/acquire", acquisitionHandlers.acquire);
+router.register("POST", "/v1/pipeline/run", pipelineHandlers.run);
 router.register("POST", "/v1/match/score", matchHandlers.score);
 router.register("POST", "/v1/match/deep-score", matchHandlers.deepScore);
 router.register("GET", "/v1/jobs/ranked", matchHandlers.listRanked);

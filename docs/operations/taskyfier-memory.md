@@ -76,6 +76,7 @@
 - TASK-QLT-002
 - TASK-CTR-001
 - TASK-RTM-001
+- TASK-RTM-002 (completed-with-remarks)
 - TASK-PRD-001
 - TASK-PRD-002
 - TASK-PRD-003
@@ -106,7 +107,7 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+- nenhuma
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -146,6 +147,7 @@
 - TASK-MCH-003 adicionou leitura estruturada de vaga por LLM com fallback local, persistencia anexa em `MemoryEntry` e sinal opcional no ranking (`includeLlmEnrichment`).
 - TASK-SCR-010 consolidou matriz explicita de fontes no scraper (`auto|fallback|blocked`) com report de modo efetivo por fonte e nomes canônicos de plataforma na acquisition.
 - TASK-PRD-008 adicionou auto-apply opcional (debounce) para `q`, contagem por opção nos filtros e micro-métricas de interação em modo debug dev.
+- TASK-RTM-002 consolidou ciclo unificado em `POST /v1/pipeline/run` com resumo de coleta, shortlist explicada e persistência em `agent-runs`, `decision-logs` e `skill-executions`.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -166,7 +168,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+- nenhuma task pendente priorizada no pipeline atual
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

@@ -55,6 +55,7 @@
     - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy
     - `fallback`: Solides, Indeed, Glassdoor (via acquisition `url-import`)
     - `blocked`: CryptoJobsList (fora de `source=all` ate parser/feed operacional confiavel)
+- `POST /v1/pipeline/run`: executa ciclo unificado (`scrape/acquire -> rank -> shortlist`) com tolerancia a falha parcial e evidencias em `agent-runs`, `decision-logs` e `skill-executions`.
 - `POST /v1/match/score`: score local por skills encontradas, aliases tecnicos e boosts quando skills/headline aparecem no titulo.
 - `POST /v1/jobs/acquire`: acquisition multimodal com smart-paste, url-import, ats-adapter, browser-capture, email-alert e provider-json.
 - `POST /v1/match/deep-score`: score LLM com Gemini quando `GEMINI_API_KEY` existe.
@@ -76,6 +77,7 @@
 - ATS adapters especificos para Gupy, Solides, LinkedIn, Indeed, Glassdoor, Infojobs, Catho e Trabalha Brasil, com matching de host por dominio exato/subdominio.
 - Scraper multi-fonte com tolerancia parcial por fonte, matriz operacional (`auto|fallback|blocked`) e keyword apenas em fontes com query validada.
 - Platform scraper para LinkedIn public guest search e Gupy public portal em `auto`, com plataformas sem feed estavel tratadas em `fallback` sem claim de automacao ficticia.
+- Pipeline unificado para rodada de coleta e triagem com shortlist explicada via endpoint unico (`/v1/pipeline/run`).
 - Keyword do scraper tambem aplica pos-filtro local antes de persistir; termos de senioridade como `junior` precisam aparecer no titulo.
 - Strip HTML em descricoes de feeds.
 - Ranking por afinidade local com filtros multi-select derivados das vagas carregadas: tags/skills, local, fonte, status e score minimo.

@@ -235,6 +235,7 @@ function renderRouteTable(apiBaseUrl: string): string {
     { method: "POST", route: "/v1/scraper/run", desc: "Executar scraper (?source=, ?keyword=)", category: "api" },
     { method: "POST", route: "/v1/job-postings/ingest", desc: "Ingest direto JSON", category: "api" },
     { method: "POST", route: "/v1/jobs/acquire", desc: "Acquisition multimodal de vaga", category: "api" },
+    { method: "POST", route: "/v1/pipeline/run", desc: "Executar ciclo unificado (scrape -> rank -> shortlist)", category: "api" },
     { method: "POST", route: "/v1/jobs/update", desc: "Atualizar status/tags da vaga", category: "api" },
     { method: "POST", route: "/v1/resume-profiles", desc: "Criar profile direto JSON", category: "api" },
     { method: "POST", route: "/v1/resume-profiles/update", desc: "Atualizar profile", category: "api" },

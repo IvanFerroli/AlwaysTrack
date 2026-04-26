@@ -319,3 +319,60 @@ export interface MetricsSnapshot {
   pendingApprovals: number;
   submittedApplications: number;
 }
+
+export interface PipelineRunInput {
+  source?: string;
+  keyword?: string;
+  autoDiscard?: boolean;
+  includeLlmEnrichment?: boolean;
+  resumeProfileId?: string;
+  shortlistSize?: number;
+  minScore?: number;
+}
+
+export interface PipelineSourceReport {
+  name: string;
+  mode: "auto" | "fallback" | "blocked";
+  latencyMs: number;
+  fetched: number;
+  parsed: number;
+  ingested: number;
+  deduplicated: number;
+  discarded: number;
+  fallbackMethod?: "url-import" | "browser-capture";
+  note?: string;
+  failureType?: "timeout" | "http" | "parse" | "security-check" | "unknown";
+  keywordEffective?: string;
+  errors: string[];
+}
+
+export interface PipelineShortlistItem {
+  jobPostingId: string;
+  title: string;
+  companyName: string;
+  sourceName: string;
+  score: number;
+  matchedSkills: string[];
+  rationale: string;
+}
+
+export interface PipelineRunResult {
+  runId: string;
+  status: "completed" | "completed-with-warnings";
+  durationMs: number;
+  source: string;
+  keywordRequested?: string;
+  keywordEffective?: string;
+  collected: number;
+  parsed: number;
+  ingested: number;
+  deduplicated: number;
+  autoDiscarded: number;
+  sourceReports: PipelineSourceReport[];
+  warnings: string[];
+  shortlist: PipelineShortlistItem[];
+  llm: {
+    enabled: boolean;
+    estimatedCostUsd: number;
+  };
+}
