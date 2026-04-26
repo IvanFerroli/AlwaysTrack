@@ -106,7 +106,10 @@ export class MatchService {
         jobs = jobs.filter(j => filters.status!.includes(j.userStatus));
       }
       if (filters.tags && filters.tags.length > 0) {
-        jobs = jobs.filter(j => filters.tags!.every(tag => j.tags.includes(tag)));
+        jobs = jobs.filter(j => filters.tags!.some(tag => {
+          const lowerTag = tag.toLowerCase();
+          return j.tags.includes(tag) || j.normalizedTokens.includes(lowerTag);
+        }));
       }
       if (filters.location && filters.location.length > 0) {
         const locations = filters.location.map((item) => item.toLowerCase());

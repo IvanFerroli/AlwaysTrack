@@ -47,7 +47,7 @@ interface RouteInfo {
 }
 
 interface FilterOptions {
-  searchTerms: string[];
+  tags: string[];
   locations: string[];
   sources: string[];
   statuses: string[];
@@ -92,22 +92,13 @@ function uniqueSorted(values: string[]): string[] {
 
 function buildFilterOptions(data: DashboardData): FilterOptions {
   const jobs = data.jobs.ok ? data.jobs.data.items : [];
-  const tokenCounts = new Map<string, number>();
+  const rankedJobs = data.rankedJobs.ok ? data.rankedJobs.data.items : [];
 
-  for (const job of jobs) {
-    for (const token of job.normalizedTokens) {
-      if (token.length < 3 || FILTER_TOKEN_STOPWORDS.has(token)) continue;
-      tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
-    }
-  }
-
-  const searchTerms = [...tokenCounts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 80)
-    .map(([token]) => token);
+  const manualTags = jobs.flatMap((job) => job.tags);
+  const skillTags = rankedJobs.flatMap((job) => job.matchedSkills);
 
   return {
-    searchTerms,
+    tags: uniqueSorted([...manualTags, ...skillTags]),
     locations: uniqueSorted(jobs.map((job) => job.location ?? "").filter(Boolean)),
     sources: uniqueSorted(jobs.map((job) => job.sourceName)),
     statuses: ["new", "applied", "discarded"]
@@ -265,7 +256,10 @@ function renderRankedJobCard(job: RankedJobPosting): string {
     <div>
       <div class="job-title">
         <span>${escapeHtml(job.title)}</span>
-        <span class="badge ${statusClass}">${escapeHtml(job.userStatus)}</span>
+        <span class="badge ${statusClass}">
+          ${escapeHtml(job.userStatus)}
+          ${job.userStatus !== "new" ? `<span class="status-reset-btn" onclick="event.stopPropagation(); window.updateJobStatus(${jsonForHtml(job.id)}, 'new')" title="Remover status">×</span>` : ""}
+        </span>
       </div>
       <div class="job-meta">${escapeHtml(job.companyName)} - ${escapeHtml(job.location ?? "Remote")} - ${escapeHtml(job.sourceName)} - ${escapeHtml(formatDate(job.postedAt))}</div>
       <p class="subtle">${matchedSkills.length > 0 ? `Skills encontradas: ${escapeHtml(matchedSkills.join(", "))}` : "Nenhuma skill do profile encontrada nos tokens desta vaga."}</p>
@@ -277,16 +271,24 @@ function renderRankedJobCard(job: RankedJobPosting): string {
       </div>
       <div id="deep-score-${escapeAttr(job.id)}" class="deep-score-box"><em>Analisando aderência profunda...</em></div>
     </div>
-    <div class="job-actions">
-      <button type="button" class="btn-primary" onclick='window.runDeepMatch(${jsonForHtml(job.id)})'>Deep Score</button>
-      ${
-        originalHref
-          ? `<a class="btn-secondary" href="${escapeAttr(originalHref)}" target="_blank" rel="noreferrer">Original</a>`
-          : `<span class="btn-secondary" aria-disabled="true">Original indisponivel</span>`
-      }
-      ${job.userStatus !== "applied" ? `<button type="button" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "applied")'>Apply</button>` : ""}
-      ${job.userStatus !== "discarded" ? `<button type="button" class="btn-danger" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "discarded")'>Discard</button>` : ""}
-    </div>
+      <div class="job-actions">
+        <button type="button" class="btn-primary" onclick='window.runDeepMatch(${jsonForHtml(job.id)})'>Deep Score</button>
+        ${
+          originalHref
+            ? `<a class="btn-secondary" href="${escapeAttr(originalHref)}" target="_blank" rel="noreferrer">Original</a>`
+            : `<span class="btn-secondary" aria-disabled="true">Original indisponível</span>`
+        }
+        ${
+          job.userStatus === "applied"
+            ? `<button type="button" class="btn-secondary" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "new")'>Unapply</button>`
+            : `<button type="button" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "applied")'>Apply</button>`
+        }
+        ${
+          job.userStatus === "discarded"
+            ? `<button type="button" class="btn-secondary" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "new")'>Undiscard</button>`
+            : `<button type="button" class="btn-danger" onclick='window.updateJobStatus(${jsonForHtml(job.id)}, "discarded")'>Discard</button>`
+        }
+      </div>
   </article>`;
 }
 
@@ -315,12 +317,12 @@ export function renderDashboardPage(data: DashboardData): string {
     </form>
   </div>`;
   const jobsContent = `<form method="GET" action="/" class="form-grid two">
-    <label><span class="label-row">Busca ${renderInfoIcon("Termos do batch atual; multi-selecao aplica AND")}</span><select name="q" multiple size="6">${renderOptions(filterOptions.searchTerms)}</select></label>
-    <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-selecao aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
+    <label><span class="label-row">Tags ${renderInfoIcon("Filtro por tags manuais acrescentadas nas vagas; multi-seleção aplica OR")}</span><select name="tags" multiple size="6">${renderOptions(filterOptions.tags)}</select></label>
+    <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-seleção aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
     <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem; multi-selecao aplica OR")}</span><select name="sourceName" multiple size="5">${renderOptions(filterOptions.sources)}</select></label>
     <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga; multi-selecao aplica OR")}</span><select name="status" multiple size="3">${renderOptions(filterOptions.statuses)}</select></label>
     <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
-    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Use Ctrl/Cmd para escolher mais de uma opção.</span></div>
+    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Clique nas opções para selecionar/desmarcar várias.</span></div>
   </form>
   ${renderRankedJobs(data)}`;
 
@@ -331,6 +333,67 @@ export function renderDashboardPage(data: DashboardData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard - Olympus Climb</title>
   ${headAssets}
+  <style>
+    .status-reset-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      margin-left: 0.4rem;
+      margin-right: -0.2rem;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 900;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .status-reset-btn:hover {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+    .filter-dropdown-menu select[multiple] {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+    .filter-dropdown-menu select[multiple] option {
+      cursor: pointer;
+      border-radius: 0.35rem;
+      padding: 0.5rem 0.6rem;
+    }
+    .filter-dropdown-menu select[multiple] option:hover {
+      background: rgba(56, 189, 248, 0.1);
+    }
+    /* Fix for multi-select tag display */
+    .filter-dropdown-compact {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.75rem;
+      background: rgba(2, 6, 23, 0.34);
+      cursor: pointer;
+    }
+    .filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.45rem;
+      background: var(--brand-soft);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 0.4rem;
+      color: #dff7ff;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
   <div class="page-container">
@@ -350,7 +413,7 @@ export function renderDashboardPage(data: DashboardData): string {
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
-      for (const name of ["q", "location", "sourceName", "status"]) {
+      for (const name of ["q", "tags", "location", "sourceName", "status"]) {
         const values = params.getAll(name).flatMap((value) => value.split(",")).filter(Boolean);
         const field = document.querySelector('[name="' + name + '"]');
         if (field && field instanceof HTMLSelectElement && field.multiple) {
@@ -415,7 +478,7 @@ export function renderDashboardPage(data: DashboardData): string {
 
     // Enhanced multi-select dropdowns with compact UI
     function setupCompactDropdowns() {
-      for (const name of ["q", "location", "sourceName", "status"]) {
+      for (const name of ["q", "tags", "location", "sourceName", "status"]) {
         const field = document.querySelector('[name="' + name + '"]');
         if (!field || !(field instanceof HTMLSelectElement) || !field.multiple) continue;
 
@@ -440,17 +503,21 @@ export function renderDashboardPage(data: DashboardData): string {
             .filter((opt) => opt.selected)
             .map((opt) => opt.value);
 
-          display.innerHTML =
-            selected
-              .map(
-                (val) =>
-                  '<span class="filter-tag">' +
-                  val +
-                  '<button class="filter-tag-remove" type="button" data-value="' +
-                  val +
-                  '">×</button></span>'
-              )
-              .join("") + '<span class="filter-dropdown-arrow">▼</span>';
+          if (selected.length === 0) {
+            display.innerHTML = '<span class="muted">Qualquer</span><span class="filter-dropdown-arrow" style="margin-left: auto">▼</span>';
+          } else {
+            display.innerHTML =
+              selected
+                .map(
+                  (val) =>
+                    '<span class="filter-tag">' +
+                    val +
+                    '<button class="filter-tag-remove" type="button" data-value="' +
+                    val +
+                    '">×</button></span>'
+                )
+                .join("") + '<span class="filter-dropdown-arrow" style="margin-left: auto">▼</span>';
+          }
 
           // Re-attach remove button listeners
           display.querySelectorAll(".filter-tag-remove").forEach((btn) => {
@@ -461,7 +528,7 @@ export function renderDashboardPage(data: DashboardData): string {
               const opt = Array.from(field.options).find((o) => o.value === val);
               if (opt) {
                 opt.selected = false;
-                updateDisplay();
+                field.dispatchEvent(new Event("change"));
               }
             });
           });
@@ -471,14 +538,15 @@ export function renderDashboardPage(data: DashboardData): string {
 
         // Toggle dropdown visibility
         let isOpen = false;
-        display.addEventListener("click", () => {
+        display.addEventListener("click", (e) => {
+          e.preventDefault();
           isOpen = !isOpen;
           if (isOpen) {
             field.style.display = "block";
             field.style.position = "static";
             display.classList.add("active");
             field.focus();
-            setTimeout(() => field.size = Math.min(field.options.length, 8), 0);
+            setTimeout(() => field.size = Math.min(field.options.length, 12), 0);
           } else {
             field.style.display = "none";
             field.style.position = "absolute";
@@ -487,19 +555,32 @@ export function renderDashboardPage(data: DashboardData): string {
           }
         });
 
-        // Close dropdown on selection
+        // Allow multi-select with simple click (no Ctrl/Cmd needed)
+        field.addEventListener("mousedown", (e) => {
+          const opt = e.target;
+          if (opt instanceof HTMLOptionElement) {
+            e.preventDefault();
+            opt.selected = !opt.selected;
+            field.dispatchEvent(new Event("change"));
+            // Keep the select open and focused
+            field.focus();
+          }
+        });
+
+        // Update display on change
         field.addEventListener("change", () => {
           updateDisplay();
         });
 
-        // Close on blur
-        field.addEventListener("blur", () => {
-          setTimeout(() => {
+        // Close on blur (but only if not clicking inside the field or display)
+        document.addEventListener("click", (e) => {
+          if (!wrapper.contains(e.target)) {
             field.style.display = "none";
             field.style.position = "absolute";
             display.classList.remove("active");
+            isOpen = false;
             updateDisplay();
-          }, 100);
+          }
         });
 
         // Insert display before select

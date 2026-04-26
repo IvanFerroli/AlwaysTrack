@@ -83,6 +83,7 @@
 - TASK-ACQ-002
 - TASK-UX-001 (completed-with-remarks)
 - auditoria de sanidade e normalizacao do repo (2026-04-25)
+- TASK-UX-002 - Refinamento de Tags e Filtros do Dashboard
 
 ## Tasks em andamento
 - nenhuma
