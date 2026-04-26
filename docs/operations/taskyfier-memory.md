@@ -116,7 +116,7 @@
 - LinkedIn e Gupy estao em `source=all` como platform sources operacionais; vagas persistem no Postgres com `sourceName`.
 - Indeed e Glassdoor permanecem nomeados, mas indisponiveis no runner automatico porque retornam security check sem feed publico estavel neste ambiente.
 - Dashboard prioriza quick actions e vagas por afinidade acima de rotas/overview; secoes sao colapsaveis para reduzir ruido.
-- Filtros do dashboard sao multi-select derivados do batch atual; busca aplica AND, local/fonte/status aplicam OR.
+- Filtros do dashboard sao multi-select (toggle por clique simples) derivados do batch atual; tags/local/fonte/status aplicam OR.
 - Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.

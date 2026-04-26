@@ -12,16 +12,19 @@ O usuário reportou que:
 - `apps/web/src/features/dashboard/render-dashboard.ts` (HTML e scripts inline)
 
 ## Checklist
-- [ ] Adicionar botão de "Reset" ou "Clear" status nos cards de vaga.
-- [ ] Implementar comportamento de toggle para os botões "Apply" e "Discard".
-- [ ] Melhorar o script `setupCompactDropdowns` para permitir múltipla seleção via clique simples (toggle).
-- [ ] Ajustar o estilo visual para refletir o estado de seleção nos dropdowns compactos.
+- [x] Adicionar botão de "Reset" ou "Clear" status nos cards de vaga (botão × na badge).
+- [x] Implementar comportamento de toggle para os botões "Apply" e "Discard".
+- [x] Melhorar o script `setupCompactDropdowns` para permitir múltipla seleção via clique simples (toggle).
+- [x] Ajustar o estilo visual para refletir o estado de seleção nos dropdowns compactos.
+- [x] Unificar filtro de "Busca" com "Tags" (híbrido: tags manuais + skills detectadas).
 
 ## Critérios de Aceite
-- [ ] Ao clicar em "Apply" em uma vaga já aplicada, o status deve voltar para "new" (ou haver um botão explícito para isso).
-- [ ] Nos filtros do dashboard, clicar em múltiplas opções deve selecioná-las sucessivamente sem desmarcar as anteriores.
-- [ ] O visual das opções selecionadas nos dropdowns deve ser claro.
+- [x] Ao clicar no "×" da badge de status, a vaga volta para "new".
+- [x] Nos filtros do dashboard, clicar em múltiplas opções as seleciona sucessivamente (toggle) sem desmarcar as anteriores.
+- [x] O visual das opções selecionadas nos dropdowns é claro e acumulativo.
+- [x] O filtro de tags aplica lógica de OR (mostrar vagas que tenham QUALQUER uma das tags/skills selecionadas).
 
 ## Verificação
-- [ ] Teste manual via browser: verificar se o status da vaga pode ser resetado.
-- [ ] Teste manual via browser: verificar se a seleção múltipla nos filtros funciona com cliques simples.
+- [x] Teste manual via browser: verificado reset de status via botão ×.
+- [x] Teste manual via browser: verificado seleção múltipla (toggle) e display de tags acumuladas.
+- [x] Backend: verificado que o filtro de tags agora busca simultaneamente em `tags` e `normalizedTokens` com lógica OR.
