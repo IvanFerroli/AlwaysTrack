@@ -37,7 +37,17 @@
 - ADR-001 - governanca documental operacional (`docs/adr/ADR-001-governanca-documental-operacional.md`)
 
 ## Specs aceitas relevantes
-- nenhuma ainda formalizada
+- SPEC-001 - Job Ingestion
+- SPEC-002 - Job Acquisition
+- SPEC-003 - Job Scraping
+- SPEC-004 - Resume Profile Management
+- SPEC-005 - CV Analysis
+- SPEC-006 - Job Matching
+- SPEC-007 - Deep Score AI
+- SPEC-008 - Strategy Approval Gate
+- SPEC-009 - Application Tracking
+- SPEC-010 - Runtime Observability
+- SPEC-011 - Capability Traceability Matrix
 
 ## Task manifests existentes relevantes
 - TASK-DOC-002 - formalizar ADR-001
@@ -85,6 +95,7 @@
 - TASK-RTM-002 (completed-with-remarks)
 - TASK-RTM-003 (completed-with-remarks)
 - TASK-RTM-004 (completed-with-remarks)
+- TASK-DOC-003 (completed-with-remarks)
 - TASK-QLT-003 (completed-with-remarks)
 - TASK-PRD-001
 - TASK-PRD-002
@@ -117,14 +128,12 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-DOC-003 - formalizar specs minimas por capability ativa
-2. TASK-MCH-004 - calibracao de matching com dataset curado
+1. TASK-MCH-004 - calibracao de matching com dataset curado
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
 
 ## Dependencias abertas
-- specs minimas por capability de produto
 - policy explicita para uso de LLM externo em CV/deep score
 - paginacao/limites de armazenamento runtime
 - baseline de calibracao de afinidade com dataset curado de vagas/perfis reais
@@ -158,6 +167,7 @@
 - TASK-RTM-002 consolidou ciclo unificado em `POST /v1/pipeline/run` com resumo de coleta, shortlist explicada e persistência em `agent-runs`, `decision-logs` e `skill-executions`.
 - TASK-RTM-003 adicionou guardrails de budget/duração/volume no pipeline unificado com cortes observáveis em `warnings` e `budget.cutsApplied`.
 - TASK-RTM-004 persistiu métricas runtime críticas (`ingestionAttempts`, `dedupeHits`, `strategyProposals`) no banco com continuidade pós-restart.
+- TASK-DOC-003 formalizou baseline de specs por capability ativa e matriz de rastreabilidade capability -> runtime -> tipos -> testes.
 - Auto-discard do scraper passou a ser opt-in (`autoDiscard=true`), evitando descarte agressivo de boas vagas por padrão.
 - TASK-QLT-003 adicionou baseline de smoke web/API automatizado (`npm run smoke`) com harness de subida/encerramento isolado e cobertura minima de rotas criticas.
 - TASK-SCR-011 reativou CryptoJobsList via RSS com parser dedicado, incluindo no `source=all` com tolerancia a falha parcial quando houver bloqueio externo.
@@ -182,7 +192,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-DOC-003 - formalizar specs minimas por capability ativa
+- TASK-MCH-004 - calibracao de matching com dataset curado
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

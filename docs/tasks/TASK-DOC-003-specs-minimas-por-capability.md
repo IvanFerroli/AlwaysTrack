@@ -1,7 +1,7 @@
 # TASK-DOC-003 - Formalizar specs minimas por capability ativa
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-DOC-003-specs-minimas-por-capability.md

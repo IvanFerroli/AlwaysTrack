@@ -16,6 +16,9 @@
 - `docs/runbooks/`: procedimentos operacionais de rotina, validacao e incidente.
 - `docs/operations/`: estado vivo dos kits, memoria operacional e auditorias.
 
+## Baseline de specs
+- O baseline minimo por capability ativa esta formalizado em `docs/specs/SPEC-001` ate `SPEC-011`.
+
 ## Estado implementado atual
 - O projeto possui um alpha local funcional com API persistida via Prisma/Postgres.
 - O runtime web/API roda pela raiz com `npm run dev` quando o Postgres e o schema Prisma ja estao prontos.
@@ -111,4 +114,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-RTM-004` (persistencia de metricas runtime e dedupe historico) com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-DOC-003` (specs minimas por capability ativa + matriz de rastreabilidade) com detalhes em `docs/tasks/`.
