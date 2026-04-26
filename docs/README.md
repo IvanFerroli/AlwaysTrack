@@ -75,8 +75,9 @@
 - ATS adapters especificos para Gupy, Solides, LinkedIn, Indeed, Glassdoor, Infojobs, Catho e Trabalha Brasil, com matching de host por dominio exato/subdominio.
 - Scraper multi-fonte com tolerancia parcial por fonte e keyword apenas em fontes com query validada.
 - Platform scraper para LinkedIn public guest search e Gupy public portal, persistindo origem em `sourceName`.
+- Keyword do scraper tambem aplica pos-filtro local antes de persistir; termos de senioridade como `junior` precisam aparecer no titulo.
 - Strip HTML em descricoes de feeds.
-- Ranking por afinidade local com filtros de busca, local, fonte, status e score minimo.
+- Ranking por afinidade local com filtros multi-select derivados das vagas carregadas: busca por termos, local, fonte, status e score minimo.
 - Afinidade local usa tokens normalizados da vaga, aliases tecnicos (`node`/`node.js`, `react`/`react.js`, etc.) e boosts controlados por titulo.
 - Tags e status manuais por vaga.
 - Resume profiles manuais e editaveis.

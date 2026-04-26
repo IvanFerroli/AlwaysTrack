@@ -18,6 +18,17 @@ function trimmedQueryValue(value: string | null, maxLength: number): string | un
   return trimmed.slice(0, maxLength);
 }
 
+function trimmedQueryValues(params: URLSearchParams, name: string, maxLength: number): string[] | undefined {
+  const values = params
+    .getAll(name)
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .map((value) => value.slice(0, maxLength));
+
+  return values.length > 0 ? [...new Set(values)] : undefined;
+}
+
 function invalidFilters(response: Parameters<HttpHandler>[0]["response"], message: string): void {
   sendJson(response, 400, {
     ok: false,
@@ -47,7 +58,7 @@ export function createMatchHandlers(service: MatchService): {
     const queryStart = rawUrl.indexOf("?");
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
     const resumeProfileId = trimmedQueryValue(params.get("resumeProfileId"), 120);
-    const q = trimmedQueryValue(params.get("q"), 120);
+    const q = trimmedQueryValues(params, "q", 120);
     const minScoreStr = params.get("minScore");
     const minScoreTrimmed = minScoreStr?.trim();
     let minScore: number | undefined;
@@ -60,10 +71,10 @@ export function createMatchHandlers(service: MatchService): {
       minScore = parsedMinScore;
     }
 
-    const rawStatus = params.get("status");
-    const status = parseJobUserStatus(rawStatus);
-    if (rawStatus !== null && rawStatus.trim() && !status) {
-      invalidFilters(response, "status must be one of: new, applied, discarded");
+    const rawStatuses = params.getAll("status").flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+    const status = rawStatuses.map(parseJobUserStatus);
+    if (rawStatuses.length > 0 && status.some((item) => !item)) {
+      invalidFilters(response, "status must contain only: new, applied, discarded");
       return;
     }
 
@@ -78,10 +89,17 @@ export function createMatchHandlers(service: MatchService): {
       return;
     }
 
-    const location = trimmedQueryValue(params.get("location"), 200);
-    const sourceName = trimmedQueryValue(params.get("sourceName"), 80);
+    const location = trimmedQueryValues(params, "location", 200);
+    const sourceName = trimmedQueryValues(params, "sourceName", 80);
 
-    sendApiResult(response, await service.listRanked(resumeProfileId, { q, minScore, status, tags, location, sourceName }));
+    sendApiResult(response, await service.listRanked(resumeProfileId, {
+      q,
+      minScore,
+      status: status.filter((item): item is JobUserStatus => Boolean(item)),
+      tags,
+      location,
+      sourceName
+    }));
   };
 
   const deepScore: HttpHandler = async ({ request, response }) => {

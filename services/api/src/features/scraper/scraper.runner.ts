@@ -3,6 +3,8 @@ import { fetchJobItems } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
 import type { ScraperRunResult, ScraperSourceConfig, SourceRunResult } from "./scraper.types.js";
 
+const SENIORITY_KEYWORDS = new Set(["junior", "júnior", "pleno", "senior", "sênior", "estagio", "estágio", "intern"]);
+
 /**
  * Fontes padrão configuradas.
  * SCRAPER_SOURCE env: "remotive" | "arbeitnow" (default: "remotive")
@@ -96,10 +98,11 @@ export function applyKeywordToSource(
 
 async function runSingleSource(
   ingestionService: IngestionService,
-  source: ScraperSourceConfig
+  source: ScraperSourceConfig,
+  keyword?: string
 ): Promise<SourceRunResult> {
   const rawItems = await fetchJobItems(source);
-  const parsedItems = parseJobItems(rawItems, source);
+  const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keyword);
 
   const errors: string[] = [];
   let ingested = 0;
@@ -131,6 +134,39 @@ async function runSingleSource(
   };
 }
 
+export function filterParsedItemsByKeyword<T extends { title: string; companyName: string; sourceName: string; location?: string; description: string }>(
+  items: T[],
+  keyword?: string
+): T[] {
+  const terms = keyword
+    ?.toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0);
+
+  if (!terms || terms.length === 0) {
+    return items;
+  }
+
+  return items.filter((item) => {
+    const title = item.title.toLowerCase();
+    const seniorityTerms = terms.filter((term) => SENIORITY_KEYWORDS.has(term));
+    if (seniorityTerms.length > 0 && !seniorityTerms.every((term) => title.includes(term))) {
+      return false;
+    }
+
+    const haystack = [
+      item.title,
+      item.companyName,
+      item.sourceName,
+      item.location ?? "",
+      item.description
+    ].join(" ").toLowerCase();
+
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
 /**
  * Orquestra o ciclo completo: fetch → parse → ingest.
  * Delega ao IngestionService para manter deduplicação e auditoria.
@@ -143,7 +179,7 @@ export async function runScraper(
   if (sourceKey === "all") {
     const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
     const settledResults = await Promise.allSettled(
-      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keyword)))
+      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keyword), keyword))
     );
 
     const results = settledResults
@@ -185,7 +221,7 @@ export async function runScraper(
     );
   }
 
-  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keyword));
+  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keyword), keyword);
   return {
     source: res.name,
     fetched: res.fetched,

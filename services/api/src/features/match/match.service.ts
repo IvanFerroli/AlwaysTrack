@@ -4,12 +4,12 @@ import type { StateStore } from "../../domain/state/store.js";
 import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
 export interface JobFilterOptions {
-  q?: string;
+  q?: string[];
   minScore?: number;
-  status?: JobUserStatus;
+  status?: JobUserStatus[];
   tags?: string[];
-  location?: string;
-  sourceName?: string;
+  location?: string[];
+  sourceName?: string[];
 }
 
 function ok<T>(data: T): ApiResult<T> {
@@ -102,27 +102,26 @@ export class MatchService {
     let jobs = await this.store.listJobPostings();
 
     if (filters) {
-      if (filters.status) {
-        jobs = jobs.filter(j => j.userStatus === filters.status);
+      if (filters.status && filters.status.length > 0) {
+        jobs = jobs.filter(j => filters.status!.includes(j.userStatus));
       }
       if (filters.tags && filters.tags.length > 0) {
         jobs = jobs.filter(j => filters.tags!.every(tag => j.tags.includes(tag)));
       }
-      if (filters.location) {
-        const locLower = filters.location.toLowerCase();
-        jobs = jobs.filter(j => j.location && j.location.toLowerCase().includes(locLower));
+      if (filters.location && filters.location.length > 0) {
+        const locations = filters.location.map((item) => item.toLowerCase());
+        jobs = jobs.filter(j => j.location && locations.some((loc) => j.location!.toLowerCase().includes(loc)));
       }
-      if (filters.sourceName) {
-        const srcLower = filters.sourceName.toLowerCase();
-        jobs = jobs.filter(j => j.sourceName.toLowerCase().includes(srcLower));
+      if (filters.sourceName && filters.sourceName.length > 0) {
+        const sources = filters.sourceName.map((item) => item.toLowerCase());
+        jobs = jobs.filter(j => sources.some((sourceName) => j.sourceName.toLowerCase().includes(sourceName)));
       }
-      if (filters.q) {
-        const qLower = filters.q.toLowerCase();
-        jobs = jobs.filter(j => 
-          j.title.toLowerCase().includes(qLower) || 
-          j.companyName.toLowerCase().includes(qLower) ||
-          j.description.toLowerCase().includes(qLower)
-        );
+      if (filters.q && filters.q.length > 0) {
+        const terms = filters.q.map((item) => item.toLowerCase());
+        jobs = jobs.filter(j => {
+          const haystack = `${j.title} ${j.companyName} ${j.location ?? ""} ${j.sourceName} ${j.description}`.toLowerCase();
+          return terms.every((term) => haystack.includes(term));
+        });
       }
     }
 

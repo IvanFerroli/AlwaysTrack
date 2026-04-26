@@ -188,3 +188,45 @@ test("match service handles compact stack aliases without generic headline infla
   }
   assert.equal(genericResult.data.score, 0);
 });
+
+test("match service supports multi-select filters from dashboard", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  await store.createResumeProfile({
+    headline: "Frontend Engineer",
+    skills: ["react", "node.js"]
+  });
+
+  await ingestion.ingest({
+    title: "Junior React Developer",
+    companyName: "One",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/filter-1",
+    description: "React UI",
+    location: "Brazil"
+  });
+  await ingestion.ingest({
+    title: "Senior Java Engineer",
+    companyName: "Two",
+    sourceName: "Gupy",
+    sourceUrl: "https://gupy.test/job/filter-2",
+    description: "Java backend",
+    location: "Portugal"
+  });
+
+  const result = await match.listRanked(undefined, {
+    q: ["junior", "react"],
+    sourceName: ["LinkedIn", "Gupy"],
+    location: ["Brazil"],
+    status: ["new"]
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) {
+    throw new Error("expected ranked list to succeed");
+  }
+  assert.equal(result.data.items.length, 1);
+  assert.equal(result.data.items[0]?.title, "Junior React Developer");
+  assert.equal(result.data.items[0]?.matchedSkills.includes("react"), true);
+});

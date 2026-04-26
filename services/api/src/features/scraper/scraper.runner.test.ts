@@ -3,7 +3,13 @@ import test from "node:test";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
 import { parseJobItems } from "./scraper.parser.js";
-import { applyKeywordToSource, runScraper, SCRAPER_SOURCES, ScraperInputError } from "./scraper.runner.js";
+import {
+  applyKeywordToSource,
+  filterParsedItemsByKeyword,
+  runScraper,
+  SCRAPER_SOURCES,
+  ScraperInputError
+} from "./scraper.runner.js";
 
 test("scraper keyword injection preserves valid URLs per supported source", () => {
   const arbeitnow = applyKeywordToSource(SCRAPER_SOURCES["arbeitnow"], "type script");
@@ -40,6 +46,31 @@ test("scraper rejects unknown and unavailable sources as input errors", async ()
     () => runScraper(ingestion, "indeed"),
     (err) => err instanceof ScraperInputError && err.code === "UNAVAILABLE_SCRAPER_SOURCE"
   );
+});
+
+test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
+  const items = [
+    {
+      title: "Senior Backend Engineer",
+      companyName: "Acme",
+      sourceName: "LinkedIn",
+      sourceUrl: "https://example.com/senior",
+      location: "Remote",
+      description: "Mentor junior developers using Node.js"
+    },
+    {
+      title: "Junior Full Stack Developer",
+      companyName: "Acme",
+      sourceName: "LinkedIn",
+      sourceUrl: "https://example.com/junior",
+      location: "Remote",
+      description: "React and Node.js"
+    }
+  ];
+
+  const filtered = filterParsedItemsByKeyword(items, "junior");
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0]?.title, "Junior Full Stack Developer");
 });
 
 test("scraper parses LinkedIn guest search cards with platform source", () => {

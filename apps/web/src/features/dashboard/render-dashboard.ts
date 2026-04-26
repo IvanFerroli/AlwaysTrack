@@ -46,11 +46,89 @@ interface RouteInfo {
   openable?: boolean;
 }
 
+interface FilterOptions {
+  searchTerms: string[];
+  locations: string[];
+  sources: string[];
+  statuses: string[];
+}
+
+const FILTER_TOKEN_STOPWORDS = new Set([
+  "and",
+  "the",
+  "for",
+  "com",
+  "with",
+  "para",
+  "por",
+  "uma",
+  "das",
+  "dos",
+  "job",
+  "jobs",
+  "vaga",
+  "public",
+  "search",
+  "result",
+  "source",
+  "description",
+  "open",
+  "complete",
+  "location",
+  "brazil",
+  "paulo"
+]);
+
 function formatDate(value?: string): string {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toISOString().slice(0, 10);
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function buildFilterOptions(data: DashboardData): FilterOptions {
+  const jobs = data.jobs.ok ? data.jobs.data.items : [];
+  const tokenCounts = new Map<string, number>();
+
+  for (const job of jobs) {
+    for (const token of job.normalizedTokens) {
+      if (token.length < 3 || FILTER_TOKEN_STOPWORDS.has(token)) continue;
+      tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
+    }
+  }
+
+  const searchTerms = [...tokenCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 80)
+    .map(([token]) => token);
+
+  return {
+    searchTerms,
+    locations: uniqueSorted(jobs.map((job) => job.location ?? "").filter(Boolean)),
+    sources: uniqueSorted(jobs.map((job) => job.sourceName)),
+    statuses: ["new", "applied", "discarded"]
+  };
+}
+
+function renderOptions(options: string[]): string {
+  return options.map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`).join("");
+}
+
+function renderCollapsibleSection(title: string, subtitle: string, content: string, open = false): string {
+  return `<details class="panel collapsible" ${open ? "open" : ""}>
+    <summary>
+      <div>
+        <h2>${escapeHtml(title)}</h2>
+        <p class="subtle">${escapeHtml(subtitle)}</p>
+      </div>
+      <span class="collapse-indicator" aria-hidden="true">▾</span>
+    </summary>
+    <div class="details-body">${content}</div>
+  </details>`;
 }
 
 function renderDashboardCards(metrics: MetricsSnapshot, memoryCount: number): string {
@@ -126,13 +204,13 @@ function renderRouteTable(apiBaseUrl: string): string {
     .join("");
 
   return `<div class="split-grid">
-    <section class="panel tight">
+    <section class="panel tight nested-panel">
       <div class="details-body">
         <div class="panel-heading"><h3>Web Routes</h3>${renderInfoIcon("Rotas servidas pelo app web")}</div>
         <div class="table-wrap"><table><thead><tr><th>Método</th><th>Rota</th><th>Descrição</th><th>Ação</th></tr></thead><tbody>${renderRows("web")}</tbody></table></div>
       </div>
     </section>
-    <section class="panel tight">
+    <section class="panel tight nested-panel">
       <div class="details-body">
         <div class="panel-heading"><h3>API Routes</h3>${renderInfoIcon("Endpoints servidos pela API em API_BASE_URL")}</div>
         <div class="table-wrap"><table><thead><tr><th>Método</th><th>Rota</th><th>Descrição</th><th>Ação</th></tr></thead><tbody>${renderRows("api")}</tbody></table></div>
@@ -215,6 +293,36 @@ function renderRankedJobCard(job: RankedJobPosting): string {
 export function renderDashboardPage(data: DashboardData): string {
   const memoryCount = data.memoryEntries.ok ? data.memoryEntries.data.items.length : 0;
   const rankedCount = data.rankedJobs.ok ? data.rankedJobs.data.items.length : 0;
+  const filterOptions = buildFilterOptions(data);
+  const quickActions = `<div class="actions-row">
+    <a class="btn-primary" href="/workspace">Abrir Workspace</a>
+    <a class="btn-secondary" href="/guide">Como usar</a>
+    <a class="btn-secondary" href="/health" target="_blank" rel="noreferrer">Health</a>
+    <form action="${escapeAttr(data.apiBaseUrl)}/v1/scraper/run" method="POST" target="_blank" class="actions-row" onsubmit='const p = new URLSearchParams(); if(this.source.value) p.set("source", this.source.value); if(this.keyword.value.trim()) p.set("keyword", this.keyword.value.trim()); this.action = ${jsonForHtml(`${data.apiBaseUrl}/v1/scraper/run`)} + (p.toString() ? "?" + p.toString() : "");'>
+      <select class="tag-input" name="source" aria-label="Scraper source">
+        <option value="all">All</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="gupy">Gupy</option>
+        <option value="remotive">Remotive</option>
+        <option value="arbeitnow">Arbeitnow</option>
+        <option value="remoteok">RemoteOK</option>
+        <option value="jobicy">Jobicy</option>
+        <option value="himalayas">Himalayas</option>
+      </select>
+      <input class="tag-input" type="text" name="keyword" placeholder="keyword ex: junior" />
+      <button type="submit" class="btn-primary">Run Scraper</button>
+      <span class="field-hint">A keyword filtra localmente antes de salvar.</span>
+    </form>
+  </div>`;
+  const jobsContent = `<form method="GET" action="/" class="form-grid two">
+    <label><span class="label-row">Busca ${renderInfoIcon("Termos do batch atual; multi-selecao aplica AND")}</span><select name="q" multiple size="6">${renderOptions(filterOptions.searchTerms)}</select></label>
+    <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-selecao aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
+    <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem; multi-selecao aplica OR")}</span><select name="sourceName" multiple size="5">${renderOptions(filterOptions.sources)}</select></label>
+    <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga; multi-selecao aplica OR")}</span><select name="status" multiple size="3">${renderOptions(filterOptions.statuses)}</select></label>
+    <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
+    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Use Ctrl/Cmd para escolher mais de uma opção.</span></div>
+  </form>
+  ${renderRankedJobs(data)}`;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -230,56 +338,10 @@ export function renderDashboardPage(data: DashboardData): string {
     ${renderBreadcrumb([{ label: "Dashboard" }])}
     <main class="page-content">
       <div class="layout">
-        <section class="panel">
-          <div class="section-header">
-            <div><h2>Centro de controle</h2><p class="subtle">Use esta página para navegar, rodar scraping e revisar vagas por afinidade.</p></div>
-            ${renderInfoIcon("Resumo navegável do estado persistido via Prisma/Postgres")}
-          </div>
-          <div class="actions-row">
-            <a class="btn-primary" href="/workspace">Abrir Workspace</a>
-            <a class="btn-secondary" href="/guide">Como usar</a>
-            <a class="btn-secondary" href="/health" target="_blank" rel="noreferrer">Health</a>
-            <form action="${escapeAttr(data.apiBaseUrl)}/v1/scraper/run" method="POST" target="_blank" class="actions-row" onsubmit='const p = new URLSearchParams(); if(this.source.value) p.set("source", this.source.value); if(this.keyword.value.trim()) p.set("keyword", this.keyword.value.trim()); this.action = ${jsonForHtml(`${data.apiBaseUrl}/v1/scraper/run`)} + (p.toString() ? "?" + p.toString() : "");'>
-              <select class="tag-input" name="source" aria-label="Scraper source">
-                <option value="all">All</option>
-                <option value="linkedin">LinkedIn</option>
-                <option value="gupy">Gupy</option>
-                <option value="remotive">Remotive</option>
-                <option value="arbeitnow">Arbeitnow</option>
-                <option value="remoteok">RemoteOK</option>
-                <option value="jobicy">Jobicy</option>
-                <option value="himalayas">Himalayas</option>
-              </select>
-              <input class="tag-input" type="text" name="keyword" placeholder="keyword" />
-              <button type="submit" class="btn-primary">Run Scraper</button>
-            </form>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-header"><div><h2>Overview</h2><p class="subtle">${escapeHtml(rankedCount)} vagas ranqueadas no filtro atual.</p></div>${renderInfoIcon("Métricas expostas por /v1/metrics e listas runtime")}</div>
-          ${data.metrics.ok ? renderDashboardCards(data.metrics.data, memoryCount) : `<p class="empty">Não foi possível carregar métricas.</p>`}
-        </section>
-
-        <section>
-          ${renderRouteTable(data.apiBaseUrl)}
-        </section>
-
-        <section class="panel">
-          <div class="section-header">
-            <div><h2>Vagas por afinidade</h2><p class="subtle">Ranking por overlap de skills do profile ativo, com filtros e ações rápidas.</p></div>
-            ${renderInfoIcon("Afinidade local: skills encontradas nos tokens da vaga + boosts quando skills/headline aparecem no título. Deep Score chama Gemini quando GEMINI_API_KEY existe.")}
-          </div>
-          <form method="GET" action="/" class="form-grid two">
-            <label><span class="label-row">Busca ${renderInfoIcon("Título, empresa ou descrição")}</span><input type="text" name="q" placeholder="React, backend, platform..." /></label>
-            <label><span class="label-row">Local ${renderInfoIcon("Filtro parcial sobre location")}</span><input type="text" name="location" placeholder="Brazil, Remote..." /></label>
-            <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem")}</span><select name="sourceName"><option value="">Todas</option><option value="LinkedIn">LinkedIn</option><option value="Gupy">Gupy</option><option value="Remotive">Remotive</option><option value="Arbeitnow">Arbeitnow</option><option value="RemoteOK">RemoteOK</option><option value="Jobicy">Jobicy</option><option value="Himalayas">Himalayas</option><option value="CryptoJobsList">CryptoJobsList</option></select></label>
-            <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga")}</span><select name="status"><option value="">Todos</option><option value="new">New</option><option value="applied">Applied</option><option value="discarded">Discarded</option></select></label>
-            <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
-            <div class="actions-row"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a></div>
-          </form>
-          ${renderRankedJobs(data)}
-        </section>
+        ${renderCollapsibleSection("Centro de controle", "Ações rápidas, scraper e navegação principal.", quickActions, true)}
+        ${renderCollapsibleSection("Vagas por afinidade", `${rankedCount} vagas ranqueadas no filtro atual.`, jobsContent, true)}
+        ${renderCollapsibleSection("Overview", "Métricas expostas por /v1/metrics e listas runtime.", data.metrics.ok ? renderDashboardCards(data.metrics.data, memoryCount) : `<p class="empty">Não foi possível carregar métricas.</p>`)}
+        ${renderCollapsibleSection("Rotas", "Índice de rotas web/API disponível quando precisar consultar endpoints.", renderRouteTable(data.apiBaseUrl))}
       </div>
     </main>
     ${renderFooter()}
@@ -288,10 +350,17 @@ export function renderDashboardPage(data: DashboardData): string {
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
-      for (const name of ["q", "location", "sourceName", "status", "minScore"]) {
+      for (const name of ["q", "location", "sourceName", "status"]) {
+        const values = params.getAll(name).flatMap((value) => value.split(",")).filter(Boolean);
         const field = document.querySelector('[name="' + name + '"]');
-        const value = params.get(name);
-        if (field && value !== null) field.value = value;
+        if (field && field instanceof HTMLSelectElement && field.multiple) {
+          for (const option of field.options) option.selected = values.includes(option.value);
+        }
+      }
+      const minScoreField = document.querySelector('[name="minScore"]');
+      const minScoreValue = params.get("minScore");
+      if (minScoreField && minScoreValue !== null) {
+        minScoreField.value = minScoreValue;
       }
     });
 

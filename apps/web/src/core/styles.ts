@@ -277,6 +277,15 @@ export const headAssets = `
       font: inherit;
       font-size: 0.9rem;
     }
+    select[multiple] {
+      min-height: 8.5rem;
+      padding: 0.45rem;
+    }
+    select[multiple] option {
+      border-radius: 0.45rem;
+      padding: 0.35rem 0.45rem;
+      margin-bottom: 0.15rem;
+    }
     textarea { resize: vertical; }
     input:focus,
     textarea:focus,
@@ -294,6 +303,7 @@ export const headAssets = `
     .danger { background: rgba(239, 68, 68, 0.12); color: #fecaca; border-color: rgba(239, 68, 68, 0.28); }
     .btn-small { min-height: 1.85rem; padding: 0.25rem 0.5rem; font-size: 0.76rem; border-radius: 0.55rem; }
     .actions-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .field-hint { color: var(--muted); font-size: 0.78rem; }
 
     .route-grid { display: flex; flex-wrap: wrap; gap: 0.55rem; }
     .route-btn { color: #dff7ff; }
@@ -384,9 +394,20 @@ export const headAssets = `
     .deep-score-box.visible { display: block; }
 
     details.panel { padding: 0; overflow: visible; }
-    details.panel > summary { list-style: none; padding: 1rem 1.15rem; cursor: pointer; }
+    details.panel > summary {
+      list-style: none;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.15rem;
+      cursor: pointer;
+    }
     details.panel > summary::-webkit-details-marker { display: none; }
     details.panel > .details-body { border-top: 1px solid var(--line-soft); padding: 1.15rem; }
+    .collapse-indicator { color: var(--muted); font-weight: 900; transition: transform 160ms ease; }
+    details[open] > summary .collapse-indicator { transform: rotate(180deg); }
+    .nested-panel { box-shadow: none; }
 
     .flash-wrap { width: min(1320px, calc(100% - 2rem)); margin: 1rem auto 0; display: grid; gap: 0.6rem; }
     .flash { display: flex; align-items: center; gap: 0.6rem; border-radius: 0.9rem; border: 1px solid var(--line-soft); padding: 0.75rem 0.9rem; background: rgba(2, 6, 23, 0.32); font-weight: 700; }

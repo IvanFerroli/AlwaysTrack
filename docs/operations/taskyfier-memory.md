@@ -81,6 +81,7 @@
 - TASK-SCR-006 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
+- TASK-UX-001 (completed-with-remarks)
 - auditoria de sanidade e normalizacao do repo (2026-04-25)
 
 ## Tasks em andamento
@@ -113,6 +114,9 @@
 - CryptoJobsList esta fora de `source=all` porque o endpoint JSON usado historicamente nao esta operacional; reativar exige task propria com evidencia.
 - LinkedIn e Gupy estao em `source=all` como platform sources operacionais; vagas persistem no Postgres com `sourceName`.
 - Indeed e Glassdoor permanecem nomeados, mas indisponiveis no runner automatico porque retornam security check sem feed publico estavel neste ambiente.
+- Dashboard prioriza quick actions e vagas por afinidade acima de rotas/overview; secoes sao colapsaveis para reduzir ruido.
+- Filtros do dashboard sao multi-select derivados do batch atual; busca aplica AND, local/fonte/status aplicam OR.
+- Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
 
