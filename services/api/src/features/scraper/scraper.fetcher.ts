@@ -1,5 +1,66 @@
 import type { ScraperSourceConfig, RawJobItem } from "./scraper.types.js";
 
+function decodeXmlEntities(input: string): string {
+  return input
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, "\"")
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x2f;/gi, "/")
+    .replace(/&#x3a;/gi, ":")
+    .replace(/&#(\d+);/g, (_match, code) => {
+      const parsed = Number.parseInt(code, 10);
+      if (!Number.isFinite(parsed)) return "";
+      return String.fromCharCode(parsed);
+    })
+    .trim();
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractXmlTag(block: string, tagName: string): string | undefined {
+  const match = block.match(new RegExp(`<${escapeRegex(tagName)}[^>]*>([\\s\\S]*?)</${escapeRegex(tagName)}>`, "i"));
+  if (!match?.[1]) return undefined;
+  const cleaned = decodeXmlEntities(match[1]);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function parseRssItems(xml: string): RawJobItem[] {
+  const items: RawJobItem[] = [];
+  const matches = xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi);
+
+  for (const match of matches) {
+    const block = match[1] ?? "";
+    const title = extractXmlTag(block, "title");
+    const link = extractXmlTag(block, "link") ?? extractXmlTag(block, "guid");
+    const description =
+      extractXmlTag(block, "description") ??
+      extractXmlTag(block, "content:encoded") ??
+      extractXmlTag(block, "summary");
+    const pubDate = extractXmlTag(block, "pubDate") ?? extractXmlTag(block, "dc:date");
+    const creator = extractXmlTag(block, "dc:creator");
+    const companyName = extractXmlTag(block, "company");
+    const location = extractXmlTag(block, "location");
+
+    items.push({
+      title,
+      link,
+      description,
+      pubDate,
+      creator,
+      companyName,
+      location
+    });
+  }
+
+  return items;
+}
+
 /**
  * Faz fetch do feed público da fonte e retorna os itens brutos.
  * Usa `fetch` nativo do Node 18+. Sem browser headless.
@@ -11,7 +72,12 @@ export async function fetchJobItems(
   const response = await fetch(source.url, {
     headers: {
       "user-agent": "olympus-climb-scraper/1.0 (job-matching-tool; contact: dev@olympus-climb.local)",
-      "accept": source.format === "linkedin-guest-html" ? "text/html" : "application/json"
+      "accept":
+        source.format === "linkedin-guest-html"
+          ? "text/html"
+          : source.format === "cryptojobslist-rss"
+            ? "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1"
+            : "application/json"
     },
     signal: AbortSignal.timeout(timeoutMs)
   });
@@ -35,6 +101,26 @@ export async function fetchJobItems(
       .map((chunk) => chunk.trim())
       .filter((chunk) => chunk.includes("base-search-card") && chunk.includes("job-search-card"))
       .map((chunk) => ({ html: `<li>${chunk}` }));
+  }
+
+  if (source.format === "cryptojobslist-rss") {
+    const xml = (await response.text()).slice(0, 2_000_000);
+    const hasXmlContentType =
+      contentType.includes("application/rss+xml") ||
+      contentType.includes("application/xml") ||
+      contentType.includes("text/xml");
+
+    if (!hasXmlContentType && !xml.includes("<rss")) {
+      throw new Error(
+        `[scraper.fetcher] unexpected content-type for ${source.name}: ${contentType}`
+      );
+    }
+
+    const items = parseRssItems(xml);
+    if (items.length === 0) {
+      throw new Error(`[scraper.fetcher] ${source.name} RSS response missing 'item' entries`);
+    }
+    return items;
   }
 
   if (!contentType.includes("application/json")) {
@@ -96,14 +182,6 @@ export async function fetchJobItems(
       throw new Error(`[scraper.fetcher] Gupy response missing 'data' array`);
     }
     return payload.data;
-  }
-
-  if (source.format === "cryptojobslist-json") {
-    const arr = data as RawJobItem[];
-    if (!Array.isArray(arr)) {
-      throw new Error(`[scraper.fetcher] CryptoJobsList response invalid array`);
-    }
-    return arr;
   }
 
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);

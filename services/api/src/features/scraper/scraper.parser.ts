@@ -76,6 +76,18 @@ function canonicalizeSourceUrl(rawUrl: string): string {
   }
 }
 
+function inferCompanyFromTitle(title: string): string | undefined {
+  const atMatch = title.match(/^(.*?)\s+at\s+(.+)$/i);
+  if (atMatch?.[2]) {
+    return atMatch[2].trim();
+  }
+  const dashMatch = title.match(/^(.*?)\s+-\s+(.+)$/);
+  if (dashMatch?.[2]) {
+    return dashMatch[2].trim();
+  }
+  return undefined;
+}
+
 /**
  * Converte um item bruto do formato Remotive para IngestJobPostingInput.
  */
@@ -204,15 +216,16 @@ function parseHimalayasItem(item: RawJobItem, sourceName: string): IngestJobPost
 /**
  * Converte um item bruto do formato CryptoJobsList para IngestJobPostingInput.
  */
-function parseCryptoJobsListItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
-  const title = safeStr(item["jobTitle"]);
-  const companyName = safeStr(item["companyName"]);
-  const sourceUrl = safeStr(item["applicationLink"]);
-  const description = safeStr(item["jobDescription"]);
+function parseCryptoJobsListRssItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["title"]);
+  const companyHint = safeStr(item["companyName"], safeStr(item["creator"]));
+  const companyName = companyHint || inferCompanyFromTitle(title) || "CryptoJobsList";
+  const sourceUrl = canonicalizeSourceUrl(safeStr(item["link"], safeStr(item["sourceUrl"])));
+  const description = safeStr(item["description"], title);
   const location = safeStr(item["location"], "Remote");
-  const postedAt = safeDateStr(item["publishedAt"]);
+  const postedAt = safeDateStr(item["pubDate"]);
 
-  if (!title || !companyName || !sourceUrl || !description) return null;
+  if (!title || !sourceUrl || !description) return null;
 
   return {
     title,
@@ -302,8 +315,8 @@ export function parseJobItems(
       parsed = parseJobicyItem(item, source.name);
     } else if (source.format === "himalayas-json") {
       parsed = parseHimalayasItem(item, source.name);
-    } else if (source.format === "cryptojobslist-json") {
-      parsed = parseCryptoJobsListItem(item, source.name);
+    } else if (source.format === "cryptojobslist-rss") {
+      parsed = parseCryptoJobsListRssItem(item, source.name);
     } else if (source.format === "linkedin-guest-html") {
       parsed = parseLinkedInGuestItem(item, source.name);
     } else if (source.format === "gupy-public-json") {

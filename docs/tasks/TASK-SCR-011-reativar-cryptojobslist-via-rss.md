@@ -1,7 +1,7 @@
 # TASK-SCR-011 - Reativar CryptoJobsList via RSS com parser dedicado
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-011-reativar-cryptojobslist-via-rss.md

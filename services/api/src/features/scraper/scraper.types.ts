@@ -5,7 +5,7 @@ export type ScraperSourceFormat =
   | "remoteok-json"
   | "jobicy-json"
   | "himalayas-json"
-  | "cryptojobslist-json"
+  | "cryptojobslist-rss"
   | "linkedin-guest-html"
   | "gupy-public-json"
   | "unavailable-platform";

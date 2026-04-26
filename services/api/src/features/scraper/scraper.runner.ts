@@ -130,11 +130,9 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   },
   cryptojobslist: {
     name: "CryptoJobsList",
-    url: "https://cryptojobslist.com/api/jobs",
-    format: "cryptojobslist-json",
-    mode: "blocked",
-    enabledByDefault: false,
-    unavailableReason: "JSON endpoint currently returns Cloudflare/404; RSS integration needs a dedicated parser task"
+    url: "https://cryptojobslist.com/jobs.rss",
+    format: "cryptojobslist-rss",
+    mode: "auto"
   }
 };
 

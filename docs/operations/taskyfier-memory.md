@@ -102,6 +102,7 @@
 - TASK-SCR-008 (completed-with-remarks)
 - TASK-SCR-009 (completed-with-remarks)
 - TASK-SCR-010 (completed-with-remarks)
+- TASK-SCR-011 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
 - TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
@@ -115,10 +116,9 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-SCR-011 - reativar CryptoJobsList via RSS com parser dedicado
-2. TASK-RTM-004 - persistir metricas de runtime e dedupe historico
-3. TASK-DOC-003 - formalizar specs minimas por capability ativa
-4. TASK-MCH-004 - calibracao de matching com dataset curado
+1. TASK-RTM-004 - persistir metricas de runtime e dedupe historico
+2. TASK-DOC-003 - formalizar specs minimas por capability ativa
+3. TASK-MCH-004 - calibracao de matching com dataset curado
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -127,7 +127,6 @@
 - specs minimas por capability de produto
 - policy explicita para uso de LLM externo em CV/deep score
 - paginacao/limites de armazenamento runtime
-- decidir se CryptoJobsList volta via parser RSS dedicado ou permanece fora do `source=all`
 - persistir ou recalcular historicamente contadores runtime de metricas como ingestionAttempts/dedupeHits
 - baseline de calibracao de afinidade com dataset curado de vagas/perfis reais
 - policy de budget/limite por rodada para uso de LLM no enriquecimento de vagas
@@ -145,8 +144,8 @@
 - Dados vindos de scraper, CV, profile, decision logs e LLM devem ser escapados antes de render HTML.
 - Servidores locais fazem bind em `127.0.0.1` por padrao.
 - `npm run check` e gate minimo para declarar ciclo saudavel.
-- CryptoJobsList esta fora de `source=all` porque o endpoint JSON usado historicamente nao esta operacional; reativar exige task propria com evidencia.
-- Matriz operacional do scraper: `auto` (Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy), `fallback` (Solides, Indeed, Glassdoor via acquisition), `blocked` (CryptoJobsList).
+- CryptoJobsList foi reativado por RSS parser dedicado e voltou para `mode=auto`; no ambiente atual pode ocorrer `security-check` externo (Cloudflare) com volume 0 por rodada.
+- Matriz operacional do scraper: `auto` (Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, CryptoJobsList RSS), `fallback` (Solides, Indeed, Glassdoor via acquisition), `blocked` (nenhuma fonte ativa no baseline atual).
 - Dashboard prioriza quick actions e vagas por afinidade acima de rotas/overview; secoes sao colapsaveis para reduzir ruido.
 - Filtros do dashboard sao multi-select (toggle por clique simples) derivados do batch atual; tags/local/fonte/status aplicam OR.
 - Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
@@ -160,6 +159,7 @@
 - TASK-RTM-002 consolidou ciclo unificado em `POST /v1/pipeline/run` com resumo de coleta, shortlist explicada e persistência em `agent-runs`, `decision-logs` e `skill-executions`.
 - TASK-RTM-003 adicionou guardrails de budget/duração/volume no pipeline unificado com cortes observáveis em `warnings` e `budget.cutsApplied`.
 - TASK-QLT-003 adicionou baseline de smoke web/API automatizado (`npm run smoke`) com harness de subida/encerramento isolado e cobertura minima de rotas criticas.
+- TASK-SCR-011 reativou CryptoJobsList via RSS com parser dedicado, incluindo no `source=all` com tolerancia a falha parcial quando houver bloqueio externo.
 - Backlog derivado pos-RTM-002 foi aberto para aproximar o idealizado: guardrails de budget IA, smoke web/api, reativacao de fonte bloqueada, metricas persistidas, specs por capability e calibracao por dataset.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
@@ -181,7 +181,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-SCR-011 - reativar CryptoJobsList via RSS com parser dedicado
+- TASK-RTM-004 - persistir metricas de runtime e dedupe historico
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

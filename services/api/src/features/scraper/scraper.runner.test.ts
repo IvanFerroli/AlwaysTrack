@@ -30,18 +30,13 @@ test("scraper keyword injection preserves valid URLs per supported source", () =
   assert.equal(new URL(gupy.url).searchParams.get("name"), "backend");
 });
 
-test("scraper rejects unknown sources as input errors and reports blocked mode", async () => {
+test("scraper rejects unknown sources as input errors", async () => {
   const ingestion = new IngestionService(new InMemoryStateStore());
 
   await assert.rejects(
     () => runScraper(ingestion, "unknown"),
     (err) => err instanceof ScraperInputError && err.code === "UNKNOWN_SCRAPER_SOURCE"
   );
-
-  const blocked = await runScraper(ingestion, "cryptojobslist");
-  assert.equal(blocked.sourceReports?.[0]?.mode, "blocked");
-  assert.equal(blocked.ingested, 0);
-  assert.equal(blocked.errors.length, 0);
 });
 
 test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
@@ -140,6 +135,64 @@ test("scraper parses Gupy public portal items with platform source", () => {
   assert.equal(items[0]?.sourceName, "Gupy");
   assert.equal(items[0]?.companyName, "FCamara");
   assert.equal(items[0]?.location, "Remote");
+});
+
+test("scraper parses CryptoJobsList RSS items with dedicated parser", () => {
+  const items = parseJobItems(
+    [
+      {
+        title: "Solidity Engineer at Onchain Labs",
+        link: "https://cryptojobslist.com/jobs/solidity-engineer-onchain-labs?ref=feed",
+        description: "<p>Build smart contracts with Solidity and TypeScript.</p>",
+        pubDate: "Sun, 26 Apr 2026 19:00:00 GMT"
+      }
+    ],
+    SCRAPER_SOURCES["cryptojobslist"]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.sourceName, "CryptoJobsList");
+  assert.equal(items[0]?.companyName, "Onchain Labs");
+  assert.equal(items[0]?.sourceUrl, "https://cryptojobslist.com/jobs/solidity-engineer-onchain-labs");
+  assert.ok(items[0]?.description.includes("smart contracts"));
+});
+
+test("runScraper executes cryptojobslist RSS source in auto mode", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>CryptoJobsList Jobs</title>
+    <item>
+      <title>Protocol Engineer at ChainOps</title>
+      <link>https://cryptojobslist.com/jobs/protocol-engineer-chainops?utm_source=rss</link>
+      <description><![CDATA[<p>Protocol development with Rust and TypeScript.</p>]]></description>
+      <pubDate>Sun, 26 Apr 2026 17:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/rss+xml; charset=utf-8" }),
+      text: async () => rss
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "cryptojobslist");
+    assert.equal(result.source, "CryptoJobsList");
+    assert.equal(result.fetched, 1);
+    assert.equal(result.parsed, 1);
+    assert.equal(result.ingested, 1);
+    assert.equal(result.sourceReports?.[0]?.mode, "auto");
+    assert.equal(result.errors.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("runScraper returns autoDiscarded and keywordEffective", async () => {
@@ -394,6 +447,79 @@ test("runScraper(all) limits concurrency and reports partial failures with timeo
     assert.equal(remoteOkReport?.mode, "auto");
     assert.equal(remoteOkReport?.failureType, "timeout");
     assert.ok((result.errors ?? []).length >= 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, enabledByDefault] of originalEnabledByDefault.entries()) {
+      SCRAPER_SOURCES[key].enabledByDefault = enabledByDefault;
+    }
+  }
+});
+
+test("runScraper(all) includes cryptojobslist and keeps cycle alive on RSS security-check failure", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnabledByDefault = new Map<string, boolean | undefined>();
+
+  for (const [key, source] of Object.entries(SCRAPER_SOURCES)) {
+    originalEnabledByDefault.set(key, source.enabledByDefault);
+    source.enabledByDefault = false;
+  }
+  SCRAPER_SOURCES["remotive"].enabledByDefault = true;
+  SCRAPER_SOURCES["cryptojobslist"].enabledByDefault = true;
+
+  globalThis.fetch = (async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("remotive.com")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({
+          jobs: [
+            {
+              title: "Backend Engineer",
+              company_name: "Acme",
+              url: "https://example.com/jobs/backend-all",
+              candidate_required_location: "Remote",
+              publication_date: "2026-04-26T00:00:00Z",
+              description: "Node.js and TypeScript"
+            }
+          ]
+        })
+      } as Response;
+    }
+
+    if (url.includes("cryptojobslist.com")) {
+      return {
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () => "<html>cloudflare challenge</html>"
+      } as Response;
+    }
+
+    throw new Error(`unexpected URL in test: ${url}`);
+  }) as typeof globalThis.fetch;
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "all", undefined, {
+      autoDiscard: false,
+      maxConcurrency: 2,
+      sourceTimeoutMs: 2_000
+    });
+
+    assert.equal(result.sourceReports?.length, 2);
+    const remotiveReport = result.sourceReports?.find((item) => item.name === "Remotive");
+    const cryptoReport = result.sourceReports?.find((item) => item.name === "CryptoJobsList");
+
+    assert.equal(remotiveReport?.mode, "auto");
+    assert.equal(remotiveReport?.ingested, 1);
+    assert.equal(cryptoReport?.mode, "auto");
+    assert.equal(cryptoReport?.failureType, "security-check");
+    assert.ok((result.errors ?? []).length >= 1);
+    assert.equal(result.ingested, 1);
   } finally {
     globalThis.fetch = originalFetch;
     for (const [key, enabledByDefault] of originalEnabledByDefault.entries()) {
