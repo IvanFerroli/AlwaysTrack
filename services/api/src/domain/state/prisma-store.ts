@@ -60,7 +60,7 @@ export class PrismaStateStore implements StateStore {
       ...r,
       status: r.status as "success" | "failure",
       startedAt: r.startedAt.toISOString(),
-      finishedAt: r.finishedAt?.toISOString()
+      finishedAt: (r.finishedAt ?? r.startedAt).toISOString()
     }));
   }
 
@@ -68,6 +68,7 @@ export class PrismaStateStore implements StateStore {
     const records = await this.prisma.approvalRequest.findMany({ orderBy: { createdAt: "desc" } });
     return records.map((r) => ({
       ...r,
+      actionType: r.actionType as "SEND_APPLICATION",
       status: r.status as "pending" | "approved" | "rejected",
       createdAt: r.createdAt.toISOString(),
       approvedAt: r.approvedAt?.toISOString(),
@@ -94,7 +95,7 @@ export class PrismaStateStore implements StateStore {
     const records = await this.prisma.memoryEntry.findMany({ orderBy: { createdAt: "desc" } });
     return records.map((r) => ({
       ...r,
-      type: r.type as "approval-history" | "application-history" | "skill-history" | "user-preference",
+      type: r.type as "APPLICATION_RESULT" | "STRATEGY_HINT" | "APPROVAL_RESULT",
       createdAt: r.createdAt.toISOString()
     }));
   }
@@ -136,6 +137,7 @@ export class PrismaStateStore implements StateStore {
     if (!r) return undefined;
     return {
       ...r,
+      actionType: r.actionType as "SEND_APPLICATION",
       status: r.status as "pending" | "approved" | "rejected",
       createdAt: r.createdAt.toISOString(),
       approvedAt: r.approvedAt?.toISOString(),
@@ -153,6 +155,7 @@ export class PrismaStateStore implements StateStore {
     if (!r) return undefined;
     return {
       ...r,
+      actionType: r.actionType as "SEND_APPLICATION",
       status: r.status as "pending" | "approved" | "rejected",
       createdAt: r.createdAt.toISOString(),
       approvedAt: r.approvedAt?.toISOString(),
@@ -291,7 +294,7 @@ export class PrismaStateStore implements StateStore {
       ...r,
       status: r.status as "success" | "failure",
       startedAt: r.startedAt.toISOString(),
-      finishedAt: r.finishedAt?.toISOString()
+      finishedAt: (r.finishedAt ?? r.startedAt).toISOString()
     };
   }
 
@@ -303,6 +306,7 @@ export class PrismaStateStore implements StateStore {
     });
     return {
       ...r,
+      actionType: r.actionType as "SEND_APPLICATION",
       status: r.status as "pending" | "approved" | "rejected",
       createdAt: r.createdAt.toISOString(),
       approvedAt: r.approvedAt?.toISOString(),
@@ -321,6 +325,7 @@ export class PrismaStateStore implements StateStore {
       });
       return {
         ...r,
+        actionType: r.actionType as "SEND_APPLICATION",
         status: r.status as "pending" | "approved" | "rejected",
         createdAt: r.createdAt.toISOString(),
         approvedAt: r.approvedAt?.toISOString(),
@@ -342,6 +347,7 @@ export class PrismaStateStore implements StateStore {
       });
       return {
         ...r,
+        actionType: r.actionType as "SEND_APPLICATION",
         status: r.status as "pending" | "approved" | "rejected",
         createdAt: r.createdAt.toISOString(),
         approvedAt: r.approvedAt?.toISOString(),
@@ -403,7 +409,7 @@ export class PrismaStateStore implements StateStore {
     });
     return {
       ...r,
-      type: r.type as "approval-history" | "application-history" | "skill-history" | "user-preference",
+      type: r.type as "APPLICATION_RESULT" | "STRATEGY_HINT" | "APPROVAL_RESULT",
       createdAt: r.createdAt.toISOString()
     };
   }

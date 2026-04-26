@@ -1,6 +1,6 @@
 import type { ApiResult, MatchScoreInput, MatchScoreResult, RankedJobPosting, JobUserStatus } from "@olympus/shared-types";
 import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
-import { InMemoryStateStore } from "../../domain/state/store.js";
+import type { StateStore } from "../../domain/state/store.js";
 import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
 export interface JobFilterOptions {
@@ -21,7 +21,7 @@ function fail(code: string, message: string): ApiResult<never> {
 }
 
 export class MatchService {
-  constructor(private readonly store: InMemoryStateStore) {}
+  constructor(private readonly store: StateStore) {}
 
   async score(input: MatchScoreInput): Promise<ApiResult<MatchScoreResult>> {
     const jobPosting = await this.store.findJobPostingById(input.jobPostingId);

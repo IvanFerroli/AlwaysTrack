@@ -1,7 +1,7 @@
 # TASKYFIER MEMORY — OLYMPUS CLIMB
 
 ## Status do projeto
-- classificacao operacional atual: alpha local funcional em memoria
+- classificacao operacional atual: alpha local funcional com persistencia Prisma/Postgres
 - status adicional: pronto para ciclos de produto com gates obrigatorios
 - documento canonico vigente: Consolidado Canonico do Projeto Olympus Climb (Base Vigente)
 - macro-objetivo atual: evoluir produto real mantendo rastreabilidade, evidencia e escopo canonico
@@ -31,7 +31,7 @@
 - runtime-observability
 
 ## Frente atualmente ativa
-- normalizacao de sanidade, UX, gates e documentacao viva apos aceleracao com multiplos agentes
+- produto alpha local estabilizado apos auditoria pesada; pronto para ciclos funcionais com gates
 
 ## ADRs aceitas relevantes
 - ADR-001 - governanca documental operacional (`docs/adr/ADR-001-governanca-documental-operacional.md`)
@@ -80,27 +80,28 @@
 - TASK-SCR-005 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
+- auditoria de sanidade e normalizacao do repo (2026-04-25)
 
 ## Tasks em andamento
-- auditoria de sanidade e normalizacao do repo (2026-04-25)
+- nenhuma
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
 
 ## Dependencias abertas
-- persistencia duravel para vagas, resume profiles, approvals, applications e memoria runtime
 - specs minimas por capability de produto
 - policy explicita para uso de LLM externo em CV/deep score
 - paginacao/limites de armazenamento runtime
 - suite de smoke tests web/API alem dos testes unitarios de servico
 - decidir se CryptoJobsList volta via parser RSS dedicado ou permanece fora do `source=all`
+- persistir ou recalcular historicamente contadores runtime de metricas como ingestionAttempts/dedupeHits
 
 ## Decisoes praticas recentes
 - `GET /` e dashboard central com rotas e ranking por afinidade.
 - `GET /workspace` e superficie operacional para execucao manual e gates humanos.
 - `GET /guide` e guia vivo de uso.
 - `docs/` permanece fonte viva; `doc/` permanece historico e fonte local dos CVs.
-- O runtime local usa memoria; persistencia ainda nao foi implementada.
+- O runtime principal usa Prisma/Postgres; `DATABASE_URL` precisa estar configurada e o schema sincronizado.
 - O scoring local de Match e Strategy deve usar a mesma rotina compartilhada.
 - O scoring deve tratar skills pontuadas como `node.js`/`next.js` como grupos de tokens equivalentes quando os tokens da vaga baterem.
 - Rotas POST no dashboard nao devem ser abertas como links GET; devem ser acionadas por form/fetch/curl.
@@ -108,6 +109,8 @@
 - Servidores locais fazem bind em `127.0.0.1` por padrao.
 - `npm run check` e gate minimo para declarar ciclo saudavel.
 - CryptoJobsList esta fora de `source=all` porque o endpoint JSON usado historicamente nao esta operacional; reativar exige task propria com evidencia.
+- Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
+- `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
 
 ## Padrões já adotados
 - menor entrega util primeiro quando nao houver pedido explicito de ciclo maior
@@ -123,7 +126,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- implementar persistencia local minima (ex: SQLite ou JSON store) para tornar vagas/profiles/applications duraveis entre restarts
+- automatizar smoke test web/API minimo para `/`, `/workspace`, `/guide`, `/health`, `/v1/metrics` e um fluxo POST controlado
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

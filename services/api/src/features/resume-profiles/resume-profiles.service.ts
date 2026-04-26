@@ -9,7 +9,7 @@ import type {
   ResumeProfile,
   ResumeProfileCreateInput
 } from "@olympus/shared-types";
-import { InMemoryStateStore } from "../../domain/state/store.js";
+import type { StateStore } from "../../domain/state/store.js";
 import { extractSkillsWithGemini } from "../../core/llm/gemini.js";
 
 function ok<T>(data: T): ApiResult<T> {
@@ -91,7 +91,7 @@ export class ResumeProfilesService {
   private readonly cvSourcesDir: string;
 
   constructor(
-    private readonly store: InMemoryStateStore,
+    private readonly store: StateStore,
     options: ResumeProfilesServiceOptions = {}
   ) {
     this.cvSourcesDir = options.cvSourcesDir ?? path.resolve(process.cwd(), "doc");

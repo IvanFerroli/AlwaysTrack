@@ -5,13 +5,13 @@ import { IngestionService } from "../ingestion/ingestion.service.js";
 import { ExecutionService } from "./execution.service.js";
 import { StrategyService } from "../strategy/strategy.service.js";
 
-test("execution approves pending request and creates submitted application", () => {
+test("execution approves pending request and creates submitted application", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -24,7 +24,7 @@ test("execution approves pending request and creates submitted application", () 
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -40,7 +40,7 @@ test("execution approves pending request and creates submitted application", () 
     throw new Error("expected strategy approval request");
   }
 
-  const approval = execution.approve({
+  const approval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
@@ -52,18 +52,18 @@ test("execution approves pending request and creates submitted application", () 
   assert.equal(approval.data.approvalRequest.status, "approved");
   assert.equal(approval.data.application.status, "submitted");
 
-  const memory = store.listMemoryEntries();
+  const memory = await store.listMemoryEntries();
   assert.equal(memory.length > 0, true);
   assert.equal(memory[0]?.type, "APPLICATION_RESULT");
 });
 
-test("execution rejects pending request and stores rejection evidence", () => {
+test("execution rejects pending request and stores rejection evidence", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -76,7 +76,7 @@ test("execution rejects pending request and stores rejection evidence", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -92,7 +92,7 @@ test("execution rejects pending request and stores rejection evidence", () => {
     throw new Error("expected strategy approval request");
   }
 
-  const rejection = execution.reject({
+  const rejection = await execution.reject({
     approvalRequestId: proposal.data.approvalRequest.id,
     rejectedBy: "human-reviewer",
     reason: "Not a strategic fit now"
@@ -105,18 +105,18 @@ test("execution rejects pending request and stores rejection evidence", () => {
   assert.equal(rejection.data.approvalRequest.status, "rejected");
   assert.equal(rejection.data.approvalRequest.rejectionReason, "Not a strategic fit now");
 
-  const memory = store.listMemoryEntries();
+  const memory = await store.listMemoryEntries();
   assert.equal(memory.length > 0, true);
   assert.equal(memory[0]?.type, "APPROVAL_RESULT");
 });
 
-test("execution cannot approve already rejected request", () => {
+test("execution cannot approve already rejected request", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -129,7 +129,7 @@ test("execution cannot approve already rejected request", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -145,14 +145,14 @@ test("execution cannot approve already rejected request", () => {
     throw new Error("expected strategy approval request");
   }
 
-  const rejection = execution.reject({
+  const rejection = await execution.reject({
     approvalRequestId: proposal.data.approvalRequest.id,
     rejectedBy: "human-reviewer",
     reason: "Not aligned"
   });
   assert.equal(rejection.ok, true);
 
-  const approval = execution.approve({
+  const approval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
@@ -163,13 +163,13 @@ test("execution cannot approve already rejected request", () => {
   assert.equal(approval.error.code, "APPROVAL_NOT_PENDING");
 });
 
-test("execution auto-rejects duplicate pending approval when application already exists", () => {
+test("execution auto-rejects duplicate pending approval when application already exists", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -189,7 +189,7 @@ test("execution auto-rejects duplicate pending approval when application already
     createdAt: new Date().toISOString()
   };
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile,
     minimumScore: 50,
@@ -200,7 +200,7 @@ test("execution auto-rejects duplicate pending approval when application already
     throw new Error("expected strategy approval request");
   }
 
-  const firstApproval = execution.approve({
+  const firstApproval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
@@ -209,7 +209,7 @@ test("execution auto-rejects duplicate pending approval when application already
     throw new Error("expected initial approval to succeed");
   }
 
-  const duplicatePending = store.createApprovalRequest({
+  const duplicatePending = await store.createApprovalRequest({
     actionType: "SEND_APPLICATION",
     jobPostingId: proposal.data.approvalRequest.jobPostingId,
     resumeProfileId: proposal.data.approvalRequest.resumeProfileId,
@@ -217,7 +217,7 @@ test("execution auto-rejects duplicate pending approval when application already
     reason: "duplicate pending for test"
   });
 
-  const duplicateApproval = execution.approve({
+  const duplicateApproval = await execution.approve({
     approvalRequestId: duplicatePending.id,
     approvedBy: "human-reviewer"
   });
@@ -227,18 +227,18 @@ test("execution auto-rejects duplicate pending approval when application already
   }
   assert.equal(duplicateApproval.error.code, "APPLICATION_ALREADY_SUBMITTED");
 
-  const refreshedDuplicate = store.findApprovalRequestById(duplicatePending.id);
+  const refreshedDuplicate = await store.findApprovalRequestById(duplicatePending.id);
   assert.equal(refreshedDuplicate?.status, "rejected");
   assert.match(refreshedDuplicate?.rejectionReason ?? "", /duplicate/i);
 });
 
-test("execution updates submitted application status to interview with evidence", () => {
+test("execution updates submitted application status to interview with evidence", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -251,7 +251,7 @@ test("execution updates submitted application status to interview with evidence"
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -267,7 +267,7 @@ test("execution updates submitted application status to interview with evidence"
     throw new Error("expected strategy approval request");
   }
 
-  const approval = execution.approve({
+  const approval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
@@ -276,7 +276,7 @@ test("execution updates submitted application status to interview with evidence"
     throw new Error("expected execution approval to succeed");
   }
 
-  const updated = execution.updateApplicationStatus({
+  const updated = await execution.updateApplicationStatus({
     applicationId: approval.data.application.id,
     status: "interview",
     updatedBy: "human-reviewer",
@@ -290,18 +290,18 @@ test("execution updates submitted application status to interview with evidence"
   assert.equal(updated.data.application.outcomeBy, "human-reviewer");
   assert.equal(updated.data.application.outcomeReason, "Strong fit for next stage");
 
-  const memory = store.listMemoryEntries();
+  const memory = await store.listMemoryEntries();
   assert.equal(memory.length > 0, true);
   assert.match(memory[0]?.value ?? "", /moved to interview/i);
 });
 
-test("execution rejects invalid repeated status update", () => {
+test("execution rejects invalid repeated status update", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -314,7 +314,7 @@ test("execution rejects invalid repeated status update", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -330,7 +330,7 @@ test("execution rejects invalid repeated status update", () => {
     throw new Error("expected strategy approval request");
   }
 
-  const approval = execution.approve({
+  const approval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
@@ -339,7 +339,7 @@ test("execution rejects invalid repeated status update", () => {
     throw new Error("expected execution approval to succeed");
   }
 
-  const firstUpdate = execution.updateApplicationStatus({
+  const firstUpdate = await execution.updateApplicationStatus({
     applicationId: approval.data.application.id,
     status: "rejected",
     updatedBy: "human-reviewer",
@@ -347,7 +347,7 @@ test("execution rejects invalid repeated status update", () => {
   });
   assert.equal(firstUpdate.ok, true);
 
-  const repeatedUpdate = execution.updateApplicationStatus({
+  const repeatedUpdate = await execution.updateApplicationStatus({
     applicationId: approval.data.application.id,
     status: "rejected",
     updatedBy: "human-reviewer",

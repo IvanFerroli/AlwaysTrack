@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
 
-test("metrics snapshot tracks ingestion attempts and dedupe rate", () => {
+test("metrics snapshot tracks ingestion attempts and dedupe rate", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
 
@@ -16,10 +16,10 @@ test("metrics snapshot tracks ingestion attempts and dedupe rate", () => {
     location: "remote"
   };
 
-  ingestion.ingest(payload);
-  ingestion.ingest(payload);
+  await ingestion.ingest(payload);
+  await ingestion.ingest(payload);
 
-  const metrics = store.snapshotMetrics();
+  const metrics = await store.snapshotMetrics();
   assert.equal(metrics.ingestionAttempts, 2);
   assert.equal(metrics.dedupeHits, 1);
   assert.equal(metrics.dedupeRate, 0.5);

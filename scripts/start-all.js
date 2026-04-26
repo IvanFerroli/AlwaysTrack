@@ -4,14 +4,15 @@ const { exec, spawn } = require('child_process');
  * Função utilitária para rodar comandos sequenciais e aguardar.
  */
 function run(cmd, desc) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     console.log(`\n[Olympus Setup] 🛠️  ${desc}...`);
     exec(cmd, (err, stdout, stderr) => {
       if (err) {
-        console.warn(`⚠️  Aviso ou erro (continuando...): ${desc}`);
-      } else {
-        console.log(`✅ ${desc} finalizado.`);
+        console.error(stderr || err.message);
+        reject(new Error(`${desc} falhou`));
+        return;
       }
+      console.log(`✅ ${desc} finalizado.`);
       resolve(stdout);
     });
   });
@@ -22,23 +23,19 @@ async function main() {
   console.log("🚀 OLYMPUS CLIMB - STARTUP COMPLETO (V3)");
   console.log("====================================================\n");
 
-  // 1. Limpar processos antigos
-  // Matamos tudo nas portas 3000 (web), 3001 (api), 5432 (db) e 5555 (studio)
-  await run("fuser -k 3000/tcp 3001/tcp 5432/tcp 5555/tcp", "Limpando processos órfãos");
+  // 1. Limpar apenas processos locais do app. O Postgres em 5432 pertence ao Docker Compose.
+  await run("fuser -k 3000/tcp 3001/tcp 5555/tcp 2>/dev/null || true", "Limpando processos órfãos do app");
 
-  // 2. Atualizar dependências
-  await run("npm install", "Atualizando pacotes (npm install)");
-
-  // 3. Subir Banco (se docker existir)
+  // 2. Subir Banco (se docker existir)
   await run("docker compose up -d", "Iniciando infraestrutura Docker");
 
-  // 4. Sincronizar e Gerar Client (Essencial para o Prisma Studio não crashar)
+  // 3. Sincronizar e gerar client.
   await run("npx prisma db push --schema=services/api/prisma/schema.prisma", "Sincronizando Schema");
   await run("npx prisma generate --schema=services/api/prisma/schema.prisma", "Gerando Prisma Client (Fix para o Studio)");
 
   console.log("\n🔥 Iniciando API, WebApp e Prisma Studio...");
   
-  // 5. Iniciar serviços em paralelo
+  // 4. Iniciar serviços em paralelo
   const devProcess = spawn("npx", [
     "concurrently", 
     "-k", 
@@ -49,7 +46,7 @@ async function main() {
     "\"npx prisma studio --schema=services/api/prisma/schema.prisma --browser none\"" // studio sem abrir o browser sozinho
   ], { stdio: "inherit", shell: true });
 
-  // 6. Abrir o navegador manualmente com atraso
+  // 5. Abrir o navegador manualmente com atraso
   setTimeout(() => {
     console.log("\n🌐 Abrindo WebApp e Prisma Studio...");
     

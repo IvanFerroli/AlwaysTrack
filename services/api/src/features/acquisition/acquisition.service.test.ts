@@ -27,12 +27,20 @@ describe("parseSafePublicUrl", () => {
     assert.equal(parseSafePublicUrl("http://127.0.0.1/secret"), undefined);
   });
 
+  it("returns undefined for IPv6 loopback", () => {
+    assert.equal(parseSafePublicUrl("http://[::1]/secret"), undefined);
+  });
+
   it("returns undefined for private ip 192.168.x.x", () => {
     assert.equal(parseSafePublicUrl("http://192.168.1.1/path"), undefined);
   });
 
   it("returns undefined for private ip 10.x.x.x", () => {
     assert.equal(parseSafePublicUrl("http://10.0.0.5/path"), undefined);
+  });
+
+  it("returns undefined for private ip 172.16-31.x.x", () => {
+    assert.equal(parseSafePublicUrl("http://172.16.0.5/path"), undefined);
   });
 
   it("returns undefined for .local host", () => {
@@ -249,6 +257,13 @@ describe("ATS Adapters — extractGupyJob", () => {
   it("returns undefined for non-Gupy URL", () => {
     const html = `<h1 data-testid="job-title">Vaga</h1><div data-testid="job-description">Desc</div>`;
     const url = new URL("https://example.com");
+    const result = extractGupyJob(html, url, "ats-adapter");
+    assert.equal(result, undefined);
+  });
+
+  it("does not match attacker-controlled suffix hosts", () => {
+    const html = `<h1 data-testid="job-title">Vaga</h1><div data-testid="job-description">Desc</div>`;
+    const url = new URL("https://gupy.io.attacker.example/jobs/12345");
     const result = extractGupyJob(html, url, "ats-adapter");
     assert.equal(result, undefined);
   });

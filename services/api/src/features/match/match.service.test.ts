@@ -4,12 +4,12 @@ import { InMemoryStateStore } from "../../domain/state/store.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
 import { MatchService } from "./match.service.js";
 
-test("match service scores based on normalized token overlap", () => {
+test("match service scores based on normalized token overlap", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const match = new MatchService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "linkedin",
@@ -23,7 +23,7 @@ test("match service scores based on normalized token overlap", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const result = match.score({
+  const result = await match.score({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -44,12 +44,12 @@ test("match service scores based on normalized token overlap", () => {
   assert.ok(result.data.score >= 60);
 });
 
-test("match service treats dotted skills as token groups", () => {
+test("match service treats dotted skills as token groups", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const match = new MatchService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Senior Node.js Next.js Engineer",
     companyName: "Olympus",
     sourceName: "linkedin",
@@ -63,7 +63,7 @@ test("match service treats dotted skills as token groups", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const result = match.score({
+  const result = await match.score({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",

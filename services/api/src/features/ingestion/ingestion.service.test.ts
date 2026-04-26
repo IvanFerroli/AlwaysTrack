@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 import { IngestionService } from "./ingestion.service.js";
 
-test("ingestion deduplicates repeated postings", () => {
+test("ingestion deduplicates repeated postings", async () => {
   const store = new InMemoryStateStore();
   const service = new IngestionService(store);
 
@@ -16,14 +16,14 @@ test("ingestion deduplicates repeated postings", () => {
     location: "remote"
   };
 
-  const first = service.ingest(payload);
+  const first = await service.ingest(payload);
   assert.equal(first.ok, true);
   if (!first.ok) {
     throw new Error("expected first ingestion to succeed");
   }
   assert.equal(first.data.deduplicated, false);
 
-  const second = service.ingest(payload);
+  const second = await service.ingest(payload);
   assert.equal(second.ok, true);
   if (!second.ok) {
     throw new Error("expected second ingestion to succeed");

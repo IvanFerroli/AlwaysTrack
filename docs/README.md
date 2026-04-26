@@ -17,10 +17,12 @@
 - `docs/operations/`: estado vivo dos kits, memoria operacional e auditorias.
 
 ## Estado implementado atual
-- O projeto possui um alpha local funcional em memoria.
-- O runtime web/API roda pela raiz com `npm run dev`.
+- O projeto possui um alpha local funcional com API persistida via Prisma/Postgres.
+- O runtime web/API roda pela raiz com `npm run dev` quando o Postgres e o schema Prisma ja estao prontos.
+- Para subir infraestrutura, sincronizar schema e abrir Web/Prisma Studio, usar `npm run up`.
 - A validacao de sanidade usa `npm run check`.
-- O estado runtime ainda nao e persistido; reiniciar a API limpa vagas, approvals, applications e profiles criados em memoria.
+- Vagas, resume profiles, approvals, applications, audit logs e memoria runtime sao persistidos no banco configurado em `DATABASE_URL`.
+- Metricas de processo como tentativas/dedupe/propostas ainda possuem contadores runtime em memoria e zeram ao reiniciar a API.
 
 ## Mapa de rotas web
 - `GET /`: dashboard, indice central de rotas e vagas ranqueadas.
@@ -30,6 +32,7 @@
 - `POST /ingest`: cria vaga manual e dispara score/strategy.
 - `POST /resume-profiles`: cria resume profile manual.
 - `POST /main-cv/analyze`: cria resume profile a partir de arquivo `.txt` em `doc/`.
+- `POST /acquire`: acquisition multimodal de vaga via form do Workspace.
 - `POST /approve`: aprova approval request.
 - `POST /reject`: rejeita approval request.
 - `POST /applications/status`: atualiza application para `interview` ou `rejected`.
@@ -51,6 +54,7 @@
   - Fontes padrao em `source=all`: Remotive, Arbeitnow, RemoteOK, Jobicy e Himalayas.
   - CryptoJobsList permanece nomeada no codigo, mas fora de `source=all` ate existir parser/feed operacional confiavel.
 - `POST /v1/match/score`: score local por overlap de skills.
+- `POST /v1/jobs/acquire`: acquisition multimodal com smart-paste, url-import, ats-adapter, browser-capture, email-alert e provider-json.
 - `POST /v1/match/deep-score`: score LLM com Gemini quando `GEMINI_API_KEY` existe.
 - `POST /v1/strategy/propose`: propoe candidatura com gate humano.
 - `GET /v1/approval-queue`: lista approvals pendentes.
@@ -66,6 +70,8 @@
 
 ## Capacidades implementadas
 - Ingestao manual de vagas com dedupe e auditoria.
+- Acquisition multimodal de vagas via paste, URL, adapters ATS, browser capture, email alert e provider JSON.
+- ATS adapters especificos para Gupy, Solides, LinkedIn, Indeed, Glassdoor, Infojobs, Catho e Trabalha Brasil, com matching de host por dominio exato/subdominio.
 - Scraper multi-fonte com tolerancia parcial por fonte e keyword apenas em fontes com query validada.
 - Strip HTML em descricoes de feeds.
 - Ranking por afinidade com filtros de busca, local, fonte, status e score minimo.

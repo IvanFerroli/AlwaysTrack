@@ -5,7 +5,7 @@ function inferErrorStatus(code: string): number {
   if (code.includes("NOT_FOUND")) {
     return 404;
   }
-  if (code.includes("INVALID") || code.includes("REQUEST")) {
+  if (code.includes("INVALID") || code.includes("REQUEST") || code.includes("PARSE_FAILED")) {
     return 400;
   }
   return 500;

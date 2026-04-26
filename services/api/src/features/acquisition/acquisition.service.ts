@@ -32,6 +32,7 @@ function tryAtsAdapters(html: string, url: URL, method: JobAcquisitionMethod) {
 const MAX_TEXT_LENGTH = 80_000;
 const MAX_HTML_LENGTH = 120_000;
 const MAX_PROVIDER_JSON_LENGTH = 80_000;
+const MAX_REDIRECTS = 3;
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
 
 function ok<T>(data: T): ApiResult<T> {
@@ -66,12 +67,19 @@ function stripHtml(value: string): string {
 }
 
 function hostLooksPrivate(hostname: string): boolean {
-  const lower = hostname.toLowerCase();
+  const lower = hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
   if (BLOCKED_HOSTS.has(lower) || lower.endsWith(".local")) return true;
   if (/^10\./.test(lower) || /^192\.168\./.test(lower)) return true;
   if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(lower)) return true;
   if (/^169\.254\./.test(lower)) return true;
+  if (lower === "0:0:0:0:0:0:0:1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80:")) return true;
+  if (lower.startsWith("::ffff:127.") || lower.startsWith("::ffff:10.") || lower.startsWith("::ffff:192.168.")) return true;
   return false;
+}
+
+function hostMatches(hostname: string, domain: string): boolean {
+  const host = hostname.toLowerCase().replace(/^www\./, "");
+  return host === domain || host.endsWith(`.${domain}`);
 }
 
 export function parseSafePublicUrl(value: unknown): URL | undefined {
@@ -112,11 +120,11 @@ function inferCompanyFromUrl(url?: URL): string {
 function inferSourceName(method: JobAcquisitionMethod, url?: URL, explicit?: string): string {
   if (explicit?.trim()) return explicit.trim().slice(0, 80);
   if (!url) return method;
-  if (url.hostname.includes("gupy")) return "Gupy";
-  if (url.hostname.includes("solides")) return "Solides";
-  if (url.hostname.includes("linkedin")) return "LinkedIn assisted capture";
-  if (url.hostname.includes("indeed")) return "Indeed assisted capture";
-  if (url.hostname.includes("glassdoor")) return "Glassdoor assisted capture";
+  if (hostMatches(url.hostname, "gupy.io")) return "Gupy";
+  if (hostMatches(url.hostname, "solides.jobs") || hostMatches(url.hostname, "solides.com")) return "Solides";
+  if (hostMatches(url.hostname, "linkedin.com")) return "LinkedIn assisted capture";
+  if (hostMatches(url.hostname, "indeed.com")) return "Indeed assisted capture";
+  if (hostMatches(url.hostname, "glassdoor.com")) return "Glassdoor assisted capture";
   return url.hostname.replace(/^www\./, "").slice(0, 80);
 }
 
@@ -269,15 +277,62 @@ function parseTextLikeJob(
   };
 }
 
-async function fetchPublicPage(url: URL): Promise<string> {
+async function readResponseTextLimited(response: Response, maxBytes: number): Promise<string> {
+  if (!response.body) {
+    return "";
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  let reading = true;
+  while (reading) {
+    const { done, value } = await reader.read();
+    if (done) {
+      reading = false;
+      continue;
+    }
+    if (!value) continue;
+
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      throw new Error("RESPONSE_TOO_LARGE");
+    }
+    chunks.push(value);
+  }
+
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+async function fetchPublicPage(url: URL, redirectCount = 0): Promise<string> {
   const response = await fetch(url, {
     headers: {
       "accept": "text/html,application/xhtml+xml,application/json;q=0.8,text/plain;q=0.7",
       "user-agent": "olympus-climb-acquisition/1.0 (user-initiated import; local job matching tool)"
     },
-    redirect: "follow",
+    redirect: "manual",
     signal: AbortSignal.timeout(12_000)
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    if (redirectCount >= MAX_REDIRECTS) {
+      throw new Error("TOO_MANY_REDIRECTS");
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error("INVALID_REDIRECT");
+    }
+
+    const redirectedUrl = parseSafePublicUrl(new URL(location, url).toString());
+    if (!redirectedUrl) {
+      throw new Error("UNSAFE_REDIRECT_URL");
+    }
+
+    return fetchPublicPage(redirectedUrl, redirectCount + 1);
+  }
 
   if (!response.ok) {
     throw new Error(`FETCH_FAILED_${response.status}`);
@@ -288,8 +343,7 @@ async function fetchPublicPage(url: URL): Promise<string> {
     throw new Error("UNSUPPORTED_CONTENT_TYPE");
   }
 
-  const text = await response.text();
-  return text.slice(0, MAX_HTML_LENGTH);
+  return readResponseTextLimited(response, MAX_HTML_LENGTH);
 }
 
 export class JobAcquisitionService {
@@ -322,8 +376,11 @@ export class JobAcquisitionService {
     sourceName?: string
   ): Promise<{ input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined> {
     if (payload.method === "provider-json") {
-      const jsonText = JSON.stringify(payload.providerPayload ?? {}).slice(0, MAX_PROVIDER_JSON_LENGTH);
-      const record = JSON.parse(jsonText) as unknown;
+      const jsonText = JSON.stringify(payload.providerPayload ?? {});
+      if (jsonText.length > MAX_PROVIDER_JSON_LENGTH) {
+        return undefined;
+      }
+      const record = payload.providerPayload as unknown;
       if (record && typeof record === "object") {
         return fromStructuredJson(record as Record<string, unknown>, payload.method, sourceUrl, sourceName);
       }

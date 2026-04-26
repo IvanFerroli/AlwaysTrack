@@ -51,6 +51,17 @@ Auditoria realizada apos varios ciclos conduzidos por agentes diferentes. O obje
 - `docs/README.md`, `docs/runbooks/README.md` e `docs/operations/taskyfier-memory.md` foram atualizados.
 - Tasks PRD-004..PRD-007 e SCR-005 foram marcadas como `completed-with-remarks` para refletir incorporacao funcional com ressalvas historicas de evidencia.
 
+## Follow-up de estabilizacao Prisma/acquisition
+- Servicos de dominio passaram a depender de `StateStore`, nao de `InMemoryStateStore`, permitindo `PrismaStateStore` em runtime real.
+- Schema Prisma foi alinhado ao contrato compartilhado para `ApprovalRequest.actionType`, `ApplicationRecord.approvalRequestId`, `ApplicationRecord.evidence` e `MemoryEntry.type`.
+- Testes de servico foram atualizados para o contrato assincrono do store.
+- Suite oficial da API passou a incluir `acquisition.service.test.ts`.
+- Acquisition passou a bloquear IPv6 loopback/private ranges obvios, revalidar redirects manualmente, limitar resposta remota antes de ler todo o corpo e evitar truncamento de JSON antes de parse.
+- ATS adapters passaram a validar dominio por host exato/subdominio, evitando match por substring como `gupy.io.attacker.example`.
+- `readFormBody` do web recebeu limite de payload.
+- `scripts/start-all.js` passou a falhar cedo, nao matar `5432` e nao executar `npm install` implicitamente.
+- `.gitignore` passou a ignorar estado local de agentes para evitar vazamento/ruido no repo.
+
 ## Gates executados
 - `npm run typecheck`: passou.
 - `npm run lint`: passou.
@@ -58,6 +69,11 @@ Auditoria realizada apos varios ciclos conduzidos por agentes diferentes. O obje
 - `npm run build`: passou.
 - Smoke local: `/`, `/workspace`, `/guide`, `/health` e `/v1/metrics` responderam.
 - Smoke de sanidade API: `minScore=abc`, `tags=,`, `source=unknown` e `source=cryptojobslist` retornaram 400 controlado.
+- Follow-up Prisma/acquisition: `npm run check` passou com 50 testes.
+- Follow-up Prisma/acquisition: `npm run build` passou.
+- Follow-up Prisma/acquisition: `npx prisma validate --schema=services/api/prisma/schema.prisma` passou.
+- Follow-up Prisma/acquisition: `npx prisma db push --schema=services/api/prisma/schema.prisma` sincronizou o banco local `olympus_climb`.
+- Smoke HTTP local em servidores ja ativos: `/`, `/workspace`, `/guide`, `/health`, `/v1/metrics` e `/v1/main-cv/sources` responderam 200.
 
 ## Ressalvas documentais
 - Alguns execution/verification reports historicos afirmavam aprovacao com base em teste mental ou claims sem output material.
@@ -65,12 +81,12 @@ Auditoria realizada apos varios ciclos conduzidos por agentes diferentes. O obje
 - `docs/operations/UX-OVERHAUL-IMPLEMENTATION.md` permanece historico e nao deve ser usado como prova atual sem esta auditoria.
 
 ## Riscos remanescentes
-- Sem persistencia duravel; dados runtime continuam volateis.
+- Persistencia principal existe via Prisma/Postgres, mas contadores runtime de metricas ainda reiniciam com a API.
 - Deep Score e CV analyzer podem enviar dados a provedor externo quando `GEMINI_API_KEY` esta configurada.
-- Nao ha autenticacao/CSRF/token local para rotas mutaveis; mitigado parcialmente por bind local e CORS restrito.
+- Nao ha autenticacao/CSRF/token local para rotas mutaveis; mitigado parcialmente por bind local, CORS restrito e uso local consciente.
 - Scraper multi-fonte ainda pode crescer memoria local em runs grandes.
 - CryptoJobsList requer decisao/task propria para voltar como fonte operacional.
 - Ainda falta smoke test automatizado do web server renderizando `/`, `/workspace` e `/guide`.
 
 ## Proximo passo recomendado
-Implementar persistencia local minima para que o progresso de vagas, profiles, approvals e applications sobreviva a restarts antes de expandir muito mais o produto.
+Automatizar smoke test web/API minimo para proteger `/`, `/workspace`, `/guide`, `/health`, `/v1/metrics` e um fluxo POST controlado antes de expandir mais superficie funcional.

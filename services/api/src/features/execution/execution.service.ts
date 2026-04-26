@@ -10,7 +10,7 @@ import type {
   UpdateApplicationStatusResult,
   ListPayload
 } from "@olympus/shared-types";
-import { InMemoryStateStore } from "../../domain/state/store.js";
+import type { StateStore } from "../../domain/state/store.js";
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -21,7 +21,7 @@ function fail(code: string, message: string): ApiResult<never> {
 }
 
 export class ExecutionService {
-  constructor(private readonly store: InMemoryStateStore) {}
+  constructor(private readonly store: StateStore) {}
 
   async listApprovalQueue(): Promise<ApiResult<ListPayload<ApprovalRequest>>> {
     const pending = (await this.store.listApprovalRequests()).filter((item) => item.status === "pending");

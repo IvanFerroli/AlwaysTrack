@@ -4,6 +4,8 @@ import type { IngestJobPostingInput, JobAcquisitionEvidence, JobAcquisitionMetho
 
 function cleanHtmlText(html: string): string {
   return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -11,6 +13,11 @@ function cleanHtmlText(html: string): string {
     .replace(/&gt;/gi, ">")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function hostMatches(hostname: string, domain: string): boolean {
+  const host = hostname.toLowerCase().replace(/^www\./, "");
+  return host === domain || host.endsWith(`.${domain}`);
 }
 
 function extractByRegex(html: string, regex: RegExp): string {
@@ -30,7 +37,7 @@ export function extractGupyJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("gupy.io")) return undefined;
+  if (!hostMatches(url.hostname, "gupy.io")) return undefined;
 
   // Gupy usa <h1> ou um h1 com class/data-testid específico para título
   const title = extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i) || extractByStructuredData(html, "jobTitle");
@@ -78,7 +85,7 @@ export function extractSolidesJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("solides.jobs") && !url.hostname.includes("solides.com")) return undefined;
+  if (!hostMatches(url.hostname, "solides.jobs") && !hostMatches(url.hostname, "solides.com")) return undefined;
 
   // Sólides usa <h2> com class vacancy-title, ou similar
   const title = extractByRegex(html, /<h[12][^>]*class="[^"]*vacancy-title[^"]*"[^>]*>([\s\S]*?)<\/h[12]>/i) ||
@@ -125,7 +132,7 @@ export function extractLinkedInJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("linkedin.com")) return undefined;
+  if (!hostMatches(url.hostname, "linkedin.com")) return undefined;
 
   const title = extractByRegex(html, /<h1[^>]*class="[^"]*top-card-layout__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i) ||
                 extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -167,7 +174,7 @@ export function extractIndeedJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("indeed.com")) return undefined;
+  if (!hostMatches(url.hostname, "indeed.com")) return undefined;
 
   const title = extractByRegex(html, /<h1[^>]*class="[^"]*jobsearch-JobInfoHeader-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i) ||
                 extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -208,7 +215,7 @@ export function extractGlassdoorJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("glassdoor.com")) return undefined;
+  if (!hostMatches(url.hostname, "glassdoor.com")) return undefined;
 
   const title = extractByRegex(html, /<div[^>]*class="[^"]*JobDetails_jobTitle[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
                 extractByRegex(html, /<div[^>]*data-test="job-title"[^>]*>([\s\S]*?)<\/div>/i);
@@ -250,7 +257,7 @@ export function extractInfojobsJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("infojobs.com.br")) return undefined;
+  if (!hostMatches(url.hostname, "infojobs.com.br")) return undefined;
 
   const title = extractByRegex(html, /<h2[^>]*class="[^"]*js_vacancyTitle[^"]*"[^>]*>([\s\S]*?)<\/h2>/i) ||
                 extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -290,7 +297,7 @@ export function extractCathoJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("catho.com.br")) return undefined;
+  if (!hostMatches(url.hostname, "catho.com.br")) return undefined;
 
   const title = extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i) ||
                 extractByRegex(html, /<h2[^>]*class="[^"]*job-title[^"]*"[^>]*>([\s\S]*?)<\/h2>/i);
@@ -330,7 +337,7 @@ export function extractTrabalhaBrasilJob(
   url: URL,
   method: JobAcquisitionMethod
 ): { input: IngestJobPostingInput; evidence: JobAcquisitionEvidence } | undefined {
-  if (!url.hostname.includes("trabalhabrasil.com.br")) return undefined;
+  if (!hostMatches(url.hostname, "trabalhabrasil.com.br")) return undefined;
 
   const title = extractByRegex(html, /<h1[^>]*class="[^"]*job-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i) ||
                 extractByRegex(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i);

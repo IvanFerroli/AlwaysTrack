@@ -1,6 +1,6 @@
 import type { ApiResult, StrategyProposalInput, StrategyProposalResult } from "@olympus/shared-types";
 import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
-import { InMemoryStateStore } from "../../domain/state/store.js";
+import type { StateStore } from "../../domain/state/store.js";
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -11,7 +11,7 @@ function fail(code: string, message: string): ApiResult<never> {
 }
 
 export class StrategyService {
-  constructor(private readonly store: InMemoryStateStore) {}
+  constructor(private readonly store: StateStore) {}
 
   async propose(input: StrategyProposalInput): Promise<ApiResult<StrategyProposalResult>> {
     const jobPosting = await this.store.findJobPostingById(input.jobPostingId);

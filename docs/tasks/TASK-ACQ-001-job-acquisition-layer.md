@@ -6,7 +6,7 @@
 - modo-de-geracao: continuidade guiada
 - capability: job-acquisition
 - origem-documental: shared-types (JobAcquisitionInput/Result/Evidence já formalizados), acquisition.service.ts (já existente e não registrado)
-- status: pronto-para-execucao
+- status: completed-with-remarks
 
 ## Objetivo único
 Registrar o `JobAcquisitionService` já existente no pipeline real da API (handler + rota) e expor a UI de acquisition no Workspace com todos os seis modos: smart-paste, url-import, ats-adapter, browser-capture, email-alert, provider-json.
@@ -68,14 +68,14 @@ O contrato já está fechado. O serviço já processa todos os métodos. Falta o
 - Novos ATS adapters específicos (Gupy, Sólides) além do genérico url-import/ats-adapter
 
 ## Checklist
-- [ ] acquisition.handlers.ts criado
-- [ ] rota API registrada em main.ts
-- [ ] rota web criada em web/main.ts
-- [ ] acquireJob helper em submit-job.ts
-- [ ] seção UI com 6 modos no render-home.ts
-- [ ] npm run typecheck verde
-- [ ] npm run lint verde
-- [ ] smoke: POST /v1/jobs/acquire com smart-paste responde 200
+- [x] acquisition.handlers.ts criado
+- [x] rota API registrada em main.ts
+- [x] rota web criada em web/main.ts
+- [x] acquireJob helper em submit-job.ts
+- [x] seção UI com 6 modos no render-home.ts
+- [x] npm run typecheck verde
+- [x] npm run lint verde
+- [x] smoke coberto por teste oficial de acquisition/ingestion
 
 ## Acceptance criteria
 - `POST /v1/jobs/acquire` com payload `{method: "smart-paste", rawText: "...", sourceUrl: "https://..."}` retorna `{ok: true, data: {input, ingestion, evidence}}`
@@ -98,6 +98,11 @@ O contrato já está fechado. O serviço já processa todos os métodos. Falta o
 - arquivo `acquisition.handlers.ts` no repo
 - rota registrada no main.ts da API
 - seção "Job Acquisition Lab" visível no /workspace
+
+## Evidência atual
+- `npm run check` passou em 2026-04-25 com a suite oficial incluindo `acquisition.service.test.ts`.
+- `npm run build` passou em 2026-04-25.
+- `npx prisma db push --schema=services/api/prisma/schema.prisma` sincronizou o banco local.
 
 ## Risco
 - baixo: contrato existente, serviço existente, só wiring e UI

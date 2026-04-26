@@ -4,7 +4,7 @@ import type {
   IngestJobPostingResult,
   JobPosting
 } from "@olympus/shared-types";
-import { InMemoryStateStore } from "../../domain/state/store.js";
+import type { StateStore } from "../../domain/state/store.js";
 import {
   computeDedupeKey,
   normalizeIngestPayload,
@@ -21,7 +21,7 @@ function fail(code: string, message: string): ApiResult<never> {
 }
 
 export class IngestionService {
-  constructor(private readonly store: InMemoryStateStore) {}
+  constructor(private readonly store: StateStore) {}
 
   async ingest(payload: IngestJobPostingInput): Promise<ApiResult<IngestJobPostingResult>> {
     if (!validateIngestPayload(payload)) {

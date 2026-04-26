@@ -5,12 +5,12 @@ import { IngestionService } from "../ingestion/ingestion.service.js";
 import { ExecutionService } from "../execution/execution.service.js";
 import { StrategyService } from "./strategy.service.js";
 
-test("strategy creates approval request when score meets threshold", () => {
+test("strategy creates approval request when score meets threshold", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -24,7 +24,7 @@ test("strategy creates approval request when score meets threshold", () => {
     throw new Error("expected ingestion to succeed");
   }
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile: {
       id: "resume-1",
@@ -45,12 +45,12 @@ test("strategy creates approval request when score meets threshold", () => {
   assert.equal(proposal.data.approvalRequest?.status, "pending");
 });
 
-test("strategy reuses existing pending approval for same job and resume", () => {
+test("strategy reuses existing pending approval for same job and resume", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -70,7 +70,7 @@ test("strategy reuses existing pending approval for same job and resume", () => 
     createdAt: new Date().toISOString()
   };
 
-  const firstProposal = strategy.propose({
+  const firstProposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile,
     minimumScore: 50,
@@ -81,7 +81,7 @@ test("strategy reuses existing pending approval for same job and resume", () => 
     throw new Error("expected first proposal approval request");
   }
 
-  const secondProposal = strategy.propose({
+  const secondProposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile,
     minimumScore: 50,
@@ -93,16 +93,16 @@ test("strategy reuses existing pending approval for same job and resume", () => 
   }
 
   assert.equal(secondProposal.data.approvalRequest.id, firstProposal.data.approvalRequest.id);
-  assert.equal(store.listApprovalRequests().length, 1);
+  assert.equal((await store.listApprovalRequests()).length, 1);
 });
 
-test("strategy does not propose when application already submitted for same job and resume", () => {
+test("strategy does not propose when application already submitted for same job and resume", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const strategy = new StrategyService(store);
   const execution = new ExecutionService(store);
 
-  const ingested = ingestion.ingest({
+  const ingested = await ingestion.ingest({
     title: "Backend Engineer Node",
     companyName: "Olympus",
     sourceName: "manual",
@@ -122,7 +122,7 @@ test("strategy does not propose when application already submitted for same job 
     createdAt: new Date().toISOString()
   };
 
-  const proposal = strategy.propose({
+  const proposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile,
     minimumScore: 50,
@@ -133,13 +133,13 @@ test("strategy does not propose when application already submitted for same job 
     throw new Error("expected strategy approval request");
   }
 
-  const approval = execution.approve({
+  const approval = await execution.approve({
     approvalRequestId: proposal.data.approvalRequest.id,
     approvedBy: "human-reviewer"
   });
   assert.equal(approval.ok, true);
 
-  const secondProposal = strategy.propose({
+  const secondProposal = await strategy.propose({
     jobPostingId: ingested.data.jobPosting.id,
     resumeProfile,
     minimumScore: 50,

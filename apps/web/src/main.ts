@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { loadWebEnv } from "./config/env.js";
 import { readFormBody } from "./core/http/read-form.js";
 import { sendHtml, sendJson } from "./core/http/send.js";
@@ -20,7 +20,20 @@ import {
 
 const env = loadWebEnv();
 
-const server = createServer(async (request, response) => {
+const server = createServer((request, response) => {
+  void handleRequest(request, response).catch((error: unknown) => {
+    const isTooLarge = error instanceof Error && error.message === "REQUEST_BODY_TOO_LARGE";
+    sendJson(response, isTooLarge ? 413 : 500, {
+      ok: false,
+      error: {
+        code: isTooLarge ? "REQUEST_BODY_TOO_LARGE" : "INTERNAL_ERROR",
+        message: error instanceof Error ? error.message : "Unknown error"
+      }
+    });
+  });
+});
+
+async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const pathname = url.pathname;
 
@@ -298,7 +311,7 @@ const server = createServer(async (request, response) => {
       message: "Route not found"
     }
   });
-});
+}
 
 server.listen(env.port, env.host, () => {
   console.log(`[web] runtime scaffold listening on ${env.host}:${env.port} (${env.nodeEnv})`);
