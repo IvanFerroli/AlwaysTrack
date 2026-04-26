@@ -18,7 +18,7 @@ Auditoria realizada apos varios ciclos conduzidos por agentes diferentes. O obje
 - gates locais: `npm run typecheck`, `npm run lint`, `npm run test`
 
 ## Diagnostico resumido
-- O projeto deixou de ser apenas scaffold/documentacao e agora possui alpha local funcional em memoria.
+- O projeto deixou de ser apenas scaffold/documentacao e possui alpha local funcional com persistencia principal em Prisma/Postgres.
 - O codigo implementa ingestao, scraping multi-fonte, profiles, CV analyzer, matching, Deep Score AI, approval gate, applications, memory e metrics.
 - A documentacao operacional estava atrasada em relacao ao git log e ao codigo.
 - O frontend estava parcialmente quebrado por mistura de estilos antigos, classes Tailwind sem garantia local e markup truncado no Workspace.
@@ -65,11 +65,11 @@ Auditoria realizada apos varios ciclos conduzidos por agentes diferentes. O obje
 ## Gates executados
 - `npm run typecheck`: passou.
 - `npm run lint`: passou.
-- `npm run test`: passou, 18 testes incluindo matching de dotted skills e scraper runner.
+- `npm run test`: passou (contagem de testes varia por ciclo; usar output do comando como fonte observavel).
 - `npm run build`: passou.
 - Smoke local: `/`, `/workspace`, `/guide`, `/health` e `/v1/metrics` responderam.
 - Smoke de sanidade API: `minScore=abc`, `tags=,`, `source=unknown` e `source=cryptojobslist` retornaram 400 controlado.
-- Follow-up Prisma/acquisition: `npm run check` passou com 50 testes.
+- Follow-up Prisma/acquisition: `npm run check` passou (contagem de testes varia conforme evolucao).
 - Follow-up Prisma/acquisition: `npm run build` passou.
 - Follow-up Prisma/acquisition: `npx prisma validate --schema=services/api/prisma/schema.prisma` passou.
 - Follow-up Prisma/acquisition: `npx prisma db push --schema=services/api/prisma/schema.prisma` sincronizou o banco local `olympus_climb`.

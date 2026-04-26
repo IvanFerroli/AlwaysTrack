@@ -5,15 +5,15 @@
 - verification-id: VER-SCR-005
 - verifier: olympus-task-verifier
 - date: 2026-04-24
-- classification: aprovado
+- classification: aprovado com ressalvas
 
 ## Julgamento
 - objetivo unico: atendido — URIs de ingestão foram estendidas com querystrings limitadoras maiores.
-- acceptance criteria: Remotive e Jobicy turbinados. Arbeitnow e RemoteOk naturalmente extraem arrays massivos.
+- acceptance criteria: parcialmente atendido — Remotive foi ampliado; Jobicy permanece com `count=50` no estado atual.
 - escopo: respeitado.
 
 ## Justificativa curta
-A reengenharia exigiu apenas manipular o conector, provando que o motor em Promise.all lida bem de ponta a ponta independentemente do volume (já que não há persistência baseada em I/O blockings no disco e sim em RAM).
+A reengenharia melhorou o conector e manteve o motor multi-fonte estável, mas o claim de “Jobicy turbinado” não está materializado no código atual.
 
 ## Retorno recomendado ao Taskyfier
-- Funcionalidade pronta e valiosa.
+- Funcionalidade incorporada com ressalva documental: alinhar expectativas de volume por fonte ao estado real antes de novos claims de boost.

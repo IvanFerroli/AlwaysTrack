@@ -53,32 +53,6 @@ interface FilterOptions {
   statuses: string[];
 }
 
-const FILTER_TOKEN_STOPWORDS = new Set([
-  "and",
-  "the",
-  "for",
-  "com",
-  "with",
-  "para",
-  "por",
-  "uma",
-  "das",
-  "dos",
-  "job",
-  "jobs",
-  "vaga",
-  "public",
-  "search",
-  "result",
-  "source",
-  "description",
-  "open",
-  "complete",
-  "location",
-  "brazil",
-  "paulo"
-]);
-
 function formatDate(value?: string): string {
   if (!value) return "-";
   const parsed = new Date(value);
@@ -151,6 +125,7 @@ function renderRouteTable(apiBaseUrl: string): string {
     { method: "POST", route: "/ingest", desc: "Form action: ingerir vaga manual", category: "web" },
     { method: "POST", route: "/resume-profiles", desc: "Form action: criar resume profile", category: "web" },
     { method: "POST", route: "/main-cv/analyze", desc: "Form action: analisar CV .txt", category: "web" },
+    { method: "POST", route: "/acquire", desc: "Form action: adquirir vaga multimodal", category: "web" },
     { method: "POST", route: "/approve", desc: "Form action: aprovar candidatura", category: "web" },
     { method: "POST", route: "/reject", desc: "Form action: rejeitar aprovação", category: "web" },
     { method: "POST", route: "/applications/status", desc: "Form action: atualizar status de aplicação", category: "web" },
@@ -169,6 +144,7 @@ function renderRouteTable(apiBaseUrl: string): string {
     { method: "GET", route: "/v1/skill-executions", desc: "Execuções e evidências", category: "api", openable: true },
     { method: "POST", route: "/v1/scraper/run", desc: "Executar scraper (?source=, ?keyword=)", category: "api" },
     { method: "POST", route: "/v1/job-postings/ingest", desc: "Ingest direto JSON", category: "api" },
+    { method: "POST", route: "/v1/jobs/acquire", desc: "Acquisition multimodal de vaga", category: "api" },
     { method: "POST", route: "/v1/jobs/update", desc: "Atualizar status/tags da vaga", category: "api" },
     { method: "POST", route: "/v1/resume-profiles", desc: "Criar profile direto JSON", category: "api" },
     { method: "POST", route: "/v1/resume-profiles/update", desc: "Atualizar profile", category: "api" },
@@ -258,7 +234,7 @@ function renderRankedJobCard(job: RankedJobPosting): string {
         <span>${escapeHtml(job.title)}</span>
         <span class="badge ${statusClass}">
           ${escapeHtml(job.userStatus)}
-          ${job.userStatus !== "new" ? `<span class="status-reset-btn" onclick="event.stopPropagation(); window.updateJobStatus(${jsonForHtml(job.id)}, 'new')" title="Remover status">×</span>` : ""}
+          ${job.userStatus !== "new" ? `<button class="status-reset-btn" type="button" onclick="event.stopPropagation(); window.updateJobStatus(${jsonForHtml(job.id)}, 'new')" title="Remover status" aria-label="Remover status">×</button>` : ""}
         </span>
       </div>
       <div class="job-meta">${escapeHtml(job.companyName)} - ${escapeHtml(job.location ?? "Remote")} - ${escapeHtml(job.sourceName)} - ${escapeHtml(formatDate(job.postedAt))}</div>
@@ -492,93 +468,118 @@ export function renderDashboardPage(data: DashboardData): string {
         display.setAttribute("role", "button");
         display.setAttribute("tabindex", "0");
         display.setAttribute("aria-label", "Toggle " + name + " filter");
+        display.setAttribute("aria-expanded", "false");
 
         // Hide original select
         field.style.display = "none";
         field.style.position = "absolute";
 
-        // Update display with current selections
+        function closeDropdown() {
+          field.style.display = "none";
+          field.style.position = "absolute";
+          display.classList.remove("active");
+          display.setAttribute("aria-expanded", "false");
+        }
+
+        function openDropdown() {
+          field.style.display = "block";
+          field.style.position = "static";
+          display.classList.add("active");
+          display.setAttribute("aria-expanded", "true");
+          field.focus();
+          setTimeout(() => field.size = Math.min(field.options.length, 12), 0);
+        }
+
         function updateDisplay() {
           const selected = Array.from(field.options)
             .filter((opt) => opt.selected)
             .map((opt) => opt.value);
 
+          display.textContent = "";
           if (selected.length === 0) {
-            display.innerHTML = '<span class="muted">Qualquer</span><span class="filter-dropdown-arrow" style="margin-left: auto">▼</span>';
+            const muted = document.createElement("span");
+            muted.className = "muted";
+            muted.textContent = "Qualquer";
+            display.appendChild(muted);
           } else {
-            display.innerHTML =
-              selected
-                .map(
-                  (val) =>
-                    '<span class="filter-tag">' +
-                    val +
-                    '<button class="filter-tag-remove" type="button" data-value="' +
-                    val +
-                    '">×</button></span>'
-                )
-                .join("") + '<span class="filter-dropdown-arrow" style="margin-left: auto">▼</span>';
+            for (const value of selected) {
+              const chip = document.createElement("span");
+              chip.className = "filter-tag";
+              chip.appendChild(document.createTextNode(value));
+
+              const remove = document.createElement("button");
+              remove.className = "filter-tag-remove";
+              remove.type = "button";
+              remove.dataset.value = value;
+              remove.textContent = "×";
+              remove.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const selectedValue = remove.dataset.value;
+                const opt = Array.from(field.options).find((item) => item.value === selectedValue);
+                if (opt) {
+                  opt.selected = false;
+                  field.dispatchEvent(new Event("change"));
+                }
+              });
+              chip.appendChild(remove);
+              display.appendChild(chip);
+            }
           }
 
-          // Re-attach remove button listeners
-          display.querySelectorAll(".filter-tag-remove").forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const val = btn.getAttribute("data-value");
-              const opt = Array.from(field.options).find((o) => o.value === val);
-              if (opt) {
-                opt.selected = false;
-                field.dispatchEvent(new Event("change"));
-              }
-            });
-          });
+          const arrow = document.createElement("span");
+          arrow.className = "filter-dropdown-arrow";
+          arrow.style.marginLeft = "auto";
+          arrow.textContent = "▼";
+          display.appendChild(arrow);
         }
+
+        function toggleDropdown(event) {
+          event.preventDefault();
+          if (field.style.display === "block") {
+            closeDropdown();
+            updateDisplay();
+            return;
+          }
+          openDropdown();
+        }
+
+        display.addEventListener("click", toggleDropdown);
+        display.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            toggleDropdown(event);
+          }
+        });
+
+        field.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeDropdown();
+            updateDisplay();
+            display.focus();
+          }
+        });
 
         updateDisplay();
 
-        // Toggle dropdown visibility
-        let isOpen = false;
-        display.addEventListener("click", (e) => {
-          e.preventDefault();
-          isOpen = !isOpen;
-          if (isOpen) {
-            field.style.display = "block";
-            field.style.position = "static";
-            display.classList.add("active");
-            field.focus();
-            setTimeout(() => field.size = Math.min(field.options.length, 12), 0);
-          } else {
-            field.style.display = "none";
-            field.style.position = "absolute";
-            display.classList.remove("active");
-            updateDisplay();
-          }
-        });
-
         // Allow multi-select with simple click (no Ctrl/Cmd needed)
-        field.addEventListener("mousedown", (e) => {
-          const opt = e.target;
+        field.addEventListener("mousedown", (event) => {
+          const opt = event.target;
           if (opt instanceof HTMLOptionElement) {
-            e.preventDefault();
+            event.preventDefault();
             opt.selected = !opt.selected;
             field.dispatchEvent(new Event("change"));
-            // Keep the select open and focused
             field.focus();
           }
         });
 
-        // Update display on change
         field.addEventListener("change", () => {
           updateDisplay();
         });
 
-        // Close on blur (but only if not clicking inside the field or display)
-        document.addEventListener("click", (e) => {
-          if (!wrapper.contains(e.target)) {
-            field.style.display = "none";
-            field.style.position = "absolute";
-            display.classList.remove("active");
-            isOpen = false;
+        document.addEventListener("click", (event) => {
+          if (!wrapper.contains(event.target)) {
+            closeDropdown();
             updateDisplay();
           }
         });

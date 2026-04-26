@@ -1,5 +1,13 @@
 # TASK-UX-002 - Refinamento de Tags e Filtros do Dashboard
 
+## Metadata
+- id: TASK-UX-002
+- capability: dashboard-ux
+- status: completed-with-remarks
+- owner: codex
+- last-updated: 2026-04-26
+- source-of-truth: code + local gates + user feedback
+
 ## Objetivo
 Melhorar a experiência do usuário (UX) no dashboard, permitindo a remoção/reset de status (Apply/Discard) e facilitando a múltipla seleção nos filtros sem necessidade de teclas auxiliares.
 

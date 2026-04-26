@@ -27,7 +27,7 @@ Materializar partes pequenas, rastreáveis e seguras do runtime do Olympus Climb
 - Checkpoint 2026-04-25: runtime local ja possui scraper multi-fonte, ranking, filtros, tags/status, resume profiles, CV analyzer, Deep Score, approvals, metrics e acquisition lab; ver `docs/operations/taskyfier-memory.md`.
 
 ## Lacunas runtime recorrentes
-- persistencia local ainda pendente; estado atual segue em memoria
+- persistencia principal de entidades ja esta em Prisma/Postgres; contadores de metricas operacionais (`ingestionAttempts`, `dedupeHits`, `strategyProposals`) ainda sao runtime e reiniciam com a API
 - seguranca para exposicao externa ainda pendente; uso recomendado permanece local
 
 ## Padrões operacionais já adotados

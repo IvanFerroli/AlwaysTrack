@@ -20,6 +20,14 @@ function fail(code: string, message: string): ApiResult<never> {
   return { ok: false, error: { code, message } };
 }
 
+function sanitizeTags(tags: string[]): string[] | undefined {
+  const TAG_PATTERN = /^[\p{L}\p{N}\s.+#/_-]+$/u;
+  const normalized = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  if (normalized.length > 20) return undefined;
+  if (normalized.some((tag) => tag.length > 60 || !TAG_PATTERN.test(tag))) return undefined;
+  return normalized;
+}
+
 export class IngestionService {
   constructor(private readonly store: StateStore) {}
 
@@ -92,18 +100,30 @@ export class IngestionService {
       return fail("JOB_NOT_FOUND", `Job posting ${id} not found`);
     }
 
-    let newTags = updates.tags ?? [...existingJob.tags];
+    let newTags = [...(updates.tags ?? existingJob.tags)];
     const tagToAdd = updates.addTag?.trim();
-    if (tagToAdd) {
+    if (tagToAdd?.length) {
       newTags.push(tagToAdd);
     }
     if (updates.removeTag) {
-      newTags = newTags.filter(t => t !== updates.removeTag);
+      newTags = newTags.filter((tag) => tag !== updates.removeTag);
     }
-    newTags = [...new Set(newTags)];
+    const sanitizedTags = sanitizeTags(newTags);
+    if (!sanitizedTags) {
+      return fail(
+        "INVALID_JOB_TAG",
+        "tags must contain up to 20 safe values, each with up to 60 characters"
+      );
+    }
 
-    const job = await this.store.updateJobPosting(id, { userStatus: updates.userStatus, tags: newTags });
-    return ok(job!);
+    const job = await this.store.updateJobPosting(id, {
+      userStatus: updates.userStatus,
+      tags: sanitizedTags
+    });
+    if (!job) {
+      return fail("JOB_UPDATE_FAILED", `Failed to update job posting ${id}`);
+    }
+    return ok(job);
   }
 
   failValidation(): ApiResult<never> {

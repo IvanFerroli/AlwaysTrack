@@ -11,7 +11,7 @@ Registrar manifests de task pequena, executavel, rastreavel e validavel.
 ## Convencao minima
 - ID: `TASK-<TRACK>-###`
 - Arquivo por task: `TASK-<TRACK>-###-<slug>.md`
-- Tracks em uso: `DOC`, `SCF`, `QLT`, `CTR`, `RTM`, `SCR`, `PRD`
+- Tracks em uso: `DOC`, `SCF`, `QLT`, `CTR`, `RTM`, `SCR`, `PRD`, `ACQ`, `MCH`, `UX`
 - Base inicial: `docs/tasks/_template.md`
 
 ## Campos obrigatorios

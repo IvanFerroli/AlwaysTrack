@@ -26,6 +26,8 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-QLT-002 (TASK-QLT-002)
 - VER-CTR-001 (TASK-CTR-001)
 - VER-RTM-001 (TASK-RTM-001)
+- VER-SCR-006 (TASK-SCR-006)
+- VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Verificações aprovadas
@@ -37,6 +39,8 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 
 ## Verificações aprovadas com ressalvas
 - VER-SCF-001 - TASK-SCF-001 (scaffold material, ressalva de ambiente sem `typescript` instalado)
+- VER-SCR-006 - TASK-SCR-006 (fontes de plataforma ativas; ressalva de fontes bloqueadas por security-check)
+- VER-UX-002 - TASK-UX-002 (ux entregue; ressalva de hardening posterior em sanitizacao/acessibilidade)
 
 ## Verificações reprovadas
 - nenhuma
@@ -60,9 +64,5 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - ele não substitui o canônico nem a task de origem
 - seguir protocolo em docs/operations/engineering-pipeline-protocol.md
 - verificacoes historicas sem evidencia material devem ser tratadas como ressalva, nao como prova vigente
-- ultimo parecer: TASK-DOC-002 classificada como aprovado
-- ultimo parecer: TASK-SCF-001 classificada como aprovado com ressalvas
-- ultimo parecer: TASK-QLT-001 classificada como aprovado
-- ultimo parecer: TASK-QLT-002 classificada como aprovado
-- ultimo parecer: TASK-CTR-001 classificada como aprovado
-- ultimo parecer: TASK-RTM-001 classificada como aprovado
+- ultimo parecer: TASK-SCR-006 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-UX-002 classificada como aprovado com ressalvas

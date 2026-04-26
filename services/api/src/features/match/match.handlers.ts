@@ -78,9 +78,8 @@ export function createMatchHandlers(service: MatchService): {
       return;
     }
 
-    const tagsParam = params.get("tags");
-    const tags = tagsParam ? tagsParam.split(",").map(t => t.trim()).filter(Boolean) : undefined;
-    if (tagsParam !== null && tagsParam.trim() && (!tags || tags.length === 0)) {
+    const tags = trimmedQueryValues(params, "tags", 60);
+    if (params.has("tags") && !tags) {
       invalidFilters(response, "tags must include at least one non-empty tag");
       return;
     }
