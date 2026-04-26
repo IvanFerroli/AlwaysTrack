@@ -33,6 +33,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-MCH-002 (TASK-MCH-002)
 - VER-MCH-003 (TASK-MCH-003)
 - VER-SCR-010 (TASK-SCR-010)
+- VER-PRD-008 (TASK-PRD-008)
 - VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
@@ -52,6 +53,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-MCH-002 - TASK-MCH-002 (score ponderado + penalidade de senioridade + breakdown opcional; ressalva de tuning continuo)
 - VER-MCH-003 - TASK-MCH-003 (leitura LLM estruturada + fallback + persistencia anexa; ressalva de quota/custo real)
 - VER-SCR-010 - TASK-SCR-010 (matriz auto/fallback/blocked e report por fonte entregues; ressalva de oscilacao externa em fontes fallback)
+- VER-PRD-008 - TASK-PRD-008 (auto-apply com debounce + contagem de filtros + otimização de dropdown; ressalva de benchmark formal >=200 ainda pendente)
 - VER-UX-002 - TASK-UX-002 (ux entregue; ressalva de hardening posterior em sanitizacao/acessibilidade)
 
 ## Verificações reprovadas
@@ -84,3 +86,4 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - ultimo parecer: TASK-MCH-002 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-MCH-003 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-SCR-010 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-PRD-008 classificada como aprovado com ressalvas

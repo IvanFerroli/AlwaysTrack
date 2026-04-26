@@ -83,6 +83,7 @@
 - TASK-PRD-005 (completed-with-remarks)
 - TASK-PRD-006 (completed-with-remarks)
 - TASK-PRD-007 (completed-with-remarks)
+- TASK-PRD-008 (completed-with-remarks)
 - TASK-SCR-001
 - TASK-SCR-002
 - TASK-SCR-003
@@ -105,8 +106,7 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-PRD-008 - filtros reativos e performance
-2. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+1. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -145,6 +145,7 @@
 - TASK-MCH-002 consolidou afinidade v2 com score ponderado explicito, penalidade controlada por mismatch de senioridade e `scoreBreakdown` opcional para debug operacional.
 - TASK-MCH-003 adicionou leitura estruturada de vaga por LLM com fallback local, persistencia anexa em `MemoryEntry` e sinal opcional no ranking (`includeLlmEnrichment`).
 - TASK-SCR-010 consolidou matriz explicita de fontes no scraper (`auto|fallback|blocked`) com report de modo efetivo por fonte e nomes canônicos de plataforma na acquisition.
+- TASK-PRD-008 adicionou auto-apply opcional (debounce) para `q`, contagem por opção nos filtros e micro-métricas de interação em modo debug dev.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -165,7 +166,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-PRD-008 - filtros reativos e performance
+- TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

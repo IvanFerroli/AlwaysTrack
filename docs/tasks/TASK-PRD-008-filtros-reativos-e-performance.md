@@ -1,7 +1,7 @@
 # TASK-PRD-008 - Filtros reativos e performance de navegação
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-PRD-008-filtros-reativos-e-performance.md

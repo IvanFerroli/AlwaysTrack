@@ -48,11 +48,11 @@ interface RouteInfo {
 }
 
 interface FilterOptions {
-  tags: string[];
-  locations: string[];
-  sources: string[];
-  statuses: string[];
-  seniorities: JobSeniority[];
+  tags: Array<{ value: string; count?: number }>;
+  locations: Array<{ value: string; count?: number }>;
+  sources: Array<{ value: string; count?: number }>;
+  statuses: Array<{ value: string; count?: number }>;
+  seniorities: Array<{ value: JobSeniority; count?: number }>;
 }
 
 function formatDate(value?: string): string {
@@ -64,6 +64,18 @@ function formatDate(value?: string): string {
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function countValues(values: string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of values.map((item) => item.trim()).filter(Boolean)) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function withCounts(values: string[], counts: Map<string, number>): Array<{ value: string; count?: number }> {
+  return uniqueSorted(values).map((value) => ({ value, count: counts.get(value) ?? 0 }));
 }
 
 function normalizeText(value: string): string {
@@ -123,8 +135,7 @@ function buildFilterOptions(data: DashboardData): FilterOptions {
   const rankedTags = rankedJobs.flatMap((job) => job.tags);
   const skillTags = rankedJobs.flatMap((job) => job.matchedSkills);
 
-  return {
-    tags: uniqueSorted([
+  const tags = [
       ...manualTags,
       ...rankedTags,
       ...skillTags,
@@ -132,16 +143,34 @@ function buildFilterOptions(data: DashboardData): FilterOptions {
       "seniority:mid",
       "seniority:senior",
       "seniority:lead"
-    ]),
-    locations: uniqueSorted(jobs.map((job) => job.location ?? "").filter(Boolean)),
-    sources: uniqueSorted(jobs.map((job) => job.sourceName)),
-    statuses: ["new", "applied", "discarded"],
-    seniorities: uniqueSorted([...rankedJobs.map((job) => detectSeniority(job)), "junior", "mid", "senior", "lead"]) as JobSeniority[]
+  ];
+  const locations = jobs.map((job) => job.location ?? "").filter(Boolean);
+  const sources = jobs.map((job) => job.sourceName);
+  const statuses = jobs.map((job) => job.userStatus);
+  const seniorities = [...rankedJobs.map((job) => detectSeniority(job)), "junior", "mid", "senior", "lead"] as string[];
+
+  const tagCounts = countValues([...manualTags, ...rankedTags, ...skillTags]);
+  const locationCounts = countValues(locations);
+  const sourceCounts = countValues(sources);
+  const statusCounts = countValues(statuses);
+  const seniorityCounts = countValues(rankedJobs.map((job) => detectSeniority(job)));
+
+  return {
+    tags: withCounts(tags, tagCounts),
+    locations: withCounts(locations, locationCounts),
+    sources: withCounts(sources, sourceCounts),
+    statuses: withCounts(["new", "applied", "discarded"], statusCounts),
+    seniorities: withCounts(seniorities, seniorityCounts) as Array<{ value: JobSeniority; count?: number }>
   };
 }
 
-function renderOptions(options: string[]): string {
-  return options.map((option) => `<option value="${escapeAttr(option)}">${escapeHtml(option)}</option>`).join("");
+function renderOptions(options: Array<{ value: string; count?: number }>): string {
+  return options
+    .map((option) => {
+      const label = option.count ? `${option.value} (${option.count})` : option.value;
+      return `<option value="${escapeAttr(option.value)}" data-label="${escapeAttr(option.value)}" data-count="${escapeAttr(String(option.count ?? 0))}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
 }
 
 function renderCollapsibleSection(title: string, subtitle: string, content: string, open = false): string {
@@ -373,6 +402,7 @@ export function renderDashboardPage(data: DashboardData): string {
   </div>`;
   const jobsContent = `<form method="GET" action="/" class="form-grid two">
     <label><span class="label-row">Busca ${renderInfoIcon("Busca textual em título, empresa, local, fonte e descrição")}</span><input class="tag-input" type="text" name="q" placeholder="ex: react junior remoto" /></label>
+    <label><span class="label-row">Busca auto-apply ${renderInfoIcon("Opcional: aplica filtro de busca com debounce durante digitação")}</span><span class="field-hint"><input type="checkbox" name="autoApplyQToggle" value="1" checked /> Atualizar busca automaticamente</span></label>
     <label><span class="label-row">Tags ${renderInfoIcon("Filtro por tags manuais acrescentadas nas vagas; multi-seleção aplica OR")}</span><select name="tags" multiple size="6">${renderOptions(filterOptions.tags)}</select></label>
     <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-seleção aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
     <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem; multi-selecao aplica OR")}</span><select name="sourceName" multiple size="5">${renderOptions(filterOptions.sources)}</select></label>
@@ -382,7 +412,8 @@ export function renderDashboardPage(data: DashboardData): string {
     <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><div class="sort-toggle-row"><button id="sort-toggle-btn" class="btn-secondary sort-toggle-btn" type="button">Afinidade (padrão)</button><input type="hidden" name="sortByDate" value="none" /></div></label>
     <label><span class="label-row">Itens por página ${renderInfoIcon("Paginação da API (todos os filtros combinados)")}</span><select name="pageSize"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
     <input type="hidden" name="page" value="1" />
-    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Todos os filtros combinam entre si; paginação e ordenação vão pela URL.</span></div>
+    <input type="hidden" name="autoApplyQ" value="1" />
+    <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Todos os filtros combinam entre si; paginação e ordenação vão pela URL. Auto-apply só altera o campo de busca.</span></div>
   </form>
   <div id="active-filters-summary" class="active-filters-summary"></div>
   ${renderRankedJobs(data)}
@@ -604,6 +635,16 @@ export function renderDashboardPage(data: DashboardData): string {
     const rankedPaginationMeta = ${jsonForHtml(paginationMeta)};
 
     document.addEventListener("DOMContentLoaded", () => {
+      const isDevMode = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const debugFilters = isDevMode && (window.location.search.includes("debugFilters=1") || window.localStorage.getItem("debugFilters") === "1");
+      const FILTER_AUTO_APPLY_DEBOUNCE_MS = 350;
+
+      const logFilterTiming = (label, startedAt) => {
+        if (!debugFilters) return;
+        const elapsed = performance.now() - startedAt;
+        console.debug("[filters]", label, Math.round(elapsed) + "ms");
+      };
+
       const params = new URLSearchParams(window.location.search);
       for (const name of ["q", "tags", "location", "sourceName", "status", "seniority"]) {
         const values = params.getAll(name).flatMap((value) => value.split(",")).filter(Boolean);
@@ -632,13 +673,21 @@ export function renderDashboardPage(data: DashboardData): string {
 
       const filterForm = document.querySelector('form[action="/"]');
       if (filterForm instanceof HTMLFormElement) {
+        setupSearchAutoApply(filterForm, FILTER_AUTO_APPLY_DEBOUNCE_MS, logFilterTiming);
         filterForm.addEventListener("submit", () => {
           const pageInput = filterForm.querySelector('input[name="page"]');
           if (pageInput instanceof HTMLInputElement) pageInput.value = "1";
+          const autoApplyToggle = filterForm.querySelector('[name="autoApplyQToggle"]');
+          const autoApplyState = filterForm.querySelector('[name="autoApplyQ"]');
+          if (autoApplyToggle instanceof HTMLInputElement && autoApplyState instanceof HTMLInputElement) {
+            autoApplyState.value = autoApplyToggle.checked ? "1" : "0";
+          }
         });
       }
 
+      const dropdownStartedAt = performance.now();
       setupCompactDropdowns();
+      logFilterTiming("setupCompactDropdowns", dropdownStartedAt);
       setupSortToggle();
       renderActiveFiltersSummary();
       setupPagination();
@@ -855,6 +904,7 @@ export function renderDashboardPage(data: DashboardData): string {
       for (const name of ["tags", "location", "sourceName", "status", "seniority"]) {
         const field = document.querySelector('[name="' + name + '"]');
         if (!field || !(field instanceof HTMLSelectElement) || !field.multiple) continue;
+        if (field.dataset.compactDropdownReady === "1") continue;
         const wrapper = field.parentElement;
         if (!wrapper) continue;
 
@@ -885,9 +935,11 @@ export function renderDashboardPage(data: DashboardData): string {
         optionsList.className = "filter-options-list";
         menu.appendChild(controls);
         menu.appendChild(optionsList);
+        const checkboxByValue = new Map();
 
         function syncFromSelect() {
           optionsList.textContent = "";
+          checkboxByValue.clear();
           for (const option of field.options) {
             const optionRow = document.createElement("label");
             optionRow.className = "filter-option";
@@ -900,10 +952,12 @@ export function renderDashboardPage(data: DashboardData): string {
               renderCompactValue();
             });
             const text = document.createElement("span");
-            text.textContent = option.value;
+            const count = Number(option.dataset.count ?? "0");
+            text.textContent = count > 0 ? option.value + " (" + count + ")" : option.value;
             optionRow.appendChild(checkbox);
             optionRow.appendChild(text);
             optionsList.appendChild(optionRow);
+            checkboxByValue.set(option.value, checkbox);
           }
           filterOptionsBySearch(search.value);
         }
@@ -951,7 +1005,7 @@ export function renderDashboardPage(data: DashboardData): string {
                 const option = Array.from(field.options).find((opt) => opt.value === value);
                 if (!option) return;
                 option.selected = false;
-                const checkbox = menu.querySelector('input[data-value="' + CSS.escape(value) + '"]');
+                const checkbox = checkboxByValue.get(value);
                 if (checkbox instanceof HTMLInputElement) checkbox.checked = false;
                 renderCompactValue();
               });
@@ -982,7 +1036,9 @@ export function renderDashboardPage(data: DashboardData): string {
         search.addEventListener("input", () => filterOptionsBySearch(search.value));
         clearBtn.addEventListener("click", () => {
           for (const option of field.options) option.selected = false;
-          syncFromSelect();
+          for (const checkbox of checkboxByValue.values()) {
+            checkbox.checked = false;
+          }
           renderCompactValue();
         });
 
@@ -991,6 +1047,7 @@ export function renderDashboardPage(data: DashboardData): string {
         });
 
         field.style.display = "none";
+        field.dataset.compactDropdownReady = "1";
         syncFromSelect();
         renderCompactValue();
 
@@ -998,6 +1055,54 @@ export function renderDashboardPage(data: DashboardData): string {
         root.appendChild(menu);
         wrapper.insertBefore(root, field);
       }
+    }
+
+    function setupSearchAutoApply(form, debounceMs, logFilterTiming) {
+      const qInput = form.querySelector('[name="q"]');
+      const autoApplyInput = form.querySelector('[name="autoApplyQToggle"]');
+      const autoApplyState = form.querySelector('[name="autoApplyQ"]');
+      if (!(qInput instanceof HTMLInputElement) || !(autoApplyInput instanceof HTMLInputElement) || !(autoApplyState instanceof HTMLInputElement)) return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      autoApplyInput.checked = urlParams.get("autoApplyQ") !== "0";
+      autoApplyState.value = autoApplyInput.checked ? "1" : "0";
+
+      let timerId = 0;
+      let lastSubmittedQuery = window.location.search;
+      const submitAutoApply = () => {
+        if (!autoApplyInput.checked) return;
+        const startedAt = performance.now();
+        const params = new URLSearchParams();
+        const formData = new FormData(form);
+        for (const [key, raw] of formData.entries()) {
+          if (typeof raw !== "string") continue;
+          const value = raw.trim();
+          if (!value) continue;
+          if (key === "page") continue;
+          params.append(key, value);
+        }
+        params.set("page", "1");
+        params.set("autoApplyQ", autoApplyInput.checked ? "1" : "0");
+
+        const nextQuery = "?" + params.toString();
+        if (nextQuery === lastSubmittedQuery) return;
+        lastSubmittedQuery = nextQuery;
+        logFilterTiming("q:auto-apply", startedAt);
+        window.location.assign("/" + nextQuery);
+      };
+
+      qInput.addEventListener("input", () => {
+        if (!autoApplyInput.checked) return;
+        window.clearTimeout(timerId);
+        timerId = window.setTimeout(submitAutoApply, debounceMs);
+      });
+
+      autoApplyInput.addEventListener("change", () => {
+        autoApplyState.value = autoApplyInput.checked ? "1" : "0";
+        if (!autoApplyInput.checked) {
+          window.clearTimeout(timerId);
+        }
+      });
     }
   </script>
 </body>
