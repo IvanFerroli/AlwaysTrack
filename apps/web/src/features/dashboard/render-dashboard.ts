@@ -226,13 +226,23 @@ export function renderDashboardPage(data: DashboardData): string {
         <section class="panel">
           <div class="section-header">
             <div><h2>Centro de controle</h2><p class="subtle">Use esta página para navegar, rodar scraping e revisar vagas por afinidade.</p></div>
-            ${renderInfoIcon("Resumo navegável do estado local em memória")}
+            ${renderInfoIcon("Resumo navegável do estado persistido via Prisma/Postgres")}
           </div>
           <div class="actions-row">
             <a class="btn-primary" href="/workspace">Abrir Workspace</a>
             <a class="btn-secondary" href="/guide">Como usar</a>
             <a class="btn-secondary" href="/health" target="_blank" rel="noreferrer">Health</a>
-            <form action="${escapeAttr(data.apiBaseUrl)}/v1/scraper/run" method="POST" target="_blank" class="actions-row" onsubmit='if(this.keyword.value.trim()) this.action = ${jsonForHtml(`${data.apiBaseUrl}/v1/scraper/run?keyword=`)} + encodeURIComponent(this.keyword.value.trim());'>
+            <form action="${escapeAttr(data.apiBaseUrl)}/v1/scraper/run" method="POST" target="_blank" class="actions-row" onsubmit='const p = new URLSearchParams(); if(this.source.value) p.set("source", this.source.value); if(this.keyword.value.trim()) p.set("keyword", this.keyword.value.trim()); this.action = ${jsonForHtml(`${data.apiBaseUrl}/v1/scraper/run`)} + (p.toString() ? "?" + p.toString() : "");'>
+              <select class="tag-input" name="source" aria-label="Scraper source">
+                <option value="all">All</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="gupy">Gupy</option>
+                <option value="remotive">Remotive</option>
+                <option value="arbeitnow">Arbeitnow</option>
+                <option value="remoteok">RemoteOK</option>
+                <option value="jobicy">Jobicy</option>
+                <option value="himalayas">Himalayas</option>
+              </select>
               <input class="tag-input" type="text" name="keyword" placeholder="keyword" />
               <button type="submit" class="btn-primary">Run Scraper</button>
             </form>
@@ -256,7 +266,7 @@ export function renderDashboardPage(data: DashboardData): string {
           <form method="GET" action="/" class="form-grid two">
             <label><span class="label-row">Busca ${renderInfoIcon("Título, empresa ou descrição")}</span><input type="text" name="q" placeholder="React, backend, platform..." /></label>
             <label><span class="label-row">Local ${renderInfoIcon("Filtro parcial sobre location")}</span><input type="text" name="location" placeholder="Brazil, Remote..." /></label>
-            <label><span class="label-row">Fonte ${renderInfoIcon("Feed de origem")}</span><select name="sourceName"><option value="">Todas</option><option value="Remotive">Remotive</option><option value="Arbeitnow">Arbeitnow</option><option value="RemoteOK">RemoteOK</option><option value="Jobicy">Jobicy</option><option value="Himalayas">Himalayas</option><option value="CryptoJobsList">CryptoJobsList</option></select></label>
+            <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem")}</span><select name="sourceName"><option value="">Todas</option><option value="LinkedIn">LinkedIn</option><option value="Gupy">Gupy</option><option value="Remotive">Remotive</option><option value="Arbeitnow">Arbeitnow</option><option value="RemoteOK">RemoteOK</option><option value="Jobicy">Jobicy</option><option value="Himalayas">Himalayas</option><option value="CryptoJobsList">CryptoJobsList</option></select></label>
             <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga")}</span><select name="status"><option value="">Todos</option><option value="new">New</option><option value="applied">Applied</option><option value="discarded">Discarded</option></select></label>
             <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
             <div class="actions-row"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a></div>

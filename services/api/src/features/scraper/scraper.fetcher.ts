@@ -8,7 +8,7 @@ export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJob
   const response = await fetch(source.url, {
     headers: {
       "user-agent": "olympus-climb-scraper/1.0 (job-matching-tool; contact: dev@olympus-climb.local)",
-      "accept": "application/json"
+      "accept": source.format === "linkedin-guest-html" ? "text/html" : "application/json"
     },
     signal: AbortSignal.timeout(15_000)
   });
@@ -20,6 +20,20 @@ export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJob
   }
 
   const contentType = response.headers.get("content-type") ?? "";
+  if (source.format === "linkedin-guest-html") {
+    if (!contentType.includes("text/html")) {
+      throw new Error(
+        `[scraper.fetcher] unexpected content-type for ${source.name}: ${contentType}`
+      );
+    }
+    const html = (await response.text()).slice(0, 500_000);
+    return html
+      .split(/<li>/gi)
+      .map((chunk) => chunk.trim())
+      .filter((chunk) => chunk.includes("base-search-card") && chunk.includes("job-search-card"))
+      .map((chunk) => ({ html: `<li>${chunk}` }));
+  }
+
   if (!contentType.includes("application/json")) {
     throw new Error(
       `[scraper.fetcher] unexpected content-type for ${source.name}: ${contentType}`
@@ -71,6 +85,14 @@ export async function fetchJobItems(source: ScraperSourceConfig): Promise<RawJob
       throw new Error(`[scraper.fetcher] Himalayas response missing 'jobs' array`);
     }
     return payload.jobs;
+  }
+
+  if (source.format === "gupy-public-json") {
+    const payload = data as { data?: RawJobItem[] };
+    if (!Array.isArray(payload.data)) {
+      throw new Error(`[scraper.fetcher] Gupy response missing 'data' array`);
+    }
+    return payload.data;
   }
 
   if (source.format === "cryptojobslist-json") {

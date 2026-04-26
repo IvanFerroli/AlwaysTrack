@@ -41,6 +41,41 @@ function stripHtml(raw: string): string {
     .trim();
 }
 
+function decodeHtml(raw: string): string {
+  return raw
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x2F;/gi, "/")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function extractHtmlBlock(html: string, className: string): string {
+  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`<[^>]+class=["'][^"']*${escaped}[^"']*["'][^>]*>([\\s\\S]*?)<\\/[^>]+>`, "i"));
+  return match?.[1] ? stripHtml(decodeHtml(match[1])) : "";
+}
+
+function extractHref(html: string): string {
+  const match = html.match(/<a[^>]+class=["'][^"']*base-card__full-link[^"']*["'][^>]+href=["']([^"']+)["']/i);
+  return match?.[1] ? decodeHtml(match[1]) : "";
+}
+
+function canonicalizeSourceUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 /**
  * Converte um item bruto do formato Remotive para IngestJobPostingInput.
  */
@@ -190,6 +225,60 @@ function parseCryptoJobsListItem(item: RawJobItem, sourceName: string): IngestJo
   };
 }
 
+function parseLinkedInGuestItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const html = safeStr(item["html"]);
+  if (!html) return null;
+
+  const title = extractHtmlBlock(html, "base-search-card__title");
+  const companyName = extractHtmlBlock(html, "base-search-card__subtitle");
+  const location = extractHtmlBlock(html, "job-search-card__location") || "Remote/unspecified";
+  const sourceUrl = canonicalizeSourceUrl(extractHref(html));
+  const postedAt = html.match(/datetime=["']([^"']+)["']/i)?.[1];
+
+  if (!title || !companyName || !sourceUrl) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt: safeDateStr(postedAt),
+    description: truncate(
+      `LinkedIn public search result for ${title} at ${companyName}. Location: ${location}. Open the source URL for the complete job description.`,
+      4000
+    )
+  };
+}
+
+function parseGupyPublicItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["name"]);
+  const companyName = safeStr(item["careerPageName"], safeStr(item["companyName"], "Gupy company"));
+  const sourceUrl = safeStr(item["jobUrl"], safeStr(item["careerPageUrl"]));
+  const description = safeStr(item["description"]);
+  const city = safeStr(item["city"]);
+  const state = safeStr(item["state"]);
+  const country = safeStr(item["country"]);
+  const workplaceType = safeStr(item["workplaceType"]);
+  const isRemoteWork = item["isRemoteWork"] === true;
+  const location = isRemoteWork
+    ? "Remote"
+    : [city, state, country].filter(Boolean).join(", ") || workplaceType || "Remote/unspecified";
+  const postedAt = safeDateStr(item["publishedDate"]);
+
+  if (!title || !companyName || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
 /**
  * Converte uma lista de itens brutos para IngestJobPostingInput[],
  * descartando silenciosamente itens inválidos ou incompletos.
@@ -215,6 +304,10 @@ export function parseJobItems(
       parsed = parseHimalayasItem(item, source.name);
     } else if (source.format === "cryptojobslist-json") {
       parsed = parseCryptoJobsListItem(item, source.name);
+    } else if (source.format === "linkedin-guest-html") {
+      parsed = parseLinkedInGuestItem(item, source.name);
+    } else if (source.format === "gupy-public-json") {
+      parsed = parseGupyPublicItem(item, source.name);
     }
 
     if (parsed) results.push(parsed);

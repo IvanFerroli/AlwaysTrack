@@ -33,6 +33,30 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     url: "https://himalayas.app/jobs/api?limit=150",
     format: "himalayas-json"
   },
+  linkedin: {
+    name: "LinkedIn",
+    url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=software&location=Brazil&start=0",
+    format: "linkedin-guest-html"
+  },
+  gupy: {
+    name: "Gupy",
+    url: "https://portal.api.gupy.io/api/job?name=software&offset=0&limit=50",
+    format: "gupy-public-json"
+  },
+  indeed: {
+    name: "Indeed",
+    url: "https://www.indeed.com/rss?q=software&l=remote",
+    format: "unavailable-platform",
+    enabledByDefault: false,
+    unavailableReason: "Indeed currently returns a security-check page instead of a stable public feed in this environment"
+  },
+  glassdoor: {
+    name: "Glassdoor",
+    url: "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software",
+    format: "unavailable-platform",
+    enabledByDefault: false,
+    unavailableReason: "Glassdoor currently returns a security-check page instead of a stable public feed in this environment"
+  },
   cryptojobslist: {
     name: "CryptoJobsList",
     url: "https://cryptojobslist.com/api/jobs",
@@ -64,6 +88,8 @@ export function applyKeywordToSource(
   if (source.format === "arbeitnow-json") url.searchParams.set("search", trimmedKeyword);
   if (source.format === "himalayas-json") url.searchParams.set("q", trimmedKeyword);
   if (source.format === "jobicy-json") url.searchParams.set("tag", trimmedKeyword);
+  if (source.format === "linkedin-guest-html") url.searchParams.set("keywords", trimmedKeyword);
+  if (source.format === "gupy-public-json") url.searchParams.set("name", trimmedKeyword);
 
   return { ...source, url: url.toString() };
 }

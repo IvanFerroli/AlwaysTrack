@@ -5,7 +5,10 @@ export type ScraperSourceFormat =
   | "remoteok-json"
   | "jobicy-json"
   | "himalayas-json"
-  | "cryptojobslist-json";
+  | "cryptojobslist-json"
+  | "linkedin-guest-html"
+  | "gupy-public-json"
+  | "unavailable-platform";
 
 export interface ScraperSourceConfig {
   /** Nome amigável da fonte, ex: "Remotive" */

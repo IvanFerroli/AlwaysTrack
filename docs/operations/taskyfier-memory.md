@@ -78,6 +78,7 @@
 - TASK-SCR-002
 - TASK-SCR-003
 - TASK-SCR-005 (completed-with-remarks)
+- TASK-SCR-006 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
 - auditoria de sanidade e normalizacao do repo (2026-04-25)
@@ -109,6 +110,8 @@
 - Servidores locais fazem bind em `127.0.0.1` por padrao.
 - `npm run check` e gate minimo para declarar ciclo saudavel.
 - CryptoJobsList esta fora de `source=all` porque o endpoint JSON usado historicamente nao esta operacional; reativar exige task propria com evidencia.
+- LinkedIn e Gupy estao em `source=all` como platform sources operacionais; vagas persistem no Postgres com `sourceName`.
+- Indeed e Glassdoor permanecem nomeados, mas indisponiveis no runner automatico porque retornam security check sem feed publico estavel neste ambiente.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
 
