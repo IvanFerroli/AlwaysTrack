@@ -12,6 +12,23 @@ export interface JobFilterOptions {
   sourceName?: string[];
 }
 
+function keywordHitCount(job: Pick<RankedJobPosting, "title" | "companyName" | "location" | "sourceName" | "description">, terms: string[]): number {
+  if (terms.length === 0) return 0;
+  const haystack = `${job.title} ${job.companyName} ${job.location ?? ""} ${job.sourceName} ${job.description}`.toLowerCase();
+  const title = job.title.toLowerCase();
+  let hits = 0;
+  for (const term of terms) {
+    if (title.includes(term)) {
+      hits += 3;
+      continue;
+    }
+    if (haystack.includes(term)) {
+      hits += 1;
+    }
+  }
+  return hits;
+}
+
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
 }
@@ -131,7 +148,7 @@ export class MatchService {
     const profiles = await this.store.listResumeProfiles();
     const profile = resumeProfileId
       ? profiles.find((p) => p.id === resumeProfileId)
-      : profiles[0];
+      : profiles.find((p) => p.id === "resume-000001") ?? profiles[0];
 
     if (!profile || jobs.length === 0) {
       let unranked: RankedJobPosting[] = jobs.map((j) => ({ ...j, score: 0, matchedSkills: [] }));
@@ -151,7 +168,12 @@ export class MatchService {
       ranked = ranked.filter(j => j.score >= filters.minScore!);
     }
 
-    ranked.sort((a, b) => b.score - a.score);
+    const queryTerms = filters?.q?.map((term) => term.toLowerCase()) ?? [];
+    ranked.sort((a, b) => {
+      const keywordDelta = keywordHitCount(b, queryTerms) - keywordHitCount(a, queryTerms);
+      if (keywordDelta !== 0) return keywordDelta;
+      return b.score - a.score;
+    });
     return ok({ items: ranked });
   }
 

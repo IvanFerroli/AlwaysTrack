@@ -49,6 +49,10 @@ interface KeywordPlan {
   groups: KeywordGroup[];
 }
 
+interface RunScraperOptions {
+  autoDiscard?: boolean;
+}
+
 /**
  * Fontes padrão configuradas.
  * SCRAPER_SOURCE env: "remotive" | "arbeitnow" (default: "remotive")
@@ -216,8 +220,10 @@ function shouldAutoDiscardNoMatch(jobTokens: string[], profileSkills: string[]):
 async function runSingleSource(
   ingestionService: IngestionService,
   source: ScraperSourceConfig,
-  keywordPlan: KeywordPlan
+  keywordPlan: KeywordPlan,
+  options?: RunScraperOptions
 ): Promise<SourceRunResult> {
+  const autoDiscardEnabled = options?.autoDiscard ?? true;
   const rawItems = await fetchJobItems(source);
   const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keywordPlan.effective);
   const defaultProfile = await ingestionService.getDefaultResumeProfile();
@@ -231,14 +237,31 @@ async function runSingleSource(
     try {
       const result = await ingestionService.ingest(item);
       if (result.ok) {
+        const shouldDiscard =
+          autoDiscardEnabled &&
+          defaultProfile &&
+          result.data.jobPosting.userStatus === "new" &&
+          shouldAutoDiscardNoMatch(result.data.jobPosting.normalizedTokens, defaultProfile.skills);
+
         if (result.data.deduplicated) {
           deduplicated++;
+          if (shouldDiscard) {
+            const discarded = await ingestionService.autoDiscardJobNoMatch(
+              result.data.jobPosting.id,
+              DEFAULT_AUTO_DISCARD_TAG
+            );
+            if (discarded.ok) {
+              autoDiscarded++;
+            } else {
+              errors.push(`[${item.title}] auto-discard failed: ${discarded.error.message}`);
+            }
+          }
           continue;
         }
 
         ingested++;
 
-        if (defaultProfile && shouldAutoDiscardNoMatch(result.data.jobPosting.normalizedTokens, defaultProfile.skills)) {
+        if (shouldDiscard) {
           const discarded = await ingestionService.autoDiscardJobNoMatch(
             result.data.jobPosting.id,
             DEFAULT_AUTO_DISCARD_TAG
@@ -306,14 +329,20 @@ export function filterParsedItemsByKeyword<T extends { title: string; companyNam
 export async function runScraper(
   ingestionService: IngestionService,
   sourceKey = process.env["SCRAPER_SOURCE"] ?? "all",
-  keyword?: string
+  keyword?: string,
+  options?: RunScraperOptions
 ): Promise<ScraperRunResult> {
   const keywordPlan = buildKeywordPlan(keyword);
 
   if (sourceKey === "all") {
     const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
     const settledResults = await Promise.allSettled(
-      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keywordPlan.effective), keywordPlan))
+      defaultSources.map((src) => runSingleSource(
+        ingestionService,
+        applyKeywordToSource(src, keywordPlan.effective),
+        keywordPlan,
+        options
+      ))
     );
 
     const results = settledResults
@@ -358,7 +387,12 @@ export async function runScraper(
     );
   }
 
-  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keywordPlan.effective), keywordPlan);
+  const res = await runSingleSource(
+    ingestionService,
+    applyKeywordToSource(source, keywordPlan.effective),
+    keywordPlan,
+    options
+  );
   return {
     source: res.name,
     fetched: res.fetched,

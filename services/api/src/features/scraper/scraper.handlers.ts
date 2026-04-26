@@ -13,9 +13,11 @@ export function createScraperHandlers(ingestionService: IngestionService): {
     const params = new URLSearchParams(queryStart >= 0 ? rawUrl.slice(queryStart + 1) : "");
     const sourceKey = params.get("source") ?? process.env["SCRAPER_SOURCE"] ?? "all";
     const keyword = params.get("keyword") ?? undefined;
+    const autoDiscardRaw = params.get("autoDiscard");
+    const autoDiscard = autoDiscardRaw === null ? true : autoDiscardRaw.toLowerCase() !== "false";
 
     try {
-      const result = await runScraper(ingestionService, sourceKey, keyword);
+      const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard });
       sendApiResult(response, {
         ok: true,
         data: {

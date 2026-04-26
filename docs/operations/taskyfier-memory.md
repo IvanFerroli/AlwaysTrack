@@ -58,6 +58,7 @@
 - TASK-SCR-003 - multi-source scraper
 - TASK-SCR-005 - scraper boost
 - TASK-SCR-007 - intelligent scraping big bang (keyword robusta + auto-discard + dedupe observavel)
+- TASK-SCR-008 - sanidade pos-scraper (applied indevido + auto-discard score 0 + prioridade por keyword)
 - TASK-ACQ-001 - job acquisition layer (wire + ui)
 - TASK-ACQ-002 - adaptadores ats específicos (gupy/sólides)
 
@@ -81,6 +82,7 @@
 - TASK-SCR-005 (completed-with-remarks)
 - TASK-SCR-006 (completed-with-remarks)
 - TASK-SCR-007 (completed-with-remarks)
+- TASK-SCR-008 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
 - TASK-UX-001 (completed-with-remarks)
@@ -122,6 +124,8 @@
 - Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
 - TASK-SCR-007 consolidou keyword robusta (normalizacao + aliases + `keywordEffective`) e auto-discard por afinidade com tag removivel `auto-discard-no-match`.
 - report de scraper agora expõe `autoDiscarded`, `keywordRequested` e `keywordEffective` por rodada.
+- TASK-SCR-008 consolidou sanidade pos-scraper com prioridade de keyword no ranking (`q`) e auto-discard consistente tambem para casos deduplicados ainda em `new`.
+- dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
 

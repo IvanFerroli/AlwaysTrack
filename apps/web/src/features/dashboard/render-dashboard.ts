@@ -477,11 +477,19 @@ export function renderDashboardPage(data: DashboardData): string {
         }
         const info = json.data;
         if (feedback) {
-          const keywordNote = info.keyword ? ' keyword="' + info.keyword + '"' : "";
+          const keywordNote = info.keywordEffective ? ' keyword="' + info.keywordEffective + '"' : "";
           const autoDiscardNote = typeof info.autoDiscarded === "number" ? ", auto-discard=" + info.autoDiscarded : "";
           feedback.textContent = "ok: ingested=" + info.ingested + ", dedup=" + info.deduplicated + autoDiscardNote + keywordNote;
         }
-        setTimeout(() => window.location.reload(), 400);
+        const nextParams = new URLSearchParams(window.location.search);
+        if (info.keywordEffective) {
+          nextParams.set("q", info.keywordEffective);
+        }
+        if (source && source !== "all") {
+          nextParams.set("sourceName", source);
+        }
+        const nextUrl = "/?" + nextParams.toString();
+        setTimeout(() => window.location.assign(nextUrl), 400);
       } catch (error) {
         if (feedback) feedback.textContent = "erro de rede";
       }

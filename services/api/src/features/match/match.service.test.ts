@@ -193,7 +193,7 @@ test("match service supports multi-select filters from dashboard", async () => {
   const store = new InMemoryStateStore();
   const ingestion = new IngestionService(store);
   const match = new MatchService(store);
-  await store.createResumeProfile({
+  const profile = await store.createResumeProfile({
     headline: "Frontend Engineer",
     skills: ["react", "node.js"]
   });
@@ -215,7 +215,7 @@ test("match service supports multi-select filters from dashboard", async () => {
     location: "Portugal"
   });
 
-  const result = await match.listRanked(undefined, {
+  const result = await match.listRanked(profile.id, {
     q: ["junior", "react"],
     sourceName: ["LinkedIn", "Gupy"],
     location: ["Brazil"],
@@ -229,4 +229,68 @@ test("match service supports multi-select filters from dashboard", async () => {
   assert.equal(result.data.items.length, 1);
   assert.equal(result.data.items[0]?.title, "Junior React Developer");
   assert.equal(result.data.items[0]?.matchedSkills.includes("react"), true);
+});
+
+test("match service prioritizes keyword hits in title when q is provided", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+
+  await ingestion.ingest({
+    title: "Senior Engineer",
+    companyName: "One",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/key-1",
+    description: "Strong React.js stack and UI architecture",
+    location: "Remote"
+  });
+  await ingestion.ingest({
+    title: "Senior React Engineer",
+    companyName: "Two",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/key-2",
+    description: "Frontend architecture and testing",
+    location: "Remote"
+  });
+
+  const result = await match.listRanked(undefined, {
+    q: ["react"],
+    status: ["new"]
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) {
+    throw new Error("expected ranked list to succeed");
+  }
+  assert.equal(result.data.items.length >= 2, true);
+  assert.equal(result.data.items[0]?.title, "Senior React Engineer");
+});
+
+test("match service uses resume-000001 as default ranking profile", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+
+  await store.createResumeProfile({
+    headline: "Frontend Specialist",
+    skills: ["react"]
+  });
+
+  await ingestion.ingest({
+    title: "React Engineer",
+    companyName: "UI Corp",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/default-profile",
+    description: "React and CSS",
+    location: "Remote"
+  });
+
+  const ranked = await match.listRanked();
+  assert.equal(ranked.ok, true);
+  if (!ranked.ok) {
+    throw new Error("expected ranked list to succeed");
+  }
+
+  // resume-000001 default profile is node/typescript/api and should not match pure React posting.
+  assert.equal(ranked.data.items[0]?.score, 0);
 });

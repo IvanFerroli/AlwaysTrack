@@ -186,3 +186,44 @@ test("runScraper returns autoDiscarded and keywordEffective", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("runScraper can disable autoDiscard and later apply it on deduped new posting", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const payload = {
+      jobs: [
+        {
+          title: "Junior React Developer",
+          company_name: "Frontend Inc",
+          url: "https://example.com/jobs/react-junior-dedupe",
+          candidate_required_location: "Remote",
+          publication_date: "2026-04-26T00:00:00Z",
+          description: "Build React.js experiences with modern CSS."
+        }
+      ]
+    };
+
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => payload
+    } as Response;
+  };
+
+  try {
+    const store = new InMemoryStateStore();
+    const ingestion = new IngestionService(store);
+
+    const first = await runScraper(ingestion, "remotive", "jr react", { autoDiscard: false });
+    assert.equal(first.ingested, 1);
+    assert.equal(first.autoDiscarded, 0);
+
+    const second = await runScraper(ingestion, "remotive", "jr react", { autoDiscard: true });
+    assert.equal(second.deduplicated, 1);
+    assert.equal(second.autoDiscarded, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
