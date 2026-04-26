@@ -412,6 +412,102 @@ export function renderDashboardPage(data: DashboardData): string {
         box.textContent = "Erro de rede: " + error;
       }
     };
+
+    // Enhanced multi-select dropdowns with compact UI
+    function setupCompactDropdowns() {
+      for (const name of ["q", "location", "sourceName", "status"]) {
+        const field = document.querySelector('[name="' + name + '"]');
+        if (!field || !(field instanceof HTMLSelectElement) || !field.multiple) continue;
+
+        const wrapper = field.parentElement;
+        if (!wrapper) continue;
+
+        // Create compact display
+        const display = document.createElement("div");
+        display.className = "filter-dropdown-compact";
+        display.setAttribute("data-name", name);
+        display.setAttribute("role", "button");
+        display.setAttribute("tabindex", "0");
+        display.setAttribute("aria-label", "Toggle " + name + " filter");
+
+        // Hide original select
+        field.style.display = "none";
+        field.style.position = "absolute";
+
+        // Update display with current selections
+        function updateDisplay() {
+          const selected = Array.from(field.options)
+            .filter((opt) => opt.selected)
+            .map((opt) => opt.value);
+
+          display.innerHTML =
+            selected
+              .map(
+                (val) =>
+                  '<span class="filter-tag">' +
+                  val +
+                  '<button class="filter-tag-remove" type="button" data-value="' +
+                  val +
+                  '">×</button></span>'
+              )
+              .join("") + '<span class="filter-dropdown-arrow">▼</span>';
+
+          // Re-attach remove button listeners
+          display.querySelectorAll(".filter-tag-remove").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const val = btn.getAttribute("data-value");
+              const opt = Array.from(field.options).find((o) => o.value === val);
+              if (opt) {
+                opt.selected = false;
+                updateDisplay();
+              }
+            });
+          });
+        }
+
+        updateDisplay();
+
+        // Toggle dropdown visibility
+        let isOpen = false;
+        display.addEventListener("click", () => {
+          isOpen = !isOpen;
+          if (isOpen) {
+            field.style.display = "block";
+            field.style.position = "static";
+            display.classList.add("active");
+            field.focus();
+            setTimeout(() => field.size = Math.min(field.options.length, 8), 0);
+          } else {
+            field.style.display = "none";
+            field.style.position = "absolute";
+            display.classList.remove("active");
+            updateDisplay();
+          }
+        });
+
+        // Close dropdown on selection
+        field.addEventListener("change", () => {
+          updateDisplay();
+        });
+
+        // Close on blur
+        field.addEventListener("blur", () => {
+          setTimeout(() => {
+            field.style.display = "none";
+            field.style.position = "absolute";
+            display.classList.remove("active");
+            updateDisplay();
+          }, 100);
+        });
+
+        // Insert display before select
+        wrapper.insertBefore(display, field);
+      }
+    }
+
+    setupCompactDropdowns();
   </script>
 </body>
 </html>`;

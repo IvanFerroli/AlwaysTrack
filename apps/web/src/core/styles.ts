@@ -278,23 +278,31 @@ export const headAssets = `
       font-size: 0.9rem;
     }
     select[multiple] {
-      min-height: 8.5rem;
       padding: 0.45rem;
+      min-height: auto;
+      z-index: 10;
     }
     select[multiple] option {
+      background: rgba(16, 32, 51, 0.95);
+      color: var(--text);
       border-radius: 0.45rem;
       padding: 0.35rem 0.45rem;
       margin-bottom: 0.15rem;
     }
+    select[multiple] option:checked {
+      background: linear-gradient(135deg, var(--brand-strong), #2563eb);
+      color: white;
+    }
     textarea { resize: vertical; }
     input:focus,
     textarea:focus,
-    select:focus {
+    select:focus,
+    select[multiple]:focus {
       outline: none;
       border-color: rgba(56, 189, 248, 0.75);
       box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
     }
-    option { color: #0f172a; }
+    option { color: var(--text); }
     .btn-primary,
     .primary { background: linear-gradient(135deg, var(--brand-strong), #2563eb); color: white; border-color: transparent; }
     .btn-secondary,
@@ -452,6 +460,110 @@ export const headAssets = `
     .tab-btn.active { background: var(--brand-soft); border-color: rgba(56,189,248,0.55); color: #dff7ff; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+
+    .filter-dropdown-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .filter-dropdown-compact {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.75rem;
+      background: rgba(2, 6, 23, 0.34);
+      cursor: pointer;
+      transition: border-color 160ms ease;
+    }
+    .filter-dropdown-compact:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+    .filter-dropdown-compact.active {
+      border-color: rgba(56, 189, 248, 0.75);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
+    }
+    .filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.4rem;
+      background: var(--brand-soft);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 0.4rem;
+      color: #dff7ff;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .filter-tag-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.2rem;
+      height: 1.2rem;
+      padding: 0;
+      margin: -0.2rem -0.25rem -0.2rem 0.15rem;
+      background: none;
+      border: none;
+      color: #dff7ff;
+      cursor: pointer;
+      font-weight: 900;
+      font-size: 0.8rem;
+      transition: opacity 160ms ease;
+    }
+    .filter-tag-remove:hover {
+      opacity: 0.7;
+    }
+    .filter-dropdown-arrow {
+      margin-left: auto;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 0.75rem;
+      transition: transform 160ms ease;
+      flex: 0 0 auto;
+    }
+    .filter-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      right: 0;
+      display: none;
+      z-index: 100;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.75rem;
+      background: linear-gradient(180deg, rgba(16, 32, 51, 0.98), rgba(12, 25, 41, 0.98));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .filter-dropdown-menu.open {
+      display: block;
+    }
+    .filter-dropdown-menu select[multiple] {
+      position: relative;
+      width: 100%;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      padding: 0.35rem;
+      max-height: 12rem;
+      font-size: 0.88rem;
+    }
+    .filter-dropdown-menu select[multiple]:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .filter-dropdown-menu select[multiple] option {
+      padding: 0.4rem 0.5rem;
+      margin: 0.1rem 0;
+      background: rgba(16, 32, 51, 0.8);
+      color: var(--text);
+    }
+    .filter-dropdown-menu select[multiple] option:checked {
+      background: linear-gradient(135deg, var(--brand-strong), #2563eb);
+      color: white;
+    }
   </style>
 `;
 
