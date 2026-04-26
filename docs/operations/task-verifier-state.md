@@ -38,6 +38,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-RTM-003 (TASK-RTM-003)
 - VER-QLT-003 (TASK-QLT-003)
 - VER-SCR-011 (TASK-SCR-011)
+- VER-RTM-004 (TASK-RTM-004)
 - VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
@@ -63,6 +64,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-UX-002 - TASK-UX-002 (ux entregue; ressalva de hardening posterior em sanitizacao/acessibilidade)
 - VER-QLT-003 - TASK-QLT-003 (smoke web/API automatizado com harness e runbook; ressalva de dependencia de ambiente DB/Prisma local)
 - VER-SCR-011 - TASK-SCR-011 (reativacao via RSS/parser dedicado; ressalva de bloqueio externo Cloudflare no ambiente local atual)
+- VER-RTM-004 - TASK-RTM-004 (métricas runtime persistidas com compatibilidade de payload; ressalva de dependência de schema/migration aplicado no ambiente)
 
 ## Verificações reprovadas
 - nenhuma
@@ -99,3 +101,4 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - ultimo parecer: TASK-RTM-003 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-QLT-003 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-SCR-011 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-RTM-004 classificada como aprovado com ressalvas

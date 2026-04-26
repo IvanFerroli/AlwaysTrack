@@ -14,7 +14,7 @@ export function createScraperHandlers(ingestionService: IngestionService): {
     const sourceKey = params.get("source") ?? process.env["SCRAPER_SOURCE"] ?? "all";
     const keyword = params.get("keyword") ?? undefined;
     const autoDiscardRaw = params.get("autoDiscard");
-    const autoDiscard = autoDiscardRaw === null ? true : autoDiscardRaw.toLowerCase() !== "false";
+    const autoDiscard = autoDiscardRaw !== null && autoDiscardRaw.toLowerCase() !== "false";
 
     try {
       const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard });

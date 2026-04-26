@@ -239,7 +239,7 @@ export class PipelineService {
         this.ingestionService,
         sourceKey,
         keywordRequested,
-        input.autoDiscard !== false,
+        input.autoDiscard === true,
         limits.maxSources,
         warnings,
         cutsApplied

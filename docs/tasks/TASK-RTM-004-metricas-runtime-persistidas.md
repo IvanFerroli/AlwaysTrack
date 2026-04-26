@@ -1,7 +1,7 @@
 # TASK-RTM-004 - Persistir metricas de runtime e dedupe historico
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-RTM-004-metricas-runtime-persistidas.md

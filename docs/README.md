@@ -23,7 +23,7 @@
 - A validacao de sanidade usa `npm run check`.
 - O baseline de smoke web/API automatizado roda com `npm run smoke`.
 - Vagas, resume profiles, approvals, applications, audit logs e memoria runtime sao persistidos no banco configurado em `DATABASE_URL`.
-- Metricas de processo como tentativas/dedupe/propostas ainda possuem contadores runtime em memoria e zeram ao reiniciar a API.
+- Metricas criticas de processo (`ingestionAttempts`, `dedupeHits`, `strategyProposals`) sao persistidas no banco e sobrevivem a restart da API.
 
 ## Mapa de rotas web
 - `GET /`: dashboard, indice central de rotas e vagas ranqueadas.
@@ -52,6 +52,7 @@
 - `GET /v1/main-cv/sources`: lista arquivos `.txt` em `doc/`.
 - `POST /v1/main-cv/analyze`: analisa CV e cria profile.
 - `POST /v1/scraper/run`: roda scraper com `source` e `keyword` opcionais.
+  - `autoDiscard` e opt-in (`false` por padrao); use `autoDiscard=true` para habilitar descarte automatico por no-match.
   - Matriz operacional de fontes:
     - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, CryptoJobsList (RSS)
     - `fallback`: Solides, Indeed, Glassdoor (via acquisition `url-import`)
@@ -110,4 +111,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-SCR-011` (reativacao de CryptoJobsList via RSS parser dedicado) com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-RTM-004` (persistencia de metricas runtime e dedupe historico) com detalhes em `docs/tasks/`.

@@ -29,6 +29,7 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - usar `GET /workspace` para executar fluxos operacionais: ingest manual, profiles, CV analyzer, approvals, applications, memory e metrics.
 - usar `GET /guide` para instrucoes de uso atualizadas.
 - usar `GET /health` para verificar web/API.
+- no scraper API, `autoDiscard` e opt-in: use `POST /v1/scraper/run?...&autoDiscard=true` quando quiser descarte automático por no-match.
 
 ## Validacao local padrao
 1. Encerrar processos antigos se necessario: `fuser -k 3000/tcp 3001/tcp 2>/dev/null`.
@@ -63,7 +64,7 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 
 ## Observacoes de runtime
 - O estado principal usa Prisma/Postgres via `DATABASE_URL`.
-- Contadores de processo em metricas runtime ainda ficam em memoria e reiniciam com a API.
+- Contadores criticos de metricas runtime (`ingestionAttempts`, `dedupeHits`, `strategyProposals`) agora sao persistidos no banco e nao reiniciam com a API.
 - `npm run dev` usa `src/` via `tsx`.
 - `npm run start:*` usa `dist/`; rode `npm run build` antes de usar start.
 - Deep Score e CV parsing LLM dependem de `GEMINI_API_KEY` local.

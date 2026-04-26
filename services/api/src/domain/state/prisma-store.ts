@@ -17,13 +17,50 @@ function nextId(prefix: string, value: number): string {
 }
 
 export class PrismaStateStore implements StateStore {
-  private runtimeCounters = {
-    ingestionAttempts: 0,
-    dedupeHits: 0,
-    strategyProposals: 0
-  };
+  private static readonly METRIC_KEYS = {
+    ingestionAttempts: "ingestionAttempts",
+    dedupeHits: "dedupeHits",
+    strategyProposals: "strategyProposals"
+  } as const;
 
   constructor(private readonly prisma: PrismaClient) {}
+
+  private metricIncrementQuery(key: string, amount = 1) {
+    return this.prisma.runtimeMetric.upsert({
+      where: { key },
+      create: { key, value: amount },
+      update: { value: { increment: amount } }
+    });
+  }
+
+  private async incrementMetric(key: string, amount = 1): Promise<void> {
+    await this.metricIncrementQuery(key, amount);
+  }
+
+  private async loadRuntimeMetrics(): Promise<{
+    ingestionAttempts: number;
+    dedupeHits: number;
+    strategyProposals: number;
+  }> {
+    const rows = await this.prisma.runtimeMetric.findMany({
+      where: {
+        key: {
+          in: [
+            PrismaStateStore.METRIC_KEYS.ingestionAttempts,
+            PrismaStateStore.METRIC_KEYS.dedupeHits,
+            PrismaStateStore.METRIC_KEYS.strategyProposals
+          ]
+        }
+      }
+    });
+
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    return {
+      ingestionAttempts: byKey.get(PrismaStateStore.METRIC_KEYS.ingestionAttempts) ?? 0,
+      dedupeHits: byKey.get(PrismaStateStore.METRIC_KEYS.dedupeHits) ?? 0,
+      strategyProposals: byKey.get(PrismaStateStore.METRIC_KEYS.strategyProposals) ?? 0
+    };
+  }
 
   async listJobPostings(): Promise<JobPosting[]> {
     const records = await this.prisma.jobPosting.findMany({ orderBy: { createdAt: "desc" } });
@@ -442,20 +479,26 @@ export class PrismaStateStore implements StateStore {
   }
 
   async recordIngestionAttempt(deduplicated: boolean): Promise<void> {
-    this.runtimeCounters.ingestionAttempts += 1;
-    if (deduplicated) {
-      this.runtimeCounters.dedupeHits += 1;
+    if (!deduplicated) {
+      await this.incrementMetric(PrismaStateStore.METRIC_KEYS.ingestionAttempts, 1);
+      return;
     }
+
+    await this.prisma.$transaction([
+      this.metricIncrementQuery(PrismaStateStore.METRIC_KEYS.ingestionAttempts, 1),
+      this.metricIncrementQuery(PrismaStateStore.METRIC_KEYS.dedupeHits, 1)
+    ]);
   }
 
   async recordStrategyProposal(): Promise<void> {
-    this.runtimeCounters.strategyProposals += 1;
+    await this.incrementMetric(PrismaStateStore.METRIC_KEYS.strategyProposals, 1);
   }
 
   async snapshotMetrics(): Promise<MetricsSnapshot> {
+    const runtimeCounters = await this.loadRuntimeMetrics();
     const dedupeRate =
-      this.runtimeCounters.ingestionAttempts > 0
-        ? Number((this.runtimeCounters.dedupeHits / this.runtimeCounters.ingestionAttempts).toFixed(4))
+      runtimeCounters.ingestionAttempts > 0
+        ? Number((runtimeCounters.dedupeHits / runtimeCounters.ingestionAttempts).toFixed(4))
         : 0;
 
     const [totalJobPostings, totalResumeProfiles, pendingApprovals, submittedApplications] = await Promise.all([
@@ -468,10 +511,10 @@ export class PrismaStateStore implements StateStore {
     return {
       totalJobPostings,
       totalResumeProfiles,
-      ingestionAttempts: this.runtimeCounters.ingestionAttempts,
-      dedupeHits: this.runtimeCounters.dedupeHits,
+      ingestionAttempts: runtimeCounters.ingestionAttempts,
+      dedupeHits: runtimeCounters.dedupeHits,
       dedupeRate,
-      strategyProposals: this.runtimeCounters.strategyProposals,
+      strategyProposals: runtimeCounters.strategyProposals,
       pendingApprovals,
       submittedApplications
     };

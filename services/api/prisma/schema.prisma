@@ -134,3 +134,11 @@ model MemoryEntry {
   @@index([type, key])
   @@map("memory_entries")
 }
+
+model RuntimeMetric {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("runtime_metrics")
+}

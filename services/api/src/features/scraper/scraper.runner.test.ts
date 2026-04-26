@@ -222,7 +222,7 @@ test("runScraper returns autoDiscarded and keywordEffective", async () => {
 
   try {
     const ingestion = new IngestionService(new InMemoryStateStore());
-    const result = await runScraper(ingestion, "remotive", "jr react");
+    const result = await runScraper(ingestion, "remotive", "jr react", { autoDiscard: true });
 
     assert.equal(result.keywordRequested, "jr react");
     assert.equal(result.keywordEffective, "junior react");

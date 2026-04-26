@@ -382,7 +382,7 @@ async function runSingleSource(
   options?: RunScraperOptions
 ): Promise<SourceRunResult> {
   const startedAt = Date.now();
-  const autoDiscardEnabled = options?.autoDiscard ?? true;
+  const autoDiscardEnabled = options?.autoDiscard ?? false;
   const mode = resolveSourceMode(source);
 
   try {
