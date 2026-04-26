@@ -1,7 +1,7 @@
 # TASK-MCH-003 - Leitura LLM estruturada de vagas
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-MCH-003-leitura-llm-estruturada-de-vagas.md

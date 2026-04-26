@@ -552,3 +552,67 @@ test("match service exposes scoreBreakdown only when requested", async () => {
   assert.equal(typeof withBreakdown.data.items[0]?.scoreBreakdown?.contributions.strongSkills, "number");
   assert.equal(withBreakdown.data.items[0]?.scoreBreakdown?.finalScore, withBreakdown.data.items[0]?.score);
 });
+
+test("match service enriches ranked jobs with LLM fallback when requested", async () => {
+  const previous = process.env["GEMINI_API_KEY"];
+  delete process.env["GEMINI_API_KEY"];
+
+  try {
+    const store = new InMemoryStateStore();
+    const ingestion = new IngestionService(store);
+    const match = new MatchService(store);
+    const profile = await store.createResumeProfile({
+      headline: "Senior Node React Engineer",
+      skills: ["node", "react", "typescript"]
+    });
+
+    await ingestion.ingest({
+      title: "Senior Node React Engineer",
+      companyName: "A",
+      sourceName: "LinkedIn",
+      sourceUrl: "https://linkedin.test/job/llm-1",
+      description: "Remote Node React role with TypeScript",
+      postedAt: "2026-04-20T12:00:00.000Z"
+    });
+
+    const ranked = await match.listRanked(profile.id, { includeLlmEnrichment: true });
+    assert.equal(ranked.ok, true);
+    if (!ranked.ok) throw new Error("expected ranked list");
+
+    assert.equal(ranked.data.items.length, 1);
+    assert.equal(ranked.data.items[0]?.llmEnrichment?.provider, "fallback");
+    assert.equal((ranked.data.items[0]?.llmEnrichment?.normalizedSkills.length ?? 0) > 0, true);
+
+    const memory = await store.listMemoryEntries();
+    assert.equal(memory.some((entry) => entry.key.startsWith("job-enrichment:")), true);
+  } finally {
+    if (previous) {
+      process.env["GEMINI_API_KEY"] = previous;
+    }
+  }
+});
+
+test("match service keeps llmEnrichment absent when flag is not requested", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  const profile = await store.createResumeProfile({
+    headline: "React Engineer",
+    skills: ["react"]
+  });
+
+  await ingestion.ingest({
+    title: "React Engineer",
+    companyName: "A",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/llm-flag-off",
+    description: "React role",
+    postedAt: "2026-04-20T12:00:00.000Z"
+  });
+
+  const ranked = await match.listRanked(profile.id);
+  assert.equal(ranked.ok, true);
+  if (!ranked.ok) throw new Error("expected ranked list");
+
+  assert.equal(ranked.data.items[0]?.llmEnrichment, undefined);
+});

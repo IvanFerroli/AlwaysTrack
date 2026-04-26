@@ -92,6 +92,7 @@
 - TASK-SCR-008 (completed-with-remarks)
 - TASK-SCR-009 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
+- TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
 - TASK-UX-001 (completed-with-remarks)
@@ -103,10 +104,9 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-MCH-003 - leitura LLM estruturada de vagas
-2. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
-3. TASK-PRD-008 - filtros reativos e performance
-4. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+1. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
+2. TASK-PRD-008 - filtros reativos e performance
+3. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -144,6 +144,7 @@
 - report de scraper agora expõe `autoDiscarded`, `keywordRequested` e `keywordEffective` por rodada.
 - TASK-SCR-008 consolidou sanidade pos-scraper com prioridade de keyword no ranking (`q`) e auto-discard consistente tambem para casos deduplicados ainda em `new`.
 - TASK-MCH-002 consolidou afinidade v2 com score ponderado explicito, penalidade controlada por mismatch de senioridade e `scoreBreakdown` opcional para debug operacional.
+- TASK-MCH-003 adicionou leitura estruturada de vaga por LLM com fallback local, persistencia anexa em `MemoryEntry` e sinal opcional no ranking (`includeLlmEnrichment`).
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -164,7 +165,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-MCH-003 - adicionar leitura LLM estruturada de vagas com budget/policy explicita e evidencia de custo/ganho
+- TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional usando base de observabilidade consolidada no SCR-009
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

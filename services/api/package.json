@@ -7,7 +7,7 @@
     "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/features/health/health.service.test.ts src/features/ingestion/ingestion.service.test.ts src/features/match/match.service.test.ts src/features/strategy/strategy.service.test.ts src/features/execution/execution.service.test.ts src/features/observability/observability.service.test.ts src/features/resume-profiles/resume-profiles.service.test.ts src/features/scraper/scraper.runner.test.ts src/features/acquisition/acquisition.service.test.ts",
+    "test": "tsx --test src/features/health/health.service.test.ts src/features/ingestion/ingestion.service.test.ts src/features/match/match.service.test.ts src/features/strategy/strategy.service.test.ts src/features/execution/execution.service.test.ts src/features/observability/observability.service.test.ts src/features/resume-profiles/resume-profiles.service.test.ts src/features/scraper/scraper.runner.test.ts src/features/acquisition/acquisition.service.test.ts src/core/llm/gemini.test.ts",
     "start": "node dist/main.js"
   },
   "dependencies": {

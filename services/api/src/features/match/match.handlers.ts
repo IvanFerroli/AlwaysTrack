@@ -145,6 +145,11 @@ export function createMatchHandlers(service: MatchService): {
       includeScoreBreakdownRaw === "1" ||
       includeScoreBreakdownRaw === "true" ||
       includeScoreBreakdownRaw === "yes";
+    const includeLlmEnrichmentRaw = params.get("includeLlmEnrichment")?.trim().toLowerCase();
+    const includeLlmEnrichment =
+      includeLlmEnrichmentRaw === "1" ||
+      includeLlmEnrichmentRaw === "true" ||
+      includeLlmEnrichmentRaw === "yes";
 
     sendApiResult(response, await service.listRanked(resumeProfileId, {
       q,
@@ -157,7 +162,8 @@ export function createMatchHandlers(service: MatchService): {
       sortByDate,
       page,
       pageSize,
-      includeScoreBreakdown
+      includeScoreBreakdown,
+      includeLlmEnrichment
     }));
   };
 

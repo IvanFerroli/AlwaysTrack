@@ -1,5 +1,6 @@
 import type {
   ApiResult,
+  JobPostingLLMEnrichment,
   ListPayload,
   JobSeniority,
   JobUserStatus,
@@ -10,7 +11,7 @@ import type {
 import { computeMatchScore, computeSkillOverlap, computeWeightedMatchScore } from "../../domain/matching/scoring.js";
 import { inferJobSeniority, inferProfileSeniority, seniorityDistance, withSeniorityTag } from "../../domain/matching/seniority.js";
 import type { StateStore } from "../../domain/state/store.js";
-import { analyzeJobMatch } from "../../core/llm/gemini.js";
+import { analyzeJobMatch, analyzeJobPostingWithLLM } from "../../core/llm/gemini.js";
 
 export interface JobFilterOptions {
   q?: string[];
@@ -24,6 +25,7 @@ export interface JobFilterOptions {
   page?: number;
   pageSize?: number;
   includeScoreBreakdown?: boolean;
+  includeLlmEnrichment?: boolean;
 }
 
 function keywordHitCount(job: Pick<RankedJobPosting, "title" | "companyName" | "location" | "sourceName" | "description">, terms: string[]): number {
@@ -51,8 +53,87 @@ function fail(code: string, message: string): ApiResult<never> {
   return { ok: false, error: { code, message } };
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
 export class MatchService {
   constructor(private readonly store: StateStore) {}
+
+  private enrichmentKey(jobId: string): string {
+    return `job-enrichment:${jobId}`;
+  }
+
+  private parseEnrichment(raw: string): JobPostingLLMEnrichment | undefined {
+    try {
+      const parsed = JSON.parse(raw) as Partial<JobPostingLLMEnrichment>;
+      if (!parsed || typeof parsed !== "object") return undefined;
+      if (!Array.isArray(parsed.normalizedSkills)) return undefined;
+      if (!parsed.seniority || !parsed.language || !parsed.workModel || typeof parsed.confidence !== "number") return undefined;
+      if (!Array.isArray(parsed.signals) || !parsed.provider || typeof parsed.latencyMs !== "number" || !parsed.generatedAt) return undefined;
+      return parsed as JobPostingLLMEnrichment;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async loadPersistedEnrichmentByJobId(): Promise<Map<string, JobPostingLLMEnrichment>> {
+    const entries = await this.store.listMemoryEntries();
+    const map = new Map<string, JobPostingLLMEnrichment>();
+    for (const entry of entries) {
+      if (entry.type !== "STRATEGY_HINT") continue;
+      if (!entry.key.startsWith("job-enrichment:")) continue;
+      const jobId = entry.key.slice("job-enrichment:".length);
+      if (!jobId || map.has(jobId)) continue;
+      const parsed = this.parseEnrichment(entry.value);
+      if (!parsed) continue;
+      map.set(jobId, parsed);
+    }
+    return map;
+  }
+
+  private async persistEnrichment(jobId: string, enrichment: JobPostingLLMEnrichment): Promise<void> {
+    await this.store.createMemoryEntry({
+      type: "STRATEGY_HINT",
+      key: this.enrichmentKey(jobId),
+      value: JSON.stringify(enrichment),
+      tags: ["llm-enrichment", `job:${jobId}`, `provider:${enrichment.provider}`]
+    });
+  }
+
+  private async ensureLlmEnrichment(
+    jobs: Array<Pick<RankedJobPosting, "id" | "title" | "description">>,
+    includeLlmEnrichment: boolean
+  ): Promise<Map<string, JobPostingLLMEnrichment>> {
+    if (!includeLlmEnrichment) {
+      return new Map();
+    }
+
+    const persisted = await this.loadPersistedEnrichmentByJobId();
+    const timeoutMs = envInt("LLM_ENRICHMENT_TIMEOUT_MS", 6000, 1000, 30000);
+    const maxJobs = envInt("LLM_ENRICHMENT_MAX_JOBS_PER_ROUND", 3, 0, 20);
+
+    let processed = 0;
+    for (const job of jobs) {
+      if (persisted.has(job.id)) continue;
+      if (processed >= maxJobs) break;
+      processed += 1;
+
+      const enrichment = await analyzeJobPostingWithLLM(job.title, job.description, { timeoutMs });
+      persisted.set(job.id, enrichment);
+      await this.persistEnrichment(job.id, enrichment);
+    }
+
+    return persisted;
+  }
 
   async score(input: MatchScoreInput): Promise<ApiResult<MatchScoreResult>> {
     const jobPosting = await this.store.findJobPostingById(input.jobPostingId);
@@ -208,6 +289,8 @@ export class MatchService {
       });
     }
 
+    const includeLlmEnrichment = filters?.includeLlmEnrichment === true;
+    const llmEnrichmentByJobId = await this.ensureLlmEnrichment(jobs, includeLlmEnrichment);
     const profileSeniority = inferProfileSeniority(profile.headline, profile.skills);
     let ranked: RankedJobPosting[] = jobs.map((job) => {
       const { normalizedSkills, matchedSkills, missingSkills } = computeSkillOverlap(profile.skills, job.normalizedTokens);
@@ -222,11 +305,22 @@ export class MatchService {
         seniorityDistance: seniorityDistance(profileSeniority, job.seniority)
       });
 
+      const llmEnrichment = llmEnrichmentByJobId.get(job.id);
+      const llmSignal = (() => {
+        if (!llmEnrichment) return 0;
+        const llmOverlap = computeSkillOverlap(profile.skills, llmEnrichment.normalizedSkills).matchedSkills.length;
+        const overlapSignal = Math.min(8, llmOverlap * 2);
+        const confidenceSignal = clamp(llmEnrichment.confidence, 0, 1);
+        return Math.round(overlapSignal * confidenceSignal);
+      })();
+      const score = clamp(computed.score + llmSignal, 0, 100);
+
       return {
         ...job,
-        score: computed.score,
+        score,
         matchedSkills,
-        scoreBreakdown: filters?.includeScoreBreakdown ? computed.breakdown : undefined
+        scoreBreakdown: filters?.includeScoreBreakdown ? { ...computed.breakdown, finalScore: score } : undefined,
+        llmEnrichment: includeLlmEnrichment ? llmEnrichment : undefined
       };
     });
 

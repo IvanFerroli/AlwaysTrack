@@ -56,6 +56,7 @@ export interface MainCvAnalyzeResult {
 
 export type JobUserStatus = "new" | "applied" | "discarded";
 export type JobSeniority = "junior" | "mid" | "senior" | "lead";
+export type JobWorkModel = "remote" | "hybrid" | "on-site" | "unknown";
 
 export interface JobPosting {
   id: string;
@@ -164,11 +165,24 @@ export interface RankedScoreBreakdown {
   finalScore: number;
 }
 
+export interface JobPostingLLMEnrichment {
+  normalizedSkills: string[];
+  seniority: JobSeniority;
+  language: string;
+  workModel: JobWorkModel;
+  confidence: number;
+  signals: string[];
+  provider: "gemini" | "fallback";
+  latencyMs: number;
+  generatedAt: string;
+}
+
 export interface RankedJobPosting extends JobPosting {
   score: number;
   matchedSkills: string[];
   seniority: JobSeniority;
   scoreBreakdown?: RankedScoreBreakdown;
+  llmEnrichment?: JobPostingLLMEnrichment;
 }
 
 export interface AgentRun {
