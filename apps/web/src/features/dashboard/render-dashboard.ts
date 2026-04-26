@@ -415,6 +415,110 @@ export function renderDashboardPage(data: DashboardData): string {
       color: #e0f2fe;
       background: rgba(37, 99, 235, 0.75);
     }
+    .filter-dropdown {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .filter-dropdown-compact {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 2.45rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.75rem;
+      background: rgba(2, 6, 23, 0.45);
+      cursor: pointer;
+      color: #dbeafe;
+    }
+    .filter-dropdown-compact.active {
+      border-color: rgba(56, 189, 248, 0.75);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.3);
+    }
+    .filter-dropdown-arrow {
+      margin-left: auto;
+      font-size: 0.75rem;
+      opacity: 0.85;
+      transition: transform 0.14s ease;
+    }
+    .filter-dropdown-compact.active .filter-dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    .filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.16rem 0.4rem;
+      border-radius: 0.42rem;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.2);
+      color: #e0f2fe;
+      font-size: 0.76rem;
+      line-height: 1.2;
+    }
+    .filter-tag-remove {
+      width: 0.95rem;
+      height: 0.95rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 0.25rem;
+      background: rgba(15, 23, 42, 0.45);
+      color: #cbd5e1;
+      padding: 0;
+      cursor: pointer;
+      line-height: 1;
+      font-size: 0.78rem;
+    }
+    .filter-tag-remove:hover {
+      border-color: rgba(248, 113, 113, 0.85);
+      color: #fecaca;
+    }
+    .filter-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding: 0.55rem;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 0.75rem;
+      background: rgba(2, 6, 23, 0.96);
+      max-height: 14rem;
+      overflow: auto;
+      box-shadow: 0 10px 22px rgba(2, 6, 23, 0.45);
+    }
+    .filter-dropdown-menu.open {
+      display: flex;
+    }
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.35rem 0.45rem;
+      border-radius: 0.45rem;
+      color: #dbeafe;
+      cursor: pointer;
+      user-select: none;
+    }
+    .filter-option:hover {
+      background: rgba(56, 189, 248, 0.12);
+    }
+    .filter-option input[type="checkbox"] {
+      accent-color: #38bdf8;
+      width: 0.95rem;
+      height: 0.95rem;
+      flex: 0 0 auto;
+    }
+    .filter-option span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -460,6 +564,7 @@ export function renderDashboardPage(data: DashboardData): string {
         });
       }
 
+      setupCompactDropdowns();
       setupPagination();
     });
 
@@ -591,6 +696,124 @@ export function renderDashboardPage(data: DashboardData): string {
       pagination.appendChild(prevBtn);
       pagination.appendChild(nextBtn);
       pagination.appendChild(label);
+    }
+
+    function setupCompactDropdowns() {
+      for (const name of ["tags", "location", "sourceName", "status", "seniority"]) {
+        const field = document.querySelector('[name="' + name + '"]');
+        if (!field || !(field instanceof HTMLSelectElement) || !field.multiple) continue;
+        const wrapper = field.parentElement;
+        if (!wrapper) continue;
+
+        const root = document.createElement("div");
+        root.className = "filter-dropdown";
+
+        const compact = document.createElement("div");
+        compact.className = "filter-dropdown-compact";
+        compact.setAttribute("role", "button");
+        compact.setAttribute("tabindex", "0");
+        compact.setAttribute("aria-label", "Selecionar " + name);
+        compact.setAttribute("aria-expanded", "false");
+
+        const menu = document.createElement("div");
+        menu.className = "filter-dropdown-menu";
+
+        function syncFromSelect() {
+          menu.textContent = "";
+          for (const option of field.options) {
+            const optionRow = document.createElement("label");
+            optionRow.className = "filter-option";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = option.selected;
+            checkbox.dataset.value = option.value;
+            checkbox.addEventListener("change", () => {
+              option.selected = checkbox.checked;
+              renderCompactValue();
+            });
+            const text = document.createElement("span");
+            text.textContent = option.value;
+            optionRow.appendChild(checkbox);
+            optionRow.appendChild(text);
+            menu.appendChild(optionRow);
+          }
+        }
+
+        function closeMenu() {
+          menu.classList.remove("open");
+          compact.classList.remove("active");
+          compact.setAttribute("aria-expanded", "false");
+        }
+
+        function openMenu() {
+          menu.classList.add("open");
+          compact.classList.add("active");
+          compact.setAttribute("aria-expanded", "true");
+        }
+
+        function renderCompactValue() {
+          const selected = Array.from(field.options).filter((opt) => opt.selected).map((opt) => opt.value);
+          compact.textContent = "";
+          if (selected.length === 0) {
+            const muted = document.createElement("span");
+            muted.className = "muted";
+            muted.textContent = "Qualquer";
+            compact.appendChild(muted);
+          } else {
+            for (const value of selected) {
+              const chip = document.createElement("span");
+              chip.className = "filter-tag";
+              chip.textContent = value;
+              const remove = document.createElement("button");
+              remove.className = "filter-tag-remove";
+              remove.type = "button";
+              remove.textContent = "×";
+              remove.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const option = Array.from(field.options).find((opt) => opt.value === value);
+                if (!option) return;
+                option.selected = false;
+                const checkbox = menu.querySelector('input[data-value="' + CSS.escape(value) + '"]');
+                if (checkbox instanceof HTMLInputElement) checkbox.checked = false;
+                renderCompactValue();
+              });
+              chip.appendChild(remove);
+              compact.appendChild(chip);
+            }
+          }
+          const arrow = document.createElement("span");
+          arrow.className = "filter-dropdown-arrow";
+          arrow.textContent = "▼";
+          compact.appendChild(arrow);
+        }
+
+        compact.addEventListener("click", () => {
+          if (menu.classList.contains("open")) closeMenu();
+          else openMenu();
+        });
+        compact.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (menu.classList.contains("open")) closeMenu();
+            else openMenu();
+          } else if (event.key === "Escape") {
+            closeMenu();
+          }
+        });
+
+        document.addEventListener("click", (event) => {
+          if (!root.contains(event.target)) closeMenu();
+        });
+
+        field.style.display = "none";
+        syncFromSelect();
+        renderCompactValue();
+
+        root.appendChild(compact);
+        root.appendChild(menu);
+        wrapper.insertBefore(root, field);
+      }
     }
   </script>
 </body>
