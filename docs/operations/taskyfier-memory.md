@@ -61,6 +61,7 @@
 - TASK-SCR-008 - sanidade pos-scraper (applied indevido + auto-discard score 0 + prioridade por keyword)
 - TASK-ACQ-001 - job acquisition layer (wire + ui)
 - TASK-ACQ-002 - adaptadores ats específicos (gupy/sólides)
+- TASK-UX-003 - hierarquia toggle e overhaul de filtros no dashboard
 
 ## Tasks concluidas ou operacionalmente incorporadas
 - TASK-DOC-002
@@ -88,6 +89,7 @@
 - TASK-UX-001 (completed-with-remarks)
 - auditoria de sanidade e normalizacao do repo (2026-04-25)
 - TASK-UX-002 - Refinamento de Tags e Filtros do Dashboard
+- TASK-UX-003 - Hierarquia toggle e overhaul de filtros no dashboard
 
 ## Tasks em andamento
 - nenhuma
@@ -126,6 +128,8 @@
 - report de scraper agora expõe `autoDiscarded`, `keywordRequested` e `keywordEffective` por rodada.
 - TASK-SCR-008 consolidou sanidade pos-scraper com prioridade de keyword no ranking (`q`) e auto-discard consistente tambem para casos deduplicados ainda em `new`.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
+- dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
+- filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
 

@@ -363,17 +363,19 @@ export function renderDashboardPage(data: DashboardData): string {
     </form>
   </div>`;
   const jobsContent = `<form method="GET" action="/" class="form-grid two">
+    <label><span class="label-row">Busca ${renderInfoIcon("Busca textual em título, empresa, local, fonte e descrição")}</span><input class="tag-input" type="text" name="q" placeholder="ex: react junior remoto" /></label>
     <label><span class="label-row">Tags ${renderInfoIcon("Filtro por tags manuais acrescentadas nas vagas; multi-seleção aplica OR")}</span><select name="tags" multiple size="6">${renderOptions(filterOptions.tags)}</select></label>
     <label><span class="label-row">Local ${renderInfoIcon("Locais presentes no batch atual; multi-seleção aplica OR")}</span><select name="location" multiple size="6">${renderOptions(filterOptions.locations)}</select></label>
     <label><span class="label-row">Fonte ${renderInfoIcon("Feed/plataforma de origem; multi-selecao aplica OR")}</span><select name="sourceName" multiple size="5">${renderOptions(filterOptions.sources)}</select></label>
     <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga; multi-selecao aplica OR")}</span><select name="status" multiple size="3">${renderOptions(filterOptions.statuses)}</select></label>
     <label><span class="label-row">Senioridade ${renderInfoIcon("Classificação inferida de título/descrição/tags; sem indicação explícita vira mid/pleno")}</span><select name="seniority" multiple size="3">${renderOptions(filterOptions.seniorities)}</select></label>
     <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
-    <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><select name="sortByDate"><option value="newest">Mais novo primeiro</option><option value="oldest">Mais antigo primeiro</option></select></label>
+    <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><div class="sort-toggle-row"><button id="sort-toggle-btn" class="btn-secondary sort-toggle-btn" type="button">Mais novo primeiro ↓</button><input type="hidden" name="sortByDate" value="newest" /></div></label>
     <label><span class="label-row">Itens por página ${renderInfoIcon("Paginação da API (todos os filtros combinados)")}</span><select name="pageSize"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
     <input type="hidden" name="page" value="1" />
     <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Todos os filtros combinam entre si; paginação e ordenação vão pela URL.</span></div>
   </form>
+  <div id="active-filters-summary" class="active-filters-summary"></div>
   ${renderRankedJobs(data)}
   <div class="actions-row" id="jobs-pagination" aria-live="polite"></div>`;
 
@@ -414,6 +416,26 @@ export function renderDashboardPage(data: DashboardData): string {
     .form-grid select[multiple] option:checked {
       color: #e0f2fe;
       background: rgba(37, 99, 235, 0.75);
+    }
+    .sort-toggle-row {
+      display: flex;
+      align-items: center;
+      min-height: 2.5rem;
+    }
+    .sort-toggle-btn {
+      width: 100%;
+      justify-content: center;
+    }
+    .active-filters-summary {
+      margin-top: 0.65rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .active-filters-summary .badge {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: #dbeafe;
     }
     .filter-dropdown {
       position: relative;
@@ -492,6 +514,39 @@ export function renderDashboardPage(data: DashboardData): string {
       overflow: auto;
       box-shadow: 0 10px 22px rgba(2, 6, 23, 0.45);
     }
+    .filter-dropdown-controls {
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+      margin-bottom: 0.2rem;
+    }
+    .filter-dropdown-controls input {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.55rem;
+      padding: 0.35rem 0.5rem;
+      background: rgba(2, 6, 23, 0.65);
+      color: #dbeafe;
+    }
+    .filter-dropdown-controls button {
+      flex: 0 0 auto;
+      border: 1px solid var(--line-soft);
+      border-radius: 0.55rem;
+      background: rgba(15, 23, 42, 0.6);
+      color: #cbd5e1;
+      padding: 0.35rem 0.45rem;
+      cursor: pointer;
+    }
+    .filter-dropdown-controls button:hover {
+      border-color: rgba(56, 189, 248, 0.65);
+      color: #e0f2fe;
+    }
+    .filter-options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
     .filter-dropdown-menu.open {
       display: flex;
     }
@@ -548,6 +603,10 @@ export function renderDashboardPage(data: DashboardData): string {
           for (const option of field.options) option.selected = values.includes(option.value);
         }
       }
+      const qInput = document.querySelector('[name="q"]');
+      if (qInput instanceof HTMLInputElement) {
+        qInput.value = params.get("q") ?? "";
+      }
       for (const name of ["minScore", "sortByDate", "pageSize"]) {
         const field = document.querySelector('[name="' + name + '"]');
         const value = params.get(name);
@@ -555,6 +614,11 @@ export function renderDashboardPage(data: DashboardData): string {
           field.value = value;
         }
       }
+      const sortInput = document.querySelector('[name="sortByDate"]');
+      if (sortInput instanceof HTMLInputElement) {
+        sortInput.value = params.get("sortByDate") === "oldest" ? "oldest" : "newest";
+      }
+      syncSortToggleButton();
 
       const filterForm = document.querySelector('form[action="/"]');
       if (filterForm instanceof HTMLFormElement) {
@@ -565,6 +629,8 @@ export function renderDashboardPage(data: DashboardData): string {
       }
 
       setupCompactDropdowns();
+      setupSortToggle();
+      renderActiveFiltersSummary();
       setupPagination();
     });
 
@@ -698,6 +764,66 @@ export function renderDashboardPage(data: DashboardData): string {
       pagination.appendChild(label);
     }
 
+    function syncSortToggleButton() {
+      const sortInput = document.querySelector('[name="sortByDate"]');
+      const sortBtn = document.getElementById("sort-toggle-btn");
+      if (!(sortInput instanceof HTMLInputElement) || !(sortBtn instanceof HTMLButtonElement)) return;
+      const isNewest = sortInput.value !== "oldest";
+      sortBtn.textContent = isNewest ? "Mais novo primeiro ↓" : "Mais antigo primeiro ↑";
+      sortBtn.setAttribute("aria-pressed", isNewest ? "false" : "true");
+    }
+
+    function setupSortToggle() {
+      const sortBtn = document.getElementById("sort-toggle-btn");
+      const sortInput = document.querySelector('[name="sortByDate"]');
+      const filterForm = document.querySelector('form[action="/"]');
+      if (!(sortBtn instanceof HTMLButtonElement) || !(sortInput instanceof HTMLInputElement) || !(filterForm instanceof HTMLFormElement)) {
+        return;
+      }
+      sortBtn.addEventListener("click", () => {
+        sortInput.value = sortInput.value === "oldest" ? "newest" : "oldest";
+        const pageInput = filterForm.querySelector('input[name="page"]');
+        if (pageInput instanceof HTMLInputElement) pageInput.value = "1";
+        syncSortToggleButton();
+        filterForm.requestSubmit();
+      });
+    }
+
+    function renderActiveFiltersSummary() {
+      const container = document.getElementById("active-filters-summary");
+      if (!container) return;
+      const params = new URLSearchParams(window.location.search);
+      const chips = [];
+      const valueOf = (key) => params.getAll(key).flatMap((value) => value.split(",")).map((item) => item.trim()).filter(Boolean);
+      const pushChip = (label, values) => {
+        if (values.length === 0) return;
+        chips.push(label + ": " + values.join(", "));
+      };
+      pushChip("Busca", valueOf("q"));
+      pushChip("Tags", valueOf("tags"));
+      pushChip("Local", valueOf("location"));
+      pushChip("Fonte", valueOf("sourceName"));
+      pushChip("Status", valueOf("status"));
+      pushChip("Senioridade", valueOf("seniority"));
+      const minScore = params.get("minScore");
+      if (minScore && minScore !== "0") chips.push("Score mínimo: " + minScore + "+");
+      const sortByDate = params.get("sortByDate");
+      if (sortByDate === "oldest") chips.push("Ordem: mais antigo");
+      if (sortByDate === "newest") chips.push("Ordem: mais novo");
+
+      container.textContent = "";
+      if (chips.length === 0) {
+        container.innerHTML = '<span class="field-hint">Sem filtros ativos.</span>';
+        return;
+      }
+      for (const chipText of chips) {
+        const chip = document.createElement("span");
+        chip.className = "badge";
+        chip.textContent = chipText;
+        container.appendChild(chip);
+      }
+    }
+
     function setupCompactDropdowns() {
       for (const name of ["tags", "location", "sourceName", "status", "seniority"]) {
         const field = document.querySelector('[name="' + name + '"]');
@@ -717,9 +843,24 @@ export function renderDashboardPage(data: DashboardData): string {
 
         const menu = document.createElement("div");
         menu.className = "filter-dropdown-menu";
+        const controls = document.createElement("div");
+        controls.className = "filter-dropdown-controls";
+        const search = document.createElement("input");
+        search.type = "search";
+        search.placeholder = "buscar...";
+        search.setAttribute("aria-label", "Buscar opção no filtro " + name);
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.textContent = "Limpar";
+        controls.appendChild(search);
+        controls.appendChild(clearBtn);
+        const optionsList = document.createElement("div");
+        optionsList.className = "filter-options-list";
+        menu.appendChild(controls);
+        menu.appendChild(optionsList);
 
         function syncFromSelect() {
-          menu.textContent = "";
+          optionsList.textContent = "";
           for (const option of field.options) {
             const optionRow = document.createElement("label");
             optionRow.className = "filter-option";
@@ -735,7 +876,16 @@ export function renderDashboardPage(data: DashboardData): string {
             text.textContent = option.value;
             optionRow.appendChild(checkbox);
             optionRow.appendChild(text);
-            menu.appendChild(optionRow);
+            optionsList.appendChild(optionRow);
+          }
+          filterOptionsBySearch(search.value);
+        }
+
+        function filterOptionsBySearch(rawSearch) {
+          const query = rawSearch.trim().toLowerCase();
+          for (const row of optionsList.querySelectorAll(".filter-option")) {
+            const text = row.textContent ? row.textContent.toLowerCase() : "";
+            row.style.display = !query || text.includes(query) ? "" : "none";
           }
         }
 
@@ -800,6 +950,13 @@ export function renderDashboardPage(data: DashboardData): string {
           } else if (event.key === "Escape") {
             closeMenu();
           }
+        });
+
+        search.addEventListener("input", () => filterOptionsBySearch(search.value));
+        clearBtn.addEventListener("click", () => {
+          for (const option of field.options) option.selected = false;
+          syncFromSelect();
+          renderCompactValue();
         });
 
         document.addEventListener("click", (event) => {
