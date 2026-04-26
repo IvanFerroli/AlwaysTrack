@@ -1,6 +1,12 @@
 import type { JobSeniority, JobPosting } from "@olympus/shared-types";
 
 export const JOB_SENIORITY_LEVELS = ["junior", "mid", "senior", "lead"] as const;
+export const SENIORITY_RANK: Record<JobSeniority, number> = {
+  junior: 0,
+  mid: 1,
+  senior: 2,
+  lead: 3
+};
 
 const JUNIOR_PATTERNS = [
   /\bjunior\b/gi,
@@ -84,6 +90,30 @@ export function inferJobSeniority(
   if (signals.senior === explicitMax) return "senior";
   if (signals.junior === explicitMax) return "junior";
   return "mid";
+}
+
+export function inferProfileSeniority(headline: string, skills: string[] = []): JobSeniority {
+  const normalizedHeadline = normalizeForMatch(headline);
+  const normalizedSkills = normalizeForMatch(skills.join(" "));
+  const context = `${normalizedHeadline} ${normalizedSkills}`.trim();
+  if (!context) return "mid";
+
+  const junior = countPatternHits(context, JUNIOR_PATTERNS);
+  const mid = countPatternHits(context, MID_PATTERNS);
+  const senior = countPatternHits(context, SENIOR_PATTERNS);
+  const lead = countPatternHits(context, LEAD_PATTERNS);
+  const explicitMax = Math.max(junior, mid, senior, lead);
+  if (explicitMax <= 0) {
+    return "mid";
+  }
+  if (lead === explicitMax) return "lead";
+  if (senior === explicitMax) return "senior";
+  if (junior === explicitMax) return "junior";
+  return "mid";
+}
+
+export function seniorityDistance(a: JobSeniority, b: JobSeniority): number {
+  return Math.abs(SENIORITY_RANK[a] - SENIORITY_RANK[b]);
 }
 
 export function toSeniorityTag(level: JobSeniority): string {

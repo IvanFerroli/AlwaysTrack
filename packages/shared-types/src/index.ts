@@ -133,10 +133,42 @@ export interface MatchScoreResult {
   rationale: string;
 }
 
+export interface RankedScoreBreakdown {
+  weights: {
+    strongSkills: number;
+    weakSkills: number;
+    titleHit: number;
+    keywordHit: number;
+    seniorityAlignment: number;
+  };
+  signals: {
+    strongMatched: number;
+    strongTotal: number;
+    weakMatched: number;
+    weakTotal: number;
+    titleSignal: number;
+    keywordHits: number;
+    keywordTerms: number;
+    seniorityDistance: number;
+  };
+  contributions: {
+    strongSkills: number;
+    weakSkills: number;
+    titleHit: number;
+    keywordHit: number;
+    seniorityAlignment: number;
+  };
+  penalties: {
+    seniorityMismatch: number;
+  };
+  finalScore: number;
+}
+
 export interface RankedJobPosting extends JobPosting {
   score: number;
   matchedSkills: string[];
   seniority: JobSeniority;
+  scoreBreakdown?: RankedScoreBreakdown;
 }
 
 export interface AgentRun {

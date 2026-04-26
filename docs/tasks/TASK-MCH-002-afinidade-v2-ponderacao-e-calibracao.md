@@ -1,7 +1,7 @@
 # TASK-MCH-002 - Afinidade v2 com ponderação e calibração
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-MCH-002-afinidade-v2-ponderacao-e-calibracao.md

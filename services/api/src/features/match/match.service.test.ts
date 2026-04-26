@@ -486,3 +486,69 @@ test("match service defaults sortByDate to none (affinity-first)", async () => {
   assert.equal(ranked.data.sortByDate, "none");
   assert.equal(ranked.data.items[0]?.title, "React Node Developer");
 });
+
+test("match service applies controlled seniority penalty for strong mismatch", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  const profile = await store.createResumeProfile({
+    headline: "Junior Node React Developer",
+    skills: ["node", "react", "typescript"]
+  });
+
+  await ingestion.ingest({
+    title: "Junior Node React Developer",
+    companyName: "A",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/seniority-penalty-1",
+    description: "node react typescript",
+    postedAt: "2026-04-20T12:00:00.000Z"
+  });
+
+  await ingestion.ingest({
+    title: "Principal Node React Engineer",
+    companyName: "B",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/seniority-penalty-2",
+    description: "node react typescript architecture",
+    postedAt: "2026-04-21T12:00:00.000Z"
+  });
+
+  const ranked = await match.listRanked(profile.id);
+  assert.equal(ranked.ok, true);
+  if (!ranked.ok) throw new Error("expected ranked list");
+
+  assert.equal(ranked.data.items.length, 2);
+  assert.equal(ranked.data.items[0]?.title, "Junior Node React Developer");
+  assert.equal(ranked.data.items[0]!.score > ranked.data.items[1]!.score, true);
+});
+
+test("match service exposes scoreBreakdown only when requested", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  const profile = await store.createResumeProfile({
+    headline: "Senior Node React Engineer",
+    skills: ["node", "react", "typescript", "postgresql"]
+  });
+
+  await ingestion.ingest({
+    title: "Senior Node React Engineer",
+    companyName: "A",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/breakdown-1",
+    description: "node react typescript postgresql",
+    postedAt: "2026-04-20T12:00:00.000Z"
+  });
+
+  const withoutBreakdown = await match.listRanked(profile.id);
+  assert.equal(withoutBreakdown.ok, true);
+  if (!withoutBreakdown.ok) throw new Error("expected ranked list");
+  assert.equal(withoutBreakdown.data.items[0]?.scoreBreakdown, undefined);
+
+  const withBreakdown = await match.listRanked(profile.id, { includeScoreBreakdown: true, q: ["react"] });
+  assert.equal(withBreakdown.ok, true);
+  if (!withBreakdown.ok) throw new Error("expected ranked list with breakdown");
+  assert.equal(typeof withBreakdown.data.items[0]?.scoreBreakdown?.contributions.strongSkills, "number");
+  assert.equal(withBreakdown.data.items[0]?.scoreBreakdown?.finalScore, withBreakdown.data.items[0]?.score);
+});

@@ -140,6 +140,12 @@ export function createMatchHandlers(service: MatchService): {
       return;
     }
 
+    const includeScoreBreakdownRaw = params.get("includeScoreBreakdown")?.trim().toLowerCase();
+    const includeScoreBreakdown =
+      includeScoreBreakdownRaw === "1" ||
+      includeScoreBreakdownRaw === "true" ||
+      includeScoreBreakdownRaw === "yes";
+
     sendApiResult(response, await service.listRanked(resumeProfileId, {
       q,
       minScore,
@@ -150,7 +156,8 @@ export function createMatchHandlers(service: MatchService): {
       seniority: seniority.filter((item): item is JobSeniority => Boolean(item)),
       sortByDate,
       page,
-      pageSize
+      pageSize,
+      includeScoreBreakdown
     }));
   };
 

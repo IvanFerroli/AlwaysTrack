@@ -91,6 +91,7 @@
 - TASK-SCR-007 (completed-with-remarks)
 - TASK-SCR-008 (completed-with-remarks)
 - TASK-SCR-009 (completed-with-remarks)
+- TASK-MCH-002 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
 - TASK-ACQ-002
 - TASK-UX-001 (completed-with-remarks)
@@ -102,11 +103,10 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-MCH-002 - afinidade v2 com ponderação e calibração
-2. TASK-MCH-003 - leitura LLM estruturada de vagas
-3. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
-4. TASK-PRD-008 - filtros reativos e performance
-5. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+1. TASK-MCH-003 - leitura LLM estruturada de vagas
+2. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
+3. TASK-PRD-008 - filtros reativos e performance
+4. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -143,6 +143,7 @@
 - TASK-SCR-007 consolidou keyword robusta (normalizacao + aliases + `keywordEffective`) e auto-discard por afinidade com tag removivel `auto-discard-no-match`.
 - report de scraper agora expõe `autoDiscarded`, `keywordRequested` e `keywordEffective` por rodada.
 - TASK-SCR-008 consolidou sanidade pos-scraper com prioridade de keyword no ranking (`q`) e auto-discard consistente tambem para casos deduplicados ainda em `new`.
+- TASK-MCH-002 consolidou afinidade v2 com score ponderado explicito, penalidade controlada por mismatch de senioridade e `scoreBreakdown` opcional para debug operacional.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -163,7 +164,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-MCH-002 - consolidar afinidade v2 com ponderacao/calibracao antes de ampliar uso de LLM no pipeline
+- TASK-MCH-003 - adicionar leitura LLM estruturada de vagas com budget/policy explicita e evidencia de custo/ganho
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

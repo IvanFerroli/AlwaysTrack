@@ -7,8 +7,8 @@ import type {
   MatchScoreResult,
   RankedJobPosting
 } from "@olympus/shared-types";
-import { computeMatchScore, computeSkillOverlap } from "../../domain/matching/scoring.js";
-import { inferJobSeniority, withSeniorityTag } from "../../domain/matching/seniority.js";
+import { computeMatchScore, computeSkillOverlap, computeWeightedMatchScore } from "../../domain/matching/scoring.js";
+import { inferJobSeniority, inferProfileSeniority, seniorityDistance, withSeniorityTag } from "../../domain/matching/seniority.js";
 import type { StateStore } from "../../domain/state/store.js";
 import { analyzeJobMatch } from "../../core/llm/gemini.js";
 
@@ -23,6 +23,7 @@ export interface JobFilterOptions {
   sortByDate?: "none" | "newest" | "oldest";
   page?: number;
   pageSize?: number;
+  includeScoreBreakdown?: boolean;
 }
 
 function keywordHitCount(job: Pick<RankedJobPosting, "title" | "companyName" | "location" | "sourceName" | "description">, terms: string[]): number {
@@ -132,6 +133,7 @@ export class MatchService {
     const sortByDate = filters?.sortByDate ?? "none";
     const page = filters?.page ?? 1;
     const pageSize = filters?.pageSize ?? 20;
+    const queryTerms = filters?.q?.map((term) => term.toLowerCase()) ?? [];
     let jobs = (await this.store.listJobPostings()).map((job) => {
       const seniority = inferJobSeniority(job);
       return {
@@ -206,17 +208,32 @@ export class MatchService {
       });
     }
 
+    const profileSeniority = inferProfileSeniority(profile.headline, profile.skills);
     let ranked: RankedJobPosting[] = jobs.map((job) => {
-      const { matchedSkills } = computeSkillOverlap(profile.skills, job.normalizedTokens);
-      const score = computeMatchScore(matchedSkills.length, profile.headline, job.title, matchedSkills);
-      return { ...job, score, matchedSkills };
+      const { normalizedSkills, matchedSkills, missingSkills } = computeSkillOverlap(profile.skills, job.normalizedTokens);
+      const computed = computeWeightedMatchScore({
+        normalizedSkills,
+        matchedSkills,
+        missingSkills,
+        profileHeadline: profile.headline,
+        jobTitle: job.title,
+        keywordHits: keywordHitCount(job, queryTerms),
+        keywordTermsCount: queryTerms.length,
+        seniorityDistance: seniorityDistance(profileSeniority, job.seniority)
+      });
+
+      return {
+        ...job,
+        score: computed.score,
+        matchedSkills,
+        scoreBreakdown: filters?.includeScoreBreakdown ? computed.breakdown : undefined
+      };
     });
 
     if (filters?.minScore && filters.minScore > 0) {
       ranked = ranked.filter(j => j.score >= filters.minScore!);
     }
 
-    const queryTerms = filters?.q?.map((term) => term.toLowerCase()) ?? [];
     const timestamp = (date: string | undefined): number => {
       if (!date) return 0;
       const parsed = Date.parse(date);

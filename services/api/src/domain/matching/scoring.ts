@@ -4,6 +4,48 @@ export interface SkillOverlapResult {
   missingSkills: string[];
 }
 
+export interface ScoreBreakdown {
+  weights: {
+    strongSkills: number;
+    weakSkills: number;
+    titleHit: number;
+    keywordHit: number;
+    seniorityAlignment: number;
+  };
+  signals: {
+    strongMatched: number;
+    strongTotal: number;
+    weakMatched: number;
+    weakTotal: number;
+    titleSignal: number;
+    keywordHits: number;
+    keywordTerms: number;
+    seniorityDistance: number;
+  };
+  contributions: {
+    strongSkills: number;
+    weakSkills: number;
+    titleHit: number;
+    keywordHit: number;
+    seniorityAlignment: number;
+  };
+  penalties: {
+    seniorityMismatch: number;
+  };
+  finalScore: number;
+}
+
+export interface WeightedMatchScoreInput {
+  normalizedSkills: string[];
+  matchedSkills: string[];
+  missingSkills?: string[];
+  profileHeadline: string;
+  jobTitle: string;
+  keywordHits?: number;
+  keywordTermsCount?: number;
+  seniorityDistance?: number;
+}
+
 const SKILL_ALIAS_GROUPS = [
   ["node.js", "nodejs", "node"],
   ["react.js", "reactjs", "react"],
@@ -29,10 +71,20 @@ const HEADLINE_STOPWORDS = new Set([
   "cv"
 ]);
 
+const SCORE_WEIGHTS = {
+  strongSkills: 45,
+  weakSkills: 20,
+  titleHit: 15,
+  keywordHit: 10,
+  seniorityAlignment: 10
+} as const;
+
 export function normalizeSkills(skills: string[]): string[] {
-  return skills
-    .map((item) => item.trim().toLowerCase())
-    .filter((item) => item.length > 0);
+  return [...new Set(
+    skills
+      .map((item) => item.trim().toLowerCase())
+      .filter((item) => item.length > 0)
+  )];
 }
 
 function tokenizeSkill(skill: string): string[] {
@@ -121,6 +173,141 @@ export function computeTitleSkillBoost(matchedSkills: string[], jobTitle: string
   return Math.min(30, titleMatches * 15);
 }
 
+function ratio(part: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(1, part / total));
+}
+
+function strongWeakBuckets(normalizedSkills: string[], matchedSkills: string[]): {
+  strongTotal: number;
+  strongMatched: number;
+  weakTotal: number;
+  weakMatched: number;
+} {
+  const STRONG_SKILL_LIMIT = 3;
+  const strongSkills = new Set(normalizedSkills.slice(0, STRONG_SKILL_LIMIT));
+  const weakSkills = normalizedSkills.filter((skill) => !strongSkills.has(skill));
+  const matchedSet = new Set(matchedSkills);
+
+  let strongMatched = 0;
+  for (const skill of strongSkills) {
+    if (matchedSet.has(skill)) strongMatched += 1;
+  }
+
+  let weakMatched = 0;
+  for (const skill of weakSkills) {
+    if (matchedSet.has(skill)) weakMatched += 1;
+  }
+
+  return {
+    strongTotal: strongSkills.size,
+    strongMatched,
+    weakTotal: weakSkills.length,
+    weakMatched
+  };
+}
+
+function computeSeniorityAlignment(distance: number): { alignment: number; penalty: number } {
+  if (distance <= 1) {
+    return { alignment: SCORE_WEIGHTS.seniorityAlignment, penalty: 0 };
+  }
+  if (distance === 2) {
+    return { alignment: 4, penalty: 8 };
+  }
+  return { alignment: 0, penalty: 14 };
+}
+
+export function computeWeightedMatchScore(input: WeightedMatchScoreInput): {
+  score: number;
+  breakdown: ScoreBreakdown;
+} {
+  const normalizedSkills = normalizeSkills(input.normalizedSkills);
+  const matchedSet = new Set(input.matchedSkills);
+  const matchedSkills = normalizedSkills.filter((skill) => matchedSet.has(skill));
+
+  if (matchedSkills.length === 0) {
+    return {
+      score: 0,
+      breakdown: {
+        weights: { ...SCORE_WEIGHTS },
+        signals: {
+          strongMatched: 0,
+          strongTotal: Math.min(3, normalizedSkills.length),
+          weakMatched: 0,
+          weakTotal: Math.max(0, normalizedSkills.length - 3),
+          titleSignal: 0,
+          keywordHits: input.keywordHits ?? 0,
+          keywordTerms: input.keywordTermsCount ?? 0,
+          seniorityDistance: input.seniorityDistance ?? 0
+        },
+        contributions: {
+          strongSkills: 0,
+          weakSkills: 0,
+          titleHit: 0,
+          keywordHit: 0,
+          seniorityAlignment: 0
+        },
+        penalties: {
+          seniorityMismatch: 0
+        },
+        finalScore: 0
+      }
+    };
+  }
+
+  const { strongMatched, strongTotal, weakMatched, weakTotal } = strongWeakBuckets(normalizedSkills, matchedSkills);
+  const titleSignal = ratio(
+    computeTitleBoost(input.profileHeadline, input.jobTitle) + computeTitleSkillBoost(matchedSkills, input.jobTitle),
+    70
+  );
+
+  const keywordTerms = Math.max(0, input.keywordTermsCount ?? 0);
+  const keywordHits = Math.max(0, input.keywordHits ?? 0);
+  const keywordSignal = keywordTerms > 0 ? ratio(keywordHits, keywordTerms * 3) : 1;
+
+  const seniorityDistance = Math.max(0, Math.floor(input.seniorityDistance ?? 0));
+  const seniority = computeSeniorityAlignment(seniorityDistance);
+
+  const contributions = {
+    strongSkills: Math.round((strongTotal > 0 ? ratio(strongMatched, strongTotal) : 0) * SCORE_WEIGHTS.strongSkills),
+    weakSkills: Math.round((weakTotal > 0 ? ratio(weakMatched, weakTotal) : 1) * SCORE_WEIGHTS.weakSkills),
+    titleHit: Math.round(titleSignal * SCORE_WEIGHTS.titleHit),
+    keywordHit: Math.round(keywordSignal * SCORE_WEIGHTS.keywordHit),
+    seniorityAlignment: seniority.alignment
+  };
+
+  const raw =
+    contributions.strongSkills +
+    contributions.weakSkills +
+    contributions.titleHit +
+    contributions.keywordHit +
+    contributions.seniorityAlignment;
+
+  const score = Math.max(0, Math.min(100, raw - seniority.penalty));
+
+  return {
+    score,
+    breakdown: {
+      weights: { ...SCORE_WEIGHTS },
+      signals: {
+        strongMatched,
+        strongTotal,
+        weakMatched,
+        weakTotal,
+        titleSignal,
+        keywordHits,
+        keywordTerms,
+        seniorityDistance
+      },
+      contributions,
+      penalties: {
+        seniorityMismatch: seniority.penalty
+      },
+      finalScore: score
+    }
+  };
+}
+
 export function computeMatchScore(
   matchedSkillCount: number,
   profileHeadline: string,
@@ -131,6 +318,11 @@ export function computeMatchScore(
     return 0;
   }
 
-  const skillScore = matchedSkillCount * 20;
-  return Math.min(100, skillScore + computeTitleBoost(profileHeadline, jobTitle) + computeTitleSkillBoost(matchedSkills, jobTitle));
+  const normalizedSkills = matchedSkills.length > 0 ? matchedSkills : Array.from({ length: matchedSkillCount }, (_, i) => `skill-${i}`);
+  return computeWeightedMatchScore({
+    normalizedSkills,
+    matchedSkills,
+    profileHeadline,
+    jobTitle
+  }).score;
 }
