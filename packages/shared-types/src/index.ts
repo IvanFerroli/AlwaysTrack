@@ -172,7 +172,7 @@ export interface ListPayload<T> {
   page?: number;
   pageSize?: number;
   totalPages?: number;
-  sortByDate?: "newest" | "oldest";
+  sortByDate?: "none" | "newest" | "oldest";
 }
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";

@@ -20,7 +20,7 @@ export interface JobFilterOptions {
   location?: string[];
   sourceName?: string[];
   seniority?: JobSeniority[];
-  sortByDate?: "newest" | "oldest";
+  sortByDate?: "none" | "newest" | "oldest";
   page?: number;
   pageSize?: number;
 }
@@ -129,7 +129,7 @@ export class MatchService {
     resumeProfileId?: string,
     filters?: JobFilterOptions
   ): Promise<ApiResult<ListPayload<RankedJobPosting>>> {
-    const sortByDate = filters?.sortByDate ?? "newest";
+    const sortByDate = filters?.sortByDate ?? "none";
     const page = filters?.page ?? 1;
     const pageSize = filters?.pageSize ?? 20;
     let jobs = (await this.store.listJobPostings()).map((job) => {
@@ -181,16 +181,18 @@ export class MatchService {
       if (filters?.minScore && filters.minScore > 0) {
         unranked = unranked.filter(j => j.score >= filters.minScore!);
       }
-      const sortDirection = sortByDate === "oldest" ? 1 : -1;
-      const timestamp = (date: string | undefined): number => {
-        if (!date) return 0;
-        const parsed = Date.parse(date);
-        return Number.isFinite(parsed) ? parsed : 0;
-      };
-      unranked.sort(
-        (a, b) =>
-          (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection
-      );
+      if (sortByDate !== "none") {
+        const sortDirection = sortByDate === "oldest" ? 1 : -1;
+        const timestamp = (date: string | undefined): number => {
+          if (!date) return 0;
+          const parsed = Date.parse(date);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        unranked.sort(
+          (a, b) =>
+            (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection
+        );
+      }
       const total = unranked.length;
       const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
       const start = (page - 1) * pageSize;
@@ -215,18 +217,22 @@ export class MatchService {
     }
 
     const queryTerms = filters?.q?.map((term) => term.toLowerCase()) ?? [];
-    const sortDirection = sortByDate === "oldest" ? 1 : -1;
     const timestamp = (date: string | undefined): number => {
       if (!date) return 0;
       const parsed = Date.parse(date);
       return Number.isFinite(parsed) ? parsed : 0;
     };
     ranked.sort((a, b) => {
-      const dateDelta = (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection;
-      if (dateDelta !== 0) return dateDelta;
+      if (sortByDate !== "none") {
+        const sortDirection = sortByDate === "oldest" ? 1 : -1;
+        const dateDelta = (timestamp(a.postedAt ?? a.createdAt) - timestamp(b.postedAt ?? b.createdAt)) * sortDirection;
+        if (dateDelta !== 0) return dateDelta;
+      }
       const keywordDelta = keywordHitCount(b, queryTerms) - keywordHitCount(a, queryTerms);
       if (keywordDelta !== 0) return keywordDelta;
-      return b.score - a.score;
+      const scoreDelta = b.score - a.score;
+      if (scoreDelta !== 0) return scoreDelta;
+      return timestamp(b.postedAt ?? b.createdAt) - timestamp(a.postedAt ?? a.createdAt);
     });
     const total = ranked.length;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);

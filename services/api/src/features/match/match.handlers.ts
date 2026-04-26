@@ -119,10 +119,10 @@ export function createMatchHandlers(service: MatchService): {
     }
 
     const sortByDateRaw = params.get("sortByDate")?.trim().toLowerCase();
-    let sortByDate: "newest" | "oldest" | undefined;
+    let sortByDate: "none" | "newest" | "oldest" | undefined;
     if (sortByDateRaw) {
-      if (sortByDateRaw !== "newest" && sortByDateRaw !== "oldest") {
-        invalidFilters(response, "sortByDate must be either newest or oldest");
+      if (sortByDateRaw !== "none" && sortByDateRaw !== "newest" && sortByDateRaw !== "oldest") {
+        invalidFilters(response, "sortByDate must be one of: none, newest, oldest");
         return;
       }
       sortByDate = sortByDateRaw;

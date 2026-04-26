@@ -449,3 +449,40 @@ test("match service composes filters with seniority, date sort and pagination", 
   assert.equal(oldestFirst.data.items[0]?.title, "Junior React Developer");
   assert.equal(oldestFirst.data.items[1]?.title, "React Developer");
 });
+
+test("match service defaults sortByDate to none (affinity-first)", async () => {
+  const store = new InMemoryStateStore();
+  const ingestion = new IngestionService(store);
+  const match = new MatchService(store);
+  const profile = await store.createResumeProfile({
+    headline: "Node React Engineer",
+    skills: ["react", "node.js", "typescript"]
+  });
+
+  const olderHighAffinity = await ingestion.ingest({
+    title: "React Node Developer",
+    companyName: "A",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/sort-none-a",
+    description: "react node typescript",
+    postedAt: "2026-04-20T12:00:00.000Z"
+  });
+  assert.equal(olderHighAffinity.ok, true);
+
+  const newerLowAffinity = await ingestion.ingest({
+    title: "Frontend Developer",
+    companyName: "B",
+    sourceName: "LinkedIn",
+    sourceUrl: "https://linkedin.test/job/sort-none-b",
+    description: "html css",
+    postedAt: "2026-04-22T12:00:00.000Z"
+  });
+  assert.equal(newerLowAffinity.ok, true);
+
+  const ranked = await match.listRanked(profile.id);
+  assert.equal(ranked.ok, true);
+  if (!ranked.ok) throw new Error("expected ranked list");
+
+  assert.equal(ranked.data.sortByDate, "none");
+  assert.equal(ranked.data.items[0]?.title, "React Node Developer");
+});

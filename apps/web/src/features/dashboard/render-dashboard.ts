@@ -120,10 +120,19 @@ function buildFilterOptions(data: DashboardData): FilterOptions {
   const rankedJobs = data.rankedJobs.ok ? data.rankedJobs.data.items : [];
 
   const manualTags = jobs.flatMap((job) => job.tags);
+  const rankedTags = rankedJobs.flatMap((job) => job.tags);
   const skillTags = rankedJobs.flatMap((job) => job.matchedSkills);
 
   return {
-    tags: uniqueSorted([...manualTags, ...skillTags]),
+    tags: uniqueSorted([
+      ...manualTags,
+      ...rankedTags,
+      ...skillTags,
+      "seniority:junior",
+      "seniority:mid",
+      "seniority:senior",
+      "seniority:lead"
+    ]),
     locations: uniqueSorted(jobs.map((job) => job.location ?? "").filter(Boolean)),
     sources: uniqueSorted(jobs.map((job) => job.sourceName)),
     statuses: ["new", "applied", "discarded"],
@@ -370,7 +379,7 @@ export function renderDashboardPage(data: DashboardData): string {
     <label><span class="label-row">Status ${renderInfoIcon("Estado manual da vaga; multi-selecao aplica OR")}</span><select name="status" multiple size="3">${renderOptions(filterOptions.statuses)}</select></label>
     <label><span class="label-row">Senioridade ${renderInfoIcon("Classificação inferida de título/descrição/tags; sem indicação explícita vira mid/pleno")}</span><select name="seniority" multiple size="3">${renderOptions(filterOptions.seniorities)}</select></label>
     <label><span class="label-row">Score mínimo ${renderInfoIcon("Percentual mínimo de afinidade")}</span><select name="minScore"><option value="0">Qualquer</option><option value="30">30+</option><option value="60">60+</option><option value="90">90+</option></select></label>
-    <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><div class="sort-toggle-row"><button id="sort-toggle-btn" class="btn-secondary sort-toggle-btn" type="button">Mais novo primeiro ↓</button><input type="hidden" name="sortByDate" value="newest" /></div></label>
+    <label><span class="label-row">Data da vaga ${renderInfoIcon("Ordenação por data de publicação (fallback: data de ingestão)")}</span><div class="sort-toggle-row"><button id="sort-toggle-btn" class="btn-secondary sort-toggle-btn" type="button">Afinidade (padrão)</button><input type="hidden" name="sortByDate" value="none" /></div></label>
     <label><span class="label-row">Itens por página ${renderInfoIcon("Paginação da API (todos os filtros combinados)")}</span><select name="pageSize"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
     <input type="hidden" name="page" value="1" />
     <div class="actions-row filter-actions"><button type="submit" class="btn-primary">Filtrar</button><a class="btn-secondary" href="/">Limpar</a><span class="field-hint">Todos os filtros combinam entre si; paginação e ordenação vão pela URL.</span></div>
@@ -616,7 +625,8 @@ export function renderDashboardPage(data: DashboardData): string {
       }
       const sortInput = document.querySelector('[name="sortByDate"]');
       if (sortInput instanceof HTMLInputElement) {
-        sortInput.value = params.get("sortByDate") === "oldest" ? "oldest" : "newest";
+        const sortByDate = params.get("sortByDate");
+        sortInput.value = sortByDate === "newest" || sortByDate === "oldest" ? sortByDate : "none";
       }
       syncSortToggleButton();
 
@@ -768,9 +778,15 @@ export function renderDashboardPage(data: DashboardData): string {
       const sortInput = document.querySelector('[name="sortByDate"]');
       const sortBtn = document.getElementById("sort-toggle-btn");
       if (!(sortInput instanceof HTMLInputElement) || !(sortBtn instanceof HTMLButtonElement)) return;
-      const isNewest = sortInput.value !== "oldest";
-      sortBtn.textContent = isNewest ? "Mais novo primeiro ↓" : "Mais antigo primeiro ↑";
-      sortBtn.setAttribute("aria-pressed", isNewest ? "false" : "true");
+      const value = sortInput.value;
+      if (value === "newest") {
+        sortBtn.textContent = "Mais novo primeiro ↓";
+      } else if (value === "oldest") {
+        sortBtn.textContent = "Mais antigo primeiro ↑";
+      } else {
+        sortBtn.textContent = "Afinidade (padrão)";
+      }
+      sortBtn.setAttribute("aria-pressed", value === "none" ? "false" : "true");
     }
 
     function setupSortToggle() {
@@ -781,7 +797,9 @@ export function renderDashboardPage(data: DashboardData): string {
         return;
       }
       sortBtn.addEventListener("click", () => {
-        sortInput.value = sortInput.value === "oldest" ? "newest" : "oldest";
+        if (sortInput.value === "none") sortInput.value = "newest";
+        else if (sortInput.value === "newest") sortInput.value = "oldest";
+        else sortInput.value = "none";
         const pageInput = filterForm.querySelector('input[name="page"]');
         if (pageInput instanceof HTMLInputElement) pageInput.value = "1";
         syncSortToggleButton();
@@ -810,6 +828,7 @@ export function renderDashboardPage(data: DashboardData): string {
       const sortByDate = params.get("sortByDate");
       if (sortByDate === "oldest") chips.push("Ordem: mais antigo");
       if (sortByDate === "newest") chips.push("Ordem: mais novo");
+      if (!sortByDate || sortByDate === "none") chips.push("Ordem: afinidade");
 
       container.textContent = "";
       if (chips.length === 0) {
