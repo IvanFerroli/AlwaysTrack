@@ -1,7 +1,7 @@
 # TASK-SCR-010 - Ampliar fontes de plataforma com fallback operacional
 
 ## Metadata
-- status: pending
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-010-ampliar-fontes-plataforma-com-fallback.md

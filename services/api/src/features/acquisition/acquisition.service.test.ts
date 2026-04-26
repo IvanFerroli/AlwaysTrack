@@ -191,6 +191,77 @@ describe("JobAcquisitionService.acquire — browser-capture", () => {
   });
 });
 
+describe("JobAcquisitionService.acquire — url-import platform adapters", () => {
+  it("extracts Indeed job page with canonical sourceName", async () => {
+    const service = makeService();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+      const url = String(input);
+      if (!url.includes("indeed.com")) throw new Error(`unexpected URL in test: ${url}`);
+      return new Response(
+        `
+          <html><body>
+            <h1 class="jobsearch-JobInfoHeader-title">Backend Developer</h1>
+            <div class="jobsearch-CompanyInfoContainer"><a href="#">Indeed Inc</a></div>
+            <div class="jobsearch-JobInfoHeader-subtitle"><div>Austin, TX</div></div>
+            <div id="jobDescriptionText">Build backend services.</div>
+          </body></html>
+        `,
+        { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }
+      );
+    };
+
+    try {
+      const result = await service.acquire({
+        method: "url-import",
+        sourceUrl: "https://www.indeed.com/viewjob?jk=123"
+      });
+      assert.equal(result.ok, true);
+      if (result.ok) {
+        assert.equal(result.data.input.sourceName, "Indeed");
+        assert.equal(result.data.evidence.sourceName, "Indeed");
+        assert.equal(result.data.evidence.parser, "indeed-ats-adapter");
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("extracts Solides job page with canonical sourceName", async () => {
+    const service = makeService();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+      const url = String(input);
+      if (!url.includes("solides.jobs")) throw new Error(`unexpected URL in test: ${url}`);
+      return new Response(
+        `
+          <html><body>
+            <h2 class="vacancy-title">Desenvolvedor Backend</h2>
+            <span class="vacancy-location">Belo Horizonte, MG</span>
+            <div class="vacancy-description">Vaga para atuar em squad ágil.</div>
+          </body></html>
+        `,
+        { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }
+      );
+    };
+
+    try {
+      const result = await service.acquire({
+        method: "url-import",
+        sourceUrl: "https://empresa.solides.jobs/vacancies/999"
+      });
+      assert.equal(result.ok, true);
+      if (result.ok) {
+        assert.equal(result.data.input.sourceName, "Solides");
+        assert.equal(result.data.evidence.sourceName, "Solides");
+        assert.equal(result.data.evidence.parser, "solides-ats-adapter");
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
 describe("JobAcquisitionService.acquire — deduplication", () => {
   it("deduplicates when same job is acquired twice", async () => {
     const service = makeService();

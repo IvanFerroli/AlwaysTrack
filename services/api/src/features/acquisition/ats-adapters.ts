@@ -111,14 +111,14 @@ export function extractSolidesJob(
     input: {
       title: title.slice(0, 240),
       companyName: companyName.slice(0, 200),
-      sourceName: "Sólides",
+      sourceName: "Solides",
       sourceUrl: url.toString(),
       location: location.slice(0, 200),
       description: description.slice(0, 10_000)
     },
     evidence: {
       method,
-      sourceName: "Sólides",
+      sourceName: "Solides",
       sourceUrl: url.toString(),
       parser: "solides-ats-adapter",
       confidence: "high",

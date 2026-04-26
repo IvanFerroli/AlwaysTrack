@@ -91,6 +91,7 @@
 - TASK-SCR-007 (completed-with-remarks)
 - TASK-SCR-008 (completed-with-remarks)
 - TASK-SCR-009 (completed-with-remarks)
+- TASK-SCR-010 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
 - TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
@@ -104,9 +105,8 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional
-2. TASK-PRD-008 - filtros reativos e performance
-3. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+1. TASK-PRD-008 - filtros reativos e performance
+2. TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -135,8 +135,7 @@
 - Servidores locais fazem bind em `127.0.0.1` por padrao.
 - `npm run check` e gate minimo para declarar ciclo saudavel.
 - CryptoJobsList esta fora de `source=all` porque o endpoint JSON usado historicamente nao esta operacional; reativar exige task propria com evidencia.
-- LinkedIn e Gupy estao em `source=all` como platform sources operacionais; vagas persistem no Postgres com `sourceName`.
-- Indeed e Glassdoor permanecem nomeados, mas indisponiveis no runner automatico porque retornam security check sem feed publico estavel neste ambiente.
+- Matriz operacional do scraper: `auto` (Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy), `fallback` (Solides, Indeed, Glassdoor via acquisition), `blocked` (CryptoJobsList).
 - Dashboard prioriza quick actions e vagas por afinidade acima de rotas/overview; secoes sao colapsaveis para reduzir ruido.
 - Filtros do dashboard sao multi-select (toggle por clique simples) derivados do batch atual; tags/local/fonte/status aplicam OR.
 - Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
@@ -145,6 +144,7 @@
 - TASK-SCR-008 consolidou sanidade pos-scraper com prioridade de keyword no ranking (`q`) e auto-discard consistente tambem para casos deduplicados ainda em `new`.
 - TASK-MCH-002 consolidou afinidade v2 com score ponderado explicito, penalidade controlada por mismatch de senioridade e `scoreBreakdown` opcional para debug operacional.
 - TASK-MCH-003 adicionou leitura estruturada de vaga por LLM com fallback local, persistencia anexa em `MemoryEntry` e sinal opcional no ranking (`includeLlmEnrichment`).
+- TASK-SCR-010 consolidou matriz explicita de fontes no scraper (`auto|fallback|blocked`) com report de modo efetivo por fonte e nomes canônicos de plataforma na acquisition.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -165,7 +165,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-SCR-010 - ampliar fontes de plataforma com fallback operacional usando base de observabilidade consolidada no SCR-009
+- TASK-PRD-008 - filtros reativos e performance
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

@@ -1,5 +1,6 @@
 import { computeSkillOverlap } from "../../domain/matching/scoring.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
+import { JobAcquisitionService } from "../acquisition/acquisition.service.js";
 import { fetchJobItems } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
 import type { ScraperRunResult, ScraperSourceConfig, SourceFailureType, SourceRunResult } from "./scraper.types.js";
@@ -65,56 +66,73 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
   remotive: {
     name: "Remotive",
     url: "https://remotive.com/api/remote-jobs?limit=250",
-    format: "remotive-json"
+    format: "remotive-json",
+    mode: "auto"
   },
   arbeitnow: {
     name: "Arbeitnow",
     url: "https://www.arbeitnow.com/api/job-board-api",
-    format: "arbeitnow-json"
+    format: "arbeitnow-json",
+    mode: "auto"
   },
   remoteok: {
     name: "RemoteOK",
     url: "https://remoteok.com/api",
-    format: "remoteok-json"
+    format: "remoteok-json",
+    mode: "auto"
   },
   jobicy: {
     name: "Jobicy",
     url: "https://jobicy.com/api/v2/remote-jobs?count=50",
-    format: "jobicy-json"
+    format: "jobicy-json",
+    mode: "auto"
   },
   himalayas: {
     name: "Himalayas",
     url: "https://himalayas.app/jobs/api?limit=150",
-    format: "himalayas-json"
+    format: "himalayas-json",
+    mode: "auto"
   },
   linkedin: {
     name: "LinkedIn",
     url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=software&location=Brazil&start=0",
-    format: "linkedin-guest-html"
+    format: "linkedin-guest-html",
+    mode: "auto"
   },
   gupy: {
     name: "Gupy",
     url: "https://portal.api.gupy.io/api/job?name=software&offset=0&limit=50",
-    format: "gupy-public-json"
+    format: "gupy-public-json",
+    mode: "auto"
+  },
+  solides: {
+    name: "Solides",
+    url: "https://solides.jobs",
+    format: "unavailable-platform",
+    mode: "fallback",
+    fallbackMethod: "url-import"
   },
   indeed: {
     name: "Indeed",
     url: "https://www.indeed.com/rss?q=software&l=remote",
     format: "unavailable-platform",
-    enabledByDefault: false,
-    unavailableReason: "Indeed currently returns a security-check page instead of a stable public feed in this environment"
+    mode: "fallback",
+    fallbackMethod: "url-import",
+    unavailableReason: "Indeed auto-feed is unstable in this environment; use acquisition fallback"
   },
   glassdoor: {
     name: "Glassdoor",
     url: "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software",
     format: "unavailable-platform",
-    enabledByDefault: false,
-    unavailableReason: "Glassdoor currently returns a security-check page instead of a stable public feed in this environment"
+    mode: "fallback",
+    fallbackMethod: "url-import",
+    unavailableReason: "Glassdoor auto-feed is unstable in this environment; use acquisition fallback"
   },
   cryptojobslist: {
     name: "CryptoJobsList",
     url: "https://cryptojobslist.com/api/jobs",
     format: "cryptojobslist-json",
+    mode: "blocked",
     enabledByDefault: false,
     unavailableReason: "JSON endpoint currently returns Cloudflare/404; RSS integration needs a dedicated parser task"
   }
@@ -277,6 +295,64 @@ function classifyFailure(error: unknown): SourceFailureType {
   return "unknown";
 }
 
+function resolveSourceMode(source: ScraperSourceConfig): "auto" | "fallback" | "blocked" {
+  if (source.mode) return source.mode;
+  if (source.format === "unavailable-platform") return "fallback";
+  return "auto";
+}
+
+async function runFallbackSource(
+  ingestionService: IngestionService,
+  source: ScraperSourceConfig,
+  keywordPlan: KeywordPlan
+): Promise<SourceRunResult> {
+  const startedAt = Date.now();
+  const fallbackMethod = source.fallbackMethod ?? "url-import";
+  const acquisition = new JobAcquisitionService(ingestionService);
+
+  const payload = await acquisition.acquire({
+    method: fallbackMethod,
+    sourceUrl: source.url,
+    sourceName: source.name,
+    rawText: keywordPlan.effective
+      ? `Keyword context: ${keywordPlan.effective}`
+      : undefined
+  });
+
+  if (!payload.ok) {
+    return {
+      name: source.name,
+      mode: "fallback",
+      fallbackMethod,
+      latencyMs: Date.now() - startedAt,
+      fetched: 0,
+      parsed: 0,
+      ingested: 0,
+      deduplicated: 0,
+      discarded: 0,
+      failureType: classifyFailure(payload.error.message),
+      keywordEffective: keywordPlan.effective,
+      note: source.unavailableReason ?? "Auto mode unavailable; fallback via acquisition attempted",
+      errors: [payload.error.message]
+    };
+  }
+
+  return {
+    name: source.name,
+    mode: "fallback",
+    fallbackMethod,
+    latencyMs: Date.now() - startedAt,
+    fetched: 1,
+    parsed: 1,
+    ingested: payload.data.ingestion.deduplicated ? 0 : 1,
+    deduplicated: payload.data.ingestion.deduplicated ? 1 : 0,
+    discarded: 0,
+    keywordEffective: keywordPlan.effective,
+    note: "Auto mode unavailable; ingested via acquisition fallback",
+    errors: []
+  };
+}
+
 export function applyKeywordToSource(
   source: ScraperSourceConfig,
   keyword?: string
@@ -309,8 +385,29 @@ async function runSingleSource(
 ): Promise<SourceRunResult> {
   const startedAt = Date.now();
   const autoDiscardEnabled = options?.autoDiscard ?? true;
+  const mode = resolveSourceMode(source);
 
   try {
+    if (mode === "blocked") {
+      return {
+        name: source.name,
+        mode: "blocked",
+        latencyMs: Date.now() - startedAt,
+        fetched: 0,
+        parsed: 0,
+        ingested: 0,
+        deduplicated: 0,
+        discarded: 0,
+        keywordEffective: keywordPlan.effective,
+        note: source.unavailableReason ?? "Source blocked in current environment",
+        errors: []
+      };
+    }
+
+    if (mode === "fallback") {
+      return await runFallbackSource(ingestionService, source, keywordPlan);
+    }
+
     const rawItems = await fetchJobItems(source, sourceTimeoutMs);
     const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keywordPlan.effective);
     const defaultProfile = await ingestionService.getDefaultResumeProfile();
@@ -369,6 +466,7 @@ async function runSingleSource(
 
     return {
       name: source.name,
+      mode: "auto",
       latencyMs: Date.now() - startedAt,
       fetched: rawItems.length,
       parsed: parsedItems.length,
@@ -382,6 +480,7 @@ async function runSingleSource(
     const message = error instanceof Error ? error.message : String(error);
     return {
       name: source.name,
+      mode,
       latencyMs: Date.now() - startedAt,
       fetched: 0,
       parsed: 0,
@@ -483,12 +582,6 @@ export async function runScraper(
     throw new ScraperInputError(
       "UNKNOWN_SCRAPER_SOURCE",
       `[scraper.runner] unknown source key: "${sourceKey}". Available: all, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
-    );
-  }
-  if (source.enabledByDefault === false) {
-    throw new ScraperInputError(
-      "UNAVAILABLE_SCRAPER_SOURCE",
-      `[scraper.runner] source "${sourceKey}" is currently unavailable: ${source.unavailableReason ?? "no operational endpoint"}`
     );
   }
 

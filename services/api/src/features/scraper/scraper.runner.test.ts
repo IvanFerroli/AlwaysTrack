@@ -30,7 +30,7 @@ test("scraper keyword injection preserves valid URLs per supported source", () =
   assert.equal(new URL(gupy.url).searchParams.get("name"), "backend");
 });
 
-test("scraper rejects unknown and unavailable sources as input errors", async () => {
+test("scraper rejects unknown sources as input errors and reports blocked mode", async () => {
   const ingestion = new IngestionService(new InMemoryStateStore());
 
   await assert.rejects(
@@ -38,15 +38,10 @@ test("scraper rejects unknown and unavailable sources as input errors", async ()
     (err) => err instanceof ScraperInputError && err.code === "UNKNOWN_SCRAPER_SOURCE"
   );
 
-  await assert.rejects(
-    () => runScraper(ingestion, "cryptojobslist"),
-    (err) => err instanceof ScraperInputError && err.code === "UNAVAILABLE_SCRAPER_SOURCE"
-  );
-
-  await assert.rejects(
-    () => runScraper(ingestion, "indeed"),
-    (err) => err instanceof ScraperInputError && err.code === "UNAVAILABLE_SCRAPER_SOURCE"
-  );
+  const blocked = await runScraper(ingestion, "cryptojobslist");
+  assert.equal(blocked.sourceReports?.[0]?.mode, "blocked");
+  assert.equal(blocked.ingested, 0);
+  assert.equal(blocked.errors.length, 0);
 });
 
 test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
@@ -182,6 +177,63 @@ test("runScraper returns autoDiscarded and keywordEffective", async () => {
     assert.equal(result.ingested, 1);
     assert.equal(result.autoDiscarded, 1);
     assert.equal(result.errors.length, 0);
+    assert.equal(result.sourceReports?.[0]?.mode, "auto");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper reports fallback mode for unavailable platforms", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("indeed.com")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () =>
+          `<html><body>
+             <h1 class="jobsearch-JobInfoHeader-title">Backend Developer</h1>
+             <div class="jobsearch-CompanyInfoContainer"><a href="#">Indeed Inc</a></div>
+             <div class="jobsearch-JobInfoHeader-subtitle"><div>Remote</div></div>
+             <div id="jobDescriptionText">Build backend services with node and typescript.</div>
+           </body></html>`
+      } as Response;
+    }
+
+    if (url.includes("solides.jobs")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+        text: async () =>
+          `<html><body>
+             <h2 class="vacancy-title">Desenvolvedor Backend</h2>
+             <span class="vacancy-location">Remote</span>
+             <div class="vacancy-description">Stack node js e typescript.</div>
+           </body></html>`
+      } as Response;
+    }
+
+    throw new Error(`unexpected URL in test: ${url}`);
+  };
+
+  try {
+    const indeedIngestion = new IngestionService(new InMemoryStateStore());
+    const indeedResult = await runScraper(indeedIngestion, "indeed", "node");
+    assert.equal(indeedResult.sourceReports?.[0]?.mode, "fallback");
+    assert.equal(indeedResult.sourceReports?.[0]?.fallbackMethod, "url-import");
+    assert.ok(indeedResult.errors.length >= 1);
+
+    const solidesIngestion = new IngestionService(new InMemoryStateStore());
+    const solidesResult = await runScraper(solidesIngestion, "solides", "typescript");
+    assert.equal(solidesResult.sourceReports?.[0]?.mode, "fallback");
+    assert.equal(solidesResult.sourceReports?.[0]?.fallbackMethod, "url-import");
+    assert.ok(solidesResult.errors.length >= 1);
+    assert.equal(solidesResult.sourceReports?.[0]?.name, "Solides");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -334,9 +386,12 @@ test("runScraper(all) limits concurrency and reports partial failures with timeo
     assert.equal(remotiveReport?.fetched, 1);
     assert.equal(remotiveReport?.parsed, 1);
     assert.equal(remotiveReport?.ingested, 1);
+    assert.equal(remotiveReport?.mode, "auto");
     assert.equal(remotiveReport?.failureType, undefined);
 
+    assert.equal(arbeitnowReport?.mode, "auto");
     assert.equal(arbeitnowReport?.failureType, "http");
+    assert.equal(remoteOkReport?.mode, "auto");
     assert.equal(remoteOkReport?.failureType, "timeout");
     assert.ok((result.errors ?? []).length >= 2);
   } finally {

@@ -122,9 +122,9 @@ function inferSourceName(method: JobAcquisitionMethod, url?: URL, explicit?: str
   if (!url) return method;
   if (hostMatches(url.hostname, "gupy.io")) return "Gupy";
   if (hostMatches(url.hostname, "solides.jobs") || hostMatches(url.hostname, "solides.com")) return "Solides";
-  if (hostMatches(url.hostname, "linkedin.com")) return "LinkedIn assisted capture";
-  if (hostMatches(url.hostname, "indeed.com")) return "Indeed assisted capture";
-  if (hostMatches(url.hostname, "glassdoor.com")) return "Glassdoor assisted capture";
+  if (hostMatches(url.hostname, "linkedin.com")) return "LinkedIn";
+  if (hostMatches(url.hostname, "indeed.com")) return "Indeed";
+  if (hostMatches(url.hostname, "glassdoor.com")) return "Glassdoor";
   return url.hostname.replace(/^www\./, "").slice(0, 80);
 }
 

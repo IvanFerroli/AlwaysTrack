@@ -17,6 +17,10 @@ export interface ScraperSourceConfig {
   url: string;
   /** Tipo do payload retornado */
   format: ScraperSourceFormat;
+  /** Modo operacional da fonte no runtime atual. */
+  mode?: SourceMode;
+  /** Método de fallback recomendado quando `mode=fallback`. */
+  fallbackMethod?: "url-import" | "browser-capture";
   /** Quando false, fica fora do `source=all` sem remover o naming da fonte. */
   enabledByDefault?: boolean;
   /** Motivo operacional para fonte mantida, mas indisponivel. */
@@ -27,16 +31,20 @@ export interface ScraperSourceConfig {
 export type RawJobItem = Record<string, unknown>;
 
 export type SourceFailureType = "timeout" | "http" | "parse" | "security-check" | "unknown";
+export type SourceMode = "auto" | "fallback" | "blocked";
 
 /** Resultado de uma fonte individual */
 export interface SourceRunResult {
   name: string;
+  mode: SourceMode;
   latencyMs: number;
   fetched: number;
   parsed: number;
   ingested: number;
   deduplicated: number;
   discarded: number;
+  fallbackMethod?: "url-import" | "browser-capture";
+  note?: string;
   failureType?: SourceFailureType;
   keywordEffective?: string;
   errors: string[];

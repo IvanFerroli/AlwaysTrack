@@ -51,9 +51,10 @@
 - `GET /v1/main-cv/sources`: lista arquivos `.txt` em `doc/`.
 - `POST /v1/main-cv/analyze`: analisa CV e cria profile.
 - `POST /v1/scraper/run`: roda scraper com `source` e `keyword` opcionais.
-  - Fontes padrao em `source=all`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn e Gupy.
-  - Fontes nomeadas, mas indisponiveis no runner automatico atual: Indeed e Glassdoor, por retornarem security check sem feed publico estavel neste ambiente.
-  - CryptoJobsList permanece nomeada no codigo, mas fora de `source=all` ate existir parser/feed operacional confiavel.
+  - Matriz operacional de fontes:
+    - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy
+    - `fallback`: Solides, Indeed, Glassdoor (via acquisition `url-import`)
+    - `blocked`: CryptoJobsList (fora de `source=all` ate parser/feed operacional confiavel)
 - `POST /v1/match/score`: score local por skills encontradas, aliases tecnicos e boosts quando skills/headline aparecem no titulo.
 - `POST /v1/jobs/acquire`: acquisition multimodal com smart-paste, url-import, ats-adapter, browser-capture, email-alert e provider-json.
 - `POST /v1/match/deep-score`: score LLM com Gemini quando `GEMINI_API_KEY` existe.
@@ -73,8 +74,8 @@
 - Ingestao manual de vagas com dedupe e auditoria.
 - Acquisition multimodal de vagas via paste, URL, adapters ATS, browser capture, email alert e provider JSON.
 - ATS adapters especificos para Gupy, Solides, LinkedIn, Indeed, Glassdoor, Infojobs, Catho e Trabalha Brasil, com matching de host por dominio exato/subdominio.
-- Scraper multi-fonte com tolerancia parcial por fonte e keyword apenas em fontes com query validada.
-- Platform scraper para LinkedIn public guest search e Gupy public portal, persistindo origem em `sourceName`.
+- Scraper multi-fonte com tolerancia parcial por fonte, matriz operacional (`auto|fallback|blocked`) e keyword apenas em fontes com query validada.
+- Platform scraper para LinkedIn public guest search e Gupy public portal em `auto`, com plataformas sem feed estavel tratadas em `fallback` sem claim de automacao ficticia.
 - Keyword do scraper tambem aplica pos-filtro local antes de persistir; termos de senioridade como `junior` precisam aparecer no titulo.
 - Strip HTML em descricoes de feeds.
 - Ranking por afinidade local com filtros multi-select derivados das vagas carregadas: tags/skills, local, fonte, status e score minimo.
@@ -103,4 +104,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-SCR-007` (keyword robusta + auto-discard + dedupe observavel) com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-SCR-010` (matriz operacional por fonte com fallback honesto) com detalhes em `docs/tasks/`.
