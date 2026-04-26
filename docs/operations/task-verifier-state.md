@@ -35,6 +35,8 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-SCR-010 (TASK-SCR-010)
 - VER-PRD-008 (TASK-PRD-008)
 - VER-RTM-002 (TASK-RTM-002)
+- VER-RTM-003 (TASK-RTM-003)
+- VER-QLT-003 (TASK-QLT-003)
 - VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
@@ -56,7 +58,9 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-SCR-010 - TASK-SCR-010 (matriz auto/fallback/blocked e report por fonte entregues; ressalva de oscilacao externa em fontes fallback)
 - VER-PRD-008 - TASK-PRD-008 (auto-apply com debounce + contagem de filtros + otimização de dropdown; ressalva de benchmark formal >=200 ainda pendente)
 - VER-RTM-002 - TASK-RTM-002 (endpoint unificado + shortlist explicada + observabilidade persistida; ressalva de budget/idempotência avançada pendentes)
+- VER-RTM-003 - TASK-RTM-003 (guardrails de budget/duração/volume aplicados no pipeline; ressalva de custo estimado ainda heurístico)
 - VER-UX-002 - TASK-UX-002 (ux entregue; ressalva de hardening posterior em sanitizacao/acessibilidade)
+- VER-QLT-003 - TASK-QLT-003 (smoke web/API automatizado com harness e runbook; ressalva de dependencia de ambiente DB/Prisma local)
 
 ## Verificações reprovadas
 - nenhuma
@@ -90,3 +94,5 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - ultimo parecer: TASK-SCR-010 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-PRD-008 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-RTM-002 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-RTM-003 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-QLT-003 classificada como aprovado com ressalvas

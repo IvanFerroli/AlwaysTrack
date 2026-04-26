@@ -8,6 +8,7 @@
     "lint": "eslint \"{apps,services,packages}/**/*.ts\"",
     "test": "npm run -ws --if-present test",
     "check": "npm run lint && npm run typecheck && npm run test",
+    "smoke": "node scripts/smoke-web-api.js",
     "dev:api": "tsx --env-file=.env services/api/src/main.ts",
     "dev:web": "tsx --env-file=.env apps/web/src/main.ts",
     "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",

@@ -34,10 +34,32 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 1. Encerrar processos antigos se necessario: `fuser -k 3000/tcp 3001/tcp 2>/dev/null`.
 2. Sincronizar Prisma quando o schema mudar: `npx prisma db push --schema=services/api/prisma/schema.prisma`.
 3. Rodar gates: `npm run check`.
-4. Subir runtime rapido: `npm run dev`.
-5. Ou subir ciclo completo com infraestrutura/Studio: `npm run up`.
-6. Abrir `http://localhost:3000/`.
-7. Conferir `http://localhost:3001/health` e `http://localhost:3001/v1/metrics`.
+4. Rodar smoke web/API automatizado: `npm run smoke`.
+5. Subir runtime rapido: `npm run dev`.
+6. Ou subir ciclo completo com infraestrutura/Studio: `npm run up`.
+7. Abrir `http://localhost:3000/`.
+8. Conferir `http://localhost:3001/health` e `http://localhost:3001/v1/metrics`.
+
+## Smoke web/API (`npm run smoke`)
+- Objetivo: validar baseline de rotas criticas sem depender de navegacao manual.
+- Cobertura minima atual:
+  - `GET web /`
+  - `GET api /health`
+  - `GET web /health`
+  - `GET api /v1/jobs/ranked`
+  - `POST api /v1/pipeline/run` (payload minimo operacional)
+- Comportamento:
+  - sobe API/Web em portas isoladas (`3101` e `3100` por padrao);
+  - aguarda health dos dois servicos;
+  - executa asserts de status + payload minimo;
+  - encerra os processos automaticamente ao final.
+- Pre-condicoes:
+  - `DATABASE_URL` valido;
+  - schema Prisma sincronizado para evitar falhas de tabela ausente.
+- Troubleshooting rapido:
+  - timeout de boot: aumente `SMOKE_START_TIMEOUT_MS` (ex.: `SMOKE_START_TIMEOUT_MS=45000 npm run smoke`);
+  - conflito de portas do smoke: ajuste `SMOKE_API_PORT` e `SMOKE_WEB_PORT`;
+  - falha de banco: rode `npx prisma db push --schema=services/api/prisma/schema.prisma` e repita.
 
 ## Observacoes de runtime
 - O estado principal usa Prisma/Postgres via `DATABASE_URL`.

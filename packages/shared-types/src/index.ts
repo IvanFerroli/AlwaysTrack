@@ -328,6 +328,10 @@ export interface PipelineRunInput {
   resumeProfileId?: string;
   shortlistSize?: number;
   minScore?: number;
+  maxLlmJobs?: number;
+  maxDurationMs?: number;
+  maxSources?: number;
+  maxEstimatedCostUsd?: number;
 }
 
 export interface PipelineSourceReport {
@@ -373,6 +377,16 @@ export interface PipelineRunResult {
   shortlist: PipelineShortlistItem[];
   llm: {
     enabled: boolean;
+    requested: boolean;
+    maxJobs: number;
+    estimatedJobs: number;
     estimatedCostUsd: number;
+  };
+  budget: {
+    maxLlmJobs: number;
+    maxDurationMs: number;
+    maxSources: number;
+    maxEstimatedCostUsd: number;
+    cutsApplied: string[];
   };
 }

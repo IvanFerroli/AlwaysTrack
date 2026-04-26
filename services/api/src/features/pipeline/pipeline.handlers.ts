@@ -19,6 +19,11 @@ function parseInput(payload: unknown): PipelineRunInput | undefined {
   const resumeProfileId = typeof payload["resumeProfileId"] === "string" ? payload["resumeProfileId"] : undefined;
   const shortlistSize = typeof payload["shortlistSize"] === "number" ? payload["shortlistSize"] : undefined;
   const minScore = typeof payload["minScore"] === "number" ? payload["minScore"] : undefined;
+  const maxLlmJobs = typeof payload["maxLlmJobs"] === "number" ? payload["maxLlmJobs"] : undefined;
+  const maxDurationMs = typeof payload["maxDurationMs"] === "number" ? payload["maxDurationMs"] : undefined;
+  const maxSources = typeof payload["maxSources"] === "number" ? payload["maxSources"] : undefined;
+  const maxEstimatedCostUsd =
+    typeof payload["maxEstimatedCostUsd"] === "number" ? payload["maxEstimatedCostUsd"] : undefined;
 
   if (source !== undefined && source.trim().length === 0) return undefined;
   if (keyword !== undefined && keyword.trim().length === 0) return undefined;
@@ -29,6 +34,21 @@ function parseInput(payload: unknown): PipelineRunInput | undefined {
   if (minScore !== undefined && (!Number.isFinite(minScore) || minScore < 0 || minScore > 100)) {
     return undefined;
   }
+  if (maxLlmJobs !== undefined && (!Number.isFinite(maxLlmJobs) || maxLlmJobs < 0 || maxLlmJobs > 20)) {
+    return undefined;
+  }
+  if (maxDurationMs !== undefined && (!Number.isFinite(maxDurationMs) || maxDurationMs < 500 || maxDurationMs > 120_000)) {
+    return undefined;
+  }
+  if (maxSources !== undefined && (!Number.isFinite(maxSources) || maxSources < 1 || maxSources > 20)) {
+    return undefined;
+  }
+  if (
+    maxEstimatedCostUsd !== undefined &&
+    (!Number.isFinite(maxEstimatedCostUsd) || maxEstimatedCostUsd < 0 || maxEstimatedCostUsd > 5)
+  ) {
+    return undefined;
+  }
 
   return {
     source,
@@ -37,7 +57,11 @@ function parseInput(payload: unknown): PipelineRunInput | undefined {
     includeLlmEnrichment,
     resumeProfileId,
     shortlistSize,
-    minScore
+    minScore,
+    maxLlmJobs,
+    maxDurationMs,
+    maxSources,
+    maxEstimatedCostUsd
   };
 }
 

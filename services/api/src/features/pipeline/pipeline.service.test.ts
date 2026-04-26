@@ -57,6 +57,8 @@ describe("PipelineService.run", () => {
         assert.ok(result.data.ingested >= 1);
         assert.ok(result.data.shortlist.length >= 1);
         assert.equal(result.data.sourceReports[0]?.mode, "auto");
+        assert.equal(result.data.llm.requested, false);
+        assert.equal(result.data.budget.cutsApplied.length, 0);
       }
 
       const runs = await store.listAgentRuns();
@@ -95,6 +97,111 @@ describe("PipelineService.run", () => {
       }
     } finally {
       globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("applies maxSources guardrail when source=all", async () => {
+    const { pipelineService } = makeService();
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+      const url = String(input);
+      if (!url.includes("remotive.com")) {
+        throw new Error(`unexpected URL in test: ${url}`);
+      }
+
+      return new Response(
+        JSON.stringify({
+          jobs: [
+            {
+              title: "Backend Engineer",
+              company_name: "Acme",
+              url: "https://example.com/jobs/backend",
+              candidate_required_location: "Remote",
+              publication_date: "2026-04-26T00:00:00Z",
+              description: "Node.js TypeScript APIs"
+            }
+          ]
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    };
+
+    try {
+      const result = await pipelineService.run({
+        source: "all",
+        maxSources: 1,
+        includeLlmEnrichment: false
+      });
+
+      assert.equal(result.ok, true);
+      if (result.ok) {
+        assert.equal(result.data.status, "completed-with-warnings");
+        assert.equal(result.data.sourceReports.length, 1);
+        assert.ok(result.data.warnings.some((item) => item.includes("budget:maxSources")));
+        assert.ok(result.data.budget.cutsApplied.includes("max-sources"));
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("applies maxDuration and llm budget cuts without failing cycle", async () => {
+    const { pipelineService } = makeService();
+    const originalFetch = globalThis.fetch;
+    const originalGeminiKey = process.env["GEMINI_API_KEY"];
+    process.env["GEMINI_API_KEY"] = "fake-key-for-budget-test";
+
+    globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+      const url = String(input);
+      if (!url.includes("remotive.com")) {
+        throw new Error(`unexpected URL in test: ${url}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 650));
+      return new Response(
+        JSON.stringify({
+          jobs: [
+            {
+              title: "Backend Engineer",
+              company_name: "Acme",
+              url: "https://example.com/jobs/backend-duration",
+              candidate_required_location: "Remote",
+              publication_date: "2026-04-26T00:00:00Z",
+              description: "Node.js TypeScript APIs"
+            }
+          ]
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    };
+
+    try {
+      const result = await pipelineService.run({
+        source: "remotive",
+        includeLlmEnrichment: true,
+        maxLlmJobs: 3,
+        maxEstimatedCostUsd: 0,
+        maxDurationMs: 500
+      });
+
+      assert.equal(result.ok, true);
+      if (result.ok) {
+        assert.equal(result.data.status, "completed-with-warnings");
+        assert.equal(result.data.llm.enabled, false);
+        assert.equal(result.data.llm.requested, true);
+        assert.ok(result.data.budget.cutsApplied.includes("llm-disabled-budget-zero"));
+        assert.ok(
+          result.data.budget.cutsApplied.includes("max-duration-after-scrape") ||
+          result.data.durationMs > result.data.budget.maxDurationMs
+        );
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalGeminiKey === undefined) {
+        delete process.env["GEMINI_API_KEY"];
+      } else {
+        process.env["GEMINI_API_KEY"] = originalGeminiKey;
+      }
     }
   });
 });

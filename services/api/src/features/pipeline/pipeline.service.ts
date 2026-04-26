@@ -1,11 +1,32 @@
-import type { ApiResult, PipelineRunInput, PipelineRunResult, PipelineShortlistItem, RankedJobPosting } from "@olympus/shared-types";
+import type {
+  ApiResult,
+  PipelineRunInput,
+  PipelineRunResult,
+  PipelineShortlistItem,
+  PipelineSourceReport,
+  RankedJobPosting
+} from "@olympus/shared-types";
 import type { StateStore } from "../../domain/state/store.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
 import { MatchService } from "../match/match.service.js";
 import { SCRAPER_SOURCES, runScraper } from "../scraper/scraper.runner.js";
+import type { ScraperRunResult, ScraperSourceConfig } from "../scraper/scraper.types.js";
 
 const DEFAULT_SHORTLIST_SIZE = 10;
 const MAX_SHORTLIST_SIZE = 20;
+const ESTIMATED_LLM_JOB_COST_USD = 0.002;
+
+const DEFAULT_MAX_LLM_JOBS = 3;
+const DEFAULT_MAX_DURATION_MS = 20_000;
+const DEFAULT_MAX_SOURCES = 8;
+const DEFAULT_MAX_ESTIMATED_COST_USD = 0.02;
+
+interface BudgetLimits {
+  maxLlmJobs: number;
+  maxDurationMs: number;
+  maxSources: number;
+  maxEstimatedCostUsd: number;
+}
 
 function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data };
@@ -17,6 +38,48 @@ function fail(code: string, message: string): ApiResult<never> {
 
 function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function envNumber(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function resolveBudgetLimits(input: PipelineRunInput): BudgetLimits {
+  return {
+    maxLlmJobs: clampInt(
+      input.maxLlmJobs ?? envInt("PIPELINE_MAX_LLM_JOBS", DEFAULT_MAX_LLM_JOBS, 0, 20),
+      0,
+      20
+    ),
+    maxDurationMs: clampInt(
+      input.maxDurationMs ?? envInt("PIPELINE_MAX_DURATION_MS", DEFAULT_MAX_DURATION_MS, 500, 120_000),
+      500,
+      120_000
+    ),
+    maxSources: clampInt(
+      input.maxSources ?? envInt("PIPELINE_MAX_SOURCES", DEFAULT_MAX_SOURCES, 1, 20),
+      1,
+      20
+    ),
+    maxEstimatedCostUsd: Number(
+      (
+        input.maxEstimatedCostUsd ??
+        envNumber("PIPELINE_MAX_ESTIMATED_COST_USD", DEFAULT_MAX_ESTIMATED_COST_USD, 0, 5)
+      ).toFixed(3)
+    )
+  };
 }
 
 function buildShortRationale(job: RankedJobPosting): string {
@@ -51,6 +114,96 @@ function splitKeyword(keyword?: string): string[] | undefined {
   return terms.length > 0 ? terms : undefined;
 }
 
+function sourceMode(source: ScraperSourceConfig): "auto" | "fallback" | "blocked" {
+  if (source.mode) return source.mode;
+  if (source.format === "unavailable-platform") return "fallback";
+  return "auto";
+}
+
+function fallbackReportForSource(sourceKey: string, message: string): PipelineSourceReport {
+  const source = SCRAPER_SOURCES[sourceKey];
+  return {
+    name: source?.name ?? sourceKey,
+    mode: source ? sourceMode(source) : "blocked",
+    latencyMs: 0,
+    fetched: 0,
+    parsed: 0,
+    ingested: 0,
+    deduplicated: 0,
+    discarded: 0,
+    fallbackMethod: source?.fallbackMethod,
+    note: source?.unavailableReason,
+    errors: [message]
+  };
+}
+
+async function runScraperWithSourceLimit(
+  ingestionService: IngestionService,
+  sourceKey: string,
+  keywordRequested: string | undefined,
+  autoDiscard: boolean,
+  maxSources: number,
+  warnings: string[],
+  cutsApplied: string[]
+): Promise<ScraperRunResult> {
+  if (sourceKey !== "all") {
+    return runScraper(ingestionService, sourceKey, keywordRequested, { autoDiscard });
+  }
+
+  const defaultSourceKeys = Object.entries(SCRAPER_SOURCES)
+    .filter(([, source]) => source.enabledByDefault !== false)
+    .map(([key]) => key);
+
+  const selectedKeys = defaultSourceKeys.slice(0, maxSources);
+  if (selectedKeys.length < defaultSourceKeys.length) {
+    warnings.push(`budget:maxSources limited from ${defaultSourceKeys.length} to ${selectedKeys.length}`);
+    cutsApplied.push("max-sources");
+  }
+
+  const reports: PipelineSourceReport[] = [];
+  const errors: string[] = [];
+  let fetched = 0;
+  let parsed = 0;
+  let ingested = 0;
+  let deduplicated = 0;
+  let autoDiscarded = 0;
+  let keywordEffective: string | undefined;
+
+  for (const key of selectedKeys) {
+    try {
+      const result = await runScraper(ingestionService, key, keywordRequested, { autoDiscard });
+      fetched += result.fetched;
+      parsed += result.parsed;
+      ingested += result.ingested;
+      deduplicated += result.deduplicated;
+      autoDiscarded += result.autoDiscarded;
+      errors.push(...result.errors);
+      if (!keywordEffective && result.keywordEffective) {
+        keywordEffective = result.keywordEffective;
+      }
+      reports.push(...(result.sourceReports ?? []));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(message);
+      reports.push(fallbackReportForSource(key, message));
+    }
+  }
+
+  return {
+    source: "All Sources",
+    fetched,
+    parsed,
+    ingested,
+    deduplicated,
+    autoDiscarded,
+    keywordRequested,
+    keywordEffective,
+    errors,
+    sourceReports: reports,
+    sources: reports
+  };
+}
+
 export class PipelineService {
   constructor(
     private readonly store: StateStore,
@@ -67,89 +220,162 @@ export class PipelineService {
 
     const startedAt = Date.now();
     const warnings: string[] = [];
+    const cutsApplied: string[] = [];
+    const limits = resolveBudgetLimits(input);
     const agentRun = await this.store.createAgentRun("Pipeline Agent", "Pipeline");
-    const includeLlmEnrichment = input.includeLlmEnrichment === true;
+    const includeLlmRequested = input.includeLlmEnrichment === true;
     const shortlistSize = clampInt(input.shortlistSize ?? DEFAULT_SHORTLIST_SIZE, 1, MAX_SHORTLIST_SIZE);
     const keywordRequested = input.keyword?.trim() || undefined;
-    let scraperResult:
-      | Awaited<ReturnType<typeof runScraper>>
-      | undefined;
 
     try {
       await this.store.createSkillExecution(
         agentRun.id,
         "pipeline-cycle-start",
         "success",
-        `source=${sourceKey};shortlistSize=${shortlistSize};llm=${includeLlmEnrichment}`
+        `source=${sourceKey};shortlistSize=${shortlistSize};llmRequested=${includeLlmRequested};maxLlmJobs=${limits.maxLlmJobs};maxDurationMs=${limits.maxDurationMs};maxSources=${limits.maxSources};maxEstimatedCostUsd=${limits.maxEstimatedCostUsd}`
       );
 
-      try {
-        scraperResult = await runScraper(this.ingestionService, sourceKey, keywordRequested, {
-          autoDiscard: input.autoDiscard !== false
-        });
-        if (scraperResult.errors.length > 0) {
-          warnings.push(...scraperResult.errors.map((error) => `scraper: ${error}`));
-        }
-        await this.store.createSkillExecution(
-          agentRun.id,
-          "pipeline-scrape-run",
-          "success",
-          `source=${sourceKey};ingested=${scraperResult.ingested};deduplicated=${scraperResult.deduplicated};errors=${scraperResult.errors.length}`
-        );
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        warnings.push(`scraper: ${message}`);
-        await this.store.createSkillExecution(
-          agentRun.id,
-          "pipeline-scrape-run",
-          "failure",
-          `source=${sourceKey};error=${message}`
-        );
+      const scraperResult = await runScraperWithSourceLimit(
+        this.ingestionService,
+        sourceKey,
+        keywordRequested,
+        input.autoDiscard !== false,
+        limits.maxSources,
+        warnings,
+        cutsApplied
+      );
+
+      if (scraperResult.errors.length > 0) {
+        warnings.push(...scraperResult.errors.map((error) => `scraper: ${error}`));
       }
 
-      const ranked = await this.matchService.listRanked(input.resumeProfileId, {
-        q: splitKeyword(scraperResult?.keywordEffective ?? keywordRequested),
-        includeLlmEnrichment,
-        minScore: input.minScore,
-        page: 1,
-        pageSize: shortlistSize
-      });
+      await this.store.createSkillExecution(
+        agentRun.id,
+        "pipeline-scrape-run",
+        "success",
+        `source=${sourceKey};ingested=${scraperResult.ingested};deduplicated=${scraperResult.deduplicated};errors=${scraperResult.errors.length}`
+      );
 
-      if (!ranked.ok) {
-        warnings.push(`ranking: ${ranked.error.message}`);
+      const elapsedAfterScrape = Date.now() - startedAt;
+      const maxJobsByCost = Math.floor(limits.maxEstimatedCostUsd / ESTIMATED_LLM_JOB_COST_USD);
+      const effectiveMaxLlmJobs = Math.max(0, Math.min(limits.maxLlmJobs, maxJobsByCost));
+
+      let includeLlmEnrichment = includeLlmRequested;
+      if (includeLlmRequested && !process.env["GEMINI_API_KEY"]) {
+        includeLlmEnrichment = false;
+        warnings.push("budget: LLM requested but GEMINI_API_KEY is not configured");
+        cutsApplied.push("llm-disabled-no-api-key");
+      }
+      if (includeLlmRequested && process.env["GEMINI_API_KEY"] && effectiveMaxLlmJobs <= 0) {
+        includeLlmEnrichment = false;
+        warnings.push("budget: LLM disabled because maxEstimatedCostUsd/maxLlmJobs reached zero capacity");
+        cutsApplied.push("llm-disabled-budget-zero");
+      }
+      if (elapsedAfterScrape > limits.maxDurationMs) {
+        warnings.push(`budget:maxDurationMs exceeded after scrape (${elapsedAfterScrape}ms > ${limits.maxDurationMs}ms)`);
+        cutsApplied.push("max-duration-after-scrape");
+      }
+
+      let shortlist: PipelineShortlistItem[] = [];
+      let estimatedLlmJobs = 0;
+      let estimatedCostUsd = 0;
+
+      if (elapsedAfterScrape <= limits.maxDurationMs) {
+        const previousLlmMaxJobs = process.env["LLM_ENRICHMENT_MAX_JOBS_PER_ROUND"];
+        if (includeLlmEnrichment) {
+          process.env["LLM_ENRICHMENT_MAX_JOBS_PER_ROUND"] = String(effectiveMaxLlmJobs);
+        }
+
+        try {
+          const ranked = await this.matchService.listRanked(input.resumeProfileId, {
+            q: splitKeyword(scraperResult.keywordEffective ?? keywordRequested),
+            includeLlmEnrichment,
+            minScore: input.minScore,
+            page: 1,
+            pageSize: shortlistSize
+          });
+
+          if (!ranked.ok) {
+            warnings.push(`ranking: ${ranked.error.message}`);
+            await this.store.createSkillExecution(
+              agentRun.id,
+              "pipeline-rank-shortlist",
+              "failure",
+              `error=${ranked.error.code}`
+            );
+          }
+
+          const rankedItems = ranked.ok ? ranked.data.items : [];
+          shortlist = toShortlist(rankedItems.slice(0, shortlistSize));
+          estimatedLlmJobs = rankedItems
+            .filter((item) => item.llmEnrichment?.provider === "gemini")
+            .slice(0, effectiveMaxLlmJobs)
+            .length;
+          estimatedCostUsd = includeLlmEnrichment
+            ? Number((estimatedLlmJobs * ESTIMATED_LLM_JOB_COST_USD).toFixed(3))
+            : 0;
+        } finally {
+          if (includeLlmEnrichment) {
+            if (previousLlmMaxJobs === undefined) {
+              delete process.env["LLM_ENRICHMENT_MAX_JOBS_PER_ROUND"];
+            } else {
+              process.env["LLM_ENRICHMENT_MAX_JOBS_PER_ROUND"] = previousLlmMaxJobs;
+            }
+          }
+        }
+      } else {
         await this.store.createSkillExecution(
           agentRun.id,
           "pipeline-rank-shortlist",
           "failure",
-          `error=${ranked.error.code}`
+          `skipped=duration-limit;elapsedMs=${elapsedAfterScrape};maxDurationMs=${limits.maxDurationMs}`
         );
       }
-
-      const rankedItems = ranked.ok ? ranked.data.items : [];
-      const shortlist = toShortlist(rankedItems.slice(0, shortlistSize));
-      const llmEnabled = !!process.env["GEMINI_API_KEY"] && includeLlmEnrichment;
-      const estimatedCostUsd = llmEnabled ? Number((shortlist.length * 0.002).toFixed(3)) : 0;
 
       const result: PipelineRunResult = {
         runId: agentRun.id,
         status: warnings.length > 0 ? "completed-with-warnings" : "completed",
         durationMs: Date.now() - startedAt,
-        source: scraperResult?.source ?? sourceKey,
+        source: scraperResult.source,
         keywordRequested,
-        keywordEffective: scraperResult?.keywordEffective,
-        collected: scraperResult?.fetched ?? 0,
-        parsed: scraperResult?.parsed ?? 0,
-        ingested: scraperResult?.ingested ?? 0,
-        deduplicated: scraperResult?.deduplicated ?? 0,
-        autoDiscarded: scraperResult?.autoDiscarded ?? 0,
-        sourceReports: scraperResult?.sourceReports ?? [],
+        keywordEffective: scraperResult.keywordEffective,
+        collected: scraperResult.fetched,
+        parsed: scraperResult.parsed,
+        ingested: scraperResult.ingested,
+        deduplicated: scraperResult.deduplicated,
+        autoDiscarded: scraperResult.autoDiscarded,
+        sourceReports: scraperResult.sourceReports ?? [],
         warnings,
         shortlist,
         llm: {
-          enabled: llmEnabled,
+          enabled: includeLlmEnrichment && !!process.env["GEMINI_API_KEY"],
+          requested: includeLlmRequested,
+          maxJobs: effectiveMaxLlmJobs,
+          estimatedJobs: estimatedLlmJobs,
           estimatedCostUsd
+        },
+        budget: {
+          maxLlmJobs: limits.maxLlmJobs,
+          maxDurationMs: limits.maxDurationMs,
+          maxSources: limits.maxSources,
+          maxEstimatedCostUsd: limits.maxEstimatedCostUsd,
+          cutsApplied: [...new Set(cutsApplied)]
         }
       };
+
+      if (result.budget.cutsApplied.length > 0) {
+        await this.store.createDecisionLog(
+          agentRun.id,
+          "Pipeline budget cuts applied",
+          `cuts=${result.budget.cutsApplied.join(",")};warnings=${warnings.length}`
+        );
+        await this.store.createSkillExecution(
+          agentRun.id,
+          "pipeline-budget-guardrails",
+          "success",
+          `cuts=${result.budget.cutsApplied.join(",")}`
+        );
+      }
 
       await this.store.createDecisionLog(
         agentRun.id,
@@ -160,7 +386,7 @@ export class PipelineService {
         agentRun.id,
         "pipeline-rank-shortlist",
         "success",
-        `shortlist=${shortlist.length};llm=${includeLlmEnrichment};estimatedCostUsd=${estimatedCostUsd}`
+        `shortlist=${shortlist.length};llmRequested=${includeLlmRequested};llmEnabled=${result.llm.enabled};estimatedCostUsd=${estimatedCostUsd}`
       );
       await this.store.completeAgentRun(agentRun.id, "completed");
       return ok(result);

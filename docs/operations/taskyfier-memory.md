@@ -68,6 +68,12 @@
 - TASK-MCH-003 - leitura LLM estruturada de vagas
 - TASK-PRD-008 - filtros reativos e performance
 - TASK-RTM-002 - ciclo agêntico de coleta e triagem de vagas
+- TASK-RTM-003 - budget e limites operacionais do ciclo IA
+- TASK-RTM-004 - metricas runtime persistidas
+- TASK-SCR-011 - reativar CryptoJobsList via RSS
+- TASK-QLT-003 - smoke web/api automatizado
+- TASK-MCH-004 - calibracao com dataset curado
+- TASK-DOC-003 - specs minimas por capability ativa
 
 ## Tasks concluidas ou operacionalmente incorporadas
 - TASK-DOC-002
@@ -77,6 +83,8 @@
 - TASK-CTR-001
 - TASK-RTM-001
 - TASK-RTM-002 (completed-with-remarks)
+- TASK-RTM-003 (completed-with-remarks)
+- TASK-QLT-003 (completed-with-remarks)
 - TASK-PRD-001
 - TASK-PRD-002
 - TASK-PRD-003
@@ -107,7 +115,10 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-- nenhuma
+1. TASK-SCR-011 - reativar CryptoJobsList via RSS com parser dedicado
+2. TASK-RTM-004 - persistir metricas de runtime e dedupe historico
+3. TASK-DOC-003 - formalizar specs minimas por capability ativa
+4. TASK-MCH-004 - calibracao de matching com dataset curado
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -116,7 +127,6 @@
 - specs minimas por capability de produto
 - policy explicita para uso de LLM externo em CV/deep score
 - paginacao/limites de armazenamento runtime
-- suite de smoke tests web/API alem dos testes unitarios de servico
 - decidir se CryptoJobsList volta via parser RSS dedicado ou permanece fora do `source=all`
 - persistir ou recalcular historicamente contadores runtime de metricas como ingestionAttempts/dedupeHits
 - baseline de calibracao de afinidade com dataset curado de vagas/perfis reais
@@ -148,6 +158,9 @@
 - TASK-SCR-010 consolidou matriz explicita de fontes no scraper (`auto|fallback|blocked`) com report de modo efetivo por fonte e nomes canônicos de plataforma na acquisition.
 - TASK-PRD-008 adicionou auto-apply opcional (debounce) para `q`, contagem por opção nos filtros e micro-métricas de interação em modo debug dev.
 - TASK-RTM-002 consolidou ciclo unificado em `POST /v1/pipeline/run` com resumo de coleta, shortlist explicada e persistência em `agent-runs`, `decision-logs` e `skill-executions`.
+- TASK-RTM-003 adicionou guardrails de budget/duração/volume no pipeline unificado com cortes observáveis em `warnings` e `budget.cutsApplied`.
+- TASK-QLT-003 adicionou baseline de smoke web/API automatizado (`npm run smoke`) com harness de subida/encerramento isolado e cobertura minima de rotas criticas.
+- Backlog derivado pos-RTM-002 foi aberto para aproximar o idealizado: guardrails de budget IA, smoke web/api, reativacao de fonte bloqueada, metricas persistidas, specs por capability e calibracao por dataset.
 - dashboard passou a reaplicar `q` apos run de scraper para refletir contexto de keyword no topo da lista.
 - dashboard ganhou toggle direto para hierarquia de data (mais novo/mais antigo) sem depender de select convencional.
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
@@ -168,7 +181,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- nenhuma task pendente priorizada no pipeline atual
+- TASK-SCR-011 - reativar CryptoJobsList via RSS com parser dedicado
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

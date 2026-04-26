@@ -42,6 +42,8 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-010 (runtime, recebida para ampliar fontes por matriz auto/fallback/blocked)
 - TASK-PRD-008 (runtime, recebida para filtros reativos e performance no dashboard)
 - TASK-RTM-002 (runtime, recebida para ciclo unificado de coleta e triagem)
+- TASK-RTM-003 (runtime, recebida para guardrails de budget/duração/volume no pipeline)
+- TASK-QLT-003 (quality, recebida para baseline de smoke web/API automatizado)
 - Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
@@ -62,6 +64,8 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-010 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-010]
 - TASK-PRD-008 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-PRD-008]
 - TASK-RTM-002 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-RTM-002]
+- TASK-RTM-003 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-RTM-003]
+- TASK-QLT-003 -> olympus-quality-builder (`execution artifact mode`) [EXEC-QLT-003]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
@@ -81,6 +85,8 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-010 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-PRD-008 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-RTM-002 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-RTM-003 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-QLT-003 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 
 ## Blockers recorrentes
 - nenhum
@@ -107,6 +113,8 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - ultimo ciclo consolidado: TASK-SCR-010 / EXEC-SCR-010 (status: executada — aprovado com ressalvas VER-SCR-010)
 - ultimo ciclo consolidado: TASK-PRD-008 / EXEC-PRD-008 (status: executada — aprovado com ressalvas VER-PRD-008)
 - ultimo ciclo consolidado: TASK-RTM-002 / EXEC-RTM-002 (status: executada — aprovado com ressalvas VER-RTM-002)
+- ultimo ciclo consolidado: TASK-RTM-003 / EXEC-RTM-003 (status: executada — aprovado com ressalvas VER-RTM-003)
+- ultimo ciclo consolidado: TASK-QLT-003 / EXEC-QLT-003 (status: executada — aprovado com ressalvas VER-QLT-003)
 - roteabilidade TASK-SCR-008: aprovada (escopo claro, sem dependencia externa bloqueante, capacidade mapeada para runtime + quality gates)
 - roteabilidade TASK-SCR-009: aprovada (escopo claro de runtime, sem dependencia externa bloqueante para implementacao local)
 - roteabilidade TASK-MCH-002: aprovada (escopo claro de match/scoring, sem dependencia externa bloqueante para execucao local)
@@ -114,3 +122,5 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - roteabilidade TASK-SCR-010: aprovada (escopo claro de matriz operacional por fonte com fallback honesto e sem dependencia externa bloqueante para implementacao local)
 - roteabilidade TASK-PRD-008: aprovada (escopo claro e localizado em dashboard com melhoria incremental de UX/performance)
 - roteabilidade TASK-RTM-002: aprovada (escopo claro para endpoint orquestrador único reaproveitando capacidades existentes e logs já ativos)
+- roteabilidade TASK-RTM-003: aprovada (escopo claro de guardrails operacionais sobre endpoint existente, sem abertura de surface paralela)
+- roteabilidade TASK-QLT-003: aprovada (escopo claro de quality harness local com cobertura mínima de rotas críticas e sem dependência de stack externa adicional)
