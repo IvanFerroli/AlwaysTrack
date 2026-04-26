@@ -1,9 +1,53 @@
+import { computeSkillOverlap } from "../../domain/matching/scoring.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { fetchJobItems } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
 import type { ScraperRunResult, ScraperSourceConfig, SourceRunResult } from "./scraper.types.js";
 
-const SENIORITY_KEYWORDS = new Set(["junior", "júnior", "pleno", "senior", "sênior", "estagio", "estágio", "intern"]);
+const SENIORITY_ALIASES: Record<string, string[]> = {
+  junior: ["junior", "jr", "entry", "entry-level", "trainee"],
+  estagio: ["estagio", "estágio", "intern", "internship", "estagiario", "estagiário"],
+  pleno: ["pleno", "mid", "mid-level", "intermediate"],
+  senior: ["senior", "sênior", "sr", "lead", "staff", "principal"]
+};
+
+const KEYWORD_ALIASES: Record<string, string[]> = {
+  react: ["react", "reactjs", "react.js"],
+  node: ["node", "nodejs", "node.js", "node js"],
+  typescript: ["typescript", "ts"],
+  javascript: ["javascript", "js", "ecmascript"],
+  backend: ["backend", "back-end", "server-side"],
+  frontend: ["frontend", "front-end", "ui"],
+  fullstack: ["fullstack", "full-stack", "full stack"]
+};
+
+const DEFAULT_AUTO_DISCARD_TAG = "auto-discard-no-match";
+
+const TERM_TO_CANONICAL = new Map<string, string>();
+for (const [canonical, variants] of Object.entries(SENIORITY_ALIASES)) {
+  TERM_TO_CANONICAL.set(canonical, canonical);
+  for (const variant of variants) {
+    TERM_TO_CANONICAL.set(normalizeTerm(variant), canonical);
+  }
+}
+for (const [canonical, variants] of Object.entries(KEYWORD_ALIASES)) {
+  TERM_TO_CANONICAL.set(canonical, canonical);
+  for (const variant of variants) {
+    TERM_TO_CANONICAL.set(normalizeTerm(variant), canonical);
+  }
+}
+
+interface KeywordGroup {
+  canonical: string;
+  variants: string[];
+  seniority: boolean;
+}
+
+interface KeywordPlan {
+  requested?: string;
+  effective?: string;
+  groups: KeywordGroup[];
+}
 
 /**
  * Fontes padrão configuradas.
@@ -78,6 +122,74 @@ export class ScraperInputError extends Error {
   }
 }
 
+function normalizeTerm(term: string): string {
+  return term
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+.#\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTextForMatch(text: string): string {
+  return normalizeTerm(text).replace(/[-./]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function buildKeywordVariants(canonical: string): string[] {
+  const aliases = [
+    ...(SENIORITY_ALIASES[canonical] ?? []),
+    ...(KEYWORD_ALIASES[canonical] ?? []),
+    canonical
+  ];
+  return [...new Set(aliases.map(normalizeTerm).filter(Boolean))];
+}
+
+function buildKeywordPlan(keyword?: string): KeywordPlan {
+  const requested = keyword?.trim();
+  if (!requested) {
+    return { groups: [] };
+  }
+
+  const parts = requested
+    .split(/[\s,]+/)
+    .map((part) => normalizeTerm(part))
+    .filter((part) => part.length > 0);
+
+  const groups: KeywordGroup[] = [];
+  const seenCanonical = new Set<string>();
+
+  for (const part of parts) {
+    const canonical = TERM_TO_CANONICAL.get(part) ?? part;
+    if (seenCanonical.has(canonical)) {
+      continue;
+    }
+    seenCanonical.add(canonical);
+
+    groups.push({
+      canonical,
+      variants: buildKeywordVariants(canonical),
+      seniority: Object.prototype.hasOwnProperty.call(SENIORITY_ALIASES, canonical)
+    });
+  }
+
+  return {
+    requested,
+    effective: groups.map((group) => group.canonical).join(" ") || undefined,
+    groups
+  };
+}
+
+function matchesVariants(text: string, tokens: Set<string>, variants: string[]): boolean {
+  return variants.some((variant) => {
+    if (!variant) return false;
+    if (variant.includes(" ")) {
+      return text.includes(variant);
+    }
+    return tokens.has(variant);
+  });
+}
+
 export function applyKeywordToSource(
   source: ScraperSourceConfig,
   keyword?: string
@@ -96,17 +208,24 @@ export function applyKeywordToSource(
   return { ...source, url: url.toString() };
 }
 
+function shouldAutoDiscardNoMatch(jobTokens: string[], profileSkills: string[]): boolean {
+  const { matchedSkills } = computeSkillOverlap(profileSkills, jobTokens);
+  return matchedSkills.length === 0;
+}
+
 async function runSingleSource(
   ingestionService: IngestionService,
   source: ScraperSourceConfig,
-  keyword?: string
+  keywordPlan: KeywordPlan
 ): Promise<SourceRunResult> {
   const rawItems = await fetchJobItems(source);
-  const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keyword);
+  const parsedItems = filterParsedItemsByKeyword(parseJobItems(rawItems, source), keywordPlan.effective);
+  const defaultProfile = await ingestionService.getDefaultResumeProfile();
 
   const errors: string[] = [];
   let ingested = 0;
   let deduplicated = 0;
+  let autoDiscarded = 0;
 
   for (const item of parsedItems) {
     try {
@@ -114,8 +233,21 @@ async function runSingleSource(
       if (result.ok) {
         if (result.data.deduplicated) {
           deduplicated++;
-        } else {
-          ingested++;
+          continue;
+        }
+
+        ingested++;
+
+        if (defaultProfile && shouldAutoDiscardNoMatch(result.data.jobPosting.normalizedTokens, defaultProfile.skills)) {
+          const discarded = await ingestionService.autoDiscardJobNoMatch(
+            result.data.jobPosting.id,
+            DEFAULT_AUTO_DISCARD_TAG
+          );
+          if (discarded.ok) {
+            autoDiscarded++;
+          } else {
+            errors.push(`[${item.title}] auto-discard failed: ${discarded.error.message}`);
+          }
         }
       } else {
         errors.push(`[${item.title}] ${result.error.message}`);
@@ -130,6 +262,8 @@ async function runSingleSource(
     fetched: rawItems.length,
     ingested,
     deduplicated,
+    autoDiscarded,
+    keywordEffective: keywordPlan.effective,
     errors
   };
 }
@@ -138,32 +272,30 @@ export function filterParsedItemsByKeyword<T extends { title: string; companyNam
   items: T[],
   keyword?: string
 ): T[] {
-  const terms = keyword
-    ?.toLowerCase()
-    .split(/\s+/)
-    .map((term) => term.trim())
-    .filter((term) => term.length > 0);
-
-  if (!terms || terms.length === 0) {
+  const keywordPlan = buildKeywordPlan(keyword);
+  if (keywordPlan.groups.length === 0) {
     return items;
   }
 
   return items.filter((item) => {
-    const title = item.title.toLowerCase();
-    const seniorityTerms = terms.filter((term) => SENIORITY_KEYWORDS.has(term));
-    if (seniorityTerms.length > 0 && !seniorityTerms.every((term) => title.includes(term))) {
-      return false;
-    }
-
-    const haystack = [
+    const title = normalizeTextForMatch(item.title);
+    const haystack = normalizeTextForMatch([
       item.title,
       item.companyName,
       item.sourceName,
       item.location ?? "",
       item.description
-    ].join(" ").toLowerCase();
+    ].join(" "));
 
-    return terms.every((term) => haystack.includes(term));
+    const titleTokens = new Set(title.split(/\s+/).filter(Boolean));
+    const haystackTokens = new Set(haystack.split(/\s+/).filter(Boolean));
+
+    return keywordPlan.groups.every((group) => {
+      if (group.seniority) {
+        return matchesVariants(title, titleTokens, group.variants);
+      }
+      return matchesVariants(haystack, haystackTokens, group.variants);
+    });
   });
 }
 
@@ -176,33 +308,38 @@ export async function runScraper(
   sourceKey = process.env["SCRAPER_SOURCE"] ?? "all",
   keyword?: string
 ): Promise<ScraperRunResult> {
+  const keywordPlan = buildKeywordPlan(keyword);
+
   if (sourceKey === "all") {
     const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
     const settledResults = await Promise.allSettled(
-      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keyword), keyword))
+      defaultSources.map((src) => runSingleSource(ingestionService, applyKeywordToSource(src, keywordPlan.effective), keywordPlan))
     );
 
     const results = settledResults
       .filter((r): r is PromiseFulfilledResult<SourceRunResult> => r.status === "fulfilled")
-      .map(r => r.value);
+      .map((r) => r.value);
 
     const rejectedErrors = settledResults
       .filter((r): r is PromiseRejectedResult => r.status === "rejected")
-      .map(r => `[source error] ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
+      .map((r) => `[source error] ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`);
 
     const total = results.reduce(
       (acc, res) => ({
         fetched: acc.fetched + res.fetched,
         ingested: acc.ingested + res.ingested,
         deduplicated: acc.deduplicated + res.deduplicated,
+        autoDiscarded: acc.autoDiscarded + res.autoDiscarded,
         errors: [...acc.errors, ...res.errors]
       }),
-      { fetched: 0, ingested: 0, deduplicated: 0, errors: rejectedErrors }
+      { fetched: 0, ingested: 0, deduplicated: 0, autoDiscarded: 0, errors: rejectedErrors }
     );
 
     return {
       source: "All Sources",
       ...total,
+      keywordRequested: keywordPlan.requested,
+      keywordEffective: keywordPlan.effective,
       sources: results
     };
   }
@@ -221,12 +358,23 @@ export async function runScraper(
     );
   }
 
-  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keyword), keyword);
+  const res = await runSingleSource(ingestionService, applyKeywordToSource(source, keywordPlan.effective), keywordPlan);
   return {
     source: res.name,
     fetched: res.fetched,
     ingested: res.ingested,
     deduplicated: res.deduplicated,
+    autoDiscarded: res.autoDiscarded,
+    keywordRequested: keywordPlan.requested,
+    keywordEffective: keywordPlan.effective,
     errors: res.errors
   };
 }
+
+export const SCRAPER_INTERNALS = {
+  buildKeywordPlan,
+  normalizeTerm,
+  normalizeTextForMatch,
+  shouldAutoDiscardNoMatch,
+  DEFAULT_AUTO_DISCARD_TAG
+};

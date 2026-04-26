@@ -7,6 +7,7 @@ import {
   applyKeywordToSource,
   filterParsedItemsByKeyword,
   runScraper,
+  SCRAPER_INTERNALS,
   SCRAPER_SOURCES,
   ScraperInputError
 } from "./scraper.runner.js";
@@ -73,6 +74,34 @@ test("scraper keyword post-filter keeps seniority keywords strict to title", () 
   assert.equal(filtered[0]?.title, "Junior Full Stack Developer");
 });
 
+test("scraper keyword aliases normalize accents and short forms", () => {
+  const items = [
+    {
+      title: "JR Frontend Engineer",
+      companyName: "Acme",
+      sourceName: "LinkedIn",
+      sourceUrl: "https://example.com/jr",
+      location: "Remote",
+      description: "Building React.js interfaces"
+    },
+    {
+      title: "Senior Frontend Engineer",
+      companyName: "Acme",
+      sourceName: "LinkedIn",
+      sourceUrl: "https://example.com/sr",
+      location: "Remote",
+      description: "Building React.js interfaces for junior teammates"
+    }
+  ];
+
+  const filtered = filterParsedItemsByKeyword(items, "júnior react");
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0]?.title, "JR Frontend Engineer");
+
+  const plan = SCRAPER_INTERNALS.buildKeywordPlan("júnior react");
+  assert.equal(plan.effective, "junior react");
+});
+
 test("scraper parses LinkedIn guest search cards with platform source", () => {
   const items = parseJobItems(
     [
@@ -116,4 +145,44 @@ test("scraper parses Gupy public portal items with platform source", () => {
   assert.equal(items[0]?.sourceName, "Gupy");
   assert.equal(items[0]?.companyName, "FCamara");
   assert.equal(items[0]?.location, "Remote");
+});
+
+test("runScraper returns autoDiscarded and keywordEffective", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const payload = {
+      jobs: [
+        {
+          title: "Junior React Developer",
+          company_name: "Frontend Inc",
+          url: "https://example.com/jobs/react-junior",
+          candidate_required_location: "Remote",
+          publication_date: "2026-04-26T00:00:00Z",
+          description: "Build React.js experiences with modern CSS."
+        }
+      ]
+    };
+
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => payload
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "remotive", "jr react");
+
+    assert.equal(result.keywordRequested, "jr react");
+    assert.equal(result.keywordEffective, "junior react");
+    assert.equal(result.fetched, 1);
+    assert.equal(result.ingested, 1);
+    assert.equal(result.autoDiscarded, 1);
+    assert.equal(result.errors.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

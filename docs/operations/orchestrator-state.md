@@ -34,6 +34,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-MCH-001 (runtime, recebida via pipeline kickoff)
 - TASK-UX-001 (runtime, recebida via pipeline kickoff)
 - TASK-UX-002 (runtime, recebida via pipeline kickoff)
+- TASK-SCR-007 (runtime, recebida via pipeline kickoff)
 - Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
@@ -46,6 +47,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-001 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-001]
 - TASK-SCR-006 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-006]
 - TASK-UX-002 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-UX-002]
+- TASK-SCR-007 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-007]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
@@ -57,6 +59,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-001 concluida (aprovado — 20 vagas Remotive, typecheck/lint verdes, smoke confirmado)
 - TASK-SCR-006 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-UX-002 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-SCR-007 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 
 ## Blockers recorrentes
 - nenhum
@@ -75,3 +78,4 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - em caso de divergencia, usar `docs/operations/taskyfier-memory.md` como memoria macro mais atual
 - ultimo ciclo consolidado: TASK-SCR-006 / EXEC-SCR-006 (status: executada — aprovado com ressalvas VER-SCR-006)
 - ultimo ciclo consolidado: TASK-UX-002 / EXEC-UX-002 (status: executada — aprovado com ressalvas VER-UX-002)
+- ultimo ciclo consolidado: TASK-SCR-007 / EXEC-SCR-007 (status: executada — aprovado com ressalvas VER-SCR-007)

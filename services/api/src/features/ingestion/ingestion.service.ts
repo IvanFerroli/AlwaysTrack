@@ -2,7 +2,8 @@ import type {
   ApiResult,
   IngestJobPostingInput,
   IngestJobPostingResult,
-  JobPosting
+  JobPosting,
+  ResumeProfile
 } from "@olympus/shared-types";
 import type { StateStore } from "../../domain/state/store.js";
 import {
@@ -124,6 +125,21 @@ export class IngestionService {
       return fail("JOB_UPDATE_FAILED", `Failed to update job posting ${id}`);
     }
     return ok(job);
+  }
+
+  async getDefaultResumeProfile(): Promise<ResumeProfile | undefined> {
+    const profiles = await this.store.listResumeProfiles();
+    if (profiles.length === 0) {
+      return undefined;
+    }
+    return profiles.find((profile) => profile.id === "resume-000001") ?? profiles[0];
+  }
+
+  async autoDiscardJobNoMatch(jobId: string, tag = "auto-discard-no-match"): Promise<ApiResult<JobPosting>> {
+    return this.updateJob(jobId, {
+      userStatus: "discarded",
+      addTag: tag
+    });
   }
 
   failValidation(): ApiResult<never> {

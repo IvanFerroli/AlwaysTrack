@@ -24,6 +24,9 @@ export function createScraperHandlers(ingestionService: IngestionService): {
           fetched: result.fetched,
           ingested: result.ingested,
           deduplicated: result.deduplicated,
+          autoDiscarded: result.autoDiscarded,
+          keywordRequested: result.keywordRequested,
+          keywordEffective: result.keywordEffective,
           errors: result.errors,
           sources: result.sources
         }

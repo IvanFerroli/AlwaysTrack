@@ -28,12 +28,12 @@ export function renderGuidePage(opts: GuidePageOptions): string {
           <div class="section-header">
             <div>
               <h2>O que já dá para fazer</h2>
-              <p class="subtle">Este guia descreve o estado implementado do alpha local em memória.</p>
+              <p class="subtle">Este guia descreve o estado implementado do alpha local com persistencia Prisma/Postgres.</p>
             </div>
             ${renderInfoIcon("A fonte runtime é o código atual; docs históricas podem conter registros antigos")}
           </div>
           <div class="cards">
-            <div class="metric-card"><strong>Scraper</strong><span class="subtle">Busca vagas em Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas e CryptoJobsList.</span></div>
+            <div class="metric-card"><strong>Scraper</strong><span class="subtle">Busca vagas em Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn e Gupy.</span></div>
             <div class="metric-card"><strong>Matching</strong><span class="subtle">Ranqueia vagas por overlap de skills e permite Deep Score com Gemini.</span></div>
             <div class="metric-card"><strong>CV/Profile</strong><span class="subtle">Cria resume profiles manualmente ou a partir de arquivos .txt em doc/.</span></div>
             <div class="metric-card"><strong>Gate humano</strong><span class="subtle">Estratégia abre approvals antes de registrar aplicação.</span></div>
@@ -64,6 +64,7 @@ export function renderGuidePage(opts: GuidePageOptions): string {
                 <tr><td><code>POST /ingest</code></td><td>Form action para criar vaga manual e rodar score/strategy.</td></tr>
                 <tr><td><code>POST /resume-profiles</code></td><td>Form action para criar profile manual.</td></tr>
                 <tr><td><code>POST /main-cv/analyze</code></td><td>Form action para gerar profile a partir de CV .txt.</td></tr>
+                <tr><td><code>POST /acquire</code></td><td>Form action para acquisition multimodal com fallback por adapter ATS.</td></tr>
                 <tr><td><code>POST /approve</code> / <code>POST /reject</code></td><td>Form actions para o gate humano.</td></tr>
                 <tr><td><code>POST /applications/status</code></td><td>Form action para atualizar aplicação para interview/rejected.</td></tr>
               </tbody>
@@ -78,6 +79,7 @@ export function renderGuidePage(opts: GuidePageOptions): string {
             <li>Abra o <a class="route-btn" href="/workspace">Workspace</a> e confira/crie um resume profile.</li>
             <li>Volte ao Dashboard para filtrar vagas por score, fonte, local e status.</li>
             <li>Use tags/status para organizar vagas manualmente.</li>
+            <li>Use keyword no scraper para filtrar antes da persistencia; termos como <code>junior</code> sao tratados de forma estrita no titulo.</li>
             <li>Use Deep Score quando quiser análise LLM; requer <code>GEMINI_API_KEY</code>.</li>
             <li>Para uma vaga específica, use o formulário de ingest manual no Workspace.</li>
             <li>Revise approvals e registre aplicações/status no Workspace.</li>
@@ -85,12 +87,12 @@ export function renderGuidePage(opts: GuidePageOptions): string {
         </section>
 
         <section class="panel">
-          <div class="section-header"><h2>CV e dados</h2>${renderInfoIcon("Estado atual ainda é local e volátil")}</div>
+          <div class="section-header"><h2>CV e dados</h2>${renderInfoIcon("Dados principais em Postgres; alguns contadores sao runtime")}</div>
           <ul class="stack">
             <li>O CV analyzer lista somente arquivos <code>.txt</code> dentro de <code>doc/</code>.</li>
             <li>Sem <code>GEMINI_API_KEY</code>, a extração usa parser local de linhas de stack/skills.</li>
             <li>Com <code>GEMINI_API_KEY</code>, partes do CV são enviadas ao provedor externo para extração.</li>
-            <li>O estado de vagas, profiles e aplicações fica em memória; reiniciar a API limpa o runtime não persistido.</li>
+            <li>Vagas, profiles, approvals e applications persistem no Postgres; contadores de metricas runtime podem reiniciar com a API.</li>
           </ul>
         </section>
 

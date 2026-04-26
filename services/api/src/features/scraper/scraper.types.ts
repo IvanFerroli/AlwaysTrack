@@ -32,6 +32,8 @@ export interface SourceRunResult {
   fetched: number;
   ingested: number;
   deduplicated: number;
+  autoDiscarded: number;
+  keywordEffective?: string;
   errors: string[];
 }
 
@@ -41,6 +43,9 @@ export interface ScraperRunResult {
   fetched: number;
   ingested: number;
   deduplicated: number;
+  autoDiscarded: number;
+  keywordRequested?: string;
+  keywordEffective?: string;
   errors: string[];
   sources?: SourceRunResult[];
 }

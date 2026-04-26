@@ -82,3 +82,29 @@ test("updateJob rejects unsafe tags", async () => {
   }
   assert.equal(result.error.code, "INVALID_JOB_TAG");
 });
+
+test("autoDiscardJobNoMatch marks job as discarded with removable tag", async () => {
+  const store = new InMemoryStateStore();
+  const service = new IngestionService(store);
+  const ingested = await service.ingest({
+    title: "Backend Engineer",
+    companyName: "Olympus Labs",
+    sourceName: "manual",
+    sourceUrl: "https://example.com/jobs/789",
+    description: "Go and Python",
+    location: "Remote"
+  });
+  assert.equal(ingested.ok, true);
+  if (!ingested.ok) {
+    throw new Error("expected ingestion to succeed");
+  }
+
+  const discarded = await service.autoDiscardJobNoMatch(ingested.data.jobPosting.id);
+  assert.equal(discarded.ok, true);
+  if (!discarded.ok) {
+    throw new Error("expected auto discard to succeed");
+  }
+
+  assert.equal(discarded.data.userStatus, "discarded");
+  assert.equal(discarded.data.tags.includes("auto-discard-no-match"), true);
+});

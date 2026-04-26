@@ -103,3 +103,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
+- Ultimo ciclo consolidado: `TASK-SCR-007` (keyword robusta + auto-discard + dedupe observavel) com detalhes em `docs/tasks/`.

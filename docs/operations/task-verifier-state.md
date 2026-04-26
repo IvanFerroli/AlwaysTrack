@@ -27,6 +27,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-CTR-001 (TASK-CTR-001)
 - VER-RTM-001 (TASK-RTM-001)
 - VER-SCR-006 (TASK-SCR-006)
+- VER-SCR-007 (TASK-SCR-007)
 - VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
@@ -40,6 +41,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 ## Verificações aprovadas com ressalvas
 - VER-SCF-001 - TASK-SCF-001 (scaffold material, ressalva de ambiente sem `typescript` instalado)
 - VER-SCR-006 - TASK-SCR-006 (fontes de plataforma ativas; ressalva de fontes bloqueadas por security-check)
+- VER-SCR-007 - TASK-SCR-007 (keyword/auto-discard/report entregues; ressalva de calibracao por profile padrao)
 - VER-UX-002 - TASK-UX-002 (ux entregue; ressalva de hardening posterior em sanitizacao/acessibilidade)
 
 ## Verificações reprovadas
@@ -66,3 +68,4 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - verificacoes historicas sem evidencia material devem ser tratadas como ressalva, nao como prova vigente
 - ultimo parecer: TASK-SCR-006 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-UX-002 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-SCR-007 classificada como aprovado com ressalvas

@@ -276,7 +276,7 @@ export function renderDashboardPage(data: DashboardData): string {
     <a class="btn-primary" href="/workspace">Abrir Workspace</a>
     <a class="btn-secondary" href="/guide">Como usar</a>
     <a class="btn-secondary" href="/health" target="_blank" rel="noreferrer">Health</a>
-    <form action="${escapeAttr(data.apiBaseUrl)}/v1/scraper/run" method="POST" target="_blank" class="actions-row" onsubmit='const p = new URLSearchParams(); if(this.source.value) p.set("source", this.source.value); if(this.keyword.value.trim()) p.set("keyword", this.keyword.value.trim()); this.action = ${jsonForHtml(`${data.apiBaseUrl}/v1/scraper/run`)} + (p.toString() ? "?" + p.toString() : "");'>
+    <form class="actions-row" onsubmit="return window.runScraperNow(this)">
       <select class="tag-input" name="source" aria-label="Scraper source">
         <option value="all">All</option>
         <option value="linkedin">LinkedIn</option>
@@ -288,8 +288,10 @@ export function renderDashboardPage(data: DashboardData): string {
         <option value="himalayas">Himalayas</option>
       </select>
       <input class="tag-input" type="text" name="keyword" placeholder="keyword ex: junior" />
+      <label class="field-hint"><input type="checkbox" name="autoDiscard" checked /> auto-discard low match</label>
       <button type="submit" class="btn-primary">Run Scraper</button>
       <span class="field-hint">A keyword filtra localmente antes de salvar.</span>
+      <span class="field-hint" id="scraper-run-feedback" aria-live="polite"></span>
     </form>
   </div>`;
   const jobsContent = `<form method="GET" action="/" class="form-grid two">
@@ -450,6 +452,40 @@ export function renderDashboardPage(data: DashboardData): string {
       } catch (error) {
         box.textContent = "Erro de rede: " + error;
       }
+    };
+
+    window.runScraperNow = async function(form) {
+      const feedback = document.getElementById("scraper-run-feedback");
+      if (feedback) feedback.textContent = "rodando...";
+      const params = new URLSearchParams();
+      const source = form.source?.value || "all";
+      const keyword = form.keyword?.value?.trim();
+      const autoDiscard = !!form.autoDiscard?.checked;
+      if (source) params.set("source", source);
+      if (keyword) params.set("keyword", keyword);
+      params.set("autoDiscard", autoDiscard ? "true" : "false");
+
+      try {
+        const res = await fetch(
+          ${jsonForHtml(data.apiBaseUrl + "/v1/scraper/run")} + "?" + params.toString(),
+          { method: "POST" }
+        );
+        const json = await res.json();
+        if (!json.ok) {
+          if (feedback) feedback.textContent = "erro: " + (json.error?.code || "unknown");
+          return false;
+        }
+        const info = json.data;
+        if (feedback) {
+          const keywordNote = info.keyword ? ' keyword="' + info.keyword + '"' : "";
+          const autoDiscardNote = typeof info.autoDiscarded === "number" ? ", auto-discard=" + info.autoDiscarded : "";
+          feedback.textContent = "ok: ingested=" + info.ingested + ", dedup=" + info.deduplicated + autoDiscardNote + keywordNote;
+        }
+        setTimeout(() => window.location.reload(), 400);
+      } catch (error) {
+        if (feedback) feedback.textContent = "erro de rede";
+      }
+      return false;
     };
 
     // Enhanced multi-select dropdowns with compact UI
