@@ -8,6 +8,9 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - validacao de entrega;
 - troubleshooting ou resposta a incidente.
 
+## Runbooks ativos relevantes
+- `RUNBOOK-001-matching-calibration-baseline.md` - baseline de calibração de matching com dataset curado e thresholds de regressão.
+
 ## Convencao minima
 - ID: `RUNBOOK-###`
 - Arquivo por runbook: `RUNBOOK-###-<slug>.md`

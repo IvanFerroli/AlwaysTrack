@@ -97,6 +97,7 @@
 - Strategy proposal com approval queue.
 - Approval/rejection e application status tracking.
 - Memory entries, decision logs, skill executions e metrics.
+- Baseline de calibração de matching com dataset curado e teste de regressão de ranking (`precision@k` + cobertura crítica).
 
 ## Convencoes minimas
 - IDs:
@@ -114,4 +115,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-DOC-003` (specs minimas por capability ativa + matriz de rastreabilidade) com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-MCH-004` (calibração de matching com dataset curado e guardrail de regressão no top-k) com detalhes em `docs/tasks/`.

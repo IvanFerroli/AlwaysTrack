@@ -47,6 +47,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-011 (runtime, recebida para reativação de CryptoJobsList via RSS/parser dedicado)
 - TASK-RTM-004 (runtime, recebida para persistência de métricas runtime e dedupe histórico)
 - TASK-DOC-003 (documental, recebida para formalização de specs mínimas por capability ativa)
+- TASK-MCH-004 (quality, recebida para calibração de matching com dataset curado)
 - Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
@@ -72,6 +73,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-011 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-011]
 - TASK-RTM-004 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-RTM-004]
 - TASK-DOC-003 -> olympus-docs-formalizer (`execution artifact mode`) [EXEC-DOC-003]
+- TASK-MCH-004 -> olympus-quality-builder (`execution artifact mode`) [EXEC-MCH-004]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
@@ -96,6 +98,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-011 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-RTM-004 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-DOC-003 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-MCH-004 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 
 ## Blockers recorrentes
 - nenhum
@@ -127,6 +130,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - ultimo ciclo consolidado: TASK-SCR-011 / EXEC-SCR-011 (status: executada — aprovado com ressalvas VER-SCR-011)
 - ultimo ciclo consolidado: TASK-RTM-004 / EXEC-RTM-004 (status: executada — aprovado com ressalvas VER-RTM-004)
 - ultimo ciclo consolidado: TASK-DOC-003 / EXEC-DOC-003 (status: executada — aprovado com ressalvas VER-DOC-003)
+- ultimo ciclo consolidado: TASK-MCH-004 / EXEC-MCH-004 (status: executada — aprovado com ressalvas VER-MCH-004)
 - roteabilidade TASK-SCR-008: aprovada (escopo claro, sem dependencia externa bloqueante, capacidade mapeada para runtime + quality gates)
 - roteabilidade TASK-SCR-009: aprovada (escopo claro de runtime, sem dependencia externa bloqueante para implementacao local)
 - roteabilidade TASK-MCH-002: aprovada (escopo claro de match/scoring, sem dependencia externa bloqueante para execucao local)
@@ -139,3 +143,4 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - roteabilidade TASK-SCR-011: aprovada (escopo claro de troca de feed/formato no scraper com parser dedicado e tolerância a falha parcial já suportada)
 - roteabilidade TASK-RTM-004: aprovada (escopo claro de persistência agregada de métricas em store Prisma sem quebra do contrato de `/v1/metrics`)
 - roteabilidade TASK-DOC-003: aprovada (escopo documental claro e rastreável para capabilities ativas sem abertura de runtime)
+- roteabilidade TASK-MCH-004: aprovada (escopo claro de quality guardrail sobre ranking com dataset curado versionado e sem alteração estrutural de runtime)

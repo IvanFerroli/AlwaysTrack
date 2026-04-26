@@ -3,6 +3,7 @@ import test from "node:test";
 import { InMemoryStateStore } from "../../domain/state/store.js";
 import { IngestionService } from "../ingestion/ingestion.service.js";
 import { MatchService } from "./match.service.js";
+import { CURATED_MATCHING_DATASET } from "./fixtures/curated-ranking.dataset.js";
 
 test("match service scores based on normalized token overlap", async () => {
   const store = new InMemoryStateStore();
@@ -615,4 +616,85 @@ test("match service keeps llmEnrichment absent when flag is not requested", asyn
   if (!ranked.ok) throw new Error("expected ranked list");
 
   assert.equal(ranked.data.items[0]?.llmEnrichment, undefined);
+});
+
+test("match service ranking regression guard with curated dataset baseline", async () => {
+  const dataset = CURATED_MATCHING_DATASET;
+
+  for (const scenario of dataset.scenarios) {
+    const store = new InMemoryStateStore();
+    const ingestion = new IngestionService(store);
+    const match = new MatchService(store);
+
+    const profile = await store.createResumeProfile({
+      headline: scenario.profile.headline,
+      skills: scenario.profile.skills
+    });
+
+    for (const job of scenario.jobs) {
+      const ingested = await ingestion.ingest({
+        title: job.title,
+        companyName: job.companyName,
+        sourceName: job.sourceName,
+        sourceUrl: job.sourceUrl,
+        description: job.description,
+        location: job.location,
+        postedAt: job.postedAt
+      });
+      assert.equal(ingested.ok, true, `[${scenario.id}] expected ingestion to succeed for ${job.title}`);
+    }
+
+    const ranked = await match.listRanked(profile.id, {
+      includeScoreBreakdown: true,
+      pageSize: 20
+    });
+    assert.equal(ranked.ok, true, `[${scenario.id}] expected ranked list to succeed`);
+    if (!ranked.ok) {
+      throw new Error(`[${scenario.id}] ranking failed`);
+    }
+
+    const topKItems = ranked.data.items.slice(0, scenario.expectation.topK);
+    assert.equal(
+      topKItems.length,
+      scenario.expectation.topK,
+      `[${scenario.id}] expected at least ${scenario.expectation.topK} ranked items`
+    );
+
+    const expectedSet = new Set(scenario.expectation.expectedTopTitles);
+    const relevantInTopK = topKItems.filter((item) => expectedSet.has(item.title)).length;
+    const precisionAtK = relevantInTopK / scenario.expectation.topK;
+    assert.ok(
+      precisionAtK >= scenario.expectation.minPrecisionAtK,
+      `[${scenario.id}] precision@${scenario.expectation.topK}=${precisionAtK.toFixed(2)} below ${scenario.expectation.minPrecisionAtK.toFixed(2)}`
+    );
+
+    const coveredCritical = new Set<string>();
+    for (const item of topKItems) {
+      for (const skill of item.matchedSkills) {
+        if (scenario.expectation.criticalSkills.includes(skill)) {
+          coveredCritical.add(skill);
+        }
+      }
+    }
+    const criticalCoverage =
+      scenario.expectation.criticalSkills.length > 0
+        ? coveredCritical.size / scenario.expectation.criticalSkills.length
+        : 1;
+    assert.ok(
+      criticalCoverage >= scenario.expectation.minCriticalSkillCoverage,
+      `[${scenario.id}] critical coverage=${criticalCoverage.toFixed(2)} below ${scenario.expectation.minCriticalSkillCoverage.toFixed(2)}`
+    );
+
+    if (scenario.expectation.scoreRanges) {
+      for (const [title, range] of Object.entries(scenario.expectation.scoreRanges)) {
+        const target = ranked.data.items.find((item) => item.title === title);
+        assert.ok(Boolean(target), `[${scenario.id}] expected ranked item ${title}`);
+        if (!target) continue;
+        assert.ok(
+          target.score >= range.min && target.score <= range.max,
+          `[${scenario.id}] score ${target.score} for "${title}" outside [${range.min}, ${range.max}]`
+        );
+      }
+    }
+  }
 });

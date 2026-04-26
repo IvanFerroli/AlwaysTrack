@@ -1,7 +1,7 @@
 # TASK-MCH-004 - Calibracao de matching com dataset curado
 
 ## Metadata
-- status: pending
+- status: closed
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-MCH-004-calibracao-com-dataset-curado.md

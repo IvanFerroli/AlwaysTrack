@@ -96,6 +96,7 @@
 - TASK-RTM-003 (completed-with-remarks)
 - TASK-RTM-004 (completed-with-remarks)
 - TASK-DOC-003 (completed-with-remarks)
+- TASK-MCH-004 (closed)
 - TASK-QLT-003 (completed-with-remarks)
 - TASK-PRD-001
 - TASK-PRD-002
@@ -128,7 +129,7 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-MCH-004 - calibracao de matching com dataset curado
+- nenhuma pendencia formal na fila atual derivada
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -136,7 +137,6 @@
 ## Dependencias abertas
 - policy explicita para uso de LLM externo em CV/deep score
 - paginacao/limites de armazenamento runtime
-- baseline de calibracao de afinidade com dataset curado de vagas/perfis reais
 - policy de budget/limite por rodada para uso de LLM no enriquecimento de vagas
 
 ## Decisoes praticas recentes
@@ -168,6 +168,7 @@
 - TASK-RTM-003 adicionou guardrails de budget/duração/volume no pipeline unificado com cortes observáveis em `warnings` e `budget.cutsApplied`.
 - TASK-RTM-004 persistiu métricas runtime críticas (`ingestionAttempts`, `dedupeHits`, `strategyProposals`) no banco com continuidade pós-restart.
 - TASK-DOC-003 formalizou baseline de specs por capability ativa e matriz de rastreabilidade capability -> runtime -> tipos -> testes.
+- TASK-MCH-004 materializou dataset curado versionado de matching com teste de regressão de ranking (precision@k + cobertura crítica).
 - Auto-discard do scraper passou a ser opt-in (`autoDiscard=true`), evitando descarte agressivo de boas vagas por padrão.
 - TASK-QLT-003 adicionou baseline de smoke web/API automatizado (`npm run smoke`) com harness de subida/encerramento isolado e cobertura minima de rotas criticas.
 - TASK-SCR-011 reativou CryptoJobsList via RSS com parser dedicado, incluindo no `source=all` com tolerancia a falha parcial quando houver bloqueio externo.
@@ -192,7 +193,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-MCH-004 - calibracao de matching com dataset curado
+- sem task pendente formal no backlog derivado atual; próximo ciclo depende de novo derivador/taskifyer
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado
