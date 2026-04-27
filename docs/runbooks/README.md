@@ -33,6 +33,11 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - usar `GET /guide` para instrucoes de uso atualizadas.
 - usar `GET /health` para verificar web/API.
 - no scraper API, `autoDiscard` e opt-in: use `POST /v1/scraper/run?...&autoDiscard=true` quando quiser descarte automático por no-match.
+- para coletor RSS generico por seed list: use `POST /v1/scraper/run?source=rss-seed` (ou `source=genericrss`).
+- formato da seed list (`SCRAPER_RSS_SEEDS` ou `rssSeeds` no runner): lista CSV/quebra de linha de `URL` ou `Nome|URL`.
+  exemplos: `https://foo.example/jobs.rss,https://bar.example/feed.xml` ou `Foo Careers|https://foo.example/jobs.rss`.
+- para coleta RSS multi-feed ad-hoc, use `POST /v1/scraper/run?source=rss-seed` com `SCRAPER_RSS_SEEDS` (csv) ou payload de runtime com `rssSeeds`.
+- `sourceReports` agora inclui `method` canonico por fonte (`api-json`, `rss`, `ats`, `html`, etc.) para diagnostico rapido.
 
 ## Validacao local padrao
 1. Encerrar processos antigos se necessario: `fuser -k 3000/tcp 3001/tcp 2>/dev/null`.

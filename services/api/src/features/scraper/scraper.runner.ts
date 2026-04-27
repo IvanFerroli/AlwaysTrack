@@ -25,6 +25,11 @@ const KEYWORD_ALIASES: Record<string, string[]> = {
 const DEFAULT_AUTO_DISCARD_TAG = "auto-discard-no-match";
 const DEFAULT_MAX_CONCURRENCY = 3;
 const DEFAULT_SOURCE_TIMEOUT_MS = 15_000;
+const DEFAULT_RSS_SEED_LIST: ReadonlyArray<{ name: string; url: string }> = [
+  { name: "Python.org Jobs", url: "https://www.python.org/jobs/feed/rss/" },
+  { name: "We Work Remotely", url: "https://weworkremotely.com/remote-jobs.rss" },
+  { name: "RemoteOK Dev", url: "https://remoteok.com/remote-dev-jobs.rss" }
+];
 
 const TERM_TO_CANONICAL = new Map<string, string>();
 for (const [canonical, variants] of Object.entries(SENIORITY_ALIASES)) {
@@ -56,6 +61,7 @@ interface RunScraperOptions {
   autoDiscard?: boolean;
   maxConcurrency?: number;
   sourceTimeoutMs?: number;
+  rssSeeds?: string[];
 }
 
 /**
@@ -67,48 +73,56 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     name: "Remotive",
     url: "https://remotive.com/api/remote-jobs?limit=250",
     format: "remotive-json",
+    method: "api-json",
     mode: "auto"
   },
   arbeitnow: {
     name: "Arbeitnow",
     url: "https://www.arbeitnow.com/api/job-board-api",
     format: "arbeitnow-json",
+    method: "api-json",
     mode: "auto"
   },
   remoteok: {
     name: "RemoteOK",
     url: "https://remoteok.com/api",
     format: "remoteok-json",
+    method: "api-json",
     mode: "auto"
   },
   jobicy: {
     name: "Jobicy",
     url: "https://jobicy.com/api/v2/remote-jobs?count=50",
     format: "jobicy-json",
+    method: "api-json",
     mode: "auto"
   },
   himalayas: {
     name: "Himalayas",
     url: "https://himalayas.app/jobs/api?limit=150",
     format: "himalayas-json",
+    method: "api-json",
     mode: "auto"
   },
   linkedin: {
     name: "LinkedIn",
     url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=software&location=Brazil&start=0",
     format: "linkedin-guest-html",
+    method: "html",
     mode: "auto"
   },
   gupy: {
     name: "Gupy",
     url: "https://portal.api.gupy.io/api/job?name=software&offset=0&limit=50",
     format: "gupy-public-json",
+    method: "ats",
     mode: "auto"
   },
   solides: {
     name: "Solides",
     url: "https://solides.jobs",
     format: "unavailable-platform",
+    method: "ats",
     mode: "fallback",
     fallbackMethod: "url-import"
   },
@@ -116,6 +130,7 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     name: "Indeed",
     url: "https://www.indeed.com/rss?q=software&l=remote",
     format: "unavailable-platform",
+    method: "rss",
     mode: "fallback",
     fallbackMethod: "url-import",
     unavailableReason: "Indeed auto-feed is unstable in this environment; use acquisition fallback"
@@ -124,6 +139,7 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     name: "Glassdoor",
     url: "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=software",
     format: "unavailable-platform",
+    method: "html",
     mode: "fallback",
     fallbackMethod: "url-import",
     unavailableReason: "Glassdoor auto-feed is unstable in this environment; use acquisition fallback"
@@ -132,6 +148,15 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     name: "CryptoJobsList",
     url: "https://cryptojobslist.com/jobs.rss",
     format: "cryptojobslist-rss",
+    method: "rss",
+    mode: "auto"
+  },
+  genericrss: {
+    name: "Generic RSS (Seed List)",
+    url: "https://www.python.org/jobs/feed/rss/",
+    format: "generic-rss",
+    method: "rss",
+    enabledByDefault: false,
     mode: "auto"
   }
 };
@@ -299,6 +324,76 @@ function resolveSourceMode(source: ScraperSourceConfig): "auto" | "fallback" | "
   return "auto";
 }
 
+interface RssSeed {
+  name: string;
+  url: string;
+}
+
+function rssSeedNameFromUrl(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).host;
+  } catch {
+    return rawUrl;
+  }
+}
+
+function parseRssSeed(rawSeed: string): RssSeed | null {
+  const raw = rawSeed.trim();
+  if (!raw) return null;
+
+  const [rawName, rawUrlMaybe] = raw.includes("|")
+    ? raw.split("|", 2).map((part) => part.trim())
+    : ["", raw];
+  const rawUrl = rawUrlMaybe || rawName;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      name: rawName || rssSeedNameFromUrl(parsed.toString()),
+      url: parsed.toString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveRssSeeds(options?: RunScraperOptions): RssSeed[] {
+  const fromOptions = options?.rssSeeds ?? [];
+  const fromEnv = (process.env["SCRAPER_RSS_SEEDS"] ?? "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const rawSeeds = [...fromOptions, ...fromEnv];
+  const hasExplicitSeedInput = rawSeeds.length > 0;
+
+  const parsedFromInput = rawSeeds
+    .map(parseRssSeed)
+    .filter((seed): seed is RssSeed => seed !== null);
+
+  if (hasExplicitSeedInput && parsedFromInput.length === 0) {
+    return [];
+  }
+
+  const fallbackSeeds = DEFAULT_RSS_SEED_LIST.map((seed) => ({
+    name: seed.name,
+    url: seed.url
+  }));
+
+  const selected = parsedFromInput.length > 0 ? parsedFromInput : fallbackSeeds;
+  const uniqueByUrl = new Map<string, RssSeed>();
+  for (const seed of selected) {
+    if (!uniqueByUrl.has(seed.url)) {
+      uniqueByUrl.set(seed.url, seed);
+    }
+  }
+
+  return [...uniqueByUrl.values()];
+}
+
 async function runFallbackSource(
   ingestionService: IngestionService,
   source: ScraperSourceConfig,
@@ -320,6 +415,7 @@ async function runFallbackSource(
   if (!payload.ok) {
     return {
       name: source.name,
+      method: source.method,
       mode: "fallback",
       fallbackMethod,
       latencyMs: Date.now() - startedAt,
@@ -337,6 +433,7 @@ async function runFallbackSource(
 
   return {
     name: source.name,
+    method: source.method,
     mode: "fallback",
     fallbackMethod,
     latencyMs: Date.now() - startedAt,
@@ -389,6 +486,7 @@ async function runSingleSource(
     if (mode === "blocked") {
       return {
         name: source.name,
+        method: source.method,
         mode: "blocked",
         latencyMs: Date.now() - startedAt,
         fetched: 0,
@@ -464,6 +562,7 @@ async function runSingleSource(
 
     return {
       name: source.name,
+      method: source.method,
       mode: "auto",
       latencyMs: Date.now() - startedAt,
       fetched: rawItems.length,
@@ -478,6 +577,7 @@ async function runSingleSource(
     const message = error instanceof Error ? error.message : String(error);
     return {
       name: source.name,
+      method: source.method,
       mode,
       latencyMs: Date.now() - startedAt,
       fetched: 0,
@@ -523,6 +623,64 @@ export function filterParsedItemsByKeyword<T extends { title: string; companyNam
   });
 }
 
+async function runRssSeedList(
+  ingestionService: IngestionService,
+  keywordPlan: KeywordPlan,
+  sourceTimeoutMs: number,
+  options?: RunScraperOptions
+): Promise<ScraperRunResult> {
+  const seeds = resolveRssSeeds(options);
+  if (seeds.length === 0) {
+    throw new ScraperInputError(
+      "RSS_SEED_LIST_INVALID",
+      `[scraper.runner] source "rss-seed" requires valid seed URLs in rssSeeds option or SCRAPER_RSS_SEEDS env`
+    );
+  }
+
+  const maxConcurrency = resolveConcurrency(options);
+  const reports = await runWithConcurrency(
+    seeds.map((seed, index) => async () => {
+      const source: ScraperSourceConfig = {
+        name: `RSS Seed ${index + 1}: ${seed.name}`,
+        url: seed.url,
+        format: "generic-rss",
+        method: "rss",
+        mode: "auto"
+      };
+
+      return runSingleSource(
+        ingestionService,
+        applyKeywordToSource(source, keywordPlan.effective),
+        keywordPlan,
+        sourceTimeoutMs,
+        options
+      );
+    }),
+    maxConcurrency
+  );
+
+  const total = reports.reduce(
+    (acc, report) => ({
+      fetched: acc.fetched + report.fetched,
+      parsed: acc.parsed + report.parsed,
+      ingested: acc.ingested + report.ingested,
+      deduplicated: acc.deduplicated + report.deduplicated,
+      autoDiscarded: acc.autoDiscarded + report.discarded,
+      errors: [...acc.errors, ...report.errors]
+    }),
+    { fetched: 0, parsed: 0, ingested: 0, deduplicated: 0, autoDiscarded: 0, errors: [] as string[] }
+  );
+
+  return {
+    source: "RSS Seed List",
+    ...total,
+    keywordRequested: keywordPlan.requested,
+    keywordEffective: keywordPlan.effective,
+    sourceReports: reports,
+    sources: reports
+  };
+}
+
 /**
  * Orquestra o ciclo completo: fetch → parse → ingest.
  * Delega ao IngestionService para manter deduplicação e auditoria.
@@ -535,6 +693,10 @@ export async function runScraper(
 ): Promise<ScraperRunResult> {
   const keywordPlan = buildKeywordPlan(keyword);
   const sourceTimeoutMs = resolveSourceTimeoutMs(options);
+
+  if (sourceKey === "rss-seed" || sourceKey === "genericrss" || sourceKey === "generic-rss") {
+    return runRssSeedList(ingestionService, keywordPlan, sourceTimeoutMs, options);
+  }
 
   if (sourceKey === "all") {
     const defaultSources = Object.values(SCRAPER_SOURCES).filter((src) => src.enabledByDefault !== false);
@@ -579,7 +741,7 @@ export async function runScraper(
   if (!source) {
     throw new ScraperInputError(
       "UNKNOWN_SCRAPER_SOURCE",
-      `[scraper.runner] unknown source key: "${sourceKey}". Available: all, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
+      `[scraper.runner] unknown source key: "${sourceKey}". Available: all, rss-seed, genericrss, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
     );
   }
 

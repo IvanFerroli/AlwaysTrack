@@ -39,6 +39,139 @@ test("scraper rejects unknown sources as input errors", async () => {
   );
 });
 
+test("runScraper processes RSS seed list with multiple feeds and report per seed", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalSeedEnv = process.env["SCRAPER_RSS_SEEDS"];
+  delete process.env["SCRAPER_RSS_SEEDS"];
+
+  globalThis.fetch = (async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("feed-one.example")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/rss+xml; charset=utf-8" }),
+        text: async () => `<?xml version="1.0"?>
+<rss version="2.0"><channel><item>
+  <title>Backend Engineer at SeedOne</title>
+  <link>https://jobs.seed-one.example/backend-engineer?utm=rss</link>
+  <description><![CDATA[<p>Node.js and TypeScript</p>]]></description>
+  <pubDate>Sun, 26 Apr 2026 17:00:00 GMT</pubDate>
+</item></channel></rss>`
+      } as Response;
+    }
+
+    if (url.includes("feed-two.example")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/xml; charset=utf-8" }),
+        text: async () => `<?xml version="1.0"?>
+<rss version="2.0"><channel><item>
+  <title>Frontend Engineer at SeedTwo</title>
+  <link>https://jobs.seed-two.example/frontend-engineer</link>
+  <description><![CDATA[<p>React and accessibility</p>]]></description>
+  <pubDate>Sun, 26 Apr 2026 18:00:00 GMT</pubDate>
+</item></channel></rss>`
+      } as Response;
+    }
+
+    throw new Error(`unexpected URL in test: ${url}`);
+  }) as typeof globalThis.fetch;
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "rss-seed", undefined, {
+      rssSeeds: [
+        "Seed One|https://feed-one.example/jobs.rss",
+        "Seed Two|https://feed-two.example/jobs.rss"
+      ],
+      maxConcurrency: 2
+    });
+
+    assert.equal(result.source, "RSS Seed List");
+    assert.equal(result.fetched, 2);
+    assert.equal(result.parsed, 2);
+    assert.equal(result.ingested, 2);
+    assert.equal(result.sourceReports?.length, 2);
+
+    const firstSeed = result.sourceReports?.find((item) => item.name.includes("Seed One"));
+    const secondSeed = result.sourceReports?.find((item) => item.name.includes("Seed Two"));
+
+    assert.equal(firstSeed?.method, "rss");
+    assert.equal(firstSeed?.mode, "auto");
+    assert.equal(firstSeed?.ingested, 1);
+    assert.equal(secondSeed?.method, "rss");
+    assert.equal(secondSeed?.mode, "auto");
+    assert.equal(secondSeed?.ingested, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalSeedEnv === undefined) {
+      delete process.env["SCRAPER_RSS_SEEDS"];
+    } else {
+      process.env["SCRAPER_RSS_SEEDS"] = originalSeedEnv;
+    }
+  }
+});
+
+test("runScraper rejects invalid RSS seed list", async () => {
+  const ingestion = new IngestionService(new InMemoryStateStore());
+  await assert.rejects(
+    () =>
+      runScraper(ingestion, "rss-seed", undefined, {
+        rssSeeds: ["not-a-valid-url"]
+      }),
+    (err) => err instanceof ScraperInputError && err.code === "RSS_SEED_LIST_INVALID"
+  );
+});
+
+test("runScraper accepts genericrss alias for RSS seed collector", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/rss+xml; charset=utf-8" }),
+      text: async () => `<?xml version="1.0"?>
+<rss version="2.0"><channel><item>
+  <title>Platform Engineer at Seed Alias</title>
+  <link>https://jobs.seed-alias.example/platform-engineer</link>
+  <description><![CDATA[<p>Kubernetes and observability</p>]]></description>
+</item></channel></rss>`
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "genericrss", undefined, {
+      rssSeeds: ["Alias Seed|https://seed-alias.example/jobs.rss"]
+    });
+
+    assert.equal(result.source, "RSS Seed List");
+    assert.equal(result.ingested, 1);
+    assert.equal(result.sourceReports?.[0]?.name.includes("Alias Seed"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("scraper source registry defines canonical method per source", () => {
+  assert.equal(SCRAPER_SOURCES["remotive"].method, "api-json");
+  assert.equal(SCRAPER_SOURCES["arbeitnow"].method, "api-json");
+  assert.equal(SCRAPER_SOURCES["remoteok"].method, "api-json");
+  assert.equal(SCRAPER_SOURCES["jobicy"].method, "api-json");
+  assert.equal(SCRAPER_SOURCES["himalayas"].method, "api-json");
+  assert.equal(SCRAPER_SOURCES["linkedin"].method, "html");
+  assert.equal(SCRAPER_SOURCES["gupy"].method, "ats");
+  assert.equal(SCRAPER_SOURCES["solides"].method, "ats");
+  assert.equal(SCRAPER_SOURCES["indeed"].method, "rss");
+  assert.equal(SCRAPER_SOURCES["glassdoor"].method, "html");
+  assert.equal(SCRAPER_SOURCES["cryptojobslist"].method, "rss");
+});
+
 test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
   const items = [
     {
@@ -189,6 +322,7 @@ test("runScraper executes cryptojobslist RSS source in auto mode", async () => {
     assert.equal(result.parsed, 1);
     assert.equal(result.ingested, 1);
     assert.equal(result.sourceReports?.[0]?.mode, "auto");
+    assert.equal(result.sourceReports?.[0]?.method, "rss");
     assert.equal(result.errors.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
@@ -231,6 +365,7 @@ test("runScraper returns autoDiscarded and keywordEffective", async () => {
     assert.equal(result.autoDiscarded, 1);
     assert.equal(result.errors.length, 0);
     assert.equal(result.sourceReports?.[0]?.mode, "auto");
+    assert.equal(result.sourceReports?.[0]?.method, "api-json");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -278,12 +413,14 @@ test("runScraper reports fallback mode for unavailable platforms", async () => {
     const indeedIngestion = new IngestionService(new InMemoryStateStore());
     const indeedResult = await runScraper(indeedIngestion, "indeed", "node");
     assert.equal(indeedResult.sourceReports?.[0]?.mode, "fallback");
+    assert.equal(indeedResult.sourceReports?.[0]?.method, "rss");
     assert.equal(indeedResult.sourceReports?.[0]?.fallbackMethod, "url-import");
     assert.ok(indeedResult.errors.length >= 1);
 
     const solidesIngestion = new IngestionService(new InMemoryStateStore());
     const solidesResult = await runScraper(solidesIngestion, "solides", "typescript");
     assert.equal(solidesResult.sourceReports?.[0]?.mode, "fallback");
+    assert.equal(solidesResult.sourceReports?.[0]?.method, "ats");
     assert.equal(solidesResult.sourceReports?.[0]?.fallbackMethod, "url-import");
     assert.ok(solidesResult.errors.length >= 1);
     assert.equal(solidesResult.sourceReports?.[0]?.name, "Solides");
@@ -440,11 +577,14 @@ test("runScraper(all) limits concurrency and reports partial failures with timeo
     assert.equal(remotiveReport?.parsed, 1);
     assert.equal(remotiveReport?.ingested, 1);
     assert.equal(remotiveReport?.mode, "auto");
+    assert.equal(remotiveReport?.method, "api-json");
     assert.equal(remotiveReport?.failureType, undefined);
 
     assert.equal(arbeitnowReport?.mode, "auto");
+    assert.equal(arbeitnowReport?.method, "api-json");
     assert.equal(arbeitnowReport?.failureType, "http");
     assert.equal(remoteOkReport?.mode, "auto");
+    assert.equal(remoteOkReport?.method, "api-json");
     assert.equal(remoteOkReport?.failureType, "timeout");
     assert.ok((result.errors ?? []).length >= 2);
   } finally {
@@ -515,8 +655,10 @@ test("runScraper(all) includes cryptojobslist and keeps cycle alive on RSS secur
     const cryptoReport = result.sourceReports?.find((item) => item.name === "CryptoJobsList");
 
     assert.equal(remotiveReport?.mode, "auto");
+    assert.equal(remotiveReport?.method, "api-json");
     assert.equal(remotiveReport?.ingested, 1);
     assert.equal(cryptoReport?.mode, "auto");
+    assert.equal(cryptoReport?.method, "rss");
     assert.equal(cryptoReport?.failureType, "security-check");
     assert.ok((result.errors ?? []).length >= 1);
     assert.equal(result.ingested, 1);
@@ -525,5 +667,102 @@ test("runScraper(all) includes cryptojobslist and keeps cycle alive on RSS secur
     for (const [key, enabledByDefault] of originalEnabledByDefault.entries()) {
       SCRAPER_SOURCES[key].enabledByDefault = enabledByDefault;
     }
+  }
+});
+
+test("runScraper(rss-seed) uses default seed list when no seeds are configured", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalSeedEnv = process.env["SCRAPER_RSS_SEEDS"];
+  delete process.env["SCRAPER_RSS_SEEDS"];
+  const visitedHosts = new Set<string>();
+
+  globalThis.fetch = (async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    visitedHosts.add(new URL(url).host);
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/rss+xml; charset=utf-8" }),
+      text: async () => `<?xml version="1.0"?><rss><channel><item>
+        <title>Engineer at ${new URL(url).host}</title>
+        <link>${url}</link>
+        <description>Default seed feed entry</description>
+        <pubDate>Sun, 26 Apr 2026 18:00:00 GMT</pubDate>
+      </item></channel></rss>`
+    } as Response;
+  }) as typeof globalThis.fetch;
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "rss-seed");
+
+    assert.equal(result.source, "RSS Seed List");
+    assert.equal(result.sourceReports?.length, 3);
+    assert.equal(visitedHosts.has("www.python.org"), true);
+    assert.equal(visitedHosts.has("weworkremotely.com"), true);
+    assert.equal(visitedHosts.has("remoteok.com"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalSeedEnv === undefined) {
+      delete process.env["SCRAPER_RSS_SEEDS"];
+    } else {
+      process.env["SCRAPER_RSS_SEEDS"] = originalSeedEnv;
+    }
+  }
+});
+
+test("runScraper(rss-seed) ingests from multiple configured RSS feeds", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("feed-one.example")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/rss+xml; charset=utf-8" }),
+        text: async () => `<?xml version="1.0"?><rss><channel><item>
+          <title>Backend Engineer at Feed One</title>
+          <link>https://feed-one.example/jobs/backend</link>
+          <description>Node and TypeScript</description>
+          <pubDate>Sun, 26 Apr 2026 17:00:00 GMT</pubDate>
+        </item></channel></rss>`
+      } as Response;
+    }
+
+    if (url.includes("feed-two.example")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/xml; charset=utf-8" }),
+        text: async () => `<?xml version="1.0"?><rss><channel><item>
+          <title>Frontend Engineer at Feed Two</title>
+          <link>https://feed-two.example/jobs/frontend</link>
+          <description>React and TypeScript</description>
+          <pubDate>Sun, 26 Apr 2026 18:00:00 GMT</pubDate>
+        </item></channel></rss>`
+      } as Response;
+    }
+
+    throw new Error(`unexpected URL in test: ${url}`);
+  }) as typeof globalThis.fetch;
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "rss-seed", undefined, {
+      rssSeeds: ["https://feed-one.example/jobs.rss", "https://feed-two.example/jobs.rss"]
+    });
+
+    assert.equal(result.source, "RSS Seed List");
+    assert.equal(result.fetched, 2);
+    assert.equal(result.parsed, 2);
+    assert.equal(result.ingested, 2);
+    assert.equal(result.errors.length, 0);
+    assert.equal(result.sourceReports?.length, 2);
+    assert.equal(result.sourceReports?.every((report) => report.method === "rss"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

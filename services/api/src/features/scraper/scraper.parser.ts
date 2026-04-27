@@ -238,6 +238,30 @@ function parseCryptoJobsListRssItem(item: RawJobItem, sourceName: string): Inges
   };
 }
 
+function parseGenericRssItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["title"]);
+  const sourceUrl = canonicalizeSourceUrl(safeStr(item["link"], safeStr(item["sourceUrl"])));
+  const description = safeStr(item["description"], title);
+  const companyName =
+    safeStr(item["companyName"], safeStr(item["creator"])) ||
+    inferCompanyFromTitle(title) ||
+    sourceName;
+  const location = safeStr(item["location"], "Remote/unspecified");
+  const postedAt = safeDateStr(item["pubDate"]);
+
+  if (!title || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
 function parseLinkedInGuestItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
   const html = safeStr(item["html"]);
   if (!html) return null;
@@ -317,6 +341,8 @@ export function parseJobItems(
       parsed = parseHimalayasItem(item, source.name);
     } else if (source.format === "cryptojobslist-rss") {
       parsed = parseCryptoJobsListRssItem(item, source.name);
+    } else if (source.format === "generic-rss") {
+      parsed = parseGenericRssItem(item, source.name);
     } else if (source.format === "linkedin-guest-html") {
       parsed = parseLinkedInGuestItem(item, source.name);
     } else if (source.format === "gupy-public-json") {

@@ -30,6 +30,13 @@ function extractXmlTag(block: string, tagName: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
+function extractAtomLink(block: string): string | undefined {
+  const hrefMatch = block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?>/i);
+  if (!hrefMatch?.[1]) return undefined;
+  const cleaned = decodeXmlEntities(hrefMatch[1]);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 function parseRssItems(xml: string): RawJobItem[] {
   const items: RawJobItem[] = [];
   const matches = xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi);
@@ -58,6 +65,37 @@ function parseRssItems(xml: string): RawJobItem[] {
     });
   }
 
+  if (items.length === 0) {
+    const entries = xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi);
+    for (const match of entries) {
+      const block = match[1] ?? "";
+      const title = extractXmlTag(block, "title");
+      const link =
+        extractAtomLink(block) ??
+        extractXmlTag(block, "id") ??
+        extractXmlTag(block, "link");
+      const description =
+        extractXmlTag(block, "summary") ??
+        extractXmlTag(block, "content") ??
+        extractXmlTag(block, "description");
+      const pubDate =
+        extractXmlTag(block, "updated") ??
+        extractXmlTag(block, "published") ??
+        extractXmlTag(block, "dc:date");
+      const creator =
+        extractXmlTag(block, "author") ??
+        extractXmlTag(block, "dc:creator");
+
+      items.push({
+        title,
+        link,
+        description,
+        pubDate,
+        creator
+      });
+    }
+  }
+
   return items;
 }
 
@@ -73,9 +111,9 @@ export async function fetchJobItems(
     headers: {
       "user-agent": "olympus-climb-scraper/1.0 (job-matching-tool; contact: dev@olympus-climb.local)",
       "accept":
-        source.format === "linkedin-guest-html"
+        source.method === "html" || source.method === "html-jsonld"
           ? "text/html"
-          : source.format === "cryptojobslist-rss"
+          : source.method === "rss"
             ? "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1"
             : "application/json"
     },
@@ -103,14 +141,14 @@ export async function fetchJobItems(
       .map((chunk) => ({ html: `<li>${chunk}` }));
   }
 
-  if (source.format === "cryptojobslist-rss") {
+  if (source.format === "cryptojobslist-rss" || source.format === "generic-rss") {
     const xml = (await response.text()).slice(0, 2_000_000);
     const hasXmlContentType =
       contentType.includes("application/rss+xml") ||
       contentType.includes("application/xml") ||
       contentType.includes("text/xml");
 
-    if (!hasXmlContentType && !xml.includes("<rss")) {
+    if (!hasXmlContentType && !xml.includes("<rss") && !xml.includes("<feed")) {
       throw new Error(
         `[scraper.fetcher] unexpected content-type for ${source.name}: ${contentType}`
       );

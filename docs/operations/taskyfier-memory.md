@@ -84,6 +84,16 @@
 - TASK-QLT-003 - smoke web/api automatizado
 - TASK-MCH-004 - calibracao com dataset curado
 - TASK-DOC-003 - specs minimas por capability ativa
+- TASK-SCR-018 - registro canonico de fontes e metodos de coleta
+- TASK-SCR-019 - coletor RSS generico por seed list
+- TASK-SCR-020 - discovery via sitemap de paginas de carreira
+- TASK-SCR-021 - conector ATS Greenhouse (public boards)
+- TASK-SCR-022 - conector ATS Lever (public postings)
+- TASK-SCR-023 - conector ATS Workday (job feed publico)
+- TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
+- TASK-SCR-025 - paginacao controlada por fonte com stop conditions
+- TASK-QLT-005 - harness de qualidade por contratos de scraping
+- TASK-UX-005 - painel operacional de cobertura por fonte e metodo
 
 ## Tasks concluidas ou operacionalmente incorporadas
 - TASK-DOC-002
@@ -116,6 +126,8 @@
 - TASK-SCR-009 (completed-with-remarks)
 - TASK-SCR-010 (completed-with-remarks)
 - TASK-SCR-011 (completed-with-remarks)
+- TASK-SCR-018 (completed-with-remarks)
+- TASK-SCR-019 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
 - TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
@@ -129,7 +141,14 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-- nenhuma pendencia formal na fila atual derivada
+1. TASK-SCR-020 - discovery via sitemap de paginas de carreira
+2. TASK-SCR-021 - conector ATS Greenhouse (public boards)
+3. TASK-SCR-022 - conector ATS Lever (public postings)
+4. TASK-SCR-023 - conector ATS Workday (job feed publico)
+5. TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
+6. TASK-SCR-025 - paginacao controlada por fonte com stop conditions
+7. TASK-QLT-005 - harness de qualidade por contratos de scraping
+8. TASK-UX-005 - painel operacional de cobertura por fonte e metodo
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -178,6 +197,9 @@
 - filtros compactos agora incluem busca interna por opcao, limpar por dropdown e resumo de filtros ativos para leitura rapida.
 - Acquisition bloqueia hosts locais/privados obvios, revalida redirects manuais e limita tamanho de resposta antes de ingerir conteudo remoto.
 - `npm run up` preserva a porta 5432, sincroniza Prisma e falha cedo em vez de mascarar erro de setup.
+- novo backlog derivado (2026-04-26) prioriza abrangencia/metodos de scraping com trilha oficial SCR-018..SCR-025 + QLT-005 + UX-005.
+- TASK-SCR-018 consolidou registro canonico de `method` por fonte e propagacao em `sourceReports`.
+- TASK-SCR-019 adicionou coletor `source=rss-seed` (multi-feed), alias `genericrss` e report por seed.
 
 ## Padrões já adotados
 - menor entrega util primeiro quando nao houver pedido explicito de ciclo maior
@@ -193,7 +215,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- sem task pendente formal no backlog derivado atual; próximo ciclo depende de novo derivador/taskifyer
+- TASK-SCR-020 - discovery via sitemap de paginas de carreira
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

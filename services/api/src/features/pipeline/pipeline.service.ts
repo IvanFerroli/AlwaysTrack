@@ -124,6 +124,7 @@ function fallbackReportForSource(sourceKey: string, message: string): PipelineSo
   const source = SCRAPER_SOURCES[sourceKey];
   return {
     name: source?.name ?? sourceKey,
+    method: source?.method ?? "html",
     mode: source ? sourceMode(source) : "blocked",
     latencyMs: 0,
     fetched: 0,
@@ -213,7 +214,12 @@ export class PipelineService {
 
   async run(input: PipelineRunInput): Promise<ApiResult<PipelineRunResult>> {
     const sourceKey = (input.source?.trim() || "all").toLowerCase();
-    const sourceKnown = sourceKey === "all" || Object.hasOwn(SCRAPER_SOURCES, sourceKey);
+    const sourceKnown =
+      sourceKey === "all" ||
+      sourceKey === "rss-seed" ||
+      sourceKey === "genericrss" ||
+      sourceKey === "generic-rss" ||
+      Object.hasOwn(SCRAPER_SOURCES, sourceKey);
     if (!sourceKnown) {
       return fail("INVALID_PIPELINE_SOURCE", `Unknown source "${sourceKey}"`);
     }

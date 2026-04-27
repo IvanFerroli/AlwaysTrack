@@ -336,6 +336,7 @@ export interface PipelineRunInput {
 
 export interface PipelineSourceReport {
   name: string;
+  method: "api-json" | "rss" | "ats" | "html" | "html-jsonld" | "sitemap";
   mode: "auto" | "fallback" | "blocked";
   latencyMs: number;
   fetched: number;

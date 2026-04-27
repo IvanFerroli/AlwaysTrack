@@ -15,9 +15,16 @@ export function createScraperHandlers(ingestionService: IngestionService): {
     const keyword = params.get("keyword") ?? undefined;
     const autoDiscardRaw = params.get("autoDiscard");
     const autoDiscard = autoDiscardRaw !== null && autoDiscardRaw.toLowerCase() !== "false";
+    const rssSeedsParam = params.get("rssSeeds");
+    const rssSeeds = rssSeedsParam
+      ? rssSeedsParam
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : undefined;
 
     try {
-      const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard });
+      const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard, rssSeeds });
       sendApiResult(response, {
         ok: true,
         data: {

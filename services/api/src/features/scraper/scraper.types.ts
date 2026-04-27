@@ -6,9 +6,12 @@ export type ScraperSourceFormat =
   | "jobicy-json"
   | "himalayas-json"
   | "cryptojobslist-rss"
+  | "generic-rss"
   | "linkedin-guest-html"
   | "gupy-public-json"
   | "unavailable-platform";
+
+export type ScraperCollectionMethod = "api-json" | "rss" | "ats" | "html" | "html-jsonld" | "sitemap";
 
 export interface ScraperSourceConfig {
   /** Nome amigável da fonte, ex: "Remotive" */
@@ -17,6 +20,8 @@ export interface ScraperSourceConfig {
   url: string;
   /** Tipo do payload retornado */
   format: ScraperSourceFormat;
+  /** Metodo canonico de coleta para observabilidade e governanca. */
+  method: ScraperCollectionMethod;
   /** Modo operacional da fonte no runtime atual. */
   mode?: SourceMode;
   /** Método de fallback recomendado quando `mode=fallback`. */
@@ -36,6 +41,8 @@ export type SourceMode = "auto" | "fallback" | "blocked";
 /** Resultado de uma fonte individual */
 export interface SourceRunResult {
   name: string;
+  /** Metodo canonico registrado para a fonte (estavel para observabilidade). */
+  method: ScraperCollectionMethod;
   mode: SourceMode;
   latencyMs: number;
   fetched: number;
