@@ -22,9 +22,16 @@ export function createScraperHandlers(ingestionService: IngestionService): {
           .map((item) => item.trim())
           .filter(Boolean)
       : undefined;
+    const sitemapSeedsParam = params.get("sitemapSeeds");
+    const sitemapSeeds = sitemapSeedsParam
+      ? sitemapSeedsParam
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : undefined;
 
     try {
-      const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard, rssSeeds });
+      const result = await runScraper(ingestionService, sourceKey, keyword, { autoDiscard, rssSeeds, sitemapSeeds });
       sendApiResult(response, {
         ok: true,
         data: {

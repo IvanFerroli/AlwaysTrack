@@ -14,7 +14,7 @@ Executar coleta multi-fonte com tolerancia a falha parcial e report por fonte.
 - nao inclui: ranking final e aprovacao de candidatura.
 
 ## Contrato observavel
-- entrada: query params `source`, `keyword`, `autoDiscard`, `rssSeeds` (quando `source=rss-seed`).
+- entrada: query params `source`, `keyword`, `autoDiscard`, `rssSeeds` (quando `source=rss-seed`) e `sitemapSeeds` (quando `source=sitemap-discovery`).
 - saida: `ApiResult` com contadores (`fetched`, `parsed`, `ingested`, `deduplicated`, `autoDiscarded`) e `sourceReports`.
 - matriz de modo por fonte: `auto | fallback | blocked`.
 
@@ -32,6 +32,7 @@ Executar coleta multi-fonte com tolerancia a falha parcial e report por fonte.
 2. `sourceReports` mostra modo efetivo e metodo canonico por fonte.
 3. `source=cryptojobslist` executa caminho RSS em `auto`.
 4. `source=rss-seed` processa multiplos feeds RSS em uma rodada.
+5. `source=sitemap-discovery` gera sugestoes auditaveis de URLs candidatas sem promover fonte automaticamente.
 
 ## Definition of Done
 1. Runner cobre fonte unica e all com contadores coerentes.

@@ -166,10 +166,31 @@ test("scraper source registry defines canonical method per source", () => {
   assert.equal(SCRAPER_SOURCES["himalayas"].method, "api-json");
   assert.equal(SCRAPER_SOURCES["linkedin"].method, "html");
   assert.equal(SCRAPER_SOURCES["gupy"].method, "ats");
+  assert.equal(SCRAPER_SOURCES["greenhouse"].method, "ats");
   assert.equal(SCRAPER_SOURCES["solides"].method, "ats");
   assert.equal(SCRAPER_SOURCES["indeed"].method, "rss");
   assert.equal(SCRAPER_SOURCES["glassdoor"].method, "html");
   assert.equal(SCRAPER_SOURCES["cryptojobslist"].method, "rss");
+});
+
+test("scraper parses Greenhouse jobs with ATS source", () => {
+  const items = parseJobItems(
+    [
+      {
+        title: "Software Engineer",
+        absolute_url: "https://boards.greenhouse.io/acme/jobs/12345?gh_jid=12345",
+        content: "<p>Build APIs with Node and TypeScript.</p>",
+        location: { name: "Remote" },
+        updated_at: "2026-04-26T12:00:00Z"
+      }
+    ],
+    SCRAPER_SOURCES["greenhouse"]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.sourceName, "Greenhouse");
+  assert.equal(items[0]?.companyName, "Greenhouse");
+  assert.equal(items[0]?.location, "Remote");
 });
 
 test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
@@ -324,6 +345,39 @@ test("runScraper executes cryptojobslist RSS source in auto mode", async () => {
     assert.equal(result.sourceReports?.[0]?.mode, "auto");
     assert.equal(result.sourceReports?.[0]?.method, "rss");
     assert.equal(result.errors.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper executes greenhouse source with ATS method", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        jobs: [
+          {
+            title: "Backend Engineer",
+            absolute_url: "https://boards.greenhouse.io/acme/jobs/888",
+            content: "<p>Node.js and PostgreSQL</p>",
+            location: { name: "Remote" },
+            updated_at: "2026-04-26T00:00:00Z"
+          }
+        ]
+      })
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "greenhouse");
+    assert.equal(result.source, "Greenhouse");
+    assert.equal(result.ingested, 1);
+    assert.equal(result.sourceReports?.[0]?.method, "ats");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -765,4 +819,53 @@ test("runScraper(rss-seed) ingests from multiple configured RSS feeds", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("runScraper(sitemap-discovery) stores candidate URLs in memory entries", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input: string | URL | globalThis.Request): Promise<Response> => {
+    const url = String(input);
+    if (url.includes("sitemaps.example")) {
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/xml; charset=utf-8" }),
+        text: async () => `<?xml version="1.0"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url><loc>https://company.example/careers/backend-engineer</loc></url>
+            <url><loc>https://company.example/blog/post</loc></url>
+            <url><loc>https://company.example/jobs/frontend</loc></url>
+          </urlset>`
+      } as Response;
+    }
+    throw new Error(`unexpected URL in test: ${url}`);
+  };
+
+  try {
+    const store = new InMemoryStateStore();
+    const ingestion = new IngestionService(store);
+    const result = await runScraper(ingestion, "sitemap-discovery", undefined, {
+      sitemapSeeds: ["Main|https://sitemaps.example/sitemap.xml"]
+    });
+
+    assert.equal(result.source, "Sitemap Discovery");
+    assert.equal(result.fetched, 3);
+    assert.equal(result.parsed, 2);
+    assert.equal(result.sourceReports?.[0]?.method, "sitemap");
+
+    const memory = await store.listMemoryEntries();
+    const discoveryEntries = memory.filter((item) => item.key.startsWith("discovery:sitemap:"));
+    assert.equal(discoveryEntries.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper(sitemap-discovery) rejects invalid seed list", async () => {
+  const ingestion = new IngestionService(new InMemoryStateStore());
+  await assert.rejects(
+    () => runScraper(ingestion, "sitemap-discovery", undefined, { sitemapSeeds: ["invalid-seed"] }),
+    (err) => err instanceof ScraperInputError && err.code === "SITEMAP_SEED_LIST_INVALID"
+  );
 });

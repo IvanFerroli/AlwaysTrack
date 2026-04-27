@@ -219,6 +219,8 @@ export class PipelineService {
       sourceKey === "rss-seed" ||
       sourceKey === "genericrss" ||
       sourceKey === "generic-rss" ||
+      sourceKey === "sitemap-discovery" ||
+      sourceKey === "sitemap" ||
       Object.hasOwn(SCRAPER_SOURCES, sourceKey);
     if (!sourceKnown) {
       return fail("INVALID_PIPELINE_SOURCE", `Unknown source "${sourceKey}"`);

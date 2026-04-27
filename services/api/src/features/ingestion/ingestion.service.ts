@@ -142,6 +142,15 @@ export class IngestionService {
     });
   }
 
+  async recordDiscoverySuggestion(kind: "sitemap", sourceUrl: string, suggestionUrl: string): Promise<void> {
+    await this.store.createMemoryEntry({
+      type: "STRATEGY_HINT",
+      key: `discovery:${kind}:${sourceUrl}`,
+      value: suggestionUrl,
+      tags: ["discovery", kind]
+    });
+  }
+
   failValidation(): ApiResult<never> {
     return fail(
       "INVALID_INGEST_PAYLOAD",

@@ -1,7 +1,7 @@
 # TASK-SCR-021 - Conector ATS Greenhouse (public boards)
 
 ## Metadata
-- status: proposed
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-021-conector-ats-greenhouse-public-boards.md

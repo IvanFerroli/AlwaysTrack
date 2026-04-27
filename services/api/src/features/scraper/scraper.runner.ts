@@ -1,7 +1,7 @@
 import { computeSkillOverlap } from "../../domain/matching/scoring.js";
 import type { IngestionService } from "../ingestion/ingestion.service.js";
 import { JobAcquisitionService } from "../acquisition/acquisition.service.js";
-import { fetchJobItems } from "./scraper.fetcher.js";
+import { fetchJobItems, fetchSitemapUrls } from "./scraper.fetcher.js";
 import { parseJobItems } from "./scraper.parser.js";
 import type { ScraperRunResult, ScraperSourceConfig, SourceFailureType, SourceRunResult } from "./scraper.types.js";
 
@@ -62,6 +62,7 @@ interface RunScraperOptions {
   maxConcurrency?: number;
   sourceTimeoutMs?: number;
   rssSeeds?: string[];
+  sitemapSeeds?: string[];
 }
 
 /**
@@ -102,6 +103,13 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     url: "https://himalayas.app/jobs/api?limit=150",
     format: "himalayas-json",
     method: "api-json",
+    mode: "auto"
+  },
+  greenhouse: {
+    name: "Greenhouse",
+    url: process.env["SCRAPER_GREENHOUSE_URL"] ?? "https://boards-api.greenhouse.io/v1/boards/openai/jobs?content=true",
+    format: "greenhouse-json",
+    method: "ats",
     mode: "auto"
   },
   linkedin: {
@@ -329,6 +337,11 @@ interface RssSeed {
   url: string;
 }
 
+interface SitemapSeed {
+  name: string;
+  url: string;
+}
+
 function rssSeedNameFromUrl(rawUrl: string): string {
   try {
     return new URL(rawUrl).host;
@@ -354,6 +367,30 @@ function parseRssSeed(rawSeed: string): RssSeed | null {
 
     return {
       name: rawName || rssSeedNameFromUrl(parsed.toString()),
+      url: parsed.toString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseSitemapSeed(rawSeed: string): SitemapSeed | null {
+  const raw = rawSeed.trim();
+  if (!raw) return null;
+
+  const [rawName, rawUrlMaybe] = raw.includes("|")
+    ? raw.split("|", 2).map((part) => part.trim())
+    : ["", raw];
+  const rawUrl = rawUrlMaybe || rawName;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return {
+      name: rawName || parsed.host,
       url: parsed.toString()
     };
   } catch {
@@ -392,6 +429,22 @@ function resolveRssSeeds(options?: RunScraperOptions): RssSeed[] {
   }
 
   return [...uniqueByUrl.values()];
+}
+
+function resolveSitemapSeeds(options?: RunScraperOptions): SitemapSeed[] {
+  const fromOptions = options?.sitemapSeeds ?? [];
+  const fromEnv = (process.env["SCRAPER_SITEMAP_SEEDS"] ?? "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return [...fromOptions, ...fromEnv]
+    .map(parseSitemapSeed)
+    .filter((seed): seed is SitemapSeed => seed !== null);
+}
+
+function looksLikeJobUrl(url: string): boolean {
+  return /(job|jobs|career|careers|position|positions|vacan|opportunit)/i.test(url);
 }
 
 async function runFallbackSource(
@@ -462,6 +515,7 @@ export function applyKeywordToSource(
   if (source.format === "jobicy-json") url.searchParams.set("tag", trimmedKeyword);
   if (source.format === "linkedin-guest-html") url.searchParams.set("keywords", trimmedKeyword);
   if (source.format === "gupy-public-json") url.searchParams.set("name", trimmedKeyword);
+  if (source.format === "greenhouse-json") url.searchParams.set("query", trimmedKeyword);
 
   return { ...source, url: url.toString() };
 }
@@ -681,6 +735,82 @@ async function runRssSeedList(
   };
 }
 
+async function runSitemapDiscovery(
+  ingestionService: IngestionService,
+  sourceTimeoutMs: number,
+  options?: RunScraperOptions
+): Promise<ScraperRunResult> {
+  const seeds = resolveSitemapSeeds(options);
+  if (seeds.length === 0) {
+    throw new ScraperInputError(
+      "SITEMAP_SEED_LIST_INVALID",
+      `[scraper.runner] source "sitemap-discovery" requires valid sitemapSeeds option or SCRAPER_SITEMAP_SEEDS env`
+    );
+  }
+
+  const reports = await runWithConcurrency(
+    seeds.map((seed) => async () => {
+      const startedAt = Date.now();
+      try {
+        const discoveredUrls = await fetchSitemapUrls(seed.url, sourceTimeoutMs, 300);
+        const candidateUrls = [...new Set(discoveredUrls.filter(looksLikeJobUrl))].slice(0, 100);
+        for (const suggestionUrl of candidateUrls) {
+          await ingestionService.recordDiscoverySuggestion("sitemap", seed.url, suggestionUrl);
+        }
+
+        return {
+          name: `Sitemap Discovery (${seed.name})`,
+          method: "sitemap",
+          mode: "auto",
+          latencyMs: Date.now() - startedAt,
+          fetched: discoveredUrls.length,
+          parsed: candidateUrls.length,
+          ingested: 0,
+          deduplicated: 0,
+          discarded: 0,
+          note: `candidates=${candidateUrls.length};stored-as-memory-entries`,
+          errors: []
+        } satisfies SourceRunResult;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          name: `Sitemap Discovery (${seed.name})`,
+          method: "sitemap",
+          mode: "auto",
+          latencyMs: Date.now() - startedAt,
+          fetched: 0,
+          parsed: 0,
+          ingested: 0,
+          deduplicated: 0,
+          discarded: 0,
+          failureType: classifyFailure(error),
+          errors: [message]
+        } satisfies SourceRunResult;
+      }
+    }),
+    resolveConcurrency(options)
+  );
+
+  const total = reports.reduce(
+    (acc, report) => ({
+      fetched: acc.fetched + report.fetched,
+      parsed: acc.parsed + report.parsed,
+      ingested: 0,
+      deduplicated: 0,
+      autoDiscarded: 0,
+      errors: [...acc.errors, ...report.errors]
+    }),
+    { fetched: 0, parsed: 0, ingested: 0, deduplicated: 0, autoDiscarded: 0, errors: [] as string[] }
+  );
+
+  return {
+    source: "Sitemap Discovery",
+    ...total,
+    sourceReports: reports,
+    sources: reports
+  };
+}
+
 /**
  * Orquestra o ciclo completo: fetch → parse → ingest.
  * Delega ao IngestionService para manter deduplicação e auditoria.
@@ -693,6 +823,10 @@ export async function runScraper(
 ): Promise<ScraperRunResult> {
   const keywordPlan = buildKeywordPlan(keyword);
   const sourceTimeoutMs = resolveSourceTimeoutMs(options);
+
+  if (sourceKey === "sitemap-discovery" || sourceKey === "sitemap") {
+    return runSitemapDiscovery(ingestionService, sourceTimeoutMs, options);
+  }
 
   if (sourceKey === "rss-seed" || sourceKey === "genericrss" || sourceKey === "generic-rss") {
     return runRssSeedList(ingestionService, keywordPlan, sourceTimeoutMs, options);
@@ -741,7 +875,7 @@ export async function runScraper(
   if (!source) {
     throw new ScraperInputError(
       "UNKNOWN_SCRAPER_SOURCE",
-      `[scraper.runner] unknown source key: "${sourceKey}". Available: all, rss-seed, genericrss, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
+      `[scraper.runner] unknown source key: "${sourceKey}". Available: all, rss-seed, genericrss, sitemap-discovery, ${Object.keys(SCRAPER_SOURCES).join(", ")}`
     );
   }
 

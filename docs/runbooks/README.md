@@ -37,6 +37,7 @@ Padronizar procedimentos operacionais repetiveis com passos verificaveis e evide
 - formato da seed list (`SCRAPER_RSS_SEEDS` ou `rssSeeds` no runner): lista CSV/quebra de linha de `URL` ou `Nome|URL`.
   exemplos: `https://foo.example/jobs.rss,https://bar.example/feed.xml` ou `Foo Careers|https://foo.example/jobs.rss`.
 - para coleta RSS multi-feed ad-hoc, use `POST /v1/scraper/run?source=rss-seed` com `SCRAPER_RSS_SEEDS` (csv) ou payload de runtime com `rssSeeds`.
+- para discovery controlado via sitemap, use `POST /v1/scraper/run?source=sitemap-discovery&sitemapSeeds=Nome|https://dominio/sitemap.xml`.
 - `sourceReports` agora inclui `method` canonico por fonte (`api-json`, `rss`, `ats`, `html`, etc.) para diagnostico rapido.
 
 ## Validacao local padrao

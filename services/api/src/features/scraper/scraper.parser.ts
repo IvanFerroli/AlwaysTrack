@@ -316,6 +316,34 @@ function parseGupyPublicItem(item: RawJobItem, sourceName: string): IngestJobPos
   };
 }
 
+function parseGreenhouseItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["title"]);
+  const sourceUrl = canonicalizeSourceUrl(safeStr(item["absolute_url"], safeStr(item["url"])));
+  const description = safeStr(item["content"], safeStr(item["description"], title));
+  const companyName = safeStr(item["companyName"], sourceName);
+  const locationField = item["location"];
+  const location = (() => {
+    if (locationField && typeof locationField === "object" && !Array.isArray(locationField)) {
+      const name = safeStr((locationField as Record<string, unknown>)["name"]);
+      if (name) return name;
+    }
+    return safeStr(item["locationName"], "Remote/unspecified");
+  })();
+  const postedAt = safeDateStr(item["updated_at"]) ?? safeDateStr(item["created_at"]);
+
+  if (!title || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
 /**
  * Converte uma lista de itens brutos para IngestJobPostingInput[],
  * descartando silenciosamente itens inválidos ou incompletos.
@@ -347,6 +375,8 @@ export function parseJobItems(
       parsed = parseLinkedInGuestItem(item, source.name);
     } else if (source.format === "gupy-public-json") {
       parsed = parseGupyPublicItem(item, source.name);
+    } else if (source.format === "greenhouse-json") {
+      parsed = parseGreenhouseItem(item, source.name);
     }
 
     if (parsed) results.push(parsed);

@@ -57,8 +57,9 @@
 - `POST /v1/scraper/run`: roda scraper com `source` e `keyword` opcionais.
   - `autoDiscard` e opt-in (`false` por padrao); use `autoDiscard=true` para habilitar descarte automatico por no-match.
   - `source=rss-seed` habilita coletor RSS generico multi-feed (`rssSeeds` query csv ou `SCRAPER_RSS_SEEDS` env).
+  - `source=sitemap-discovery` habilita discovery de URLs candidatas via sitemap (`sitemapSeeds=Nome|URL`) com trilha em `memory-entries`.
   - Matriz operacional de fontes:
-    - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, CryptoJobsList (RSS)
+    - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, Greenhouse, CryptoJobsList (RSS)
     - `fallback`: Solides, Indeed, Glassdoor (via acquisition `url-import`)
     - `blocked`: nenhuma fonte ativa no baseline atual
 - `POST /v1/pipeline/run`: executa ciclo unificado (`scrape/acquire -> rank -> shortlist`) com tolerancia a falha parcial e evidencias em `agent-runs`, `decision-logs` e `skill-executions`.
@@ -87,6 +88,7 @@
 - Registro canonico de fonte com `method` observavel (`api-json`, `rss`, `ats`, `html`...) em `sourceReports`.
 - Platform scraper para LinkedIn public guest search, Gupy public portal e CryptoJobsList RSS em `auto`, com plataformas sem feed estavel tratadas em `fallback` sem claim de automacao ficticia.
 - Coletor RSS generico por seed list com report por feed (`source=rss-seed`, aliases `genericrss`/`generic-rss`).
+- Discovery controlado via sitemap para sugerir novas URLs de carreira antes de promover novas fontes.
 - Pipeline unificado para rodada de coleta e triagem com shortlist explicada via endpoint unico (`/v1/pipeline/run`).
 - Pipeline unificado possui guardrails de budget/duração/volume para operar com custo e latência previsíveis.
 - Keyword do scraper tambem aplica pos-filtro local antes de persistir; termos de senioridade como `junior` precisam aparecer no titulo.
@@ -118,4 +120,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-SCR-019` (coletor RSS generico por seed list + report por feed), precedido por `TASK-SCR-018` (registro canonico de `method` por fonte) com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-SCR-021` (conector ATS Greenhouse), precedido por `TASK-SCR-020` (discovery via sitemap com trilha auditavel), com detalhes em `docs/tasks/`.

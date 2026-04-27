@@ -1,7 +1,7 @@
 # TASK-SCR-020 - Discovery via sitemap de paginas de carreira
 
 ## Metadata
-- status: proposed
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-020-discovery-via-sitemap-de-carreiras.md

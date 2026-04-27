@@ -99,6 +99,74 @@ function parseRssItems(xml: string): RawJobItem[] {
   return items;
 }
 
+function parseSitemapLocs(xml: string, tagName: "url" | "sitemap"): string[] {
+  const matches = xml.matchAll(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "gi"));
+  const urls: string[] = [];
+
+  for (const match of matches) {
+    const block = match[1] ?? "";
+    const loc = extractXmlTag(block, "loc");
+    if (!loc) continue;
+    try {
+      const parsed = new URL(loc);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        urls.push(parsed.toString());
+      }
+    } catch {
+      // Ignore malformed sitemap locs.
+    }
+  }
+
+  return urls;
+}
+
+export async function fetchSitemapUrls(
+  sitemapUrl: string,
+  timeoutMs = 15_000,
+  maxUrls = 500
+): Promise<string[]> {
+  const response = await fetch(sitemapUrl, {
+    headers: {
+      "user-agent": "olympus-climb-scraper/1.0 (job-discovery; contact: dev@olympus-climb.local)",
+      "accept": "application/xml, text/xml;q=0.9, */*;q=0.1"
+    },
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+
+  if (!response.ok) {
+    throw new Error(`[scraper.fetcher] sitemap fetch failed: HTTP ${response.status} ${response.statusText}`);
+  }
+
+  const xml = (await response.text()).slice(0, 2_000_000);
+  const contentType = response.headers.get("content-type") ?? "";
+  const looksXml = contentType.includes("xml") || xml.includes("<urlset") || xml.includes("<sitemapindex");
+  if (!looksXml) {
+    throw new Error(`[scraper.fetcher] sitemap unexpected content-type: ${contentType}`);
+  }
+
+  const urlSetEntries = parseSitemapLocs(xml, "url");
+  if (urlSetEntries.length > 0) {
+    return urlSetEntries.slice(0, maxUrls);
+  }
+
+  const nestedSitemaps = parseSitemapLocs(xml, "sitemap").slice(0, 5);
+  const collected = new Set<string>();
+  for (const nested of nestedSitemaps) {
+    if (collected.size >= maxUrls) break;
+    try {
+      const nestedUrls = await fetchSitemapUrls(nested, timeoutMs, maxUrls - collected.size);
+      for (const url of nestedUrls) {
+        collected.add(url);
+        if (collected.size >= maxUrls) break;
+      }
+    } catch {
+      // Keep discovery resilient on partial sitemap failures.
+    }
+  }
+
+  return [...collected];
+}
+
 /**
  * Faz fetch do feed público da fonte e retorna os itens brutos.
  * Usa `fetch` nativo do Node 18+. Sem browser headless.
@@ -220,6 +288,14 @@ export async function fetchJobItems(
       throw new Error(`[scraper.fetcher] Gupy response missing 'data' array`);
     }
     return payload.data;
+  }
+
+  if (source.format === "greenhouse-json") {
+    const payload = data as { jobs?: RawJobItem[] };
+    if (!Array.isArray(payload.jobs)) {
+      throw new Error(`[scraper.fetcher] Greenhouse response missing 'jobs' array`);
+    }
+    return payload.jobs;
   }
 
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);
