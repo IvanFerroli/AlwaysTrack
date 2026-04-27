@@ -306,5 +306,21 @@ export async function fetchJobItems(
     return payload;
   }
 
+  if (source.format === "workday-json") {
+    if (Array.isArray(data)) {
+      return data as RawJobItem[];
+    }
+
+    const payload = data as { jobPostings?: RawJobItem[]; postings?: RawJobItem[] };
+    if (Array.isArray(payload.jobPostings)) {
+      return payload.jobPostings;
+    }
+    if (Array.isArray(payload.postings)) {
+      return payload.postings;
+    }
+
+    throw new Error(`[scraper.fetcher] Workday response missing supported jobs array`);
+  }
+
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);
 }

@@ -168,6 +168,7 @@ test("scraper source registry defines canonical method per source", () => {
   assert.equal(SCRAPER_SOURCES["gupy"].method, "ats");
   assert.equal(SCRAPER_SOURCES["greenhouse"].method, "ats");
   assert.equal(SCRAPER_SOURCES["lever"].method, "ats");
+  assert.equal(SCRAPER_SOURCES["workday"].method, "ats");
   assert.equal(SCRAPER_SOURCES["solides"].method, "ats");
   assert.equal(SCRAPER_SOURCES["indeed"].method, "rss");
   assert.equal(SCRAPER_SOURCES["glassdoor"].method, "html");
@@ -212,6 +213,27 @@ test("scraper parses Lever jobs with ATS source", () => {
   assert.equal(items[0]?.sourceName, "Lever");
   assert.equal(items[0]?.companyName, "Lever");
   assert.equal(items[0]?.location, "Remote");
+});
+
+test("scraper parses Workday jobs with ATS source", () => {
+  const items = parseJobItems(
+    [
+      {
+        title: "Backend Engineer",
+        externalPath: "/job/berlin/backend-engineer/12345",
+        jobDescription: "<p>Build APIs and internal platform tooling.</p>",
+        locationsText: "Berlin, Germany",
+        postedOn: "2026-04-26T10:00:00Z"
+      }
+    ],
+    SCRAPER_SOURCES["workday"]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.sourceName, "Workday");
+  assert.equal(items[0]?.companyName, "Workday");
+  assert.equal(items[0]?.location, "Berlin, Germany");
+  assert.match(items[0]?.sourceUrl ?? "", /myworkdaysite\.com/);
 });
 
 test("scraper keyword post-filter keeps seniority keywords strict to title", () => {
@@ -430,6 +452,62 @@ test("runScraper executes lever source with ATS method", async () => {
     assert.equal(result.source, "Lever");
     assert.equal(result.ingested, 1);
     assert.equal(result.sourceReports?.[0]?.method, "ats");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper executes workday source with ATS method", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        jobPostings: [
+          {
+            title: "Site Reliability Engineer",
+            externalPath: "/job/lisbon/sre/456",
+            jobDescription: "Kubernetes, observability and incident response.",
+            locationsText: "Lisbon, Portugal",
+            postedOn: "2026-04-26T00:00:00Z"
+          }
+        ]
+      })
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "workday");
+    assert.equal(result.source, "Workday");
+    assert.equal(result.ingested, 1);
+    assert.equal(result.sourceReports?.[0]?.method, "ats");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper reports parse failure for unsupported workday payload shape", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ items: [] })
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "workday");
+    assert.equal(result.ingested, 0);
+    assert.equal(result.sourceReports?.[0]?.failureType, "parse");
+    assert.ok((result.errors ?? []).length >= 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -119,6 +119,15 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     method: "ats",
     mode: "auto"
   },
+  workday: {
+    name: "Workday",
+    url:
+      process.env["SCRAPER_WORKDAY_URL"] ??
+      "https://wd5.myworkdaysite.com/wday/cxs/openai/openai/jobs",
+    format: "workday-json",
+    method: "ats",
+    mode: "auto"
+  },
   linkedin: {
     name: "LinkedIn",
     url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=software&location=Brazil&start=0",
@@ -524,6 +533,7 @@ export function applyKeywordToSource(
   if (source.format === "gupy-public-json") url.searchParams.set("name", trimmedKeyword);
   if (source.format === "greenhouse-json") url.searchParams.set("query", trimmedKeyword);
   if (source.format === "lever-json") url.searchParams.set("query", trimmedKeyword);
+  if (source.format === "workday-json") url.searchParams.set("query", trimmedKeyword);
 
   return { ...source, url: url.toString() };
 }

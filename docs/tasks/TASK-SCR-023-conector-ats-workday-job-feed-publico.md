@@ -1,7 +1,7 @@
 # TASK-SCR-023 - Conector ATS Workday (job feed publico)
 
 ## Metadata
-- status: proposed
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-023-conector-ats-workday-job-feed-publico.md
@@ -75,3 +75,7 @@ Workday concentra vagas de empresas grandes e costuma ter variabilidade de endpo
 ## Feedback obrigatorio de retorno
 - qual parcela de endpoints Workday ficou coberta no baseline inicial?
 - que tipo de erro foi mais comum nos casos nao suportados?
+
+## Feedback de retorno (ciclo atual)
+- cobertura baseline: payloads publicos com array raiz e objetos com `jobPostings[]`/`postings[]`.
+- erro mais comum em caso nao suportado: shape de payload nao reconhecido para parse/fetch de Workday.

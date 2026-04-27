@@ -131,6 +131,7 @@
 - TASK-SCR-020 (completed-with-remarks)
 - TASK-SCR-021 (completed-with-remarks)
 - TASK-SCR-022 (completed-with-remarks)
+- TASK-SCR-023 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
 - TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
@@ -144,11 +145,10 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-SCR-023 - conector ATS Workday (job feed publico)
-2. TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
-3. TASK-SCR-025 - paginacao controlada por fonte com stop conditions
-4. TASK-QLT-005 - harness de qualidade por contratos de scraping
-5. TASK-UX-005 - painel operacional de cobertura por fonte e metodo
+1. TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
+2. TASK-SCR-025 - paginacao controlada por fonte com stop conditions
+3. TASK-QLT-005 - harness de qualidade por contratos de scraping
+4. TASK-UX-005 - painel operacional de cobertura por fonte e metodo
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -172,7 +172,7 @@
 - Servidores locais fazem bind em `127.0.0.1` por padrao.
 - `npm run check` e gate minimo para declarar ciclo saudavel.
 - CryptoJobsList foi reativado por RSS parser dedicado e voltou para `mode=auto`; no ambiente atual pode ocorrer `security-check` externo (Cloudflare) com volume 0 por rodada.
-- Matriz operacional do scraper: `auto` (Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, CryptoJobsList RSS), `fallback` (Solides, Indeed, Glassdoor via acquisition), `blocked` (nenhuma fonte ativa no baseline atual).
+- Matriz operacional do scraper: `auto` (Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, Greenhouse, Lever, Workday, CryptoJobsList RSS), `fallback` (Solides, Indeed, Glassdoor via acquisition), `blocked` (nenhuma fonte ativa no baseline atual).
 - Dashboard prioriza quick actions e vagas por afinidade acima de rotas/overview; secoes sao colapsaveis para reduzir ruido.
 - Filtros do dashboard sao multi-select (toggle por clique simples) derivados do batch atual; tags/local/fonte/status aplicam OR.
 - Keyword do scraper aplica pos-filtro local antes da persistencia; termos de senioridade como `junior` sao estritos ao titulo para evitar salvar senior por ruido de descricao.
@@ -203,6 +203,7 @@
 - TASK-SCR-020 adicionou `source=sitemap-discovery` com persistencia auditavel de sugestões em `memory-entries`.
 - TASK-SCR-021 adicionou conector `greenhouse` (`method=ats`) com parse dedicado e cobertura de teste.
 - TASK-SCR-022 adicionou conector `lever` (`method=ats`) com parse/fetch dedicados e testes de execução/parse.
+- TASK-SCR-023 adicionou conector `workday` (`method=ats`) com cobertura baseline para `array|jobPostings|postings`, erro tipado para shape nao suportado e testes de sucesso/falha.
 
 ## Padrões já adotados
 - menor entrega util primeiro quando nao houver pedido explicito de ciclo maior
@@ -218,7 +219,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-SCR-023 - conector ATS Workday (job feed publico)
+- TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

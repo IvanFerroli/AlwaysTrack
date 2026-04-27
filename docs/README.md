@@ -59,7 +59,7 @@
   - `source=rss-seed` habilita coletor RSS generico multi-feed (`rssSeeds` query csv ou `SCRAPER_RSS_SEEDS` env).
   - `source=sitemap-discovery` habilita discovery de URLs candidatas via sitemap (`sitemapSeeds=Nome|URL`) com trilha em `memory-entries`.
   - Matriz operacional de fontes:
-    - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, Greenhouse, Lever, CryptoJobsList (RSS)
+    - `auto`: Remotive, Arbeitnow, RemoteOK, Jobicy, Himalayas, LinkedIn, Gupy, Greenhouse, Lever, Workday, CryptoJobsList (RSS)
     - `fallback`: Solides, Indeed, Glassdoor (via acquisition `url-import`)
     - `blocked`: nenhuma fonte ativa no baseline atual
 - `POST /v1/pipeline/run`: executa ciclo unificado (`scrape/acquire -> rank -> shortlist`) com tolerancia a falha parcial e evidencias em `agent-runs`, `decision-logs` e `skill-executions`.
@@ -120,4 +120,4 @@
 - `docs/` organiza formalizacao viva e evidencias.
 - Produto deve continuar capability-driven, spec-driven e orientado por gates.
 - Claims historicos sem evidencia de comando devem ser tratados como historicos, nao como validacao atual.
-- Ultimo ciclo consolidado: `TASK-SCR-022` (conector ATS Lever), precedido por `TASK-SCR-021` (conector ATS Greenhouse), com detalhes em `docs/tasks/`.
+- Ultimo ciclo consolidado: `TASK-SCR-023` (conector ATS Workday), precedido por `TASK-SCR-022` (conector ATS Lever), com detalhes em `docs/tasks/`.

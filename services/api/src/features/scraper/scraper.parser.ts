@@ -76,6 +76,14 @@ function canonicalizeSourceUrl(rawUrl: string): string {
   }
 }
 
+function canonicalizeSourceUrlWithBase(rawUrl: string, baseUrl: string): string {
+  try {
+    return canonicalizeSourceUrl(new URL(rawUrl, baseUrl).toString());
+  } catch {
+    return canonicalizeSourceUrl(rawUrl);
+  }
+}
+
 function inferCompanyFromTitle(title: string): string | undefined {
   const atMatch = title.match(/^(.*?)\s+at\s+(.+)$/i);
   if (atMatch?.[2]) {
@@ -379,6 +387,49 @@ function parseLeverItem(item: RawJobItem, sourceName: string): IngestJobPostingI
   };
 }
 
+function parseWorkdayItem(item: RawJobItem, source: ScraperSourceConfig): IngestJobPostingInput | null {
+  const title = safeStr(item["title"], safeStr(item["jobTitle"]));
+  const sourceUrl = canonicalizeSourceUrlWithBase(
+    safeStr(item["externalPath"], safeStr(item["url"], safeStr(item["applyUrl"]))),
+    source.url
+  );
+  const description = safeStr(
+    item["bulletPoints"],
+    safeStr(item["jobDescription"], safeStr(item["description"], title))
+  );
+
+  const location = (() => {
+    const direct = safeStr(item["locationsText"], safeStr(item["location"], safeStr(item["locationName"])));
+    if (direct) return direct;
+    if (Array.isArray(item["locations"]) && item["locations"].length > 0) {
+      const first = item["locations"][0];
+      if (first && typeof first === "object") {
+        const loc = first as Record<string, unknown>;
+        const city = safeStr(loc["city"], safeStr(loc["locationCity"]));
+        const country = safeStr(loc["country"], safeStr(loc["locationCountry"]));
+        const combined = [city, country].filter(Boolean).join(", ");
+        if (combined) return combined;
+      }
+    }
+    return "Remote/unspecified";
+  })();
+
+  const companyName = safeStr(item["companyName"], source.name);
+  const postedAt = safeDateStr(item["postedOn"]) ?? safeDateStr(item["postedAt"]) ?? safeDateStr(item["createdAt"]);
+
+  if (!title || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName: source.name,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
 /**
  * Converte uma lista de itens brutos para IngestJobPostingInput[],
  * descartando silenciosamente itens inválidos ou incompletos.
@@ -414,6 +465,8 @@ export function parseJobItems(
       parsed = parseGreenhouseItem(item, source.name);
     } else if (source.format === "lever-json") {
       parsed = parseLeverItem(item, source.name);
+    } else if (source.format === "workday-json") {
+      parsed = parseWorkdayItem(item, source);
     }
 
     if (parsed) results.push(parsed);

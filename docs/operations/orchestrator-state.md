@@ -53,6 +53,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-020 (runtime, recebida para discovery via sitemap de paginas de carreira)
 - TASK-SCR-021 (runtime, recebida para conector ATS Greenhouse public boards)
 - TASK-SCR-022 (runtime, recebida para conector ATS Lever public postings)
+- TASK-SCR-023 (runtime, recebida para conector ATS Workday job feed publico)
 - Checkpoint 2026-04-25: estado macro posterior consolidado em `docs/operations/taskyfier-memory.md` e auditoria em `docs/operations/repository-audit-2026-04-25.md`.
 
 ## Tasks roteadas
@@ -84,6 +85,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-020 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-020]
 - TASK-SCR-021 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-021]
 - TASK-SCR-022 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-022]
+- TASK-SCR-023 -> olympus-runtime-builder (`execution artifact mode`) [EXEC-SCR-023]
 
 ## Tasks devolvidas ao Taskyfier
 - TASK-DOC-002 concluida com pacote de verificacao consolidado
@@ -114,6 +116,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - TASK-SCR-020 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-SCR-021 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 - TASK-SCR-022 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
+- TASK-SCR-023 concluida com pacote de verificacao consolidado (aprovado com ressalvas)
 
 ## Blockers recorrentes
 - nenhum
@@ -151,6 +154,7 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - ultimo ciclo consolidado: TASK-SCR-020 / EXEC-SCR-020 (status: executada — aprovado com ressalvas VER-SCR-020)
 - ultimo ciclo consolidado: TASK-SCR-021 / EXEC-SCR-021 (status: executada — aprovado com ressalvas VER-SCR-021)
 - ultimo ciclo consolidado: TASK-SCR-022 / EXEC-SCR-022 (status: executada — aprovado com ressalvas VER-SCR-022)
+- ultimo ciclo consolidado: TASK-SCR-023 / EXEC-SCR-023 (status: executada — aprovado com ressalvas VER-SCR-023)
 - roteabilidade TASK-SCR-008: aprovada (escopo claro, sem dependencia externa bloqueante, capacidade mapeada para runtime + quality gates)
 - roteabilidade TASK-SCR-009: aprovada (escopo claro de runtime, sem dependencia externa bloqueante para implementacao local)
 - roteabilidade TASK-MCH-002: aprovada (escopo claro de match/scoring, sem dependencia externa bloqueante para execucao local)
@@ -169,3 +173,4 @@ Receber tasks do Taskyfier, verificar roteabilidade, escolher modo de execução
 - roteabilidade TASK-SCR-020: aprovada (escopo claro de discovery controlado por sitemap com trilha auditavel e sem promocao automatica de fonte)
 - roteabilidade TASK-SCR-021: aprovada (escopo claro de novo conector ATS Greenhouse com parse dedicado e sem dependencia bloqueante externa)
 - roteabilidade TASK-SCR-022: aprovada (escopo claro de novo conector ATS Lever com parse/fetch dedicados e sem dependencia bloqueante externa)
+- roteabilidade TASK-SCR-023: aprovada (escopo claro de novo conector ATS Workday com cobertura baseline de payload e degradacao tipada)
