@@ -298,5 +298,13 @@ export async function fetchJobItems(
     return payload.jobs;
   }
 
+  if (source.format === "lever-json") {
+    const payload = data as RawJobItem[];
+    if (!Array.isArray(payload)) {
+      throw new Error(`[scraper.fetcher] Lever response must be an array`);
+    }
+    return payload;
+  }
+
   throw new Error(`[scraper.fetcher] unsupported format: ${source.format}`);
 }

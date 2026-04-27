@@ -344,6 +344,41 @@ function parseGreenhouseItem(item: RawJobItem, sourceName: string): IngestJobPos
   };
 }
 
+function parseLeverItem(item: RawJobItem, sourceName: string): IngestJobPostingInput | null {
+  const title = safeStr(item["text"], safeStr(item["title"]));
+  const sourceUrl = canonicalizeSourceUrl(safeStr(item["hostedUrl"], safeStr(item["applyUrl"], safeStr(item["url"]))));
+  const description = safeStr(item["descriptionPlain"], safeStr(item["description"], title));
+  const categories = item["categories"];
+  const location = (() => {
+    if (categories && typeof categories === "object" && !Array.isArray(categories)) {
+      const locationName = safeStr((categories as Record<string, unknown>)["location"]);
+      if (locationName) return locationName;
+    }
+    return safeStr(item["location"], "Remote/unspecified");
+  })();
+  const companyName = safeStr(item["companyName"], sourceName);
+  const postedAt = (() => {
+    if (typeof item["createdAt"] === "number" && Number.isFinite(item["createdAt"])) {
+      const raw = item["createdAt"];
+      const ms = raw > 10_000_000_000 ? raw : raw * 1000;
+      return safeDateStr(ms / 1000) ?? new Date(ms).toISOString();
+    }
+    return safeDateStr(item["createdAt"]) ?? safeDateStr(item["updatedAt"]);
+  })();
+
+  if (!title || !sourceUrl || !description) return null;
+
+  return {
+    title,
+    companyName,
+    sourceName,
+    sourceUrl,
+    location,
+    postedAt,
+    description: truncate(stripHtml(description), 4000)
+  };
+}
+
 /**
  * Converte uma lista de itens brutos para IngestJobPostingInput[],
  * descartando silenciosamente itens inválidos ou incompletos.
@@ -377,6 +412,8 @@ export function parseJobItems(
       parsed = parseGupyPublicItem(item, source.name);
     } else if (source.format === "greenhouse-json") {
       parsed = parseGreenhouseItem(item, source.name);
+    } else if (source.format === "lever-json") {
+      parsed = parseLeverItem(item, source.name);
     }
 
     if (parsed) results.push(parsed);

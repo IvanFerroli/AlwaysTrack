@@ -45,6 +45,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-SCR-019 (TASK-SCR-019)
 - VER-SCR-020 (TASK-SCR-020)
 - VER-SCR-021 (TASK-SCR-021)
+- VER-SCR-022 (TASK-SCR-022)
 - VER-UX-002 (TASK-UX-002)
 - Checkpoint 2026-04-25: auditoria de repositorio validou lint, typecheck, testes e smoke local; ver `docs/operations/repository-audit-2026-04-25.md`.
 
@@ -77,6 +78,7 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - VER-SCR-019 - TASK-SCR-019 (coletor RSS multi-feed por seed list e aliases entregues; ressalva de estabilidade heterogenea dos feeds externos)
 - VER-SCR-020 - TASK-SCR-020 (discovery via sitemap com trilha auditável em memory entries; ressalva de ruído por qualidade de sitemap)
 - VER-SCR-021 - TASK-SCR-021 (conector Greenhouse com parse dedicado e método ATS observável; ressalva de variação de endpoint por tenant)
+- VER-SCR-022 - TASK-SCR-022 (conector Lever com parse/fetch dedicados e método ATS observável; ressalva de variação de schema por tenant)
 
 ## Verificações reprovadas
 - nenhuma
@@ -120,3 +122,4 @@ Validar, de forma estrita, tasks executadas antes que o fluxo avance.
 - ultimo parecer: TASK-SCR-019 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-SCR-020 classificada como aprovado com ressalvas
 - ultimo parecer: TASK-SCR-021 classificada como aprovado com ressalvas
+- ultimo parecer: TASK-SCR-022 classificada como aprovado com ressalvas

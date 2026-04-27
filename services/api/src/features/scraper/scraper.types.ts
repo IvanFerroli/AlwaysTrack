@@ -6,6 +6,7 @@ export type ScraperSourceFormat =
   | "jobicy-json"
   | "himalayas-json"
   | "greenhouse-json"
+  | "lever-json"
   | "cryptojobslist-rss"
   | "generic-rss"
   | "linkedin-guest-html"

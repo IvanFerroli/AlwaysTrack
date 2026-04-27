@@ -130,6 +130,7 @@
 - TASK-SCR-019 (completed-with-remarks)
 - TASK-SCR-020 (completed-with-remarks)
 - TASK-SCR-021 (completed-with-remarks)
+- TASK-SCR-022 (completed-with-remarks)
 - TASK-MCH-002 (completed-with-remarks)
 - TASK-MCH-003 (completed-with-remarks)
 - TASK-ACQ-001 (completed-with-remarks)
@@ -143,12 +144,11 @@
 - nenhuma
 
 ## Tasks pendentes priorizadas (pipeline recomendado)
-1. TASK-SCR-022 - conector ATS Lever (public postings)
-2. TASK-SCR-023 - conector ATS Workday (job feed publico)
-3. TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
-4. TASK-SCR-025 - paginacao controlada por fonte com stop conditions
-5. TASK-QLT-005 - harness de qualidade por contratos de scraping
-6. TASK-UX-005 - painel operacional de cobertura por fonte e metodo
+1. TASK-SCR-023 - conector ATS Workday (job feed publico)
+2. TASK-SCR-024 - extrator JobPosting por JSON-LD em HTML
+3. TASK-SCR-025 - paginacao controlada por fonte com stop conditions
+4. TASK-QLT-005 - harness de qualidade por contratos de scraping
+5. TASK-UX-005 - painel operacional de cobertura por fonte e metodo
 
 ## Tasks bloqueadas
 - nenhuma formalmente bloqueada
@@ -202,6 +202,7 @@
 - TASK-SCR-019 adicionou coletor `source=rss-seed` (multi-feed), alias `genericrss` e report por seed.
 - TASK-SCR-020 adicionou `source=sitemap-discovery` com persistencia auditavel de sugestões em `memory-entries`.
 - TASK-SCR-021 adicionou conector `greenhouse` (`method=ats`) com parse dedicado e cobertura de teste.
+- TASK-SCR-022 adicionou conector `lever` (`method=ats`) com parse/fetch dedicados e testes de execução/parse.
 
 ## Padrões já adotados
 - menor entrega util primeiro quando nao houver pedido explicito de ciclo maior
@@ -217,7 +218,7 @@
 - evitar CORS/host permissivos fora de uso local consciente
 
 ## Proxima menor tarefa util sugerida
-- TASK-SCR-022 - conector ATS Lever (public postings)
+- TASK-SCR-023 - conector ATS Workday (job feed publico)
 
 ## Notas de continuidade
 - atualizar esta memoria a cada ciclo relevante concluido, bloqueado ou replanejado

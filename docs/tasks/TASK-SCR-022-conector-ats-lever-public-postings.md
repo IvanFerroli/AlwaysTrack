@@ -1,7 +1,7 @@
 # TASK-SCR-022 - Conector ATS Lever (public postings)
 
 ## Metadata
-- status: proposed
+- status: completed-with-remarks
 - owner: olympus-taskyfier
 - last-updated: 2026-04-26
 - source-of-truth: docs/tasks/TASK-SCR-022-conector-ats-lever-public-postings.md

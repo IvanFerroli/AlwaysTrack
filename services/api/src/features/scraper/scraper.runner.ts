@@ -112,6 +112,13 @@ export const SCRAPER_SOURCES: Record<string, ScraperSourceConfig> = {
     method: "ats",
     mode: "auto"
   },
+  lever: {
+    name: "Lever",
+    url: process.env["SCRAPER_LEVER_URL"] ?? "https://api.lever.co/v0/postings/openai?mode=json",
+    format: "lever-json",
+    method: "ats",
+    mode: "auto"
+  },
   linkedin: {
     name: "LinkedIn",
     url: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=software&location=Brazil&start=0",
@@ -516,6 +523,7 @@ export function applyKeywordToSource(
   if (source.format === "linkedin-guest-html") url.searchParams.set("keywords", trimmedKeyword);
   if (source.format === "gupy-public-json") url.searchParams.set("name", trimmedKeyword);
   if (source.format === "greenhouse-json") url.searchParams.set("query", trimmedKeyword);
+  if (source.format === "lever-json") url.searchParams.set("query", trimmedKeyword);
 
   return { ...source, url: url.toString() };
 }

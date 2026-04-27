@@ -167,6 +167,7 @@ test("scraper source registry defines canonical method per source", () => {
   assert.equal(SCRAPER_SOURCES["linkedin"].method, "html");
   assert.equal(SCRAPER_SOURCES["gupy"].method, "ats");
   assert.equal(SCRAPER_SOURCES["greenhouse"].method, "ats");
+  assert.equal(SCRAPER_SOURCES["lever"].method, "ats");
   assert.equal(SCRAPER_SOURCES["solides"].method, "ats");
   assert.equal(SCRAPER_SOURCES["indeed"].method, "rss");
   assert.equal(SCRAPER_SOURCES["glassdoor"].method, "html");
@@ -190,6 +191,26 @@ test("scraper parses Greenhouse jobs with ATS source", () => {
   assert.equal(items.length, 1);
   assert.equal(items[0]?.sourceName, "Greenhouse");
   assert.equal(items[0]?.companyName, "Greenhouse");
+  assert.equal(items[0]?.location, "Remote");
+});
+
+test("scraper parses Lever jobs with ATS source", () => {
+  const items = parseJobItems(
+    [
+      {
+        text: "Senior Platform Engineer",
+        hostedUrl: "https://jobs.lever.co/acme/abc123?lever-source=feed",
+        descriptionPlain: "Platform, Kubernetes and observability engineering.",
+        categories: { location: "Remote" },
+        createdAt: 1714089600000
+      }
+    ],
+    SCRAPER_SOURCES["lever"]
+  );
+
+  assert.equal(items.length, 1);
+  assert.equal(items[0]?.sourceName, "Lever");
+  assert.equal(items[0]?.companyName, "Lever");
   assert.equal(items[0]?.location, "Remote");
 });
 
@@ -376,6 +397,37 @@ test("runScraper executes greenhouse source with ATS method", async () => {
     const ingestion = new IngestionService(new InMemoryStateStore());
     const result = await runScraper(ingestion, "greenhouse");
     assert.equal(result.source, "Greenhouse");
+    assert.equal(result.ingested, 1);
+    assert.equal(result.sourceReports?.[0]?.method, "ats");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("runScraper executes lever source with ATS method", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ([
+        {
+          text: "Frontend Engineer",
+          hostedUrl: "https://jobs.lever.co/acme/xyz789",
+          descriptionPlain: "React and TypeScript",
+          categories: { location: "Remote" },
+          createdAt: 1714089600000
+        }
+      ])
+    } as Response;
+  };
+
+  try {
+    const ingestion = new IngestionService(new InMemoryStateStore());
+    const result = await runScraper(ingestion, "lever");
+    assert.equal(result.source, "Lever");
     assert.equal(result.ingested, 1);
     assert.equal(result.sourceReports?.[0]?.method, "ats");
   } finally {
