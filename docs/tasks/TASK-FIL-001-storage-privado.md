@@ -1,7 +1,7 @@
 # TASK-FIL-001 - Storage privado de documentos
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-FIL-001-storage-privado.md
@@ -44,3 +44,18 @@ Criar adaptador de storage externo privado para PDF/imagem sem salvar arquivo no
 
 ## Riscos
 - arquivo ficar publico por engano
+
+## Evidencias de entrega
+- Criado contrato `StorageProvider` em `services/api/src/core/documents/storage.ts`.
+- Criado provider local privado `LocalStorageProvider`, com raiz configuravel por `STORAGE_LOCAL_DIR`.
+- Config adicionada: `STORAGE_LOCAL_DIR` e `DOCUMENT_MAX_BYTES`.
+- Upload autenticado em `POST /v1/documents` salva binario no storage e apenas `fileKey`/metadados no banco.
+- Download autenticado em `GET /v1/documents/:documentId/download` passa pelo backend.
+- Upload valida escopo, tipo permitido (`pdf`, `jpeg`, `png`, `webp`) e tamanho maximo.
+- Auditoria `document.upload` registra metadados sem armazenar conteudo.
+
+## Validacao realizada
+- `npm run check` passou com 49 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: health, login admin, upload PDF binario, download via backend com `cmp`, auditoria `document.upload`.

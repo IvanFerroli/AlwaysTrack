@@ -33,6 +33,7 @@ import {
   updateLicenseHandler,
   updateLicenseTypeHandler
 } from "./core/licenses/licenses.handlers.js";
+import { downloadDocumentHandler, uploadDocumentHandler } from "./core/documents/documents.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -68,6 +69,19 @@ export function createApp() {
   app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
   app.post("/v1/licenses/recalculate", requireAuth, requireRole(["ADMIN"]), recalculateLicensesHandler);
   app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
+  app.post(
+    "/v1/documents",
+    requireAuth,
+    requireRole(["ADMIN", "RT", "SUPERVISOR"]),
+    express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
+    uploadDocumentHandler
+  );
+  app.get(
+    "/v1/documents/:documentId/download",
+    requireAuth,
+    requireRole(["ADMIN", "RT", "SUPERVISOR"]),
+    downloadDocumentHandler
+  );
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

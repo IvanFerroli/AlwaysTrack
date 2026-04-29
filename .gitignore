@@ -4,3 +4,4 @@ dist/
 .env.local
 *.log
 services/api/prisma/dev.db
+services/api/.storage/
