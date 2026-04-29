@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import type { ApiResult, CurrentUser } from "@sylembra/shared";
+import { userRoles, type ApiResult, type CurrentUser, type UserRole } from "@sylembra/shared";
 import {
   ConfirmButton,
   OperationalFilters,
@@ -49,6 +49,20 @@ interface OrganizationItem {
   document: string | null;
   active: boolean;
   units: UnitItem[];
+}
+
+interface ManagedUserItem {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  phone: string | null;
+  active: boolean;
+  organizationId: string;
+  unitScopeIds: string[];
+  sectorScopeIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface NavItem {
@@ -217,11 +231,18 @@ function AuditView() {
 
 function SettingsView() {
   const [organization, setOrganization] = useState<OrganizationItem | null>(null);
+  const [users, setUsers] = useState<ManagedUserItem[]>([]);
   const [orgName, setOrgName] = useState("");
   const [orgDocument, setOrgDocument] = useState("");
   const [unitName, setUnitName] = useState("");
   const [sectorName, setSectorName] = useState("");
   const [sectorUnitId, setSectorUnitId] = useState("");
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userPassword, setUserPassword] = useState("");
+  const [userRole, setUserRole] = useState<UserRole>("SUPERVISOR");
+  const [userUnitScopeIds, setUserUnitScopeIds] = useState<string[]>([]);
+  const [userSectorScopeIds, setUserSectorScopeIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -230,8 +251,12 @@ function SettingsView() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api<{ organization: OrganizationItem }>("/v1/organization");
+      const [result, usersResult] = await Promise.all([
+        api<{ organization: OrganizationItem }>("/v1/organization"),
+        api<{ users: ManagedUserItem[] }>("/v1/users")
+      ]);
       setOrganization(result.organization);
+      setUsers(usersResult.users);
       setOrgName(result.organization.name);
       setOrgDocument(result.organization.document ?? "");
       setSectorUnitId(result.organization.units[0]?.id ?? "");
@@ -291,6 +316,29 @@ function SettingsView() {
     });
   }
 
+  async function addUser(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: userName,
+          email: userEmail,
+          password: userPassword,
+          role: userRole,
+          unitScopeIds: userRole === "ADMIN" ? [] : userUnitScopeIds,
+          sectorScopeIds: userRole === "ADMIN" ? [] : userSectorScopeIds
+        })
+      });
+      setUserName("");
+      setUserEmail("");
+      setUserPassword("");
+      setUserRole("SUPERVISOR");
+      setUserUnitScopeIds([]);
+      setUserSectorScopeIds([]);
+    });
+  }
+
   async function renameUnit(unit: UnitItem) {
     const name = window.prompt("Nome da unidade", unit.name);
     if (!name) return;
@@ -311,6 +359,63 @@ function SettingsView() {
         body: JSON.stringify({ name })
       });
     });
+  }
+
+  async function editUser(user: ManagedUserItem) {
+    const name = window.prompt("Nome do usuario", user.name);
+    if (!name) return;
+    const email = window.prompt("Email do usuario", user.email);
+    if (!email) return;
+    const roleInput = window.prompt("Role do usuario: ADMIN, RT ou SUPERVISOR", user.role);
+    if (!roleInput) return;
+    const role = roleInput.toUpperCase() as UserRole;
+    if (!userRoles.includes(role)) {
+      setError("Role invalida.");
+      return;
+    }
+    const unitScopeIds =
+      role === "ADMIN"
+        ? []
+        : (window.prompt("IDs de unidades separados por virgula", user.unitScopeIds.join(",")) ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    const sectorScopeIds =
+      role === "ADMIN"
+        ? []
+        : (window.prompt("IDs de setores separados por virgula", user.sectorScopeIds.join(",")) ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    await run(async () => {
+      await api(`/v1/users/${user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, email, role, unitScopeIds, sectorScopeIds })
+      });
+    });
+  }
+
+  async function resetPassword(user: ManagedUserItem) {
+    const password = window.prompt(`Nova senha para ${user.email}`);
+    if (!password) return;
+    await run(async () => {
+      await api(`/v1/users/${user.id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ password })
+      });
+    });
+  }
+
+  function toggleUnitScope(unitId: string) {
+    setUserUnitScopeIds((current) =>
+      current.includes(unitId) ? current.filter((item) => item !== unitId) : [...current, unitId]
+    );
+  }
+
+  function toggleSectorScope(sectorId: string) {
+    setUserSectorScopeIds((current) =>
+      current.includes(sectorId) ? current.filter((item) => item !== sectorId) : [...current, sectorId]
+    );
   }
 
   if (loading) {
@@ -398,6 +503,130 @@ function SettingsView() {
           </label>
           <button disabled={saving || !sectorName.trim() || !sectorUnitId}>Criar setor</button>
         </form>
+      </section>
+
+      <section className="panel form-panel full-span">
+        <form onSubmit={addUser}>
+          <h2>Novo usuario administrativo</h2>
+          <div className="form-grid">
+            <label>
+              Nome
+              <input value={userName} onChange={(event) => setUserName(event.target.value)} />
+            </label>
+            <label>
+              Email
+              <input value={userEmail} onChange={(event) => setUserEmail(event.target.value)} type="email" />
+            </label>
+            <label>
+              Senha inicial
+              <input
+                value={userPassword}
+                onChange={(event) => setUserPassword(event.target.value)}
+                type="password"
+                minLength={8}
+              />
+            </label>
+            <label>
+              Role
+              <select value={userRole} onChange={(event) => setUserRole(event.target.value as UserRole)}>
+                {userRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {userRole === "ADMIN" ? null : (
+            <div className="scope-grid">
+              <fieldset>
+                <legend>Unidades</legend>
+                {organization.units.map((unit) => (
+                  <label className="checkbox-row" key={unit.id}>
+                    <input
+                      checked={userUnitScopeIds.includes(unit.id)}
+                      onChange={() => toggleUnitScope(unit.id)}
+                      type="checkbox"
+                    />
+                    {unit.name}
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset>
+                <legend>Setores</legend>
+                {sectors.map((sector) => (
+                  <label className="checkbox-row" key={sector.id}>
+                    <input
+                      checked={userSectorScopeIds.includes(sector.id)}
+                      onChange={() => toggleSectorScope(sector.id)}
+                      type="checkbox"
+                    />
+                    {sector.name} / {sector.unitName}
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+          )}
+          <button disabled={saving || !userName.trim() || !userEmail.trim() || userPassword.length < 8}>
+            Criar usuario
+          </button>
+        </form>
+      </section>
+
+      <section className="panel table-panel full-span">
+        {users.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum usuario cadastrado" />
+        ) : (
+          <OperationalTable
+            items={users}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "name", header: "Usuario", render: (item) => `${item.name} (${item.email})` },
+              { key: "role", header: "Role", render: (item) => item.role },
+              {
+                key: "scope",
+                header: "Escopo",
+                render: (item) =>
+                  item.role === "ADMIN"
+                    ? "Todas as unidades"
+                    : `${item.unitScopeIds.length} unidades / ${item.sectorScopeIds.length} setores`
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+              },
+              {
+                key: "actions",
+                header: "Acoes",
+                render: (item) => (
+                  <div className="row-actions">
+                    <button className="secondary" type="button" onClick={() => void editUser(item)}>
+                      Editar
+                    </button>
+                    <button className="secondary" type="button" onClick={() => void resetPassword(item)}>
+                      Resetar senha
+                    </button>
+                    <ConfirmButton
+                      disabled={saving}
+                      confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                      onConfirm={() =>
+                        void run(async () => {
+                          await api(`/v1/users/${item.id}`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ active: !item.active })
+                          });
+                        })
+                      }
+                    >
+                      {item.active ? "Desativar" : "Reativar"}
+                    </ConfirmButton>
+                  </div>
+                )
+              }
+            ]}
+          />
+        )}
       </section>
 
       <section className="panel table-panel full-span">

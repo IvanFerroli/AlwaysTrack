@@ -12,6 +12,12 @@ import {
   updateSectorHandler,
   updateUnitHandler
 } from "./core/organizations/organizations.handlers.js";
+import {
+  createUserHandler,
+  listUsersHandler,
+  resetUserPasswordHandler,
+  updateUserHandler
+} from "./core/users/users.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -32,6 +38,10 @@ export function createApp() {
   app.patch("/v1/organization/units/:unitId", requireAuth, requireRole(["ADMIN"]), updateUnitHandler);
   app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(["ADMIN"]), createSectorHandler);
   app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(["ADMIN"]), updateSectorHandler);
+  app.get("/v1/users", requireAuth, requireRole(["ADMIN"]), listUsersHandler);
+  app.post("/v1/users", requireAuth, requireRole(["ADMIN"]), createUserHandler);
+  app.patch("/v1/users/:userId", requireAuth, requireRole(["ADMIN"]), updateUserHandler);
+  app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(["ADMIN"]), resetUserPasswordHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

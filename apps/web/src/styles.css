@@ -52,6 +52,11 @@ select {
   width: 100%;
 }
 
+input[type="checkbox"] {
+  min-height: 0;
+  width: auto;
+}
+
 label {
   color: #344054;
   display: grid;
@@ -300,6 +305,37 @@ th {
   gap: 12px;
 }
 
+.form-grid,
+.scope-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+fieldset {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+}
+
+legend {
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 4px;
+  text-transform: uppercase;
+}
+
+.checkbox-row {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  font-weight: 600;
+}
+
 .form-actions,
 .row-actions {
   align-items: center;
@@ -364,7 +400,9 @@ th {
   }
 
   .operational-filters,
-  .settings-grid {
+  .settings-grid,
+  .form-grid,
+  .scope-grid {
     grid-template-columns: 1fr;
   }
 }

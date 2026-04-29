@@ -1,7 +1,7 @@
 # TASK-USR-001 - Gestao de usuarios superiores
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-USR-001-gestao-usuarios-superiores.md
@@ -46,3 +46,22 @@ Permitir criar, editar, ativar/desativar, definir role e resetar senha de usuari
 
 ## Riscos
 - escalacao indevida de role
+
+## Resultado
+- Criado modulo `services/api/src/core/users` com listagem, criacao, edicao, ativacao/desativacao e reset de senha.
+- Rotas `/v1/users` protegidas por `ADMIN` e escopadas ao `organizationId` do usuario autenticado.
+- Roles `ADMIN`, `RT` e `SUPERVISOR` validadas contra o contrato compartilhado.
+- Escopos `unitScopeIds` e `sectorScopeIds` validados contra unidades/setores da propria organizacao.
+- Reset de senha recebe apenas a nova senha, atualiza o hash e nao retorna `passwordHash`.
+- Mudancas relevantes registram auditoria: `user.create`, `user.update`, `user.deactivate`, `user.password_reset`.
+- Tela de Configuracoes passou a incluir gestao de usuarios administrativos usando componentes operacionais existentes.
+
+## Evidencias de validacao
+- `npm run check`: passou com 22 testes.
+- `npm run setup`: passou.
+- `npm run build --workspace @sylembra/web`: passou.
+- Smoke local: `/health`, login admin, listar usuarios, criar usuario RT, editar para `SUPERVISOR`, resetar senha, desativar usuario e consultar auditoria de reset.
+
+## Riscos remanescentes
+- A edicao de escopos na UI usa prompts com IDs para manter o delta pequeno; pode virar seletor dedicado em uma melhoria de UX posterior.
+- Admin nao pode desativar a si mesmo para reduzir risco de lockout operacional.
