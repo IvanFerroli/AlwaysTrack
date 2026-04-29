@@ -8,6 +8,7 @@ import {
   parseLicenseFilters,
   parseLicenseInput,
   parseLicenseTypeInput,
+  recalculateLicenses,
   updateLicense
 } from "./licenses.service.js";
 
@@ -137,6 +138,16 @@ describe("licenses service", () => {
           professionalId: "pro-1",
           licenseTypeId: "type-1",
           number: "ABC",
+          status: "REGULAR",
+          expiresAt: null,
+          licenseType: { defaultWarningDays: "30", notificationRules: [] },
+          documents: []
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "lic-1",
+          professionalId: "pro-1",
+          licenseTypeId: "type-1",
+          number: "ABC",
           status: "REGULAR"
         })
       },
@@ -163,6 +174,40 @@ describe("licenses service", () => {
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "license.create", entityType: "License" }) })
+    );
+  });
+
+  it("derives status on creation when status is omitted", async () => {
+    const prisma = {
+      professional: { findFirst: vi.fn().mockResolvedValue({ id: "pro-1", organizationId: "org-1" }) },
+      licenseType: { findFirst: vi.fn().mockResolvedValue({ id: "type-1", organizationId: "org-1" }) },
+      license: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "lic-1",
+          professionalId: "pro-1",
+          licenseTypeId: "type-1",
+          number: null,
+          status: "PENDING_DOCUMENT",
+          expiresAt: null,
+          licenseType: { defaultWarningDays: "30", notificationRules: [] },
+          documents: []
+        }),
+        update: vi.fn().mockResolvedValue({ id: "lic-1", status: "PENDING_DOCUMENT" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await createLicense(prisma as never, admin, {
+      professionalId: "pro-1",
+      licenseTypeId: "type-1"
+    });
+
+    expect(prisma.license.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "lic-1" },
+        data: { status: "PENDING_DOCUMENT" }
+      })
     );
   });
 
@@ -196,6 +241,41 @@ describe("licenses service", () => {
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "license.deactivate", entityType: "License" }) })
+    );
+  });
+
+  it("recalculates statuses and audits changed licenses", async () => {
+    const prisma = {
+      license: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lic-1",
+            status: "REGULAR",
+            expiresAt: null,
+            licenseType: { defaultWarningDays: "30", notificationRules: [] },
+            documents: []
+          }
+        ]),
+        update: vi.fn().mockResolvedValue({ id: "lic-1", status: "PENDING_DOCUMENT" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const result = await recalculateLicenses(prisma as never, admin);
+
+    expect(result).toEqual({
+      total: 1,
+      changed: 1,
+      items: [{ id: "lic-1", previousStatus: "REGULAR", status: "PENDING_DOCUMENT", changed: true }]
+    });
+    expect(prisma.license.update).toHaveBeenCalledWith({
+      where: { id: "lic-1" },
+      data: { status: "PENDING_DOCUMENT" }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "license.status_recalculate", entityType: "License" })
+      })
     );
   });
 });

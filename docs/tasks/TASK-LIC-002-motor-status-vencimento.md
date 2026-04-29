@@ -1,7 +1,7 @@
 # TASK-LIC-002 - Motor de status e vencimento
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-LIC-002-motor-status-vencimento.md
@@ -44,3 +44,17 @@ Implementar calculo de LicenseStatus sem misturar status de Document.
 
 ## Riscos
 - regra de status ficar espalhada
+
+## Evidencias de entrega
+- Criado motor central em `services/api/src/core/licenses/status.ts`.
+- Regra cobre `REGULAR`, `EXPIRING`, `EXPIRED`, `PENDING_DOCUMENT`, `PENDING_VALIDATION` e `INACTIVE`.
+- Janela de vencimento usa `LicenseType.defaultWarningDays` e `NotificationRule.daysBeforeExpiration` ativa; controller nao contem regra de prazo.
+- Criado endpoint ADMIN `POST /v1/licenses/recalculate` para recalcular todas as licencas da organizacao ou uma licenca especifica.
+- Recalculo registra auditoria `license.status_recalculate` quando houver mudanca.
+- Tela `Licencas` ganhou acao operacional de recalculo.
+
+## Validacao realizada
+- `npm run check` passou com 44 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: health, login admin, `POST /v1/licenses/recalculate`, listagem de licencas e auditoria de recalc.

@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@sylembra/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { calculateLicenseStatus } from "./status.js";
 
 export class LicenseManagementError extends Error {
   constructor(
@@ -39,6 +40,10 @@ export interface LicenseFilters {
   licenseTypeId?: string;
   status?: LicenseStatus;
   query?: string;
+}
+
+export interface RecalculateLicensesInput {
+  licenseId?: string;
 }
 
 function cleanText(value: unknown) {
@@ -105,6 +110,11 @@ export function parseLicenseFilters(query: Record<string, unknown>): LicenseFilt
   };
 }
 
+export function parseRecalculateLicensesInput(payload: unknown): RecalculateLicensesInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return { licenseId: cleanText(input.licenseId) };
+}
+
 function scopedProfessionalWhere(actor: CurrentUser): Prisma.ProfessionalWhereInput {
   if (actor.role === "ADMIN") {
     return { organizationId: actor.organizationId };
@@ -159,6 +169,31 @@ function includeLicenseRelations() {
     validatedBy: { select: { id: true, name: true, email: true, role: true } },
     _count: { select: { documents: true, notificationJobs: true } }
   };
+}
+
+function includeLicenseStatusRelations() {
+  return {
+    licenseType: {
+      include: {
+        notificationRules: true
+      }
+    },
+    documents: {
+      select: { status: true }
+    }
+  };
+}
+
+type LicenseForStatus = Prisma.LicenseGetPayload<{ include: ReturnType<typeof includeLicenseStatusRelations> }>;
+
+function deriveLicenseStatus(license: LicenseForStatus) {
+  return calculateLicenseStatus({
+    currentStatus: license.status,
+    expiresAt: license.expiresAt,
+    defaultWarningDays: license.licenseType.defaultWarningDays,
+    documents: license.documents,
+    notificationRules: license.licenseType.notificationRules
+  });
 }
 
 async function ensureAdmin(actor: CurrentUser) {
@@ -296,14 +331,15 @@ export async function listLicenses(prisma: PrismaClient, actor: CurrentUser, fil
 
 export async function createLicense(prisma: PrismaClient, actor: CurrentUser, input: LicenseInput) {
   await ensureAdmin(actor);
-  if (!input.professionalId || !input.licenseTypeId || !input.status) {
+  if (!input.professionalId || !input.licenseTypeId) {
     throw new LicenseManagementError("INVALID_INPUT");
   }
   await ensureProfessional(prisma, actor, input.professionalId);
   await ensureLicenseType(prisma, actor, input.licenseTypeId);
   await ensureLicenseNumberAvailable(prisma, input.professionalId, input.licenseTypeId, input.number);
 
-  const license = await prisma.license.create({
+  const initialStatus = input.status ?? "PENDING_DOCUMENT";
+  const created = await prisma.license.create({
     data: {
       professionalId: input.professionalId,
       licenseTypeId: input.licenseTypeId,
@@ -312,11 +348,18 @@ export async function createLicense(prisma: PrismaClient, actor: CurrentUser, in
       uf: input.uf,
       issuedAt: input.issuedAt,
       expiresAt: input.expiresAt,
-      status: input.status,
+      status: initialStatus,
       notes: input.notes,
       validatedById: actor.id,
       lastValidatedAt: new Date()
     },
+    include: includeLicenseStatusRelations()
+  });
+
+  const derivedStatus = input.status ?? deriveLicenseStatus(created);
+  const license = await prisma.license.update({
+    where: { id: created.id },
+    data: { status: derivedStatus },
     include: includeLicenseRelations()
   });
 
@@ -393,4 +436,52 @@ export async function updateLicense(prisma: PrismaClient, actor: CurrentUser, li
   });
 
   return license;
+}
+
+export async function recalculateLicenses(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  input: RecalculateLicensesInput = {}
+) {
+  await ensureAdmin(actor);
+
+  const licenses = await prisma.license.findMany({
+    where: {
+      id: input.licenseId,
+      professional: { organizationId: actor.organizationId }
+    },
+    include: includeLicenseStatusRelations(),
+    orderBy: { createdAt: "asc" }
+  });
+
+  if (input.licenseId && licenses.length === 0) {
+    throw new LicenseManagementError("NOT_FOUND");
+  }
+
+  let changed = 0;
+  const items = [];
+  for (const license of licenses) {
+    const nextStatus = deriveLicenseStatus(license);
+    if (nextStatus === license.status) {
+      items.push({ id: license.id, previousStatus: license.status, status: nextStatus, changed: false });
+      continue;
+    }
+
+    await prisma.license.update({
+      where: { id: license.id },
+      data: { status: nextStatus }
+    });
+    await recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      action: "license.status_recalculate",
+      entityType: "License",
+      entityId: license.id,
+      metadata: { previousStatus: license.status, status: nextStatus }
+    });
+    changed += 1;
+    items.push({ id: license.id, previousStatus: license.status, status: nextStatus, changed: true });
+  }
+
+  return { total: licenses.length, changed, items };
 }

@@ -29,6 +29,7 @@ import {
   createLicenseTypeHandler,
   listLicensesHandler,
   listLicenseTypesHandler,
+  recalculateLicensesHandler,
   updateLicenseHandler,
   updateLicenseTypeHandler
 } from "./core/licenses/licenses.handlers.js";
@@ -65,6 +66,7 @@ export function createApp() {
   app.patch("/v1/license-types/:licenseTypeId", requireAuth, requireRole(["ADMIN"]), updateLicenseTypeHandler);
   app.get("/v1/licenses", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicensesHandler);
   app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
+  app.post("/v1/licenses/recalculate", requireAuth, requireRole(["ADMIN"]), recalculateLicensesHandler);
   app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));

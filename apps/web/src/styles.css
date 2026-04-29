@@ -344,6 +344,12 @@ legend {
   gap: 8px;
 }
 
+.action-panel {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+}
+
 .row-actions button {
   min-height: 34px;
   padding: 0 10px;

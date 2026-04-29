@@ -827,6 +827,12 @@ function LicensesView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function recalculateStatuses() {
+    await run(async () => {
+      await api("/v1/licenses/recalculate", { method: "POST", body: JSON.stringify({}) });
+    });
+  }
+
   const activeLicenseTypes = licenseTypes.filter((item) => item.active);
   const activeProfessionals = professionals.filter((item) => item.active);
 
@@ -849,6 +855,14 @@ function LicensesView({ user }: { user: CurrentUser }) {
       />
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {user.role === "ADMIN" ? (
+        <section className="panel action-panel">
+          <button className="secondary" disabled={saving} type="button" onClick={() => void recalculateStatuses()}>
+            Recalcular status
+          </button>
+        </section>
+      ) : null}
 
       {user.role === "ADMIN" ? (
         <div className="settings-grid">
@@ -1391,7 +1405,7 @@ function SettingsView() {
             </div>
           )}
           <button disabled={saving || !userName.trim() || !userEmail.trim() || userPassword.length < 8}>
-            {saving ? "Criando usuario..." : "Criar usuario"}
+            {saving ? "Salvando..." : "Criar usuario"}
           </button>
         </form>
       </section>

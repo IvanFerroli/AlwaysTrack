@@ -10,6 +10,8 @@ import {
   parseLicenseFilters,
   parseLicenseInput,
   parseLicenseTypeInput,
+  parseRecalculateLicensesInput,
+  recalculateLicenses,
   updateLicense,
   updateLicenseType
 } from "./licenses.service.js";
@@ -100,6 +102,15 @@ export async function updateLicenseHandler(request: Request, response: Response)
       parseLicenseInput(request.body)
     );
     return sendOk(response, { license });
+  } catch (error) {
+    return sendLicenseError(response, error);
+  }
+}
+
+export async function recalculateLicensesHandler(request: Request, response: Response) {
+  try {
+    const result = await recalculateLicenses(prisma, actorFrom(request), parseRecalculateLicensesInput(request.body));
+    return sendOk(response, result);
   } catch (error) {
     return sendLicenseError(response, error);
   }
