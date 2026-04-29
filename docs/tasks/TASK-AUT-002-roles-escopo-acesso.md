@@ -1,7 +1,7 @@
 # TASK-AUT-002 - Roles e escopo de acesso
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-AUT-002-roles-escopo-acesso.md
@@ -46,3 +46,15 @@ Aplicar autorizacao para ADMIN, RT e SUPERVISOR com escopo por organizacao/unida
 ## Riscos
 - vazar dados entre setores/unidades
 - permissao duplicada em controllers
+
+## Evidencia de execucao
+- Criado policy helper puro em `services/api/src/core/auth/access-policy.ts`.
+- `CurrentUser` passou a carregar `unitScopeIds` e `sectorScopeIds`.
+- `requireAuth` hidrata escopos a partir de `User.unitScopeJson` e `User.sectorScopeJson`.
+- Testes cobrem ADMIN, bloqueio cross-org, RT por `responsibleRtId`, SUPERVISOR por unidade/setor e helper de filtro por organizacao.
+- Migration incremental criada em `services/api/prisma/migrations/20260429123500_user_scope_columns/migration.sql`.
+- `scripts/start-all.js` agora cria banco novo a partir do schema atual via `prisma migrate diff`.
+- Validacao executada: `npm run check`, `npm run setup`.
+
+## Ressalva
+- Como os modulos de profissionais, unidades e setores ainda nao existem, a policy foi entregue como contrato reutilizavel e testado, sem aplicar filtros em CRUDs futuros.

@@ -1,7 +1,9 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ApiResult, CurrentUser } from "@sylembra/shared";
 import "./styles.css";
+
+type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "audit" | "settings";
 
 interface AuditLogItem {
   id: string;
@@ -17,6 +19,23 @@ interface AuditLogItem {
     role: string;
   };
 }
+
+interface NavItem {
+  key: ViewKey;
+  label: string;
+  description: string;
+  roles: CurrentUser["role"][];
+}
+
+const navItems: NavItem[] = [
+  { key: "dashboard", label: "Dashboard", description: "Visao operacional do dia", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "professionals", label: "Profissionais", description: "Cadastro e acompanhamento", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "licenses", label: "Licencas", description: "Vencimentos e status", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "documents", label: "Documentos", description: "Uploads e validacoes", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "reports", label: "Relatorios", description: "Consultas operacionais", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "audit", label: "Auditoria", description: "Trilha de eventos", roles: ["ADMIN"] },
+  { key: "settings", label: "Configuracoes", description: "Usuarios e organizacao", roles: ["ADMIN"] }
+];
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -61,8 +80,9 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
     <main className="auth-page">
       <form className="panel login-panel" onSubmit={submit}>
         <div>
-          <p className="eyebrow">Acesso administrativo</p>
+          <p className="eyebrow">Sylembra</p>
           <h1>Entrar</h1>
+          <p className="muted">Acesso administrativo para operacao de licencas e documentos.</p>
         </div>
         <label>
           Email
@@ -84,7 +104,17 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   );
 }
 
-function AuditPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
+function PlaceholderView({ item }: { item: NavItem }) {
+  return (
+    <section className="panel empty-state">
+      <p className="eyebrow">{item.label}</p>
+      <h2>{item.description}</h2>
+      <p className="muted">Modulo reservado no shell. A implementacao funcional entra nas proximas tasks do roadmap.</p>
+    </section>
+  );
+}
+
+function AuditView() {
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
@@ -111,23 +141,8 @@ function AuditPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void
     void load();
   }, []);
 
-  async function logout() {
-    await api("/v1/auth/logout", { method: "POST" });
-    onLogout();
-  }
-
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">{user.role}</p>
-          <h1>Auditoria</h1>
-        </div>
-        <button className="secondary" onClick={logout}>
-          Sair
-        </button>
-      </header>
-
+    <div className="content-stack">
       <section className="panel filters">
         <label>
           Acao
@@ -140,12 +155,12 @@ function AuditPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void
         <button onClick={load}>Filtrar</button>
       </section>
 
-      <section className="panel">
+      <section className="panel table-panel">
         {error ? <p className="error">{error}</p> : null}
         {loading ? (
-          <p>Carregando...</p>
+          <p className="muted">Carregando...</p>
         ) : items.length === 0 ? (
-          <p>Nenhum evento encontrado.</p>
+          <p className="muted">Nenhum evento encontrado.</p>
         ) : (
           <table>
             <thead>
@@ -171,6 +186,56 @@ function AuditPage({ user, onLogout }: { user: CurrentUser; onLogout: () => void
           </table>
         )}
       </section>
+    </div>
+  );
+}
+
+function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
+  const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
+  const [activeView, setActiveView] = useState<ViewKey>(visibleNav[0]?.key ?? "dashboard");
+  const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
+
+  async function logout() {
+    await api("/v1/auth/logout", { method: "POST" });
+    onLogout();
+  }
+
+  return (
+    <main className="app-frame">
+      <aside className="sidebar">
+        <div className="brand">
+          <p className="eyebrow">Sylembra</p>
+          <strong>Operacao</strong>
+        </div>
+        <nav className="nav-list" aria-label="Navegacao principal">
+          {visibleNav.map((item) => (
+            <button
+              className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
+              key={item.key}
+              onClick={() => setActiveView(item.key)}
+            >
+              <span>{item.label}</span>
+              <small>{item.description}</small>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="workspace">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">{user.role}</p>
+            <h1>{activeItem.label}</h1>
+          </div>
+          <div className="user-actions">
+            <span>{user.name}</span>
+            <button className="secondary" onClick={logout}>
+              Sair
+            </button>
+          </div>
+        </header>
+        {activeItem.key === "audit" ? <AuditView /> : <PlaceholderView item={activeItem} />}
+      </section>
     </main>
   );
 }
@@ -190,7 +255,7 @@ function App() {
     return <main className="auth-page">Carregando...</main>;
   }
 
-  return user ? <AuditPage user={user} onLogout={() => setUser(null)} /> : <LoginForm onLogin={setUser} />;
+  return user ? <AppShell user={user} onLogout={() => setUser(null)} /> : <LoginForm onLogin={setUser} />;
 }
 
 createRoot(document.getElementById("root") as HTMLElement).render(

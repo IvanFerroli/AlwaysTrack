@@ -5,6 +5,7 @@ import { loadEnv } from "../../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { sendError } from "../http/responses.js";
 import { parseSessionToken, sessionCookieName } from "./session.js";
+import { parseScopeIds } from "./scope.js";
 
 declare global {
   namespace Express {
@@ -35,10 +36,13 @@ export async function requireAuth(request: Request, response: Response, next: Ne
     name: user.name,
     email: user.email,
     role: user.role as UserRole,
-    organizationId: user.organizationId
+    organizationId: user.organizationId,
+    unitScopeIds: parseScopeIds(user.unitScopeJson),
+    sectorScopeIds: parseScopeIds(user.sectorScopeJson)
   };
   next();
 }
+
 
 export function requireRole(roles: UserRole[]) {
   return (request: Request, response: Response, next: NextFunction) => {

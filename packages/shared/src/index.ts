@@ -11,4 +11,6 @@ export interface CurrentUser {
   email: string;
   role: UserRole;
   organizationId: string;
+  unitScopeIds: string[];
+  sectorScopeIds: string[];
 }

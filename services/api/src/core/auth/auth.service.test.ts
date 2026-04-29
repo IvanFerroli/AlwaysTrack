@@ -32,6 +32,8 @@ describe("auth service", () => {
     );
 
     expect(result.user.email).toBe("admin@example.com");
+    expect(result.user.unitScopeIds).toEqual([]);
+    expect(result.user.sectorScopeIds).toEqual([]);
     expect(result.token).toContain(".");
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({

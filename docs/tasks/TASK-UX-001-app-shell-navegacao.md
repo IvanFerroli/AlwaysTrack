@@ -1,7 +1,7 @@
 # TASK-UX-001 - App shell e navegacao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: frontend implementer
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-UX-001-app-shell-navegacao.md
@@ -43,3 +43,15 @@ Criar layout apresentavel, responsivo e operacional para a V1.
 
 ## Riscos
 - tela parecer prototipo descartavel
+
+## Evidencia de execucao
+- App shell autenticado implementado em `apps/web/src/main.tsx`.
+- Navegacao principal cobre dashboard, profissionais, licencas, documentos, relatorios, auditoria e configuracoes.
+- Itens administrativos (`Auditoria`, `Configuracoes`) aparecem apenas para `ADMIN`.
+- Shell usa `/v1/auth/me` para proteger a experiencia autenticada.
+- Estados base implementados: carregando, erro, vazio e placeholders operacionais para modulos futuros.
+- Estilos responsivos implementados em `apps/web/src/styles.css`.
+- Validacao executada: `npm run build --workspace @sylembra/web`, `npm run check`, smoke HTTP com login/me/web.
+
+## Ressalva
+- Screenshot desktop/mobile nao foi anexado; a validacao visual foi feita por build e smoke do shell. Rotas reais por URL ficam para ciclo posterior se necessario.

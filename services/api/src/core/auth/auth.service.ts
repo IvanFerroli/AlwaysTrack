@@ -3,6 +3,7 @@ import { userRoles, type UserRole } from "@sylembra/shared";
 import type { PrismaClient } from "@prisma/client";
 import { verifyPassword } from "./password.js";
 import { createSessionToken } from "./session.js";
+import { parseScopeIds } from "./scope.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 
 export class AuthError extends Error {
@@ -50,7 +51,9 @@ export async function loginUser(prisma: PrismaClient, input: LoginInput, session
     name: user.name,
     email: user.email,
     role: toUserRole(user.role),
-    organizationId: user.organizationId
+    organizationId: user.organizationId,
+    unitScopeIds: parseScopeIds(user.unitScopeJson),
+    sectorScopeIds: parseScopeIds(user.sectorScopeJson)
   };
 
   return {

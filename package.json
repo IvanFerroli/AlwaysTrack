@@ -9,7 +9,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @sylembra/api",
+    "dev": "npm run dev:api",
+    "dev:api": "npm run dev --workspace @sylembra/api",
+    "dev:web": "npm run dev --workspace @sylembra/web",
+    "up": "node scripts/start-all.js",
+    "setup": "node scripts/start-all.js --setup-only",
     "check": "npm run typecheck --workspaces --if-present && npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
@@ -20,8 +24,5 @@
   "devDependencies": {
     "prisma": "6.19.3",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.18.0"
   }
 }

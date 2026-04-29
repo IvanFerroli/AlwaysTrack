@@ -55,12 +55,22 @@ label {
 }
 
 h1,
+h2,
 p {
   margin: 0;
 }
 
+h1 {
+  font-size: 28px;
+}
+
+h2 {
+  font-size: 20px;
+}
+
 table {
   border-collapse: collapse;
+  min-width: 760px;
   width: 100%;
 }
 
@@ -93,6 +103,7 @@ th {
 }
 
 .login-panel {
+  display: grid;
   gap: 18px;
   justify-self: center;
   max-width: 420px;
@@ -100,16 +111,69 @@ th {
   width: 100%;
 }
 
-.login-panel,
-.filters {
+.app-frame {
   display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.app-shell {
+.sidebar {
+  background: #101828;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 18px;
+}
+
+.brand {
+  display: grid;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.brand strong {
+  font-size: 22px;
+}
+
+.nav-list {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-item {
+  background: transparent;
+  border-radius: 8px;
+  color: #e4e7ec;
+  display: grid;
+  gap: 4px;
+  height: auto;
+  justify-items: start;
+  min-height: 58px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.nav-item small {
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.nav-item.active {
+  background: #0f766e;
+  color: white;
+}
+
+.nav-item.active small {
+  color: #d1faf4;
+}
+
+.workspace {
   display: grid;
   gap: 20px;
-  margin: 0 auto;
-  max-width: 1120px;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
   padding: 28px;
 }
 
@@ -120,10 +184,34 @@ th {
   justify-content: space-between;
 }
 
+.user-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.content-stack {
+  display: grid;
+  gap: 16px;
+}
+
 .filters {
+  display: grid;
   gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 16px;
+}
+
+.table-panel {
+  overflow: auto;
+}
+
+.empty-state {
+  align-content: start;
+  display: grid;
+  gap: 10px;
+  min-height: 260px;
+  padding: 24px;
 }
 
 .eyebrow {
@@ -134,17 +222,49 @@ th {
   text-transform: uppercase;
 }
 
+.sidebar .eyebrow {
+  color: #5eead4;
+}
+
+.muted {
+  color: #667085;
+}
+
 .error {
   color: #b42318;
   font-weight: 700;
 }
 
-@media (max-width: 720px) {
-  .filters {
+@media (max-width: 860px) {
+  .app-frame {
     grid-template-columns: 1fr;
   }
 
-  .app-shell {
+  .sidebar {
+    gap: 14px;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace {
     padding: 16px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .nav-list {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar,
+  .user-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
