@@ -155,6 +155,35 @@ interface PublicUploadToken {
   };
 }
 
+interface DocumentItem {
+  id: string;
+  professionalId: string;
+  licenseId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  status: "UPLOADED" | "APPROVED" | "REJECTED" | "ARCHIVED";
+  rejectionReason: string | null;
+  validatedAt: string | null;
+  createdAt: string;
+  professional: {
+    id: string;
+    name: string;
+    unit: { id: string; name: string };
+    sector: { id: string; name: string };
+    responsibleRt: null | { id: string; name: string; email: string; role: string };
+  };
+  license: {
+    id: string;
+    number: string | null;
+    status: LicenseStatus;
+    licenseType: { id: string; name: string };
+  };
+  uploadedByUser: null | { id: string; name: string; email: string; role: string };
+  uploadToken: null | { id: string; usedAt: string | null; expiresAt: string };
+  validatedBy: null | { id: string; name: string; email: string; role: string };
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -1096,6 +1125,153 @@ function LicensesView({ user }: { user: CurrentUser }) {
   );
 }
 
+function DocumentsView({ user }: { user: CurrentUser }) {
+  const [items, setItems] = useState<DocumentItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("UPLOADED");
+  const [professionalFilter, setProfessionalFilter] = useState("");
+  const [licenseFilter, setLicenseFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams();
+    if (statusFilter) search.set("status", statusFilter);
+    if (professionalFilter) search.set("professionalId", professionalFilter);
+    if (licenseFilter) search.set("licenseId", licenseFilter);
+    try {
+      const result = await api<{ items: DocumentItem[]; total: number }>(`/v1/documents?${search.toString()}`);
+      setItems(result.items);
+      setTotal(result.total);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar documentos.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao validar documento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function download(document: DocumentItem) {
+    window.open(`/v1/documents/${document.id}/download`, "_blank", "noopener,noreferrer");
+  }
+
+  async function approve(document: DocumentItem) {
+    await run(async () => {
+      await api(`/v1/documents/${document.id}/validation`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "APPROVED" })
+      });
+    });
+  }
+
+  async function reject(document: DocumentItem) {
+    const rejectionReason = window.prompt("Motivo da recusa");
+    if (!rejectionReason?.trim()) return;
+    await run(async () => {
+      await api(`/v1/documents/${document.id}/validation`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "REJECTED", rejectionReason })
+      });
+    });
+  }
+
+  return (
+    <div className="content-stack">
+      <OperationalFilters
+        fields={[
+          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", onChange: setStatusFilter },
+          {
+            key: "professional",
+            label: "Profissional",
+            value: professionalFilter,
+            placeholder: "ID do profissional",
+            onChange: setProfessionalFilter
+          },
+          { key: "license", label: "Licenca", value: licenseFilter, placeholder: "ID da licenca", onChange: setLicenseFilter }
+        ]}
+        onSubmit={load}
+      />
+
+      {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      <section className="panel table-panel">
+        {loading ? (
+          <OperationalState state="loading" title="Carregando documentos" />
+        ) : items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum documento encontrado" />
+        ) : (
+          <>
+            <OperationalTable
+              items={items}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "file", header: "Arquivo", render: (item) => `${item.fileName} / ${Math.ceil(item.size / 1024)} KB` },
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                {
+                  key: "license",
+                  header: "Licenca",
+                  render: (item) => `${item.license.licenseType.name}${item.license.number ? ` / ${item.license.number}` : ""}`
+                },
+                { key: "unit", header: "Unidade/Setor", render: (item) => `${item.professional.unit.name} / ${item.professional.sector.name}` },
+                { key: "status", header: "Status", render: (item) => <StatusBadge kind="document" value={item.status} /> },
+                {
+                  key: "validated",
+                  header: "Validacao",
+                  render: (item) =>
+                    item.validatedBy
+                      ? `${item.validatedBy.name} / ${item.validatedAt ? new Date(item.validatedAt).toLocaleString("pt-BR") : ""}`
+                      : item.rejectionReason ?? "Pendente"
+                },
+                {
+                  key: "actions",
+                  header: "Acoes",
+                  render: (item) => (
+                    <div className="row-actions">
+                      <button className="secondary" type="button" onClick={() => download(item)}>
+                        Baixar
+                      </button>
+                      {(user.role === "ADMIN" || user.role === "RT") && item.status === "UPLOADED" ? (
+                        <>
+                          <button disabled={saving} type="button" onClick={() => void approve(item)}>
+                            Aprovar
+                          </button>
+                          <button className="danger" disabled={saving} type="button" onClick={() => void reject(item)}>
+                            Recusar
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  )
+                }
+              ]}
+            />
+            <PaginationSummary page={1} pageSize={25} total={total} />
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function SettingsView() {
   const [organization, setOrganization] = useState<OrganizationItem | null>(null);
   const [users, setUsers] = useState<ManagedUserItem[]>([]);
@@ -1713,6 +1889,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <ProfessionalsView user={user} />
         ) : activeItem.key === "licenses" ? (
           <LicensesView user={user} />
+        ) : activeItem.key === "documents" ? (
+          <DocumentsView user={user} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (

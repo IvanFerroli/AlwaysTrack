@@ -33,7 +33,12 @@ import {
   updateLicenseHandler,
   updateLicenseTypeHandler
 } from "./core/licenses/licenses.handlers.js";
-import { downloadDocumentHandler, uploadDocumentHandler } from "./core/documents/documents.handlers.js";
+import {
+  downloadDocumentHandler,
+  listDocumentsHandler,
+  uploadDocumentHandler,
+  validateDocumentHandler
+} from "./core/documents/documents.handlers.js";
 import {
   createUploadTokenHandler,
   getPublicUploadTokenHandler,
@@ -83,6 +88,7 @@ export function createApp() {
   app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
   app.post("/v1/upload-tokens", requireAuth, requireRole(["ADMIN"]), createUploadTokenHandler);
   app.patch("/v1/upload-tokens/:uploadTokenId/invalidate", requireAuth, requireRole(["ADMIN"]), invalidateUploadTokenHandler);
+  app.get("/v1/documents", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listDocumentsHandler);
   app.post(
     "/v1/documents",
     requireAuth,
@@ -95,6 +101,12 @@ export function createApp() {
     requireAuth,
     requireRole(["ADMIN", "RT", "SUPERVISOR"]),
     downloadDocumentHandler
+  );
+  app.patch(
+    "/v1/documents/:documentId/validation",
+    requireAuth,
+    requireRole(["ADMIN", "RT"]),
+    validateDocumentHandler
   );
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));

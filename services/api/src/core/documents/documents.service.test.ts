@@ -3,7 +3,15 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@sylembra/shared";
-import { DocumentError, parseDocumentUploadInput, uploadDocument } from "./documents.service.js";
+import {
+  DocumentError,
+  listDocuments,
+  parseDocumentFilters,
+  parseDocumentUploadInput,
+  parseValidateDocumentInput,
+  uploadDocument,
+  validateDocument
+} from "./documents.service.js";
 import { LocalStorageProvider, type StorageProvider } from "./storage.js";
 
 const admin: CurrentUser = {
@@ -55,6 +63,28 @@ function prismaMock() {
   };
 }
 
+function uploadedDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "doc-1",
+    professionalId: "pro-1",
+    licenseId: "lic-1",
+    status: "UPLOADED",
+    rejectionReason: null,
+    professional: {
+      id: "pro-1",
+      organizationId: "org-1",
+      responsibleRtId: null,
+      unitId: "unit-1",
+      sectorId: "sector-1"
+    },
+    license: {
+      id: "lic-1",
+      status: "PENDING_VALIDATION"
+    },
+    ...overrides
+  };
+}
+
 describe("documents service", () => {
   it("parses binary upload inputs from query and headers", () => {
     expect(
@@ -70,6 +100,38 @@ describe("documents service", () => {
       mimeType: "application/pdf",
       body: Buffer.from("file")
     });
+  });
+
+  it("parses document filters and validation payload", () => {
+    expect(parseDocumentFilters({ status: "UPLOADED", professionalId: " pro-1 " })).toEqual({
+      status: "UPLOADED",
+      professionalId: "pro-1",
+      licenseId: undefined
+    });
+    expect(parseValidateDocumentInput({ status: "REJECTED", rejectionReason: " ilegivel " })).toEqual({
+      status: "REJECTED",
+      rejectionReason: "ilegivel"
+    });
+  });
+
+  it("lists documents inside user scope", async () => {
+    const prisma = {
+      document: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0)
+      }
+    };
+
+    await listDocuments(prisma as never, admin, { status: "UPLOADED" });
+
+    expect(prisma.document.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "UPLOADED",
+          professional: { organizationId: "org-1" }
+        })
+      })
+    );
   });
 
   it("saves file through provider and stores only metadata in database", async () => {
@@ -150,5 +212,69 @@ describe("documents service", () => {
       mimeType: "application/octet-stream"
     });
     await expect(storage.get("../outside.pdf")).rejects.toThrow("INVALID_FILE_KEY");
+  });
+
+  it("approves uploaded documents with audit and license recalculation", async () => {
+    const prisma = {
+      document: {
+        findFirst: vi.fn().mockResolvedValue(uploadedDocument()),
+        update: vi.fn().mockResolvedValue(uploadedDocument({ status: "APPROVED", validatedBy: { id: "admin-1" } }))
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) },
+      license: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lic-1",
+            status: "PENDING_VALIDATION",
+            expiresAt: new Date("2027-01-01T00:00:00.000Z"),
+            licenseType: { defaultWarningDays: "30", notificationRules: [] },
+            documents: [{ status: "APPROVED" }]
+          }
+        ]),
+        update: vi.fn().mockResolvedValue({ id: "lic-1", status: "REGULAR" })
+      }
+    };
+
+    await validateDocument(prisma as never, admin, "doc-1", { status: "APPROVED" });
+
+    expect(prisma.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "doc-1" },
+        data: expect.objectContaining({
+          status: "APPROVED",
+          validatedById: "admin-1",
+          rejectionReason: null
+        })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "document.approve",
+          entityType: "Document",
+          metadataJson: expect.stringContaining('"previousStatus":"UPLOADED"')
+        })
+      })
+    );
+    expect(prisma.license.update).toHaveBeenCalledWith({
+      where: { id: "lic-1" },
+      data: { status: "REGULAR" }
+    });
+  });
+
+  it("requires reason to reject documents", async () => {
+    await expect(validateDocument({} as never, admin, "doc-1", { status: "REJECTED" })).rejects.toEqual(
+      new DocumentError("INVALID_INPUT")
+    );
+  });
+
+  it("prevents validating already decided documents", async () => {
+    const prisma = {
+      document: { findFirst: vi.fn().mockResolvedValue(uploadedDocument({ status: "APPROVED" })) }
+    };
+
+    await expect(validateDocument(prisma as never, admin, "doc-1", { status: "APPROVED" })).rejects.toEqual(
+      new DocumentError("ALREADY_VALIDATED")
+    );
   });
 });

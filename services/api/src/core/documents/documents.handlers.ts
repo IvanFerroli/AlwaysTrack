@@ -1,7 +1,16 @@
 import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
-import { DocumentError, getDocumentDownload, parseDocumentUploadInput, uploadDocument } from "./documents.service.js";
+import {
+  DocumentError,
+  getDocumentDownload,
+  listDocuments,
+  parseDocumentFilters,
+  parseDocumentUploadInput,
+  parseValidateDocumentInput,
+  uploadDocument,
+  validateDocument
+} from "./documents.service.js";
 import { getStorageProvider } from "./storage.provider.js";
 
 function routeParam(value: string | string[] | undefined) {
@@ -21,10 +30,22 @@ function sendDocumentError(response: Response, error: unknown) {
     if (error.code === "NOT_FOUND") return sendError(response, 404, "NOT_FOUND", "Document not found.");
     if (error.code === "UNSUPPORTED_TYPE") return sendError(response, 415, "UNSUPPORTED_TYPE", "Unsupported document type.");
     if (error.code === "FILE_TOO_LARGE") return sendError(response, 413, "FILE_TOO_LARGE", "Document is too large.");
+    if (error.code === "ALREADY_VALIDATED") {
+      return sendError(response, 409, "ALREADY_VALIDATED", "Document already validated.");
+    }
     return sendError(response, 400, "INVALID_INPUT", "Invalid document payload.");
   }
 
   throw error;
+}
+
+export async function listDocumentsHandler(request: Request, response: Response) {
+  try {
+    const result = await listDocuments(prisma, actorFrom(request), parseDocumentFilters(request.query));
+    return sendOk(response, result);
+  } catch (error) {
+    return sendDocumentError(response, error);
+  }
 }
 
 export async function uploadDocumentHandler(request: Request, response: Response) {
@@ -53,6 +74,20 @@ export async function downloadDocumentHandler(request: Request, response: Respon
     response.setHeader("content-length", String(download.size));
     response.setHeader("content-disposition", `inline; filename="${download.fileName.replaceAll('"', "")}"`);
     return response.status(200).send(download.body);
+  } catch (error) {
+    return sendDocumentError(response, error);
+  }
+}
+
+export async function validateDocumentHandler(request: Request, response: Response) {
+  try {
+    const document = await validateDocument(
+      prisma,
+      actorFrom(request),
+      routeParam(request.params.documentId),
+      parseValidateDocumentInput(request.body)
+    );
+    return sendOk(response, { document });
   } catch (error) {
     return sendDocumentError(response, error);
   }
