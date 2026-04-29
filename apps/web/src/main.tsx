@@ -1,6 +1,13 @@
 import { StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { userRoles, type ApiResult, type CurrentUser, type UserRole } from "@sylembra/shared";
+import {
+  licenseStatuses,
+  userRoles,
+  type ApiResult,
+  type CurrentUser,
+  type LicenseStatus,
+  type UserRole
+} from "@sylembra/shared";
 import {
   ConfirmButton,
   OperationalFilters,
@@ -95,6 +102,46 @@ interface ProfessionalDetail extends Omit<ProfessionalSummary, "_count"> {
   }>;
   documents: Array<{ id: string; fileName: string; status: string; createdAt: string }>;
   notificationJobs: Array<{ id: string; channel: string; status: string; scheduledFor: string; createdAt: string }>;
+}
+
+interface LicenseTypeItem {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string | null;
+  defaultWarningDays: string | null;
+  active: boolean;
+}
+
+interface LicenseItem {
+  id: string;
+  professionalId: string;
+  licenseTypeId: string;
+  number: string | null;
+  issuer: string | null;
+  uf: string | null;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  status: LicenseStatus;
+  notes: string | null;
+  licenseType: LicenseTypeItem;
+  professional: {
+    id: string;
+    name: string;
+    cpf: string | null;
+    email: string | null;
+    phone: string | null;
+    position: string | null;
+    active: boolean;
+    unitId: string;
+    sectorId: string;
+    responsibleRtId: string | null;
+    unit: { id: string; name: string };
+    sector: { id: string; name: string };
+    responsibleRt: null | { id: string; name: string; email: string; role: string };
+  };
+  validatedBy: null | { id: string; name: string; email: string; role: string };
+  _count: { documents: number; notificationJobs: number };
 }
 
 interface NavItem {
@@ -618,6 +665,393 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   );
 }
 
+function toDateInput(value: string | null) {
+  return value ? value.slice(0, 10) : "";
+}
+
+function LicensesView({ user }: { user: CurrentUser }) {
+  const [licenses, setLicenses] = useState<LicenseItem[]>([]);
+  const [licenseTypes, setLicenseTypes] = useState<LicenseTypeItem[]>([]);
+  const [professionals, setProfessionals] = useState<ProfessionalSummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [professionalFilter, setProfessionalFilter] = useState("");
+  const [licenseTypeFilter, setLicenseTypeFilter] = useState("");
+  const [typeName, setTypeName] = useState("");
+  const [typeDescription, setTypeDescription] = useState("");
+  const [typeWarningDays, setTypeWarningDays] = useState("");
+  const [professionalId, setProfessionalId] = useState("");
+  const [licenseTypeId, setLicenseTypeId] = useState("");
+  const [number, setNumber] = useState("");
+  const [issuer, setIssuer] = useState("");
+  const [uf, setUf] = useState("");
+  const [issuedAt, setIssuedAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [status, setStatus] = useState<LicenseStatus>("REGULAR");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams();
+    if (query) search.set("query", query);
+    if (statusFilter) search.set("status", statusFilter);
+    if (professionalFilter) search.set("professionalId", professionalFilter);
+    if (licenseTypeFilter) search.set("licenseTypeId", licenseTypeFilter);
+
+    try {
+      const [licensesResult, typesResult, professionalsResult] = await Promise.all([
+        api<{ items: LicenseItem[]; total: number }>(`/v1/licenses?${search.toString()}`),
+        api<{ items: LicenseTypeItem[]; total: number }>("/v1/license-types"),
+        api<{ items: ProfessionalSummary[]; total: number }>("/v1/professionals")
+      ]);
+      setLicenses(licensesResult.items);
+      setTotal(licensesResult.total);
+      setLicenseTypes(typesResult.items);
+      setProfessionals(professionalsResult.items);
+      setProfessionalId((current) => current || professionalsResult.items[0]?.id || "");
+      setLicenseTypeId((current) => current || typesResult.items[0]?.id || "");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar licencas.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar licenca.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createType(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/license-types", {
+        method: "POST",
+        body: JSON.stringify({
+          name: typeName,
+          description: typeDescription || null,
+          defaultWarningDays: typeWarningDays || null
+        })
+      });
+      setTypeName("");
+      setTypeDescription("");
+      setTypeWarningDays("");
+    });
+  }
+
+  async function createLicenseRecord(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/licenses", {
+        method: "POST",
+        body: JSON.stringify({
+          professionalId,
+          licenseTypeId,
+          number: number || null,
+          issuer: issuer || null,
+          uf: uf || null,
+          issuedAt: issuedAt || null,
+          expiresAt: expiresAt || null,
+          status,
+          notes: notes || null
+        })
+      });
+      setNumber("");
+      setIssuer("");
+      setUf("");
+      setIssuedAt("");
+      setExpiresAt("");
+      setStatus("REGULAR");
+      setNotes("");
+    });
+  }
+
+  async function editType(licenseType: LicenseTypeItem) {
+    const name = window.prompt("Nome do tipo de licenca", licenseType.name);
+    if (!name) return;
+    const description = window.prompt("Descricao", licenseType.description ?? "") ?? licenseType.description;
+    const defaultWarningDays =
+      window.prompt("Dias de aviso padrao, separados por virgula", licenseType.defaultWarningDays ?? "") ??
+      licenseType.defaultWarningDays;
+    await run(async () => {
+      await api(`/v1/license-types/${licenseType.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name,
+          description: description || null,
+          defaultWarningDays: defaultWarningDays || null
+        })
+      });
+    });
+  }
+
+  async function editLicense(license: LicenseItem) {
+    const nextNumber = window.prompt("Numero da licenca", license.number ?? "") ?? license.number;
+    const nextIssuer = window.prompt("Emissor", license.issuer ?? "") ?? license.issuer;
+    const nextUf = window.prompt("UF", license.uf ?? "") ?? license.uf;
+    const nextExpiresAt = window.prompt("Vencimento (AAAA-MM-DD)", toDateInput(license.expiresAt));
+    if (nextExpiresAt === null) return;
+    const nextStatus = window.prompt(`Status: ${licenseStatuses.join(", ")}`, license.status);
+    if (!nextStatus || !licenseStatuses.includes(nextStatus as LicenseStatus)) {
+      setError("Status invalido.");
+      return;
+    }
+    await run(async () => {
+      await api(`/v1/licenses/${license.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          number: nextNumber || null,
+          issuer: nextIssuer || null,
+          uf: nextUf || null,
+          expiresAt: nextExpiresAt || null,
+          status: nextStatus
+        })
+      });
+    });
+  }
+
+  const activeLicenseTypes = licenseTypes.filter((item) => item.active);
+  const activeProfessionals = professionals.filter((item) => item.active);
+
+  return (
+    <div className="content-stack">
+      <OperationalFilters
+        fields={[
+          { key: "query", label: "Busca", value: query, placeholder: "Profissional, CPF, tipo ou numero", onChange: setQuery },
+          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", onChange: setStatusFilter },
+          {
+            key: "professional",
+            label: "Profissional",
+            value: professionalFilter,
+            placeholder: "ID do profissional",
+            onChange: setProfessionalFilter
+          },
+          { key: "type", label: "Tipo", value: licenseTypeFilter, placeholder: "ID do tipo", onChange: setLicenseTypeFilter }
+        ]}
+        onSubmit={load}
+      />
+
+      {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {user.role === "ADMIN" ? (
+        <div className="settings-grid">
+          <section className="panel form-panel">
+            <form onSubmit={createType}>
+              <h2>Novo tipo de licenca</h2>
+              <label>
+                Nome
+                <input value={typeName} onChange={(event) => setTypeName(event.target.value)} />
+              </label>
+              <label>
+                Descricao
+                <input value={typeDescription} onChange={(event) => setTypeDescription(event.target.value)} />
+              </label>
+              <label>
+                Avisos padrao
+                <input
+                  value={typeWarningDays}
+                  onChange={(event) => setTypeWarningDays(event.target.value)}
+                  placeholder="90,60,30"
+                />
+              </label>
+              <button disabled={saving || !typeName.trim()}>Criar tipo</button>
+            </form>
+          </section>
+
+          <section className="panel form-panel full-span">
+            <form onSubmit={createLicenseRecord}>
+              <h2>Nova licenca</h2>
+              <div className="form-grid">
+                <label>
+                  Profissional
+                  <select value={professionalId} onChange={(event) => setProfessionalId(event.target.value)}>
+                    {activeProfessionals.map((professional) => (
+                      <option key={professional.id} value={professional.id}>
+                        {professional.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Tipo
+                  <select value={licenseTypeId} onChange={(event) => setLicenseTypeId(event.target.value)}>
+                    {activeLicenseTypes.map((licenseType) => (
+                      <option key={licenseType.id} value={licenseType.id}>
+                        {licenseType.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Numero
+                  <input value={number} onChange={(event) => setNumber(event.target.value)} />
+                </label>
+                <label>
+                  Emissor
+                  <input value={issuer} onChange={(event) => setIssuer(event.target.value)} />
+                </label>
+                <label>
+                  UF
+                  <input value={uf} onChange={(event) => setUf(event.target.value)} maxLength={2} />
+                </label>
+                <label>
+                  Emissao
+                  <input value={issuedAt} onChange={(event) => setIssuedAt(event.target.value)} type="date" />
+                </label>
+                <label>
+                  Vencimento
+                  <input value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} type="date" />
+                </label>
+                <label>
+                  Status
+                  <select value={status} onChange={(event) => setStatus(event.target.value as LicenseStatus)}>
+                    {licenseStatuses.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Observacoes
+                  <input value={notes} onChange={(event) => setNotes(event.target.value)} />
+                </label>
+              </div>
+              <button disabled={saving || !professionalId || !licenseTypeId}>Criar licenca</button>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      <section className="panel table-panel">
+        {loading ? (
+          <OperationalState state="loading" title="Carregando licencas" />
+        ) : licenses.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma licenca encontrada" />
+        ) : (
+          <>
+            <OperationalTable
+              items={licenses}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "type", header: "Tipo", render: (item) => item.licenseType.name },
+                { key: "number", header: "Numero", render: (item) => item.number ?? "Sem numero" },
+                { key: "issuer", header: "Emissor/UF", render: (item) => `${item.issuer ?? "Sem emissor"} / ${item.uf ?? "--"}` },
+                {
+                  key: "expires",
+                  header: "Vencimento",
+                  render: (item) => (item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("pt-BR") : "Sem data")
+                },
+                { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
+                {
+                  key: "history",
+                  header: "Historico",
+                  render: (item) => `${item._count.documents} docs / ${item._count.notificationJobs} avisos`
+                },
+                {
+                  key: "actions",
+                  header: "Acoes",
+                  render: (item) =>
+                    user.role === "ADMIN" ? (
+                      <div className="row-actions">
+                        <button className="secondary" type="button" onClick={() => void editLicense(item)}>
+                          Editar
+                        </button>
+                        <ConfirmButton
+                          disabled={saving}
+                          confirmLabel="Confirmar inativacao"
+                          onConfirm={() =>
+                            void run(async () => {
+                              await api(`/v1/licenses/${item.id}`, {
+                                method: "PATCH",
+                                body: JSON.stringify({ status: "INACTIVE" })
+                              });
+                            })
+                          }
+                        >
+                          Inativar
+                        </ConfirmButton>
+                      </div>
+                    ) : (
+                      "Consulta"
+                    )
+                }
+              ]}
+            />
+            <PaginationSummary page={1} pageSize={25} total={total} />
+          </>
+        )}
+      </section>
+
+      <section className="panel table-panel">
+        {licenseTypes.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum tipo de licenca cadastrado" />
+        ) : (
+          <OperationalTable
+            items={licenseTypes}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "name", header: "Tipo", render: (item) => item.name },
+              { key: "warning", header: "Avisos", render: (item) => item.defaultWarningDays ?? "Sem padrao" },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+              },
+              {
+                key: "actions",
+                header: "Acoes",
+                render: (item) =>
+                  user.role === "ADMIN" ? (
+                    <div className="row-actions">
+                      <button className="secondary" type="button" onClick={() => void editType(item)}>
+                        Editar
+                      </button>
+                      <ConfirmButton
+                        disabled={saving}
+                        confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                        onConfirm={() =>
+                          void run(async () => {
+                            await api(`/v1/license-types/${item.id}`, {
+                              method: "PATCH",
+                              body: JSON.stringify({ active: !item.active })
+                            });
+                          })
+                        }
+                      >
+                        {item.active ? "Desativar" : "Reativar"}
+                      </ConfirmButton>
+                    </div>
+                  ) : (
+                    "Consulta"
+                  )
+              }
+            ]}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
 function SettingsView() {
   const [organization, setOrganization] = useState<OrganizationItem | null>(null);
   const [users, setUsers] = useState<ManagedUserItem[]>([]);
@@ -957,7 +1391,7 @@ function SettingsView() {
             </div>
           )}
           <button disabled={saving || !userName.trim() || !userEmail.trim() || userPassword.length < 8}>
-            Criar usuario
+            {saving ? "Criando usuario..." : "Criar usuario"}
           </button>
         </form>
       </section>
@@ -1157,6 +1591,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         </header>
         {activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
+        ) : activeItem.key === "licenses" ? (
+          <LicensesView user={user} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (

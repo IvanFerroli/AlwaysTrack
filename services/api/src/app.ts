@@ -24,6 +24,14 @@ import {
   listProfessionalsHandler,
   updateProfessionalHandler
 } from "./core/professionals/professionals.handlers.js";
+import {
+  createLicenseHandler,
+  createLicenseTypeHandler,
+  listLicensesHandler,
+  listLicenseTypesHandler,
+  updateLicenseHandler,
+  updateLicenseTypeHandler
+} from "./core/licenses/licenses.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -52,6 +60,12 @@ export function createApp() {
   app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
   app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);
   app.patch("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN"]), updateProfessionalHandler);
+  app.get("/v1/license-types", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicenseTypesHandler);
+  app.post("/v1/license-types", requireAuth, requireRole(["ADMIN"]), createLicenseTypeHandler);
+  app.patch("/v1/license-types/:licenseTypeId", requireAuth, requireRole(["ADMIN"]), updateLicenseTypeHandler);
+  app.get("/v1/licenses", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicensesHandler);
+  app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
+  app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 
