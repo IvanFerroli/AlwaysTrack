@@ -41,6 +41,17 @@ function extensionFor(mimeType: string) {
   return "";
 }
 
+export function validateDocumentFile(input: { body: Buffer; mimeType: string }) {
+  if (!allowedMimeTypes.has(input.mimeType)) {
+    throw new DocumentError("UNSUPPORTED_TYPE");
+  }
+
+  const env = loadEnv();
+  if (input.body.length > env.documentMaxBytes) {
+    throw new DocumentError("FILE_TOO_LARGE");
+  }
+}
+
 export function parseDocumentUploadInput(input: {
   query: Record<string, unknown>;
   headers: Record<string, unknown>;
@@ -92,14 +103,10 @@ export async function uploadDocument(
   }
 
   const mimeType = input.mimeType;
-  if (!mimeType || !allowedMimeTypes.has(mimeType)) {
+  if (!mimeType) {
     throw new DocumentError("UNSUPPORTED_TYPE");
   }
-
-  const env = loadEnv();
-  if (input.body.length > env.documentMaxBytes) {
-    throw new DocumentError("FILE_TOO_LARGE");
-  }
+  validateDocumentFile({ body: input.body, mimeType });
 
   const license = await ensureDocumentScope(prisma, actor, input.professionalId, input.licenseId);
   const fileName = safeFileName(input.fileName ?? `documento${extensionFor(mimeType)}`);

@@ -144,6 +144,17 @@ interface LicenseItem {
   _count: { documents: number; notificationJobs: number };
 }
 
+interface PublicUploadToken {
+  id: string;
+  expiresAt: string;
+  professional: { name: string };
+  license: {
+    number: string | null;
+    expiresAt: string | null;
+    licenseType: { name: string };
+  };
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -833,6 +844,22 @@ function LicensesView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function generateUploadLink(license: LicenseItem) {
+    await run(async () => {
+      const result = await api<{ uploadToken: { id: string; expiresAt: string }; token: string }>("/v1/upload-tokens", {
+        method: "POST",
+        body: JSON.stringify({ professionalId: license.professionalId, licenseId: license.id })
+      });
+      const link = `${window.location.origin}/upload/${result.token}`;
+      try {
+        await navigator.clipboard?.writeText(link);
+      } catch {
+        // Browser permissions can block clipboard writes; the prompt still exposes the link.
+      }
+      window.prompt("Link de upload", link);
+    });
+  }
+
   const activeLicenseTypes = licenseTypes.filter((item) => item.active);
   const activeProfessionals = professionals.filter((item) => item.active);
 
@@ -988,6 +1015,9 @@ function LicensesView({ user }: { user: CurrentUser }) {
                       <div className="row-actions">
                         <button className="secondary" type="button" onClick={() => void editLicense(item)}>
                           Editar
+                        </button>
+                        <button className="secondary" type="button" onClick={() => void generateUploadLink(item)}>
+                          Gerar link
                         </button>
                         <ConfirmButton
                           disabled={saving}
@@ -1559,6 +1589,82 @@ function SettingsView() {
   );
 }
 
+function PublicUploadView({ token }: { token: string }) {
+  const [uploadToken, setUploadToken] = useState<PublicUploadToken | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/v1/public-upload/${token}`)
+      .then(async (response) => {
+        const payload = (await response.json()) as ApiResult<{ uploadToken: PublicUploadToken }>;
+        if (!payload.ok) throw new Error(payload.error.message);
+        setUploadToken(payload.data.uploadToken);
+      })
+      .catch((caught) => setError(caught instanceof Error ? caught.message : "Link invalido."))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!file) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/v1/public-upload/${token}?fileName=${encodeURIComponent(file.name)}`, {
+        method: "POST",
+        headers: { "content-type": file.type },
+        body: file
+      });
+      const payload = (await response.json()) as ApiResult<{ document: { id: string } }>;
+      if (!payload.ok) throw new Error(payload.error.message);
+      setSuccess(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao enviar documento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="panel login-panel">
+        <div>
+          <p className="eyebrow">Sylembra</p>
+          <h1>Enviar documento</h1>
+        </div>
+        {loading ? <OperationalState state="loading" title="Carregando link" /> : null}
+        {error ? <OperationalState state="error" title="Nao foi possivel continuar" detail={error} /> : null}
+        {uploadToken && !success ? (
+          <form onSubmit={submit}>
+            <div className="public-upload-summary">
+              <strong>{uploadToken.professional.name}</strong>
+              <span>
+                {uploadToken.license.licenseType.name}
+                {uploadToken.license.number ? ` / ${uploadToken.license.number}` : ""}
+              </span>
+              <span>Expira em {new Date(uploadToken.expiresAt).toLocaleString("pt-BR")}</span>
+            </div>
+            <label>
+              Arquivo
+              <input
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </label>
+            <button disabled={saving || !file}>{saving ? "Enviando..." : "Enviar"}</button>
+          </form>
+        ) : null}
+        {success ? <OperationalState state="success" title="Documento enviado" detail="O link foi consumido com sucesso." /> : null}
+      </section>
+    </main>
+  );
+}
+
 function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const [activeView, setActiveView] = useState<ViewKey>(visibleNav[0]?.key ?? "dashboard");
@@ -1620,18 +1726,27 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
 }
 
 function App() {
+  const uploadMatch = window.location.pathname.match(/^\/upload\/([^/]+)$/);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (uploadMatch) {
+      setReady(true);
+      return;
+    }
     api<{ user: CurrentUser }>("/v1/auth/me")
       .then((result) => setUser(result.user))
       .catch(() => setUser(null))
       .finally(() => setReady(true));
-  }, []);
+  }, [uploadMatch]);
 
   if (!ready) {
     return <main className="auth-page">Carregando...</main>;
+  }
+
+  if (uploadMatch) {
+    return <PublicUploadView token={decodeURIComponent(uploadMatch[1])} />;
   }
 
   return user ? <AppShell user={user} onLogout={() => setUser(null)} /> : <LoginForm onLogin={setUser} />;

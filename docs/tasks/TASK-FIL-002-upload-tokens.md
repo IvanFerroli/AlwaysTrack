@@ -1,7 +1,7 @@
 # TASK-FIL-002 - Upload tokens seguros
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-FIL-002-upload-tokens.md
@@ -43,3 +43,18 @@ Gerar, validar, expirar e invalidar tokens de upload armazenados como hash.
 
 ## Riscos
 - link magico permitir acesso indevido
+
+## Evidencias de entrega
+- Criado modulo `services/api/src/core/documents/upload-tokens.*`.
+- Token bruto e retornado apenas na geracao; banco armazena somente `tokenHash`.
+- Rotas ADMIN: `POST /v1/upload-tokens` e `PATCH /v1/upload-tokens/:uploadTokenId/invalidate`.
+- Rota publica de validacao: `GET /v1/public-upload/:token`.
+- Token valida inexistente, expirado, usado e inativo.
+- Uso de token marca `usedAt`, inativa o token e gera auditoria `upload_token.use`.
+- Tela `Licencas` gera link `/upload/:token` para envio.
+
+## Validacao realizada
+- `npm run check` passou com 57 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: gerar token, consultar dados publicos, consumir token e confirmar bloqueio de segundo uso.

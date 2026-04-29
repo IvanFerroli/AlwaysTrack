@@ -34,6 +34,12 @@ import {
   updateLicenseTypeHandler
 } from "./core/licenses/licenses.handlers.js";
 import { downloadDocumentHandler, uploadDocumentHandler } from "./core/documents/documents.handlers.js";
+import {
+  createUploadTokenHandler,
+  getPublicUploadTokenHandler,
+  invalidateUploadTokenHandler,
+  publicUploadDocumentHandler
+} from "./core/documents/upload-tokens.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -42,6 +48,12 @@ export function createApp() {
   app.use(attachRequestContext);
 
   app.get("/health", (_request, response) => sendOk(response, { status: "ok" }));
+  app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
+  app.post(
+    "/v1/public-upload/:token",
+    express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
+    publicUploadDocumentHandler
+  );
 
   app.post("/v1/auth/login", loginHandler);
   app.post("/v1/auth/logout", requireAuth, logoutHandler);
@@ -69,6 +81,8 @@ export function createApp() {
   app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
   app.post("/v1/licenses/recalculate", requireAuth, requireRole(["ADMIN"]), recalculateLicensesHandler);
   app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
+  app.post("/v1/upload-tokens", requireAuth, requireRole(["ADMIN"]), createUploadTokenHandler);
+  app.patch("/v1/upload-tokens/:uploadTokenId/invalidate", requireAuth, requireRole(["ADMIN"]), invalidateUploadTokenHandler);
   app.post(
     "/v1/documents",
     requireAuth,
