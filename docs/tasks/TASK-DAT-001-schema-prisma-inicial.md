@@ -1,0 +1,49 @@
+# TASK-DAT-001 - Schema Prisma inicial completo
+
+## Metadata
+- status: proposed
+- owner: contracts-builder
+- last-updated: 2026-04-29
+- source-of-truth: docs/tasks/TASK-DAT-001-schema-prisma-inicial.md
+
+## Modo
+- mode: implementation
+
+## Agentes sugeridos
+- `olympus_contracts_builder`
+- data/modeling specialist
+- `olympus_task_verifier`
+
+## Objetivo unico
+Criar o schema inicial com as entidades centrais sem simplificar contra o dominio.
+
+## Inputs
+- documento central, secao 13
+
+## Dependencias
+- satisfeitas: `TASK-SCF-001`, `TASK-QLT-001`
+- em aberto: decisao local de `DATABASE_URL`
+
+## Alvos explicitos
+1. `services/api/prisma/schema.prisma`
+2. migration inicial
+3. contratos compartilhados de enums/status
+
+## Fora de escopo
+- CRUDs completos
+- seed de demo final
+
+## Acceptance Criteria
+1. Entidades User, Organization, Unit, Sector, Professional, LicenseType, License, Document, UploadToken, NotificationTemplate, NotificationRule, NotificationJob, NotificationLog, FaqItem e AuditLog existem.
+2. `User` e `Professional` ficam separados.
+3. `organizationId` existe nas entidades centrais aplicaveis.
+4. Status de licenca e documento sao enums separados.
+
+## Validacao
+- `npx prisma validate`
+- `npx prisma migrate dev`
+- `npm run typecheck`
+
+## Riscos
+- schema simplificado gerar rework estrutural
+- relacoes ficarem frouxas para relatorios

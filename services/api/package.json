@@ -1,22 +1,26 @@
 {
-  "name": "@olympus/api",
-  "version": "0.0.0",
+  "name": "@sylembra/api",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/features/health/health.service.test.ts src/features/ingestion/ingestion.service.test.ts src/features/match/match.service.test.ts src/features/strategy/strategy.service.test.ts src/features/execution/execution.service.test.ts src/features/observability/observability.service.test.ts src/features/resume-profiles/resume-profiles.service.test.ts src/features/scraper/scraper.runner.test.ts src/features/acquisition/acquisition.service.test.ts src/features/pipeline/pipeline.service.test.ts src/core/llm/gemini.test.ts",
-    "start": "node dist/main.js"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@olympus/shared-types": "file:../../packages/shared-types",
-    "@google/generative-ai": "latest",
-    "@prisma/client": "^5.13.0"
+    "@prisma/client": "6.19.3",
+    "@sylembra/shared": "file:../../packages/shared",
+    "cookie": "^1.0.2",
+    "express": "^5.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
-    "prisma": "^5.13.0"
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.9.2",
+    "tsx": "^4.20.6",
+    "vitest": "^3.2.4"
   }
 }

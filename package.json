@@ -1,34 +1,27 @@
 {
-  "name": "olympus-climb",
-  "version": "0.0.0",
+  "name": "sylembra",
+  "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "build": "npm run -ws --if-present build",
-    "typecheck": "npm run -ws --if-present typecheck",
-    "lint": "eslint \"{apps,services,packages}/**/*.ts\"",
-    "test": "npm run -ws --if-present test",
-    "check": "npm run lint && npm run typecheck && npm run test",
-    "smoke": "node scripts/smoke-web-api.js",
-    "dev:api": "tsx --env-file=.env services/api/src/main.ts",
-    "dev:web": "tsx --env-file=.env apps/web/src/main.ts",
-    "dev": "concurrently -k -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
-    "up": "node scripts/start-all.js",
-    "start:api": "npm --workspace @olympus/api run start",
-    "start:web": "npm --workspace @olympus/web run start"
-  },
+  "type": "module",
   "workspaces": [
     "apps/*",
     "services/*",
-    "packages/*",
-    "infrastructure/*"
+    "packages/*"
   ],
+  "scripts": {
+    "dev": "npm run dev --workspace @sylembra/api",
+    "check": "npm run typecheck --workspaces --if-present && npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate": "prisma generate --schema services/api/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema services/api/prisma/schema.prisma",
+    "prisma:seed": "npm run seed --workspace @sylembra/api"
+  },
   "devDependencies": {
-    "@types/node": "^24.9.1",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "concurrently": "^9.2.1",
-    "eslint": "^8.57.1",
-    "tsx": "^4.20.6",
-    "typescript": "^5.6.3"
+    "prisma": "6.19.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.18.0"
   }
 }

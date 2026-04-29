@@ -1,0 +1,45 @@
+# TASK-FIL-002 - Upload tokens seguros
+
+## Metadata
+- status: proposed
+- owner: runtime-builder
+- last-updated: 2026-04-29
+- source-of-truth: docs/tasks/TASK-FIL-002-upload-tokens.md
+
+## Modo
+- mode: implementation
+
+## Agentes sugeridos
+- runtime builder
+- security reviewer
+- `olympus_task_verifier`
+
+## Objetivo unico
+Gerar, validar, expirar e invalidar tokens de upload armazenados como hash.
+
+## Inputs
+- documento central, secoes 6.6 e 13.9
+
+## Dependencias
+- satisfeitas: `TASK-FIL-001`, `TASK-LIC-001`
+- em aberto: n/a
+
+## Alvos explicitos
+1. `modules/documents/upload-tokens`
+2. rotas de geracao/validacao
+3. auditoria de geracao/uso
+
+## Fora de escopo
+- envio WhatsApp do link
+
+## Acceptance Criteria
+1. Token bruto nunca e salvo.
+2. Token expira por `expiresAt`.
+3. Token pode ser invalidado apos uso quando configurado.
+4. Novo token pode ser gerado para reenvio.
+
+## Validacao
+- testes de token valido, expirado, usado e inexistente
+
+## Riscos
+- link magico permitir acesso indevido

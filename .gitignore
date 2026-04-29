@@ -1,65 +1,6 @@
-# dependencies
 node_modules/
-
-# builds / outputs
 dist/
-build/
-coverage/
-.tmp/
-temp/
-tmp/
-
-# caches
-.cache/
-.turbo/
-.nx/
-.parcel-cache/
-.eslintcache
-*.tsbuildinfo
-
-# env
 .env
-.env.*
-!.env.example
-!.env.*.example
-
-# logs
+.env.local
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# editor / OS
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# local runtimes / temp tooling
-.venv/
-venv/
-.python-version
-.tmp-venv-*/
-__pycache__/
-
-# expo / mobile local
-.expo/
-.expo-shared/
-
-# misc local artifacts
-*.pid
-*.seed
-
-# local agent workspace state
-.openclaw/
-AGENTS.md
-HEARTBEAT.md
-IDENTITY.md
-MEMORY.md
-SOUL.md
-TOOLS.md
-USER.md
-memory/
+services/api/prisma/dev.db

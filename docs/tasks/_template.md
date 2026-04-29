@@ -7,7 +7,7 @@
 - source-of-truth: docs/tasks/TASK-###-<slug>.md
 
 ## Modo
-- mode: <documental|scaffolding|contracts|runtime|quality|ops>
+- mode: <planning|implementation|verification|audit|migration>
 
 ## Objetivo unico
 <resultado minimo util>
@@ -59,6 +59,8 @@
 - <blocker 1>
 - <blocker 2>
 
-## Feedback obrigatorio de retorno
-- <pergunta/confirmacao 1>
-- <pergunta/confirmacao 2>
+## Retorno esperado
+- resumo curto do que mudou
+- evidencia de validacao
+- riscos ou ressalvas
+- proximo passo recomendado

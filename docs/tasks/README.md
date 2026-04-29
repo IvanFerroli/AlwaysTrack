@@ -1,26 +1,50 @@
-# TASK Surface
+# Tasks
 
 ## Objetivo
-Registrar manifests de task pequena, executavel, rastreavel e validavel.
+Registrar entregas pequenas, executaveis, rastreaveis e validaveis.
 
 ## Quando usar
-- quebrar uma spec aceita em entrega pequena;
-- definir objetivo unico, alvo, DoD, validacao e evidencia;
-- orientar execucao disciplinada sem abrir escopo.
+- quebrar uma spec aceita em uma entrega pequena;
+- definir alvo, DoD, validacao e evidencia;
+- orientar execucao sem abrir escopo.
 
 ## Convencao minima
 - ID: `TASK-<TRACK>-###`
-- Arquivo por task: `TASK-<TRACK>-###-<slug>.md`
-- Tracks em uso: `DOC`, `SCF`, `QLT`, `CTR`, `RTM`, `SCR`, `PRD`, `ACQ`, `MCH`, `UX`
-- Base inicial: `docs/tasks/_template.md`
+- Arquivo: `TASK-<TRACK>-###-<slug>.md`
+- Template: `docs/tasks/_template.md`
+
+Tracks sao definidos por projeto. Evite herdar tracks de outro projeto sem necessidade.
+
+## Tracks deste projeto
+- `DOC`: intake, decisoes e planejamento.
+- `SCF`: scaffold e base do monolito modular.
+- `QLT`: qualidade, testes e gates.
+- `DAT`: modelo de dados e migrations.
+- `AUD`: auditoria.
+- `AUT`: autenticacao, roles e acesso.
+- `ORG`: organizacoes, unidades e setores.
+- `USR`: usuarios administrativos.
+- `PRO`: profissionais.
+- `LIC`: licencas e status.
+- `FIL`: documentos, storage e upload.
+- `NOT`: notificacoes, jobs, Meta e webhooks.
+- `FAQ`: FAQ e suporte via `wa.me`.
+- `UX`: app shell e telas base.
+- `DSH`: dashboard operacional.
+- `RPT`: relatorios e exportacao.
+- `DEP`: ambiente, deploy e operacao.
+- `REL`: fechamento de V1 e apresentacao.
+
+## Sequencia
+Ver `docs/tasks/ROADMAP.md`.
 
 ## Campos obrigatorios
 - `status`
 - `owner`
 - `last-updated`
-- `source-of-truth` quando a task introduzir ou alterar decisao operacional/canonica
+- `source-of-truth`
 
 ## Fora de escopo
-- backlog generico sem alvo;
-- task grande com multiplos modos sem quebra;
-- implementacao sem validacao definida.
+- task grande com varios objetivos;
+- implementacao sem validacao;
+- registro narrativo sem artefato esperado.

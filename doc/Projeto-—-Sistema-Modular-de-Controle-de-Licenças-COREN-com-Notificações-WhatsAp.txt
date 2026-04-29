@@ -1,0 +1,2089 @@
+# Projeto — Sistema Modular de Controle de Licenças/COREN com Notificações WhatsApp
+
+## 1. Visão geral
+
+O projeto será uma **plataforma web modular**, construída do zero, com foco em controlar licenças/documentos profissionais, especialmente **COREN**, acompanhar vencimentos, permitir envio e validação de comprovantes e disparar notificações automáticas para profissionais e responsáveis.
+
+A referência inicial veio do arquivo **“Projeto Whatsapp.pdf”**, que apresenta uma solução de atendimento via WhatsApp com agentes, supervisores, dashboard, relatórios, status, menus e mensagens automáticas. Porém, o projeto atual **não será um clone do Pysix/call center**.
+
+O PDF será usado apenas como inspiração para:
+
+* dashboard operacional;
+* status;
+* relatórios;
+* mensagens automáticas;
+* divisão por responsáveis/times;
+* visão de acompanhamento gerencial.
+
+O contexto inicial também indica duas frentes possíveis:
+
+1. Um sistema inspirado no modelo do PDF, com possível relação com metas/pagamento.
+2. Um sistema para controle de vencimento de COREN, com alertas para RT de enfermagem e profissionais.
+
+A decisão consolidada é focar na **V1 operacional apresentável** do sistema de controle de licenças/COREN, deixando atendimento estilo call center, metas e pagamento como módulos opcionais futuros, somente se forem confirmados e pagos.
+
+---
+
+# 2. Objetivo principal
+
+Criar um sistema enxuto, real e apresentável para:
+
+> Controlar profissionais, licenças e vencimentos, permitir upload de documentos, validação por responsáveis e envio automático de notificações via WhatsApp oficial da Meta, com histórico persistido no banco e relatórios operacionais completos desde a primeira versão.
+
+Este sistema não será um protótipo descartável.
+
+A ideia central é:
+
+> **Escopo enxuto, arquitetura definitiva.**
+
+Ou seja: a V1 não precisa conter todos os módulos imagináveis, mas tudo que for construído desde o dia 0 deve ser feito no formato correto para continuar sendo usado no produto final.
+
+---
+
+# 3. Princípios do projeto
+
+## 3.1 V1 operacional apresentável
+
+A partir deste consolidado, a palavra “MVP” deve ser entendida com cuidado.
+
+O objetivo não é fazer uma versão improvisada para depois refatorar.
+
+O objetivo é construir uma **V1 operacional apresentável**, com escopo controlado, mas com arquitetura, banco, permissões, notificações, relatórios, auditoria e fluxos já pensados como base definitiva.
+
+A V1 precisa nascer com:
+
+* baixo custo de infraestrutura;
+* código modular;
+* banco persistente;
+* autenticação para superiores;
+* dashboard;
+* notificações WhatsApp oficiais;
+* upload de documentos;
+* validação;
+* histórico;
+* auditoria;
+* relatórios operacionais completos;
+* FAQ/suporte simples via `wa.me`;
+* possibilidade real de expansão sem refazer o miolo.
+
+## 3.2 Não fazer cada coisa duas vezes
+
+Este projeto será desenvolvido com um pipeline pessoal agentic. Cada tarefa vai consumir tokens, tempo e energia.
+
+Portanto, as tarefas devem evitar o padrão:
+
+```txt
+faz simples agora
+↓
+descobre que não sustenta
+↓
+refaz depois
+```
+
+O padrão correto deve ser:
+
+```txt
+modela certo desde o início
+↓
+implementa apenas o escopo necessário
+↓
+mantém pontos de expansão limpos
+↓
+adiciona módulos futuros sem quebrar o núcleo
+```
+
+Isso vale especialmente para:
+
+* modelagem do banco;
+* autenticação/roles;
+* profissionais;
+* licenças;
+* documentos;
+* upload tokenizado;
+* notificações;
+* logs;
+* webhooks;
+* auditoria;
+* relatórios.
+
+## 3.3 WhatsApp oficial, mas sem intermediário
+
+A decisão consolidada é:
+
+```txt
+Meta WhatsApp Cloud API: sim
+Twilio/Zenvia/provedor intermediário: não na V1
+Automação não oficial via WhatsApp Web: não
+```
+
+A Meta será o custo inevitável para envio automático real via WhatsApp.
+
+O restante será **BIH — built in-house**.
+
+Fluxo consolidado:
+
+```txt
+Sistema
+↓
+NotificationJob no banco
+↓
+Worker/cron diário
+↓
+Monta template
+↓
+Chama Meta WhatsApp Cloud API diretamente
+↓
+Recebe webhook da Meta
+↓
+Salva status no PostgreSQL
+```
+
+Isso deve ser considerado arquitetura definitiva do módulo de notificações, não gambiarra de MVP.
+
+## 3.4 Modularidade sem microserviços
+
+O sistema será um **monólito modular**.
+
+Ou seja:
+
+* um backend;
+* um banco;
+* uma API;
+* deploy simples;
+* módulos internos bem separados.
+
+Nada de microserviços no começo.
+
+Nada de dividir infraestrutura antes da necessidade real.
+
+A modularidade deve existir na organização do código, nos limites de domínio e na clareza dos módulos, não na fragmentação prematura da infra.
+
+---
+
+# 4. Stack consolidada
+
+## 4.1 Frontend
+
+```txt
+React
+TypeScript
+Tailwind CSS
+Vite
+```
+
+A decisão atual é seguir com **React + TypeScript + Tailwind**, preferencialmente com Vite.
+
+Next.js fica fora da recomendação principal neste momento, porque o projeto não exige SSR, rotas server-side ou fullstack acoplado para a V1.
+
+A interface precisa ser:
+
+* web;
+* responsiva;
+* apresentável;
+* boa para dashboard;
+* boa para tabelas;
+* boa para formulários;
+* simples de manter.
+
+Não começar com React Native/Expo.
+
+A ideia de app mobile pode voltar no futuro, mas não entra na V1 porque adicionaria custo, complexidade e manutenção.
+
+## 4.2 Backend
+
+```txt
+Node.js
+Express
+TypeScript
+Prisma
+PostgreSQL
+```
+
+O backend deve ser simples, modular e previsível.
+
+Express é suficiente para a V1, desde que o projeto seja organizado por módulos e camadas.
+
+## 4.3 Banco
+
+```txt
+PostgreSQL
+Prisma ORM
+```
+
+PostgreSQL é a escolha principal.
+
+Prisma será usado como ORM para modelagem, migrations e acesso tipado ao banco.
+
+A modelagem precisa nascer bem feita desde o início, porque o banco será o coração do sistema e o principal ponto onde rework deve ser evitado.
+
+## 4.4 Storage
+
+Para documentos/licenças:
+
+```txt
+Supabase Storage
+Cloudflare R2
+ou S3-compatible equivalente
+```
+
+Não salvar arquivo diretamente no banco.
+
+O banco salva apenas:
+
+* metadados;
+* chave do arquivo;
+* URL interna/privada;
+* status;
+* vínculo com profissional/licença;
+* dados de validação.
+
+Os arquivos devem estar em storage externo, preferencialmente privado, com controle de acesso por backend.
+
+## 4.5 Notificações
+
+```txt
+WhatsApp:
+Meta WhatsApp Cloud API direta
+
+E-mail:
+Opcional/fallback futuro, não obrigatório na V1
+
+Dashboard:
+Notificação interna obrigatória
+```
+
+WhatsApp será obrigatório porque o público provavelmente não verificará e-mail de forma consistente.
+
+E-mail pode ficar previsto como canal futuro ou fallback, mas não deve ser premissa da V1 se isso encarecer ou dispersar o foco.
+
+## 4.6 Jobs
+
+Na V1:
+
+```txt
+Cron diário
+Tabela NotificationJob no PostgreSQL
+Worker simples no próprio backend ou processo separado leve
+```
+
+Sem Redis/BullMQ no início.
+
+A modelagem, porém, deve permitir que no futuro um worker mais robusto seja acoplado sem reescrever o domínio de notificações.
+
+---
+
+# 5. Relação com o Pysix / PDF de referência
+
+O Pysix/PDF é referência, mas não escopo.
+
+O PDF mostra uma solução de atendimento WhatsApp/call center, com agentes, supervisores, acompanhamento online, relatórios, menus de atendimento, status, divisão por times e tela de atendimento.
+
+Este projeto não deve tentar replicar isso na V1.
+
+## 5.1 O que entra como inspiração
+
+### Dashboard
+
+O PDF mostra painel de acompanhamento em tempo real, métricas e visão operacional de atendimento.
+
+No nosso sistema, isso vira:
+
+* profissionais cadastrados;
+* licenças regulares;
+* licenças a vencer;
+* licenças vencidas;
+* uploads pendentes;
+* notificações pendentes;
+* notificações enviadas;
+* notificações com falha;
+* pendências por RT;
+* pendências por setor/unidade;
+* documentos aguardando validação;
+* regularizações recentes.
+
+### Status
+
+O PDF trabalha com acompanhamento de status dos atendimentos.
+
+No nosso sistema, isso vira status de licença e status de documento.
+
+Importante: status de licença e status de documento devem ser separados, para evitar confusão futura.
+
+Exemplo:
+
+```txt
+LicenseStatus:
+REGULAR
+EXPIRING
+EXPIRED
+PENDING_DOCUMENT
+PENDING_VALIDATION
+INACTIVE
+
+DocumentStatus:
+UPLOADED
+APPROVED
+REJECTED
+ARCHIVED
+```
+
+### Relatórios
+
+O PDF traz relatórios de atendimento e performance.
+
+No nosso sistema, relatórios entram desde a V1 como parte final do produto apresentado, não como “fase posterior”.
+
+Relatórios essenciais:
+
+* licenças vencidas;
+* licenças a vencer;
+* licenças por profissional;
+* licenças por RT;
+* licenças por setor;
+* licenças por unidade;
+* documentos aguardando validação;
+* documentos recusados;
+* histórico de notificações;
+* falhas de notificação;
+* histórico de regularização;
+* visão operacional por período.
+
+### Mensagens automáticas
+
+O PDF mostra configuração de respostas/mensagens automáticas.
+
+No nosso sistema, isso vira:
+
+* templates de notificação WhatsApp;
+* mensagens de vencimento;
+* mensagens de licença vencida;
+* mensagens de upload recebido;
+* mensagens de documento aprovado;
+* mensagens de documento recusado;
+* mensagens para RT/responsável.
+
+### Divisão por times
+
+O PDF fala em divisão por time de atendimento.
+
+No nosso sistema, isso vira:
+
+* organização;
+* unidade;
+* setor;
+* equipe;
+* RT responsável;
+* supervisor responsável.
+
+## 5.2 O que não entra na V1
+
+Fora da V1:
+
+* chat interno;
+* inbox WhatsApp;
+* atendimento em tempo real;
+* agentes online;
+* fila de atendimento;
+* bot com menu dinâmico;
+* PABX;
+* SIP;
+* URA;
+* gravação;
+* reconhecimento de voz;
+* performance de operador;
+* metas e pagamento;
+* multiatendimento;
+* automação via WhatsApp Web;
+* Twilio/Zenvia/intermediários;
+* app mobile;
+* portal completo da profissional com login próprio.
+
+Essas coisas só entram se virarem requisito confirmado e pago.
+
+---
+
+# 6. Escopo funcional da V1 operacional apresentável
+
+## 6.1 Autenticação
+
+O sistema terá login apenas para usuários administrativos/superiores.
+
+Perfis iniciais:
+
+```txt
+ADMIN
+RT
+SUPERVISOR
+```
+
+O profissional **não terá login completo na V1**.
+
+Para reduzir atrito, a profissional acessará por **link seguro/token** para:
+
+* visualizar pendência específica;
+* enviar documento;
+* reenviar documento se recusado;
+* acessar ajuda/FAQ;
+* acionar suporte via `wa.me`.
+
+Decisão importante:
+
+```txt
+User ≠ Professional
+```
+
+* `User` = quem loga no sistema.
+* `Professional` = pessoa monitorada pelo sistema.
+
+Para evitar rework futuro, pode existir um campo opcional:
+
+```txt
+Professional.userId nullable
+```
+
+Na V1 ele provavelmente ficará nulo.
+
+Se no futuro existir portal da profissional com login, será possível vincular sem refazer o modelo.
+
+## 6.2 Gestão de usuários
+
+Funcionalidades:
+
+* criar usuário;
+* editar usuário;
+* ativar/desativar usuário;
+* definir role;
+* associar RT/supervisor a setores/unidades;
+* resetar senha;
+* controlar acesso por organização/unidade/setor;
+* impedir exclusão destrutiva se houver histórico associado.
+
+Perfis:
+
+```txt
+ADMIN:
+acesso amplo à organização
+
+RT:
+acesso às profissionais sob sua responsabilidade
+
+SUPERVISOR:
+acesso aos setores/unidades associados
+```
+
+## 6.3 Gestão de organizações, unidades e setores
+
+Mesmo que o primeiro cliente seja uma única instituição, a estrutura deve nascer com:
+
+```txt
+Organization
+Unit
+Sector
+```
+
+Isso evita retrabalho se existirem:
+
+* múltiplas unidades;
+* múltiplos setores;
+* múltiplas RTs;
+* diferentes responsáveis por área;
+* futura replicação do sistema para outro cliente.
+
+Não é necessário criar um SaaS multi-tenant completo na V1, mas as tabelas centrais devem ter `organizationId` desde o começo.
+
+## 6.4 Gestão de profissionais
+
+Campos sugeridos:
+
+```txt
+Nome
+CPF, se necessário
+E-mail
+Telefone/WhatsApp
+Cargo
+Setor
+Unidade
+RT responsável
+Status ativo/inativo
+Observações
+```
+
+Funcionalidades:
+
+* cadastrar profissional;
+* editar profissional;
+* listar profissionais;
+* filtrar por status;
+* filtrar por RT;
+* filtrar por setor;
+* filtrar por unidade;
+* visualizar histórico da profissional;
+* visualizar licenças associadas;
+* visualizar documentos enviados;
+* visualizar notificações enviadas;
+* desativar profissional sem apagar histórico.
+
+Importação CSV/Excel pode ser tratada como módulo opcional posterior, mas o modelo precisa estar pronto para receber dados em massa sem alterar estrutura.
+
+## 6.5 Gestão de licenças/documentos
+
+A entidade deve ser genérica, não presa apenas a COREN.
+
+Tipos possíveis:
+
+```txt
+COREN
+Certificado
+Treinamento obrigatório
+Documento profissional
+Outro
+```
+
+Campos da licença:
+
+```txt
+Tipo da licença
+Número
+UF/emissor
+Data de emissão
+Data de vencimento
+Profissional associado
+Status calculado
+Última validação
+Validado por
+Observações
+```
+
+Decisão importante:
+
+```txt
+Professional
+  has many Licenses
+
+License
+  has many Documents
+```
+
+Não salvar apenas “último arquivo” na licença.
+
+A licença deve ter histórico de documentos, porque a profissional pode:
+
+* enviar documento errado;
+* reenviar documento;
+* ter documento recusado;
+* enviar atualização;
+* ter nova validação.
+
+## 6.6 Upload de documentos por link mágico
+
+Fluxo:
+
+```txt
+Profissional recebe link
+↓
+Abre tela simplificada
+↓
+Confere dados básicos
+↓
+Faz upload do documento/comprovante
+↓
+Sistema registra envio
+↓
+Documento vira UPLOADED
+↓
+Licença pode virar PENDING_VALIDATION
+↓
+RT/Admin valida ou recusa
+```
+
+Funcionalidades:
+
+* upload de PDF/imagem;
+* limite de tamanho;
+* validação de tipo de arquivo;
+* status do documento;
+* histórico de uploads;
+* recusa com motivo;
+* aprovação com data e usuário responsável;
+* token com expiração;
+* token armazenado como hash;
+* token invalidado após uso, quando fizer sentido;
+* possibilidade de gerar novo token para reenvio.
+
+## 6.7 Cálculo automático de status
+
+O sistema calcula status com base na data de vencimento, no status do documento e na validação.
+
+Exemplo:
+
+```txt
+Vencimento futuro acima do limite configurado:
+REGULAR
+
+Vence dentro de X dias:
+EXPIRING
+
+Vencimento anterior à data atual:
+EXPIRED
+
+Não há documento válido associado:
+PENDING_DOCUMENT
+
+Documento enviado e não validado:
+PENDING_VALIDATION
+
+Profissional desativada ou licença não aplicável:
+INACTIVE
+```
+
+Os prazos precisam ser configuráveis.
+
+Exemplo:
+
+```txt
+Avisar 60 dias antes
+Avisar 30 dias antes
+Avisar 15 dias antes
+Avisar 7 dias antes
+Avisar no dia do vencimento
+Repetir após vencido a cada X dias
+```
+
+Essas regras não devem ficar hardcoded dentro do cron.
+
+Elas devem ser representadas por `NotificationRule`.
+
+---
+
+# 7. Dashboard da V1
+
+O dashboard entra desde a V1, mas sem virar BI complexo.
+
+Ele deve ser operacional, claro e apresentável.
+
+## 7.1 Cards principais
+
+```txt
+Total de profissionais
+Licenças regulares
+Licenças a vencer
+Licenças vencidas
+Documentos aguardando validação
+Notificações pendentes
+Notificações enviadas
+Notificações com falha
+```
+
+## 7.2 Visões úteis
+
+```txt
+Licenças vencendo nos próximos 30 dias
+Licenças vencidas por setor
+Pendências por RT
+Pendências por unidade
+Últimos uploads recebidos
+Últimas notificações enviadas
+Falhas recentes de notificação
+Documentos recusados recentemente
+```
+
+## 7.3 Princípio do dashboard
+
+O dashboard não deve ser apenas decorativo.
+
+Ele precisa responder rapidamente:
+
+* quem está vencido;
+* quem está prestes a vencer;
+* quem precisa validar documento;
+* quem foi notificado;
+* quais notificações falharam;
+* qual RT/setor está com mais pendência;
+* o que precisa de ação hoje.
+
+---
+
+# 8. Relatórios definitivos desde a V1
+
+Este ponto foi revisado em relação ao consolidado anterior.
+
+Relatórios não devem ficar como “fase 2”, porque relatórios dependem de histórico correto. Se o dado não nascer certo, depois não há relatório confiável.
+
+A V1 deve ter os relatórios operacionais essenciais já no formato final, mesmo que visualmente simples.
+
+## 8.1 Relatório de licenças vencidas
+
+Filtros:
+
+```txt
+Período
+Unidade
+Setor
+RT responsável
+Tipo de licença
+Status da profissional
+```
+
+Colunas sugeridas:
+
+```txt
+Profissional
+Telefone
+E-mail
+Unidade
+Setor
+RT responsável
+Tipo de licença
+Número
+UF/emissor
+Data de vencimento
+Dias vencidos
+Última notificação
+Status da notificação
+Último documento enviado
+Status do documento
+```
+
+## 8.2 Relatório de licenças a vencer
+
+Filtros:
+
+```txt
+Janela de vencimento
+Unidade
+Setor
+RT responsável
+Tipo de licença
+```
+
+Janelas úteis:
+
+```txt
+7 dias
+15 dias
+30 dias
+60 dias
+Personalizado
+```
+
+Colunas:
+
+```txt
+Profissional
+Telefone
+Unidade
+Setor
+RT responsável
+Tipo de licença
+Data de vencimento
+Dias restantes
+Notificação programada
+Última notificação enviada
+Status atual
+```
+
+## 8.3 Relatório por RT
+
+Objetivo:
+
+Mostrar a carga e pendências de cada RT.
+
+Dados:
+
+```txt
+RT
+Total de profissionais vinculadas
+Licenças regulares
+Licenças a vencer
+Licenças vencidas
+Documentos aguardando validação
+Notificações com falha
+Pendências críticas
+```
+
+## 8.4 Relatório por setor/unidade
+
+Objetivo:
+
+Mostrar concentração de risco por área.
+
+Dados:
+
+```txt
+Unidade
+Setor
+Total de profissionais
+Total de licenças
+Regulares
+A vencer
+Vencidas
+Aguardando validação
+Percentual de pendência
+```
+
+## 8.5 Relatório de documentos aguardando validação
+
+Colunas:
+
+```txt
+Profissional
+Unidade
+Setor
+RT responsável
+Tipo de licença
+Documento enviado
+Data do envio
+Tempo aguardando validação
+Link/ação para revisar
+```
+
+## 8.6 Relatório de documentos recusados
+
+Colunas:
+
+```txt
+Profissional
+Tipo de licença
+Documento
+Data do envio
+Data da recusa
+Recusado por
+Motivo da recusa
+Status atual
+```
+
+## 8.7 Relatório de notificações
+
+Colunas:
+
+```txt
+Profissional
+Licença
+Canal
+Template
+Destinatário
+Status
+Data programada
+Data de envio
+Data de entrega
+Data de leitura, se disponível
+Erro, se houver
+ProviderMessageId
+```
+
+Filtros:
+
+```txt
+Status
+Canal
+Período
+Tipo de licença
+RT
+Unidade
+Setor
+```
+
+## 8.8 Relatório de histórico de regularização
+
+Objetivo:
+
+Mostrar o ciclo de regularização.
+
+Colunas:
+
+```txt
+Profissional
+Licença
+Data em que entrou como a vencer
+Data em que venceu
+Primeira notificação
+Última notificação
+Data do upload
+Data da validação
+Validado por
+Tempo total até regularização
+```
+
+## 8.9 Exportação
+
+A V1 pode começar com visualização em tela, mas a estrutura deve prever exportação.
+
+Exportações úteis:
+
+```txt
+CSV
+Excel
+PDF simples, se necessário
+```
+
+Mesmo que exportação completa fique para depois, as queries e filtros devem nascer organizados para suportar isso sem refazer relatório.
+
+---
+
+# 9. Notificações WhatsApp
+
+Esse é o núcleo mais sensível do projeto.
+
+A V1 deve usar WhatsApp oficial via Meta Cloud API, sem Twilio/Zenvia/intermediários.
+
+## 9.1 Fluxo consolidado
+
+```txt
+Cron diário roda
+↓
+Busca licenças vencendo/vencidas
+↓
+Consulta NotificationRules
+↓
+Cria NotificationJobs
+↓
+Worker busca jobs pendentes
+↓
+Monta payload com template aprovado
+↓
+Chama Meta WhatsApp Cloud API
+↓
+Recebe resposta da Meta
+↓
+Salva providerMessageId
+↓
+Webhook recebe status
+↓
+Atualiza NotificationLog
+↓
+Atualiza NotificationJob
+↓
+Atualiza dashboard/relatórios
+```
+
+## 9.2 Canais iniciais
+
+```txt
+WhatsApp: obrigatório
+Dashboard interno: obrigatório
+E-mail: opcional/futuro/fallback
+```
+
+## 9.3 Status de notificação
+
+```txt
+PENDING
+PROCESSING
+SENT
+DELIVERED
+READ
+FAILED
+CANCELLED
+SKIPPED
+```
+
+## 9.4 Tipos de notificação
+
+```txt
+Licença a vencer para profissional
+Licença vencida para profissional
+Licença a vencer para RT
+Licença vencida para RT
+Upload recebido para RT
+Documento aprovado para profissional
+Documento recusado para profissional
+Pendência crítica para RT
+Resumo diário/semanal para RT, se implementado
+```
+
+## 9.5 Templates
+
+Templates devem ser cadastrados no sistema e relacionados aos templates aprovados na Meta.
+
+Exemplo de template utilitário:
+
+```txt
+Olá, {{nome}}.
+
+Sua licença {{tipoLicenca}} vence em {{dataVencimento}}.
+
+Acesse o link abaixo para enviar ou atualizar sua documentação:
+{{linkUpload}}
+
+Caso já tenha regularizado, envie o comprovante pelo sistema.
+```
+
+Templates necessários na V1:
+
+```txt
+LICENSE_EXPIRING_PROFESSIONAL
+LICENSE_EXPIRED_PROFESSIONAL
+LICENSE_EXPIRING_RT
+LICENSE_EXPIRED_RT
+DOCUMENT_UPLOADED_RT
+DOCUMENT_APPROVED_PROFESSIONAL
+DOCUMENT_REJECTED_PROFESSIONAL
+```
+
+## 9.6 Princípios das mensagens
+
+As mensagens devem ser:
+
+* utilitárias;
+* objetivas;
+* sem marketing;
+* sem linguagem promocional;
+* com link claro de ação;
+* com dados mínimos necessários;
+* rastreáveis no sistema.
+
+## 9.7 Retentativas
+
+Na V1, retentativas podem ser simples.
+
+Exemplo:
+
+```txt
+attempts
+maxAttempts
+failedAt
+errorMessage
+nextRetryAt
+```
+
+Não usar Redis/BullMQ inicialmente.
+
+Mas a tabela `NotificationJob` deve nascer pronta para suportar retentativa sem alteração estrutural pesada.
+
+---
+
+# 10. FAQ / “Estou tendo problemas”
+
+Este módulo substitui suporte avançado e chat interno.
+
+Mesmo com WhatsApp API para notificações, esse formulário ainda é útil para suporte humano sem criar inbox/call center.
+
+## 10.1 Funcionalidades
+
+* página de FAQ;
+* categorias;
+* busca simples;
+* formulário “Estou tendo problemas”;
+* montagem dinâmica de mensagem;
+* botão para abrir WhatsApp via `wa.me`;
+* definição dinâmica do responsável.
+
+## 10.2 Fluxo
+
+```txt
+Profissional abre ajuda
+↓
+Escolhe tipo de problema
+↓
+Preenche descrição
+↓
+Sistema identifica responsável
+↓
+Monta mensagem
+↓
+Abre wa.me para RT/suporte
+```
+
+## 10.3 Regra de destinatário
+
+```txt
+1. RT responsável
+2. Supervisor do setor
+3. Admin da unidade
+4. Número padrão de suporte
+```
+
+## 10.4 Tipos de problema sugeridos
+
+```txt
+Não consigo enviar documento
+Enviei o documento errado
+Meus dados estão incorretos
+Meu COREN já foi regularizado
+Não pertenço mais à instituição
+Tenho dúvida sobre a pendência
+Outro
+```
+
+## 10.5 Exemplo de mensagem gerada
+
+```txt
+Olá, preciso de ajuda com minha pendência no sistema.
+
+Nome: {{professionalName}}
+Setor: {{sectorName}}
+Unidade: {{unitName}}
+Licença: {{licenseType}}
+Status atual: {{licenseStatus}}
+
+Problema selecionado:
+{{problemType}}
+
+Mensagem:
+{{message}}
+
+Link da pendência:
+{{secureUploadOrHelpLink}}
+```
+
+Esse módulo não substitui notificação automática.
+
+Ele substitui atendimento estruturado/call center na V1.
+
+---
+
+# 11. Auditoria
+
+Auditoria é obrigatória desde o começo.
+
+Não é melhoria futura.
+
+Registrar:
+
+* criação de profissional;
+* edição de dados;
+* alteração de vencimento;
+* criação de licença;
+* alteração de licença;
+* upload de documento;
+* aprovação de documento;
+* recusa de documento;
+* motivo da recusa;
+* envio de notificação;
+* falha de notificação;
+* alteração de regra;
+* alteração de template;
+* geração de link mágico;
+* uso de link mágico;
+* login relevante, se necessário.
+
+A auditoria precisa guardar:
+
+```txt
+actorId
+action
+entityType
+entityId
+metadataJson
+createdAt
+```
+
+Para ações via link mágico, pode haver `actorId` nulo e identificação por `uploadTokenId`/contexto.
+
+---
+
+# 12. Modelo de módulos
+
+Estrutura lógica:
+
+```txt
+core/
+  auth
+  users
+  roles
+  organizations
+  audit
+
+modules/
+  professionals
+  licenses
+  documents
+  notifications
+  dashboard
+  reports
+  faq
+  settings
+  integrations
+```
+
+## 12.1 Core
+
+Responsável por:
+
+* autenticação;
+* usuários;
+* permissões;
+* organização;
+* unidade;
+* setor;
+* auditoria;
+* configurações globais.
+
+## 12.2 Professionals
+
+Responsável por:
+
+* profissionais;
+* vínculo com RT;
+* setor;
+* unidade;
+* contatos;
+* status ativo/inativo;
+* histórico da profissional.
+
+## 12.3 Licenses
+
+Responsável por:
+
+* tipos de licença;
+* vencimentos;
+* status;
+* regras de cálculo;
+* vínculo com documentos;
+* histórico de regularização.
+
+## 12.4 Documents
+
+Responsável por:
+
+* upload;
+* validação;
+* storage;
+* histórico de arquivos;
+* aprovação;
+* recusa;
+* motivo da recusa.
+
+## 12.5 Notifications
+
+Responsável por:
+
+* jobs;
+* templates;
+* regras;
+* WhatsApp;
+* logs;
+* webhooks;
+* retentativas;
+* status de envio;
+* provider Meta.
+
+## 12.6 Dashboard
+
+Responsável por:
+
+* métricas;
+* cards;
+* listas rápidas;
+* pendências;
+* falhas;
+* visão operacional.
+
+## 12.7 Reports
+
+Responsável por:
+
+* filtros;
+* queries;
+* relatórios operacionais;
+* exportação futura;
+* histórico consolidado.
+
+## 12.8 FAQ/Support
+
+Responsável por:
+
+* perguntas frequentes;
+* formulário de problema;
+* mensagem dinâmica via `wa.me`;
+* identificação do responsável.
+
+## 12.9 Integrations
+
+Responsável por:
+
+* Meta Cloud API;
+* provedores futuros;
+* webhooks externos;
+* abstração de canais.
+
+---
+
+# 13. Modelo de dados inicial
+
+## 13.1 User
+
+```txt
+id
+name
+email
+passwordHash
+role
+phone
+active
+organizationId
+createdAt
+updatedAt
+```
+
+## 13.2 Organization
+
+```txt
+id
+name
+document
+active
+createdAt
+updatedAt
+```
+
+## 13.3 Unit
+
+```txt
+id
+organizationId
+name
+active
+createdAt
+updatedAt
+```
+
+## 13.4 Sector
+
+```txt
+id
+unitId
+name
+active
+createdAt
+updatedAt
+```
+
+## 13.5 Professional
+
+```txt
+id
+organizationId
+unitId
+sectorId
+responsibleRtId
+userId nullable
+name
+cpf
+email
+phone
+position
+active
+notes
+createdAt
+updatedAt
+```
+
+## 13.6 LicenseType
+
+```txt
+id
+organizationId
+name
+description
+defaultWarningDays
+active
+createdAt
+updatedAt
+```
+
+## 13.7 License
+
+```txt
+id
+professionalId
+licenseTypeId
+number
+issuer
+uf
+issuedAt
+expiresAt
+status
+lastValidatedAt
+validatedById
+notes
+createdAt
+updatedAt
+```
+
+## 13.8 Document
+
+```txt
+id
+professionalId
+licenseId
+fileKey
+fileUrl
+fileName
+mimeType
+size
+status
+uploadedByUserId nullable
+uploadTokenId nullable
+validatedById nullable
+validatedAt nullable
+rejectionReason nullable
+createdAt
+updatedAt
+```
+
+## 13.9 UploadToken
+
+```txt
+id
+professionalId
+licenseId
+tokenHash
+expiresAt
+usedAt nullable
+active
+createdAt
+```
+
+## 13.10 NotificationTemplate
+
+```txt
+id
+organizationId
+key
+channel
+metaTemplateName
+language
+bodyPreview
+active
+createdAt
+updatedAt
+```
+
+## 13.11 NotificationRule
+
+```txt
+id
+organizationId
+licenseTypeId
+daysBeforeExpiration
+repeatAfterExpiredDays
+channel
+templateKey
+notifyProfessional
+notifyRt
+active
+createdAt
+updatedAt
+```
+
+## 13.12 NotificationJob
+
+```txt
+id
+organizationId
+professionalId
+licenseId
+channel
+recipientPhone
+recipientEmail nullable
+templateKey
+payloadJson
+status
+scheduledFor
+processingAt nullable
+sentAt nullable
+deliveredAt nullable
+readAt nullable
+failedAt nullable
+attempts
+maxAttempts
+nextRetryAt nullable
+errorMessage nullable
+provider
+providerMessageId nullable
+createdAt
+updatedAt
+```
+
+## 13.13 NotificationLog
+
+```txt
+id
+notificationJobId
+provider
+providerMessageId nullable
+status
+rawPayload
+rawResponse
+createdAt
+```
+
+## 13.14 FaqItem
+
+```txt
+id
+organizationId
+category
+question
+answer
+order
+active
+createdAt
+updatedAt
+```
+
+## 13.15 AuditLog
+
+```txt
+id
+organizationId
+actorId nullable
+action
+entityType
+entityId
+metadataJson
+createdAt
+```
+
+---
+
+# 14. Fluxos principais
+
+## 14.1 Cadastro inicial
+
+```txt
+Admin cria organização
+↓
+Admin cria unidade
+↓
+Admin cria setores
+↓
+Admin cria usuários RT/Supervisor
+↓
+Admin cadastra profissionais
+↓
+Admin vincula profissionais à RT
+↓
+Admin cadastra licenças e vencimentos
+```
+
+## 14.2 Verificação diária de vencimentos
+
+```txt
+Cron diário
+↓
+Busca licenças ativas
+↓
+Calcula status
+↓
+Atualiza status se necessário
+↓
+Consulta regras de notificação
+↓
+Cria NotificationJobs
+↓
+Evita duplicidade de job para a mesma regra/período/licença
+```
+
+## 14.3 Envio automático WhatsApp
+
+```txt
+Worker busca NotificationJobs pendentes
+↓
+Marca job como PROCESSING
+↓
+Monta variáveis do template
+↓
+Valida telefone
+↓
+Chama Meta Cloud API
+↓
+Salva providerMessageId
+↓
+Cria NotificationLog
+↓
+Atualiza job como SENT ou FAILED
+```
+
+## 14.4 Webhook da Meta
+
+```txt
+Meta envia evento
+↓
+Backend valida webhook
+↓
+Localiza providerMessageId
+↓
+Atualiza NotificationLog
+↓
+Atualiza NotificationJob
+↓
+Reflete status em dashboard e relatórios
+```
+
+## 14.5 Upload de documento
+
+```txt
+Profissional recebe link
+↓
+Acessa tela de upload
+↓
+Sistema valida token
+↓
+Profissional envia arquivo
+↓
+Sistema salva no storage
+↓
+Cria Document
+↓
+Atualiza status do documento
+↓
+Atualiza status da licença se necessário
+↓
+Registra auditoria
+↓
+Notifica RT
+```
+
+## 14.6 Validação pela RT
+
+```txt
+RT acessa dashboard
+↓
+Vê uploads pendentes
+↓
+Abre documento
+↓
+Aprova ou recusa
+↓
+Se aprovar: atualiza validação e status
+↓
+Se recusar: registra motivo e mantém pendência
+↓
+Sistema registra auditoria
+↓
+Sistema notifica profissional
+```
+
+## 14.7 Ajuda via FAQ/wa.me
+
+```txt
+Profissional abre "Estou tendo problemas"
+↓
+Seleciona motivo
+↓
+Descreve problema
+↓
+Sistema identifica responsável
+↓
+Monta mensagem
+↓
+Abre wa.me
+```
+
+---
+
+# 15. Arquitetura de infra enxuta
+
+## 15.1 Infra econômica
+
+```txt
+Frontend:
+Cloudflare Pages, Netlify ou Vercel Pro se for comercial
+
+Backend:
+Fly.io, Railway ou Render
+
+Banco:
+Neon Postgres ou Supabase Postgres
+
+Storage:
+Supabase Storage ou Cloudflare R2
+
+WhatsApp:
+Meta Cloud API direta
+
+E-mail:
+Opcional/futuro, se usado
+```
+
+## 15.2 Recomendação inicial
+
+```txt
+Frontend: React + Vite em Cloudflare Pages ou Netlify
+Backend: Express em Fly.io/Railway/Render
+Banco: Neon Postgres
+Storage: Supabase Storage ou R2
+WhatsApp: Meta Cloud API direto
+```
+
+## 15.3 Princípio de infra
+
+A infra precisa suportar:
+
+* baixo uso no dia a dia;
+* picos ocasionais;
+* custo controlado;
+* deploy simples;
+* logs suficientes;
+* jobs diários;
+* webhooks da Meta;
+* storage de documentos.
+
+Evitar na V1:
+
+* Kubernetes;
+* microserviços;
+* Redis obrigatório;
+* filas complexas;
+* múltiplos frontends;
+* app mobile;
+* CRM externo;
+* call center externo.
+
+---
+
+# 16. Estratégia de custo
+
+## 16.1 Custos inevitáveis
+
+* mensagens WhatsApp pela Meta;
+* banco PostgreSQL se sair do free tier;
+* storage de arquivos;
+* backend hospedado;
+* domínio, se houver;
+* eventualmente e-mail transacional.
+
+## 16.2 Custos evitados na V1
+
+* Twilio/Zenvia;
+* central de atendimento;
+* CRM;
+* bot visual;
+* Redis;
+* microserviços;
+* app mobile;
+* múltiplos frontends;
+* infraestrutura dedicada.
+
+## 16.3 Regra comercial importante
+
+O custo de WhatsApp **não deve ficar embutido no teu bolso sem controle**.
+
+Na proposta, precisa entrar como:
+
+```txt
+As notificações via WhatsApp utilizam a plataforma oficial da Meta.
+Os custos de envio são variáveis conforme volume, categoria, país e política vigente da Meta.
+Esses custos serão repassados ao cliente ou limitados por pacote mensal contratado.
+```
+
+## 16.4 Possível modelo de pacote
+
+```txt
+Plano inclui até X notificações WhatsApp/mês.
+Excedente cobrado conforme tabela vigente da Meta.
+```
+
+---
+
+# 17. Organização do desenvolvimento
+
+Este projeto não deve ser organizado como “fases que refazem o sistema”.
+
+A organização correta é:
+
+```txt
+Fundação definitiva
+↓
+V1 operacional apresentável
+↓
+Módulos opcionais acopláveis
+```
+
+## 17.1 Fundação definitiva
+
+A fundação deve existir desde o começo:
+
+```txt
+Auth
+Roles
+Organization
+Unit
+Sector
+Professional
+License
+Document
+UploadToken
+NotificationTemplate
+NotificationRule
+NotificationJob
+NotificationLog
+AuditLog
+Reports
+Dashboard
+FAQ/Support
+MetaWhatsAppProvider
+```
+
+Essa fundação não é “extra”.
+
+Ela é o mínimo para evitar rework.
+
+## 17.2 V1 operacional apresentável
+
+A V1 precisa entregar:
+
+* login de superiores;
+* roles;
+* organização/unidade/setor;
+* cadastro de profissionais;
+* cadastro de licenças;
+* cálculo de vencimento;
+* upload por link mágico;
+* validação por RT/admin;
+* notificações WhatsApp via Meta;
+* webhook de status;
+* logs de notificação;
+* dashboard;
+* relatórios operacionais finais;
+* FAQ;
+* `wa.me` para suporte;
+* auditoria.
+
+## 17.3 Módulos opcionais futuros
+
+Possíveis módulos futuros:
+
+* importação CSV/Excel;
+* exportação avançada;
+* e-mail fallback;
+* fila robusta com Redis/BullMQ;
+* painel avançado de falhas;
+* templates editáveis com preview;
+* resumo semanal para RT;
+* metas/pagamento;
+* atendimento WhatsApp real;
+* caixa de entrada;
+* chat interno;
+* aplicativo mobile;
+* integração com sistemas externos;
+* consulta externa de registros profissionais, se houver fonte/API viável.
+
+Esses módulos devem ser acopláveis sem refazer o coração do sistema.
+
+---
+
+# 18. Não objetivos da V1
+
+A V1 **não é**:
+
+* sistema de call center;
+* clone do Pysix;
+* CRM;
+* WhatsApp multiatendente;
+* chatbot;
+* sistema de folha/pagamento;
+* sistema financeiro;
+* app mobile;
+* sistema de RH completo;
+* sistema de compliance geral;
+* automação não oficial de WhatsApp Web.
+
+A V1 é:
+
+> Controle de licença + vencimento + upload + validação + notificação WhatsApp oficial + dashboard + relatórios + auditoria.
+
+---
+
+# 19. Riscos principais
+
+## 19.1 WhatsApp
+
+Riscos:
+
+* templates recusados;
+* mudança de preço;
+* falha de entrega;
+* número não habilitado;
+* telefone inválido;
+* bloqueio por má qualidade de mensagens;
+* necessidade de configuração no Business Manager;
+* webhook mal configurado;
+* erro não rastreado.
+
+Mitigação:
+
+* templates simples e utilitários;
+* logs detalhados;
+* dashboard de falhas;
+* relatórios de notificação;
+* não enviar marketing;
+* não disparar spam;
+* manter `NotificationJob` e `NotificationLog`;
+* guardar `providerMessageId`.
+
+## 19.2 LGPD e dados sensíveis
+
+O sistema pode armazenar dados pessoais e documentos.
+
+Mitigação:
+
+* controle de acesso;
+* storage privado;
+* links temporários;
+* token com hash;
+* auditoria;
+* não deletar histórico crítico;
+* limitar exposição por role;
+* evitar exibir dados sensíveis desnecessários;
+* desativar em vez de apagar registros com histórico.
+
+## 19.3 Escopo crescer
+
+O PDF pode criar expectativa de call center completo.
+
+Mitigação:
+
+* deixar explícito que Pysix é referência, não escopo;
+* documentar não objetivos;
+* tratar call center como módulo futuro;
+* fechar V1 por escrito.
+
+## 19.4 Custo de infraestrutura
+
+Mitigação:
+
+* monólito modular;
+* cron simples;
+* Postgres serverless;
+* storage barato;
+* sem Redis no começo;
+* sem app mobile no começo;
+* sem Twilio/Zenvia no começo;
+* sem call center.
+
+## 19.5 Rework no pipeline agentic
+
+Risco:
+
+* tarefas pequenas demais sem visão final;
+* agentes criando tabelas simplificadas demais;
+* features implementadas direto no controller sem domínio;
+* notificações hardcoded;
+* relatórios sem histórico;
+* permissões improvisadas.
+
+Mitigação:
+
+* este consolidado é fonte da verdade;
+* cada tarefa deve respeitar o modelo final;
+* cada módulo deve nascer com seu domínio correto;
+* evitar atalhos que invalidem o banco;
+* manter “escopo enxuto, arquitetura definitiva”.
+
+---
+
+# 20. Critérios de sucesso da V1
+
+A V1 estará bem sucedida se permitir:
+
+```txt
+1. Admin cadastrar organização, unidade e setor.
+2. Admin cadastrar usuários superiores.
+3. Admin/RT cadastrar profissionais e licenças.
+4. Sistema calcular quem está regular, a vencer ou vencido.
+5. Profissional receber notificação via WhatsApp oficial.
+6. Profissional enviar documento por link mágico.
+7. RT/Admin validar ou recusar documento.
+8. Sistema manter histórico/auditoria.
+9. Dashboard mostrar situação geral e pendências.
+10. Relatórios mostrarem vencidos, a vencer, validações e notificações.
+11. Notificações ficarem registradas com status.
+12. Falhas de envio ficarem visíveis.
+13. Operação acontecer sem planilha manual como fonte principal.
+14. O sistema apresentado já ser o sistema real, não um protótipo descartável.
+```
+
+---
+
+# 21. Diretrizes para tarefas agentic
+
+Cada tarefa gerada para o pipeline deve seguir estas regras:
+
+## 21.1 Não simplificar contra o domínio
+
+Errado:
+
+```txt
+Criar tabela funcionarios com nome, telefone e vencimento_coren.
+```
+
+Certo:
+
+```txt
+Criar módulo Professional vinculado a Organization, Unit, Sector e responsibleRtId, mantendo Professional separado de User e preparado para múltiplas licenças.
+```
+
+## 21.2 Não hardcodar notificações
+
+Errado:
+
+```txt
+Cron busca licenças vencidas e chama Meta direto.
+```
+
+Certo:
+
+```txt
+Cron cria NotificationJobs com base em NotificationRules; worker processa jobs usando NotificationTemplate e MetaWhatsAppProvider.
+```
+
+## 21.3 Não misturar status de licença com status de documento
+
+Errado:
+
+```txt
+status = aguardando validação no registro da licença sem distinguir documento.
+```
+
+Certo:
+
+```txt
+License tem LicenseStatus; Document tem DocumentStatus; ambos se relacionam no fluxo.
+```
+
+## 21.4 Relatórios dependem de histórico
+
+Toda tarefa que altera dados importantes deve também considerar:
+
+* audit log;
+* timestamps;
+* usuário responsável;
+* metadados;
+* status anterior/novo quando relevante.
+
+## 21.5 Interface simples, mas definitiva
+
+A UI pode ser simples, mas não deve parecer rascunho.
+
+A V1 será apresentada.
+
+Então telas principais precisam ter:
+
+* layout limpo;
+* tabelas usáveis;
+* filtros;
+* estados vazios;
+* estados de erro;
+* feedback visual;
+* ações claras.
+
+---
+
+# 22. Resumo executivo
+
+O projeto será uma plataforma web modular para controle de licenças profissionais, começando pelo COREN. O sistema terá React, TypeScript e Tailwind no frontend, Node.js, Express, Prisma e PostgreSQL no backend.
+
+A V1 operacional apresentável terá login para superiores, cadastro de organização/unidade/setor, cadastro de profissionais, cadastro de licenças, cálculo de vencimentos, upload de documentos por link mágico, validação por RT/admin, dashboard, relatórios operacionais completos, auditoria e notificações automáticas via WhatsApp usando diretamente a Meta WhatsApp Cloud API.
+
+A integração com WhatsApp será oficial e paga via Meta, mas sem Twilio ou intermediários na V1. Toda a camada de jobs, templates, logs, webhooks, auditoria e persistência será construída internamente.
+
+O Pysix será usado apenas como inspiração para dashboard, status, relatórios e mensagens automáticas. A V1 não terá call center, fila de atendimento, agentes online, bot, PABX, chat interno, metas/pagamento ou app mobile.
+
+A visão final é um sistema magro, extensível e de baixo custo, começando pelo núcleo de conformidade/licenças, mas já construído com miolo definitivo para evitar rework no pipeline agentic.
+
+A frase-guia do projeto é:
+
+> **Escopo enxuto, arquitetura definitiva.**
