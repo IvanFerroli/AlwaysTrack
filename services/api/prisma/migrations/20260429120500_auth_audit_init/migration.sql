@@ -18,8 +18,6 @@ CREATE TABLE "User" (
     "phone" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "organizationId" TEXT NOT NULL,
-    "unitScopeJson" TEXT,
-    "sectorScopeJson" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization" ("id") ON DELETE RESTRICT ON UPDATE CASCADE

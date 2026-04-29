@@ -8,35 +8,330 @@ datasource db {
 }
 
 model Organization {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   document  String?
-  active    Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  users     User[]
-  auditLogs AuditLog[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users                 User[]
+  units                 Unit[]
+  licenseTypes          LicenseType[]
+  notificationTemplates NotificationTemplate[]
+  notificationRules     NotificationRule[]
+  notificationJobs      NotificationJob[]
+  faqItems              FaqItem[]
+  professionals         Professional[]
+  auditLogs             AuditLog[]
+}
+
+model Unit {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  sectors       Sector[]
+  professionals Professional[]
+
+  @@index([organizationId])
+  @@index([active])
+}
+
+model Sector {
+  id        String   @id @default(cuid())
+  unitId    String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit          Unit           @relation(fields: [unitId], references: [id])
+  professionals Professional[]
+
+  @@index([unitId])
+  @@index([active])
 }
 
 model User {
-  id             String    @id @default(cuid())
-  name           String
-  email          String    @unique
-  passwordHash   String
-  role           String
-  phone          String?
-  active         Boolean   @default(true)
-  organizationId String
-  unitScopeJson  String?
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  passwordHash    String
+  role            String
+  phone           String?
+  active          Boolean  @default(true)
+  organizationId  String
+  unitScopeJson   String?
   sectorScopeJson String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  auditLogs    AuditLog[]
+  organization              Organization      @relation(fields: [organizationId], references: [id])
+  auditLogs                 AuditLog[]
+  professionalsAsRt         Professional[]     @relation("ProfessionalResponsibleRt")
+  professionalAccount       Professional?      @relation("ProfessionalUser")
+  validatedLicenses         License[]          @relation("LicenseValidatedBy")
+  uploadedDocuments         Document[]         @relation("DocumentUploadedByUser")
+  validatedDocuments        Document[]         @relation("DocumentValidatedBy")
 
   @@index([organizationId])
   @@index([role])
+  @@index([active])
+}
+
+model Professional {
+  id              String   @id @default(cuid())
+  organizationId  String
+  unitId          String
+  sectorId        String
+  responsibleRtId String?
+  userId          String?  @unique
+  name            String
+  cpf             String?
+  email           String?
+  phone           String?
+  position        String?
+  active          Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  unit          Unit         @relation(fields: [unitId], references: [id])
+  sector        Sector       @relation(fields: [sectorId], references: [id])
+  responsibleRt User?        @relation("ProfessionalResponsibleRt", fields: [responsibleRtId], references: [id])
+  user          User?        @relation("ProfessionalUser", fields: [userId], references: [id])
+  licenses      License[]
+  documents     Document[]
+  uploadTokens  UploadToken[]
+  notificationJobs NotificationJob[]
+
+  @@index([organizationId])
+  @@index([unitId])
+  @@index([sectorId])
+  @@index([responsibleRtId])
+  @@index([active])
+}
+
+model LicenseType {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  name               String
+  description        String?
+  defaultWarningDays String?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  licenses          License[]
+  notificationRules NotificationRule[]
+
+  @@index([organizationId])
+  @@index([active])
+}
+
+model License {
+  id              String    @id @default(cuid())
+  professionalId  String
+  licenseTypeId   String
+  number          String?
+  issuer          String?
+  uf              String?
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  status          String
+  lastValidatedAt DateTime?
+  validatedById   String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  professional      Professional      @relation(fields: [professionalId], references: [id])
+  licenseType       LicenseType       @relation(fields: [licenseTypeId], references: [id])
+  validatedBy       User?             @relation("LicenseValidatedBy", fields: [validatedById], references: [id])
+  documents         Document[]
+  uploadTokens      UploadToken[]
+  notificationJobs  NotificationJob[]
+
+  @@index([professionalId])
+  @@index([licenseTypeId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([validatedById])
+}
+
+model Document {
+  id                String    @id @default(cuid())
+  professionalId    String
+  licenseId         String
+  fileKey           String
+  fileUrl           String?
+  fileName          String
+  mimeType          String
+  size              Int
+  status            String
+  uploadedByUserId  String?
+  uploadTokenId     String?
+  validatedById     String?
+  validatedAt       DateTime?
+  rejectionReason   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  license        License      @relation(fields: [licenseId], references: [id])
+  uploadedByUser User?        @relation("DocumentUploadedByUser", fields: [uploadedByUserId], references: [id])
+  uploadToken    UploadToken? @relation(fields: [uploadTokenId], references: [id])
+  validatedBy    User?        @relation("DocumentValidatedBy", fields: [validatedById], references: [id])
+
+  @@index([professionalId])
+  @@index([licenseId])
+  @@index([status])
+  @@index([uploadedByUserId])
+  @@index([uploadTokenId])
+  @@index([validatedById])
+}
+
+model UploadToken {
+  id             String    @id @default(cuid())
+  professionalId String
+  licenseId      String
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+  license      License      @relation(fields: [licenseId], references: [id])
+  documents    Document[]
+
+  @@index([professionalId])
+  @@index([licenseId])
+  @@index([active])
+  @@index([expiresAt])
+}
+
+model NotificationTemplate {
+  id               String   @id @default(cuid())
+  organizationId   String
+  key              String
+  channel          String
+  metaTemplateName String?
+  language         String
+  bodyPreview      String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@index([channel])
+  @@index([active])
+}
+
+model NotificationRule {
+  id                     String   @id @default(cuid())
+  organizationId          String
+  licenseTypeId           String?
+  daysBeforeExpiration    Int?
+  repeatAfterExpiredDays  Int?
+  channel                 String
+  templateKey             String
+  notifyProfessional      Boolean  @default(true)
+  notifyRt                Boolean  @default(false)
+  active                  Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  licenseType  LicenseType? @relation(fields: [licenseTypeId], references: [id])
+
+  @@index([organizationId])
+  @@index([licenseTypeId])
+  @@index([channel])
+  @@index([active])
+}
+
+model NotificationJob {
+  id                String    @id @default(cuid())
+  organizationId    String
+  professionalId    String
+  licenseId         String
+  channel           String
+  recipientPhone    String?
+  recipientEmail    String?
+  templateKey       String
+  payloadJson       String
+  status            String
+  scheduledFor      DateTime
+  processingAt      DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(3)
+  nextRetryAt       DateTime?
+  errorMessage      String?
+  provider          String?
+  providerMessageId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+  license      License      @relation(fields: [licenseId], references: [id])
+  logs         NotificationLog[]
+
+  @@index([organizationId])
+  @@index([professionalId])
+  @@index([licenseId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([providerMessageId])
+}
+
+model NotificationLog {
+  id                String   @id @default(cuid())
+  notificationJobId String
+  provider          String
+  providerMessageId String?
+  status            String
+  rawPayload        String?
+  rawResponse       String?
+  createdAt         DateTime @default(now())
+
+  notificationJob NotificationJob @relation(fields: [notificationJobId], references: [id])
+
+  @@index([notificationJobId])
+  @@index([providerMessageId])
+  @@index([status])
+}
+
+model FaqItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  category       String
+  question       String
+  answer         String
+  order          Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([category])
   @@index([active])
 }
 

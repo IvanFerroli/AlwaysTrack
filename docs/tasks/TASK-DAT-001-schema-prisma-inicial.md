@@ -1,7 +1,7 @@
 # TASK-DAT-001 - Schema Prisma inicial completo
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-DAT-001-schema-prisma-inicial.md
@@ -47,3 +47,18 @@ Criar o schema inicial com as entidades centrais sem simplificar contra o domini
 ## Riscos
 - schema simplificado gerar rework estrutural
 - relacoes ficarem frouxas para relatorios
+
+## Execucao
+- Implementado em modo incremental sobre auth/audit existentes, preservando `Organization`, `User` e `AuditLog`.
+- Adicionadas as entidades de dominio: `Unit`, `Sector`, `Professional`, `LicenseType`, `License`, `Document`, `UploadToken`, `NotificationTemplate`, `NotificationRule`, `NotificationJob`, `NotificationLog` e `FaqItem`.
+- Contratos compartilhados de status/canais adicionados em `packages/shared/src/index.ts`.
+- Status foram mantidos como `String` no Prisma por compatibilidade com SQLite local; os contratos TS funcionam como enum compartilhado ate a decisao de banco final.
+
+## Evidencias
+- `DATABASE_URL='file:./dev.db' npx prisma validate --schema services/api/prisma/schema.prisma`
+- `DATABASE_URL='file:./dev.db' npx prisma db execute --schema services/api/prisma/schema.prisma --file services/api/prisma/migrations/20260429140500_dat001_domain_schema/migration.sql`
+- `npm run prisma:generate`
+- `npm run check`
+- `npm run setup`
+- Smoke: `/health`, `/v1/auth/login`, `/v1/auth/me`, `/v1/audit-logs`
+- Replay das 3 migrations em SQLite temporario limpo via `prisma db execute`
