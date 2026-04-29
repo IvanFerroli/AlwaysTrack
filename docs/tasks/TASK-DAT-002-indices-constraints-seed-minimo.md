@@ -1,7 +1,7 @@
 # TASK-DAT-002 - Indices, constraints e seed minimo
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-DAT-002-indices-constraints-seed-minimo.md
@@ -49,3 +49,19 @@ Adicionar constraints, indices e seed minimo seguro para desenvolvimento e demo 
 ## Riscos
 - duplicidade de jobs gerar spam/custo
 - seed vazar dados pessoais
+
+## Execucao
+- Adicionados constraints de dedupe para unidade por organizacao, setor por unidade, profissional por CPF dentro da organizacao, tipo de licenca por organizacao e licenca por profissional/tipo/numero.
+- `NotificationJob` ganhou `notificationRuleId`, `periodKey`, `dedupeKey`, indice por regra/periodo e constraint unica por licenca/regra/periodo.
+- Seed minimo expandido com organizacao demo, admin demo, unidade/setor demo, profissional demo, tipo de licenca demo, licenca demo, template placeholder e regra placeholder.
+- O seed usa apenas dados ficticios e idempotentes.
+- `scripts/start-all.js` agora verifica diff entre o banco local existente e o schema Prisma, aplicando SQL pendente antes do seed.
+
+## Evidencias
+- `DATABASE_URL='file:./dev.db' npx prisma validate --schema services/api/prisma/schema.prisma`
+- `DATABASE_URL='file:./dev.db' npx prisma db execute --schema services/api/prisma/schema.prisma --file services/api/prisma/migrations/20260429143000_dat002_constraints_seed/migration.sql`
+- `DATABASE_URL='file:./dev.db' npx prisma db execute --schema services/api/prisma/schema.prisma --file services/api/prisma/migrations/20260429143500_dat002_notification_job_composite/migration.sql`
+- `DATABASE_URL='file:./dev.db' npm run prisma:seed` executado duas vezes
+- Replay das migrations versionadas em SQLite temporario limpo via `prisma db execute`
+- `npm run check`
+- `npm run setup`

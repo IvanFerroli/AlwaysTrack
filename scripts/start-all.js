@@ -1,20 +1,56 @@
 import { exec, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = "services/api/prisma/schema.prisma";
 const devDatabasePath = "services/api/prisma/dev.db";
 const fullSchemaSqlPath = ".tmp-sylembra-dev-schema.sql";
+const incrementalSchemaSqlPath = ".tmp-sylembra-dev-migration.sql";
 const setupOnly = process.argv.includes("--setup-only");
 const noStudio = process.argv.includes("--no-studio");
+const defaultDatabaseUrl = "file:./dev.db";
 
 const env = {
   ...process.env,
-  DATABASE_URL: process.env.DATABASE_URL ?? "file:./dev.db",
+  DATABASE_URL: process.env.DATABASE_URL ?? defaultDatabaseUrl,
   SESSION_SECRET: process.env.SESSION_SECRET ?? "dev-session-secret",
   API_PORT: process.env.API_PORT ?? "3333"
 };
+
+function shellQuote(value) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function shouldCreateLocalDatabase() {
+  return env.DATABASE_URL === defaultDatabaseUrl && !existsSync(resolve(rootDir, devDatabasePath));
+}
+
+function migrationDatabaseUrl() {
+  if (env.DATABASE_URL === defaultDatabaseUrl) {
+    return `file:${resolve(rootDir, devDatabasePath)}`;
+  }
+
+  return env.DATABASE_URL;
+}
+
+function hasExecutableSql(filePath) {
+  if (!existsSync(resolve(rootDir, filePath))) {
+    return false;
+  }
+
+  const sql = readFileSync(resolve(rootDir, filePath), "utf8")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
+    .trim();
+
+  return sql.length > 0;
+}
+
+function removeIfExists(filePath) {
+  rmSync(resolve(rootDir, filePath), { force: true });
+}
 
 function run(command, description) {
   return new Promise((resolvePromise, reject) => {
@@ -78,7 +114,7 @@ function openUrl(url) {
 async function prepareDatabase() {
   await run(`npx prisma generate --schema ${schemaPath}`, "Gerando Prisma Client");
 
-  if (!existsSync(resolve(rootDir, devDatabasePath))) {
+  if (shouldCreateLocalDatabase()) {
     await run(
       `npx prisma migrate diff --from-empty --to-schema-datamodel ${schemaPath} --script > ${fullSchemaSqlPath}`,
       "Gerando SQL do schema atual"
@@ -88,7 +124,21 @@ async function prepareDatabase() {
       "Criando banco SQLite local pelo schema atual"
     );
   } else {
-    console.log("\n[Sylembra Setup] Banco SQLite local ja existe; mantendo schema atual.");
+    await run(
+      `npx prisma migrate diff --from-url ${shellQuote(migrationDatabaseUrl())} --to-schema-datamodel ${schemaPath} --script > ${incrementalSchemaSqlPath}`,
+      "Verificando migrations pendentes"
+    );
+
+    if (hasExecutableSql(incrementalSchemaSqlPath)) {
+      await run(
+        `npx prisma db execute --schema ${schemaPath} --file ${incrementalSchemaSqlPath}`,
+        "Aplicando migrations pendentes"
+      );
+    } else {
+      console.log("\n[Sylembra Setup] Banco SQLite local ja esta alinhado ao schema atual.");
+    }
+
+    removeIfExists(incrementalSchemaSqlPath);
   }
 
   await run("npm run prisma:seed", "Aplicando seed demo");
