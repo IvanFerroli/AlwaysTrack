@@ -1,7 +1,7 @@
 # TASK-SCF-002 - Base API, contratos e observabilidade
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: scaffolding-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-SCF-002-base-api-contratos-observabilidade.md
@@ -48,3 +48,13 @@ Criar a fundacao de API para que os modulos futuros nao inventem padroes diferen
 
 ## Riscos
 - cada modulo criar seu proprio padrao de controller
+
+## Execucao
+- Normalizada como concluida apos verificacao material.
+- API possui `/health`, rotas versionadas `/v1/*`, response wrapper padrao, request id via middleware, modulo auth/audit como exemplo de handler/service e tratamento central de erro.
+
+## Evidencias
+- `services/api/src/app.ts`
+- `services/api/src/core/http/request-context.ts`
+- `services/api/src/core/http/responses.ts`
+- `npm run check`

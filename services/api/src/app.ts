@@ -4,6 +4,14 @@ import { sendError, sendOk } from "./core/http/responses.js";
 import { listAuditLogsHandler } from "./core/audit/audit.handlers.js";
 import { loginHandler, logoutHandler, meHandler } from "./core/auth/auth.handlers.js";
 import { requireAuth, requireRole } from "./core/auth/auth.middleware.js";
+import {
+  createSectorHandler,
+  createUnitHandler,
+  getOrganizationHandler,
+  updateOrganizationHandler,
+  updateSectorHandler,
+  updateUnitHandler
+} from "./core/organizations/organizations.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -18,6 +26,12 @@ export function createApp() {
   app.get("/v1/auth/me", requireAuth, meHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
+  app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
+  app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
+  app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);
+  app.patch("/v1/organization/units/:unitId", requireAuth, requireRole(["ADMIN"]), updateUnitHandler);
+  app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(["ADMIN"]), createSectorHandler);
+  app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(["ADMIN"]), updateSectorHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

@@ -1,7 +1,7 @@
 # TASK-DOC-001 - Intake e baseline de escopo
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: task-planner
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-DOC-001-intake-baseline-escopo.md
@@ -45,3 +45,11 @@ Consolidar o documento central em intake, nao objetivos, criterios de sucesso e 
 ## Riscos
 - transformar briefing em backlog amplo demais
 - assumir requisito nao confirmado
+
+## Execucao
+- Normalizada como concluida apos verificacao material.
+- `docs/project/intake.md` existe e o roadmap de tasks foi gerado em `docs/tasks/ROADMAP.md`.
+
+## Evidencias
+- `docs/project/intake.md`
+- `docs/tasks/ROADMAP.md`

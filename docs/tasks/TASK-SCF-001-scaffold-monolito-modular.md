@@ -1,7 +1,7 @@
 # TASK-SCF-001 - Scaffold do monolito modular
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: scaffolding-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-SCF-001-scaffold-monolito-modular.md
@@ -49,3 +49,12 @@ Criar a estrutura base React/Vite + Express/TypeScript + packages compartilhados
 ## Riscos
 - scaffold virar arquitetura complexa demais
 - acoplamento prematuro entre web e API
+
+## Execucao
+- Normalizada como concluida apos verificacao material.
+- Monorepo com `apps/web`, `services/api`, `packages/shared`, `package.json` e `tsconfig.base.json` existente.
+
+## Evidencias
+- `npm run check`
+- `npm run setup`
+- `npm run build --workspace @sylembra/web`

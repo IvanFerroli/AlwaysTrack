@@ -14,7 +14,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -38,7 +39,12 @@ button.secondary {
   background: #344054;
 }
 
-input {
+button.danger {
+  background: #b42318;
+}
+
+input,
+select {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   min-height: 42px;
@@ -195,7 +201,7 @@ th {
   gap: 16px;
 }
 
-.filters {
+.operational-filters {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -204,6 +210,111 @@ th {
 
 .table-panel {
   overflow: auto;
+}
+
+.table-scroll {
+  overflow: auto;
+}
+
+.operation-state {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+}
+
+.operation-state strong {
+  color: #1d2939;
+}
+
+.operation-state span {
+  color: #667085;
+}
+
+.operation-state.error strong,
+.operation-state.error span {
+  color: #b42318;
+}
+
+.pagination-summary {
+  color: #667085;
+  font-size: 13px;
+  padding: 12px;
+}
+
+.status-badge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.status-badge.active.active,
+.status-badge.license.regular,
+.status-badge.document.approved,
+.status-badge.notification.delivered,
+.status-badge.notification.read {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.active.inactive,
+.status-badge.license.inactive,
+.status-badge.document.archived,
+.status-badge.notification.cancelled,
+.status-badge.notification.skipped {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.status-badge.license.expiring,
+.status-badge.license.pending-document,
+.status-badge.license.pending-validation,
+.status-badge.document.uploaded,
+.status-badge.notification.pending,
+.status-badge.notification.processing,
+.status-badge.notification.sent {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.license.expired,
+.status-badge.document.rejected,
+.status-badge.notification.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-panel {
+  padding: 16px;
+}
+
+.form-panel form {
+  display: grid;
+  gap: 12px;
+}
+
+.form-actions,
+.row-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.row-actions button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
 }
 
 .empty-state {
@@ -252,7 +363,8 @@ th {
     padding: 16px;
   }
 
-  .filters {
+  .operational-filters,
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 }

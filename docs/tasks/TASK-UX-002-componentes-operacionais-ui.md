@@ -1,7 +1,7 @@
 # TASK-UX-002 - Componentes operacionais de UI
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: frontend implementer
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-UX-002-componentes-operacionais-ui.md
@@ -46,3 +46,15 @@ Padronizar tabelas, filtros, formularios e badges de status para evitar UI incon
 
 ## Riscos
 - UI parecer prototipo ou confundir status diferentes
+
+## Execucao
+- Criados componentes operacionais reutilizaveis para filtros, tabela, estados, resumo de paginacao, badges de status e confirmacao de acao sensivel.
+- Tela de auditoria passou a usar os componentes compartilhados.
+- Tela de configuracoes usa os mesmos componentes para organizacao, unidades e setores.
+- Badges separados por tipo visual: licenca, documento, notificacao e ativo/inativo.
+
+## Evidencias
+- `apps/web/src/components/operational.tsx`
+- `apps/web/src/main.tsx`
+- `npm run build --workspace @sylembra/web`
+- `npm run check`

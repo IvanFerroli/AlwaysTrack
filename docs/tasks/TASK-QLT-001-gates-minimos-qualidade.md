@@ -1,7 +1,7 @@
 # TASK-QLT-001 - Gates minimos de qualidade
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: quality-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-QLT-001-gates-minimos-qualidade.md
@@ -39,3 +39,14 @@ Materializar typecheck, lint, test runner e scripts padrao antes das features.
 
 ## Riscos
 - configurar ferramenta demais antes do dominio
+
+## Execucao
+- Adicionado script root `lint` e incluido no `check`.
+- Workspaces `api`, `web` e `shared` ganharam lint leve baseado em `tsc --noEmit`.
+- Mantidos `typecheck` e testes como gates obrigatorios do `npm run check`.
+- `TASK-DOC-001`, `TASK-SCF-001` e `TASK-SCF-002` foram normalizadas como concluidas apos verificacao material.
+
+## Evidencias
+- `npm run check`
+- `npm run build --workspace @sylembra/web`
+- `npm run setup`

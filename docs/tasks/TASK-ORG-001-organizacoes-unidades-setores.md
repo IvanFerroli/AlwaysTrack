@@ -1,7 +1,7 @@
 # TASK-ORG-001 - Organizacoes, unidades e setores
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-ORG-001-organizacoes-unidades-setores.md
@@ -44,3 +44,22 @@ Implementar CRUD operacional de Organization, Unit e Sector com soft deactivatio
 
 ## Riscos
 - permitir apagar entidades com historico
+
+## Execucao
+- Criado modulo `core/organizations` com service, handlers e testes.
+- Adicionadas rotas admin para consultar/atualizar organizacao atual, criar/editar/desativar unidades e criar/editar/desativar setores.
+- Soft deactivation implementado via campo `active`; nenhuma rota faz delete destrutivo.
+- Rotas protegidas por `requireAuth` e `requireRole(["ADMIN"])`.
+- Mudancas relevantes registram auditoria.
+- Tela de Configuracoes implementada no app shell para operar organizacao, unidades e setores.
+
+## Evidencias
+- `npm run check`
+- `npm run setup`
+- `npm run build --workspace @sylembra/web`
+- Smoke local:
+  - `GET /health`
+  - `POST /v1/auth/login`
+  - `GET /v1/organization`
+  - `POST /v1/organization/units`
+  - `GET /v1/audit-logs?action=unit.create`
