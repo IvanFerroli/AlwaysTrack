@@ -353,6 +353,24 @@ legend {
   grid-column: 1 / -1;
 }
 
+.detail-header {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.detail-grid p {
+  margin: 8px 0 0;
+}
+
 .empty-state {
   align-content: start;
   display: grid;
@@ -402,7 +420,8 @@ legend {
   .operational-filters,
   .settings-grid,
   .form-grid,
-  .scope-grid {
+  .scope-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 }

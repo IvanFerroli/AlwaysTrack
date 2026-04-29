@@ -18,6 +18,12 @@ import {
   resetUserPasswordHandler,
   updateUserHandler
 } from "./core/users/users.handlers.js";
+import {
+  createProfessionalHandler,
+  getProfessionalHandler,
+  listProfessionalsHandler,
+  updateProfessionalHandler
+} from "./core/professionals/professionals.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -42,6 +48,10 @@ export function createApp() {
   app.post("/v1/users", requireAuth, requireRole(["ADMIN"]), createUserHandler);
   app.patch("/v1/users/:userId", requireAuth, requireRole(["ADMIN"]), updateUserHandler);
   app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(["ADMIN"]), resetUserPasswordHandler);
+  app.get("/v1/professionals", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listProfessionalsHandler);
+  app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
+  app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);
+  app.patch("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN"]), updateProfessionalHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

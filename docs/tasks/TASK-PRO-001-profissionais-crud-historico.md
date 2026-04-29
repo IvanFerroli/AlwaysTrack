@@ -1,7 +1,7 @@
 # TASK-PRO-001 - Profissionais, vinculos e historico
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-PRO-001-profissionais-crud-historico.md
@@ -45,3 +45,17 @@ Implementar cadastro, listagem, filtros e detalhe de Professional separado de Us
 
 ## Riscos
 - confundir profissional com usuario
+
+## Evidencias de entrega
+- Criado modulo `services/api/src/core/professionals` com service, handlers e testes.
+- API entregue: `GET /v1/professionals`, `GET /v1/professionals/:professionalId`, `POST /v1/professionals`, `PATCH /v1/professionals/:professionalId`.
+- Listagem respeita escopo por role: `ADMIN` por organizacao, `RT` por responsabilidade, `SUPERVISOR` por unidade/setor.
+- Mutacoes ficam restritas a `ADMIN`, com validacao de organization/unit/sector, RT, usuario vinculado, CPF unico e soft deactivation.
+- Detalhe retorna licencas, documentos e notificacoes quando existirem.
+- Tela `Profissionais` substitui placeholder e usa componentes operacionais existentes.
+
+## Validacao realizada
+- `npm run check` passou com 28 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: health, login admin, criar/listar/detalhar/desativar profissional e consultar auditoria `Professional`.

@@ -65,6 +65,38 @@ interface ManagedUserItem {
   updatedAt: string;
 }
 
+interface ProfessionalSummary {
+  id: string;
+  name: string;
+  cpf: string | null;
+  email: string | null;
+  phone: string | null;
+  position: string | null;
+  active: boolean;
+  unitId: string;
+  sectorId: string;
+  responsibleRtId: string | null;
+  userId: string | null;
+  unit: { id: string; name: string };
+  sector: { id: string; name: string };
+  responsibleRt: null | { id: string; name: string; email: string; role: string };
+  user: null | { id: string; name: string; email: string; role: string; active: boolean };
+  _count: { licenses: number; documents: number; notificationJobs: number };
+}
+
+interface ProfessionalDetail extends Omit<ProfessionalSummary, "_count"> {
+  notes: string | null;
+  licenses: Array<{
+    id: string;
+    number: string | null;
+    status: string;
+    expiresAt: string | null;
+    licenseType: { name: string };
+  }>;
+  documents: Array<{ id: string; fileName: string; status: string; createdAt: string }>;
+  notificationJobs: Array<{ id: string; channel: string; status: string; scheduledFor: string; createdAt: string }>;
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -225,6 +257,363 @@ function AuditView() {
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+function ProfessionalsView({ user }: { user: CurrentUser }) {
+  const [items, setItems] = useState<ProfessionalSummary[]>([]);
+  const [total, setTotal] = useState(0);
+  const [organization, setOrganization] = useState<OrganizationItem | null>(null);
+  const [users, setUsers] = useState<ManagedUserItem[]>([]);
+  const [selected, setSelected] = useState<ProfessionalDetail | null>(null);
+  const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
+  const [unitFilter, setUnitFilter] = useState("");
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [rtFilter, setRtFilter] = useState("");
+  const [name, setName] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [position, setPosition] = useState("");
+  const [unitId, setUnitId] = useState("");
+  const [sectorId, setSectorId] = useState("");
+  const [responsibleRtId, setResponsibleRtId] = useState("");
+  const [linkedUserId, setLinkedUserId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams();
+    if (query) search.set("query", query);
+    if (activeFilter === "true" || activeFilter === "false") search.set("active", activeFilter);
+    if (unitFilter) search.set("unitId", unitFilter);
+    if (sectorFilter) search.set("sectorId", sectorFilter);
+    if (rtFilter) search.set("responsibleRtId", rtFilter);
+
+    try {
+      const [professionalsResult, organizationResult, usersResult] = await Promise.all([
+        api<{ items: ProfessionalSummary[]; total: number }>(`/v1/professionals?${search.toString()}`),
+        user.role === "ADMIN" ? api<{ organization: OrganizationItem }>("/v1/organization") : Promise.resolve(null),
+        user.role === "ADMIN" ? api<{ users: ManagedUserItem[] }>("/v1/users") : Promise.resolve(null)
+      ]);
+      setItems(professionalsResult.items);
+      setTotal(professionalsResult.total);
+      if (organizationResult) {
+        setOrganization(organizationResult.organization);
+        setUnitId((current) => current || organizationResult.organization.units[0]?.id || "");
+        setSectorId((current) => current || organizationResult.organization.units[0]?.sectors[0]?.id || "");
+      }
+      if (usersResult) setUsers(usersResult.users);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar profissionais.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar profissional.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/professionals", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          cpf: cpf || null,
+          email: email || null,
+          phone: phone || null,
+          position: position || null,
+          unitId,
+          sectorId,
+          responsibleRtId: responsibleRtId || null,
+          userId: linkedUserId || null,
+          notes: notes || null
+        })
+      });
+      setName("");
+      setCpf("");
+      setEmail("");
+      setPhone("");
+      setPosition("");
+      setResponsibleRtId("");
+      setLinkedUserId("");
+      setNotes("");
+    });
+  }
+
+  async function showDetail(professional: ProfessionalSummary) {
+    setError(null);
+    try {
+      const result = await api<{ professional: ProfessionalDetail }>(`/v1/professionals/${professional.id}`);
+      setSelected(result.professional);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar detalhe.");
+    }
+  }
+
+  async function editProfessional(professional: ProfessionalSummary) {
+    const nextName = window.prompt("Nome do profissional", professional.name);
+    if (!nextName) return;
+    const nextPosition = window.prompt("Cargo/função", professional.position ?? "") ?? professional.position;
+    const nextEmail = window.prompt("Email", professional.email ?? "") ?? professional.email;
+    const nextPhone = window.prompt("Telefone", professional.phone ?? "") ?? professional.phone;
+    await run(async () => {
+      await api(`/v1/professionals/${professional.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: nextName,
+          position: nextPosition || null,
+          email: nextEmail || null,
+          phone: nextPhone || null
+        })
+      });
+    });
+  }
+
+  const sectors = organization?.units.flatMap((unit) => unit.sectors.map((sector) => ({ ...sector, unitName: unit.name }))) ?? [];
+  const selectedUnitSectors = organization?.units.find((unit) => unit.id === unitId)?.sectors ?? [];
+  const rtUsers = users.filter((item) => item.role === "RT" && item.active);
+  const linkableUsers = users.filter((item) => !items.some((professional) => professional.userId === item.id));
+
+  return (
+    <div className="content-stack">
+      <OperationalFilters
+        fields={[
+          { key: "query", label: "Busca", value: query, placeholder: "Nome, CPF, email ou cargo", onChange: setQuery },
+          { key: "active", label: "Ativo", value: activeFilter, placeholder: "true ou false", onChange: setActiveFilter },
+          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", onChange: setUnitFilter },
+          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", onChange: setSectorFilter },
+          { key: "rt", label: "RT", value: rtFilter, placeholder: "ID do RT", onChange: setRtFilter }
+        ]}
+        onSubmit={load}
+      />
+
+      {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {user.role === "ADMIN" && organization ? (
+        <section className="panel form-panel">
+          <form onSubmit={create}>
+            <h2>Novo profissional</h2>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input value={name} onChange={(event) => setName(event.target.value)} />
+              </label>
+              <label>
+                CPF
+                <input value={cpf} onChange={(event) => setCpf(event.target.value)} />
+              </label>
+              <label>
+                Email
+                <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+              </label>
+              <label>
+                Telefone
+                <input value={phone} onChange={(event) => setPhone(event.target.value)} />
+              </label>
+              <label>
+                Cargo
+                <input value={position} onChange={(event) => setPosition(event.target.value)} />
+              </label>
+              <label>
+                Unidade
+                <select
+                  value={unitId}
+                  onChange={(event) => {
+                    const nextUnitId = event.target.value;
+                    setUnitId(nextUnitId);
+                    setSectorId(organization.units.find((unit) => unit.id === nextUnitId)?.sectors[0]?.id ?? "");
+                  }}
+                >
+                  {organization.units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Setor
+                <select value={sectorId} onChange={(event) => setSectorId(event.target.value)}>
+                  {selectedUnitSectors.map((sector) => (
+                    <option key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                RT responsavel
+                <select value={responsibleRtId} onChange={(event) => setResponsibleRtId(event.target.value)}>
+                  <option value="">Sem RT</option>
+                  {rtUsers.map((rt) => (
+                    <option key={rt.id} value={rt.id}>
+                      {rt.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Usuario vinculado
+                <select value={linkedUserId} onChange={(event) => setLinkedUserId(event.target.value)}>
+                  <option value="">Sem usuario</option>
+                  {linkableUsers.map((linkedUser) => (
+                    <option key={linkedUser.id} value={linkedUser.id}>
+                      {linkedUser.name} ({linkedUser.role})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Observacoes
+                <input value={notes} onChange={(event) => setNotes(event.target.value)} />
+              </label>
+            </div>
+            <button disabled={saving || !name.trim() || !unitId || !sectorId}>Criar profissional</button>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="panel table-panel">
+        {loading ? (
+          <OperationalState state="loading" title="Carregando profissionais" />
+        ) : items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum profissional encontrado" />
+        ) : (
+          <>
+            <OperationalTable
+              items={items}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "name", header: "Profissional", render: (item) => `${item.name}${item.cpf ? ` / ${item.cpf}` : ""}` },
+                { key: "unit", header: "Unidade", render: (item) => item.unit.name },
+                { key: "sector", header: "Setor", render: (item) => item.sector.name },
+                { key: "rt", header: "RT", render: (item) => item.responsibleRt?.name ?? "Sem RT" },
+                {
+                  key: "counts",
+                  header: "Historico",
+                  render: (item) =>
+                    `${item._count.licenses} licencas / ${item._count.documents} docs / ${item._count.notificationJobs} avisos`
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+                },
+                {
+                  key: "actions",
+                  header: "Acoes",
+                  render: (item) => (
+                    <div className="row-actions">
+                      <button className="secondary" type="button" onClick={() => void showDetail(item)}>
+                        Detalhe
+                      </button>
+                      {user.role === "ADMIN" ? (
+                        <>
+                          <button className="secondary" type="button" onClick={() => void editProfessional(item)}>
+                            Editar
+                          </button>
+                          <ConfirmButton
+                            disabled={saving}
+                            confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                            onConfirm={() =>
+                              void run(async () => {
+                                await api(`/v1/professionals/${item.id}`, {
+                                  method: "PATCH",
+                                  body: JSON.stringify({ active: !item.active })
+                                });
+                              })
+                            }
+                          >
+                            {item.active ? "Desativar" : "Reativar"}
+                          </ConfirmButton>
+                        </>
+                      ) : null}
+                    </div>
+                  )
+                }
+              ]}
+            />
+            <PaginationSummary page={1} pageSize={25} total={total} />
+          </>
+        )}
+      </section>
+
+      {selected ? (
+        <section className="panel table-panel">
+          <div className="detail-header">
+            <div>
+              <h2>{selected.name}</h2>
+              <p className="muted">
+                {selected.unit.name} / {selected.sector.name} / {selected.responsibleRt?.name ?? "Sem RT"}
+              </p>
+            </div>
+            <button className="secondary" type="button" onClick={() => setSelected(null)}>
+              Fechar
+            </button>
+          </div>
+          <div className="detail-grid">
+            <div>
+              <strong>Licencas</strong>
+              {selected.licenses.length === 0 ? (
+                <p className="muted">Sem licencas.</p>
+              ) : (
+                selected.licenses.map((license) => (
+                  <p key={license.id}>
+                    {license.licenseType.name} / {license.number ?? "sem numero"} / {license.status}
+                  </p>
+                ))
+              )}
+            </div>
+            <div>
+              <strong>Documentos</strong>
+              {selected.documents.length === 0 ? (
+                <p className="muted">Sem documentos.</p>
+              ) : (
+                selected.documents.map((document) => (
+                  <p key={document.id}>
+                    {document.fileName} / {document.status}
+                  </p>
+                ))
+              )}
+            </div>
+            <div>
+              <strong>Notificacoes</strong>
+              {selected.notificationJobs.length === 0 ? (
+                <p className="muted">Sem notificacoes.</p>
+              ) : (
+                selected.notificationJobs.map((job) => (
+                  <p key={job.id}>
+                    {job.channel} / {job.status}
+                  </p>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -766,7 +1155,9 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
             </button>
           </div>
         </header>
-        {activeItem.key === "audit" ? (
+        {activeItem.key === "professionals" ? (
+          <ProfessionalsView user={user} />
+        ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (
           <SettingsView />
