@@ -83,6 +83,11 @@ import {
   rtSummaryCsvReportHandler,
   rtSummaryReportHandler
 } from "./core/reports/reports.handlers.js";
+import {
+  commitProfessionalsLicensesCsvHandler,
+  professionalsLicensesTemplateHandler,
+  validateProfessionalsLicensesCsvHandler
+} from "./core/imports/imports.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -151,6 +156,24 @@ export function createApp() {
   app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
   app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);
   app.patch("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN"]), updateProfessionalHandler);
+  app.get(
+    "/v1/imports/professionals-licenses/template",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    professionalsLicensesTemplateHandler
+  );
+  app.post(
+    "/v1/imports/professionals-licenses/validate",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    validateProfessionalsLicensesCsvHandler
+  );
+  app.post(
+    "/v1/imports/professionals-licenses/commit",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    commitProfessionalsLicensesCsvHandler
+  );
   app.get("/v1/license-types", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicenseTypesHandler);
   app.post("/v1/license-types", requireAuth, requireRole(["ADMIN"]), createLicenseTypeHandler);
   app.patch("/v1/license-types/:licenseTypeId", requireAuth, requireRole(["ADMIN"]), updateLicenseTypeHandler);

@@ -32,6 +32,7 @@ Tracks sao definidos por projeto. Evite herdar tracks de outro projeto sem neces
 - `UX`: app shell e telas base.
 - `DSH`: dashboard operacional.
 - `RPT`: relatorios e exportacao.
+- `IMP`: importacao em massa e carga inicial.
 - `DEP`: ambiente, deploy e operacao.
 - `REL`: fechamento de V1 e apresentacao.
 

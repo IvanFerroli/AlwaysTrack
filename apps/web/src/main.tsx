@@ -156,6 +156,33 @@ interface ProfessionalDetail extends Omit<ProfessionalSummary, "_count"> {
   notificationJobs: Array<{ id: string; channel: string; status: string; scheduledFor: string; createdAt: string }>;
 }
 
+interface CsvImportRow {
+  line: number;
+  professionalName: string;
+  cpf: string;
+  licenseType: string;
+  licenseNumber: string | null;
+  action: "create" | "update" | "error";
+  professionalAction: "create" | "update" | "error";
+  licenseAction: "create" | "update" | "error";
+  errors: string[];
+}
+
+interface CsvImportResult {
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  willCreateProfessionals: number;
+  willUpdateProfessionals: number;
+  willCreateLicenses: number;
+  willUpdateLicenses: number;
+  professionalsCreated?: number;
+  professionalsUpdated?: number;
+  licensesCreated?: number;
+  licensesUpdated?: number;
+  rows: CsvImportRow[];
+}
+
 interface LicenseTypeItem {
   id: string;
   organizationId: string;
@@ -357,6 +384,7 @@ const helpAnchorIds = new Set([
   "configuracao-usuarios",
   "configuracao-organizacao",
   "jobs-notificacao",
+  "importacao-csv",
   "glossario",
   "problemas-comuns"
 ]);
@@ -1051,6 +1079,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   const [linkedUserId, setLinkedUserId] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importCsv, setImportCsv] = useState("");
+  const [importResult, setImportResult] = useState<CsvImportResult | null>(null);
+  const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1160,6 +1193,61 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function readImportFile() {
+    if (!importFile) throw new Error("Selecione um arquivo CSV.");
+    const text = await importFile.text();
+    setImportCsv(text);
+    return text;
+  }
+
+  async function downloadImportTemplate() {
+    const response = await fetch(`${apiBaseUrl}/v1/imports/professionals-licenses/template`, { credentials: "include" });
+    if (!response.ok) throw new Error("Falha ao baixar modelo.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "modelo-profissionais-licencas.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function validateImport() {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const csv = await readImportFile();
+      const result = await api<CsvImportResult>("/v1/imports/professionals-licenses/validate", {
+        method: "POST",
+        body: JSON.stringify({ csv })
+      });
+      setImportResult(result);
+    } catch (caught) {
+      setImportError(caught instanceof Error ? caught.message : "Falha ao validar CSV.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function commitImport() {
+    if (!importResult || importResult.errorRows > 0) return;
+    setImporting(true);
+    setImportError(null);
+    try {
+      const csv = importCsv || (await readImportFile());
+      const result = await api<CsvImportResult>("/v1/imports/professionals-licenses/commit", {
+        method: "POST",
+        body: JSON.stringify({ csv })
+      });
+      setImportResult(result);
+      await load();
+    } catch (caught) {
+      setImportError(caught instanceof Error ? caught.message : "Falha ao importar CSV.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const sectors = organization?.units.flatMap((unit) => unit.sectors.map((sector) => ({ ...sector, unitName: unit.name }))) ?? [];
   const selectedUnitSectors = organization?.units.find((unit) => unit.id === unitId)?.sectors ?? [];
   const rtUsers = users.filter((item) => item.role === "RT" && item.active);
@@ -1179,6 +1267,75 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       />
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {user.role === "ADMIN" && organization ? (
+        <section className="panel form-panel">
+          <h2>Importar CSV</h2>
+          <p className="muted">Carga inicial de profissionais e licenças. Valide o arquivo antes de confirmar.</p>
+          <div className="form-grid">
+            <label>
+              <span className="label-row">Arquivo CSV <InfoTip text="Use o modelo oficial; uma linha por licenca." href="#importacao-csv" /></span>
+              <input
+                accept=".csv,text/csv"
+                type="file"
+                onChange={(event) => {
+                  setImportFile(event.target.files?.[0] ?? null);
+                  setImportResult(null);
+                  setImportError(null);
+                }}
+              />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button className="secondary" disabled={importing} type="button" onClick={() => void downloadImportTemplate()}>
+              Baixar modelo
+            </button>
+            <button className="secondary" disabled={importing || !importFile} type="button" onClick={() => void validateImport()}>
+              Validar
+            </button>
+            <button disabled={importing || !importResult || importResult.errorRows > 0} type="button" onClick={() => void commitImport()}>
+              Confirmar importação
+            </button>
+          </div>
+          {importError ? <OperationalState state="error" title="Falha na importação" detail={importError} /> : null}
+          {importResult ? (
+            <div className="import-preview">
+              <p>
+                {importResult.validRows} válidas / {importResult.errorRows} com erro. Profissionais: +{importResult.willCreateProfessionals} / atualiza {importResult.willUpdateProfessionals}. Licenças: +{importResult.willCreateLicenses} / atualiza {importResult.willUpdateLicenses}.
+              </p>
+              {importResult.professionalsCreated !== undefined ? (
+                <p className="muted">
+                  Importado: {importResult.professionalsCreated} profissionais criados, {importResult.professionalsUpdated} atualizados, {importResult.licensesCreated} licenças criadas, {importResult.licensesUpdated} atualizadas.
+                </p>
+              ) : null}
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Linha</th>
+                      <th>Profissional</th>
+                      <th>CPF</th>
+                      <th>Licença</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResult.rows.slice(0, 25).map((row) => (
+                      <tr key={row.line}>
+                        <td>{row.line}</td>
+                        <td>{row.professionalName}</td>
+                        <td>{row.cpf}</td>
+                        <td>{row.licenseType}{row.licenseNumber ? ` / ${row.licenseNumber}` : ""}</td>
+                        <td>{row.errors.length ? row.errors.join(" ") : row.action === "create" ? "Criar" : "Atualizar"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {user.role === "ADMIN" && organization ? (
         <section className="panel form-panel">
@@ -3126,6 +3283,16 @@ function HelpView({ user }: { user: CurrentUser }) {
       check: "Confirme dias, repetição, RT, template e ambiente antes de processar.",
       common: "Provider fake não envia mensagem real; falhas de Meta real podem envolver template, credencial ou webhook.",
       support: "Chame suporte para troca de fake para Meta real, falhas repetidas ou dúvidas sobre credenciais."
+    },
+    {
+      id: "importacao-csv",
+      title: "Importação CSV",
+      who: "Admin",
+      text: "Permite carregar profissionais e licenças em massa usando o modelo oficial. Use uma linha por licença.",
+      steps: ["Baixe o modelo.", "Preencha no Excel ou Google Sheets e exporte como CSV.", "Valide o arquivo.", "Confirme a importação apenas quando não houver erros."],
+      check: "Unidade, setor, RT, tipo de licença, datas e CPF precisam estar corretos antes de confirmar.",
+      common: "Erro de cabeçalho ou data geralmente vem de arquivo fora do modelo ou data diferente de YYYY-MM-DD.",
+      support: "Procure suporte se a planilha real tiver colunas extras, tipos de licença faltando ou muitos erros de referência."
     },
     {
       id: "glossario",
