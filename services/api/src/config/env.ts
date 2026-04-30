@@ -10,6 +10,7 @@ export interface ApiEnv {
   metaWhatsAppPhoneNumberId?: string;
   metaWebhookVerifyToken?: string;
   metaAppSecret?: string;
+  supportPhone?: string;
 }
 
 export function loadEnv(source = process.env): ApiEnv {
@@ -24,6 +25,7 @@ export function loadEnv(source = process.env): ApiEnv {
     metaWhatsAppToken: source.META_WHATSAPP_TOKEN,
     metaWhatsAppPhoneNumberId: source.META_WHATSAPP_PHONE_NUMBER_ID,
     metaWebhookVerifyToken: source.META_WEBHOOK_VERIFY_TOKEN,
-    metaAppSecret: source.META_APP_SECRET
+    metaAppSecret: source.META_APP_SECRET,
+    supportPhone: source.SUPPORT_PHONE
   };
 }

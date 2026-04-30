@@ -56,6 +56,13 @@ import {
   updateNotificationTemplateHandler,
   verifyMetaWebhookHandler
 } from "./core/notifications/notifications.handlers.js";
+import {
+  buildPublicHelpLinkHandler,
+  createFaqItemHandler,
+  listFaqItemsHandler,
+  listPublicFaqItemsHandler,
+  updateFaqItemHandler
+} from "./core/faq/faq.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -67,6 +74,8 @@ export function createApp() {
   app.get("/v1/webhooks/meta-whatsapp", verifyMetaWebhookHandler);
   app.post("/v1/webhooks/meta-whatsapp", metaWebhookHandler);
   app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
+  app.get("/v1/public-faq", listPublicFaqItemsHandler);
+  app.post("/v1/public-help/wa-link", buildPublicHelpLinkHandler);
   app.post(
     "/v1/public-upload/:token",
     express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
@@ -133,6 +142,9 @@ export function createApp() {
   app.patch("/v1/notifications/rules/:ruleId", requireAuth, requireRole(["ADMIN"]), updateNotificationRuleHandler);
   app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
   app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
+  app.get("/v1/faq", requireAuth, requireRole(["ADMIN"]), listFaqItemsHandler);
+  app.post("/v1/faq", requireAuth, requireRole(["ADMIN"]), createFaqItemHandler);
+  app.patch("/v1/faq/:faqItemId", requireAuth, requireRole(["ADMIN"]), updateFaqItemHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

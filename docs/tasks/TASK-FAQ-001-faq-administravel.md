@@ -1,7 +1,7 @@
 # TASK-FAQ-001 - FAQ administravel
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-FAQ-001-faq-administravel.md
@@ -44,3 +44,18 @@ Implementar FAQ com categorias, busca simples e itens ativos por organizacao.
 
 ## Riscos
 - FAQ virar suporte complexo demais
+
+## Evidencias de entrega
+- Criado modulo `services/api/src/core/faq`.
+- CRUD admin entregue em `GET/POST/PATCH /v1/faq`.
+- Endpoint publico `GET /v1/public-faq` com busca simples por pergunta/resposta e filtro de categoria.
+- FAQ publica lista apenas itens ativos por organizacao ativa.
+- Tela admin em `Configuracoes` permite criar e ativar/desativar perguntas.
+- Pagina publica `/faq` exibe busca, categorias e respostas.
+- Alteracoes geram auditoria `faq.*`.
+
+## Validacao realizada
+- `npm run check` passou com 81 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: criar FAQ, buscar FAQ publica e consultar auditoria `faq.create`.

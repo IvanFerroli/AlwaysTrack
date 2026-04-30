@@ -140,6 +140,39 @@ th {
   color: #667085;
 }
 
+.public-faq-page {
+  align-items: start;
+}
+
+.public-faq-panel {
+  display: grid;
+  gap: 16px;
+  justify-self: center;
+  max-width: 920px;
+  padding: 24px;
+  width: 100%;
+}
+
+.faq-list,
+.help-form {
+  display: grid;
+  gap: 12px;
+}
+
+.faq-item {
+  border-bottom: 1px solid #e4e7ec;
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.faq-item span {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .app-frame {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);

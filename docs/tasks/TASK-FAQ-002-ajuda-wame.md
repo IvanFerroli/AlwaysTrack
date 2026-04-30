@@ -1,7 +1,7 @@
 # TASK-FAQ-002 - Ajuda via wa.me
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: frontend implementer
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-FAQ-002-ajuda-wame.md
@@ -44,3 +44,16 @@ Criar fluxo "Estou tendo problemas" que monta mensagem e abre `wa.me` para respo
 
 ## Riscos
 - expor dado sensivel demais no texto
+
+## Evidencias de entrega
+- Criado endpoint publico `POST /v1/public-help/wa-link`.
+- Resolucao de destinatario segue fallback: RT do profissional, supervisor de escopo, admin com telefone, `SUPPORT_PHONE`.
+- Pagina publica `/faq` tem formulario `Estou tendo problemas`.
+- Link `wa.me` monta mensagem com dados minimos da organizacao/profissional/licenca quando disponiveis.
+- Conversa nao e registrada no sistema.
+
+## Validacao realizada
+- `npm run check` passou com 81 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: gerar link `wa.me` publico usando fallback `SUPPORT_PHONE`.

@@ -220,6 +220,15 @@ interface NotificationJobItem {
   license: { id: string; number: string | null; licenseType: { name: string } };
 }
 
+interface FaqItem {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+  order: number;
+  active?: boolean;
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -1314,6 +1323,7 @@ function SettingsView() {
   const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplateItem[]>([]);
   const [notificationRules, setNotificationRules] = useState<NotificationRuleItem[]>([]);
   const [notificationJobs, setNotificationJobs] = useState<NotificationJobItem[]>([]);
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [orgName, setOrgName] = useState("");
   const [orgDocument, setOrgDocument] = useState("");
   const [unitName, setUnitName] = useState("");
@@ -1333,6 +1343,9 @@ function SettingsView() {
   const [ruleDaysBefore, setRuleDaysBefore] = useState("30");
   const [ruleRepeatAfter, setRuleRepeatAfter] = useState("");
   const [ruleNotifyRt, setRuleNotifyRt] = useState(false);
+  const [faqCategory, setFaqCategory] = useState("");
+  const [faqQuestion, setFaqQuestion] = useState("");
+  const [faqAnswer, setFaqAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1341,9 +1354,10 @@ function SettingsView() {
     setLoading(true);
     setError(null);
     try {
-      const [result, usersResult] = await Promise.all([
+      const [result, usersResult, faqResult] = await Promise.all([
         api<{ organization: OrganizationItem }>("/v1/organization"),
-        api<{ users: ManagedUserItem[] }>("/v1/users")
+        api<{ users: ManagedUserItem[] }>("/v1/users"),
+        api<{ items: FaqItem[]; total: number }>("/v1/faq")
       ]);
       const notificationsResult = await api<{
         templates: NotificationTemplateItem[];
@@ -1355,6 +1369,7 @@ function SettingsView() {
       setNotificationTemplates(notificationsResult.templates);
       setNotificationRules(notificationsResult.rules);
       setNotificationJobs(notificationsResult.jobs);
+      setFaqItems(faqResult.items);
       setOrgName(result.organization.name);
       setOrgDocument(result.organization.document ?? "");
       setSectorUnitId(result.organization.units[0]?.id ?? "");
@@ -1474,6 +1489,19 @@ function SettingsView() {
       });
       setRuleDaysBefore("30");
       setRuleRepeatAfter("");
+    });
+  }
+
+  async function addFaqItem(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/faq", {
+        method: "POST",
+        body: JSON.stringify({ category: faqCategory, question: faqQuestion, answer: faqAnswer })
+      });
+      setFaqCategory("");
+      setFaqQuestion("");
+      setFaqAnswer("");
     });
   }
 
@@ -1905,6 +1933,68 @@ function SettingsView() {
         )}
       </section>
 
+      <section className="panel form-panel full-span">
+        <form onSubmit={addFaqItem}>
+          <h2>Nova pergunta frequente</h2>
+          <div className="form-grid">
+            <label>
+              Categoria
+              <input value={faqCategory} onChange={(event) => setFaqCategory(event.target.value)} />
+            </label>
+            <label>
+              Pergunta
+              <input value={faqQuestion} onChange={(event) => setFaqQuestion(event.target.value)} />
+            </label>
+            <label>
+              Resposta
+              <input value={faqAnswer} onChange={(event) => setFaqAnswer(event.target.value)} />
+            </label>
+          </div>
+          <button disabled={saving || !faqCategory.trim() || !faqQuestion.trim() || !faqAnswer.trim()}>Criar FAQ</button>
+        </form>
+      </section>
+
+      <section className="panel table-panel full-span">
+        {faqItems.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum item de FAQ" />
+        ) : (
+          <OperationalTable
+            items={faqItems}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "category", header: "Categoria", render: (item) => item.category },
+              { key: "question", header: "Pergunta", render: (item) => item.question },
+              { key: "answer", header: "Resposta", render: (item) => item.answer },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+              },
+              {
+                key: "actions",
+                header: "Acoes",
+                render: (item) => (
+                  <ConfirmButton
+                    disabled={saving}
+                    confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                    onConfirm={() =>
+                      void run(async () => {
+                        await api(`/v1/faq/${item.id}`, {
+                          method: "PATCH",
+                          body: JSON.stringify({ active: !item.active })
+                        });
+                      })
+                    }
+                  >
+                    {item.active ? "Desativar" : "Reativar"}
+                  </ConfirmButton>
+                )
+              }
+            ]}
+          />
+        )}
+      </section>
+
       <section className="panel table-panel full-span">
         {organization.units.length === 0 ? (
           <OperationalState state="empty" title="Nenhuma unidade cadastrada" />
@@ -2074,6 +2164,109 @@ function PublicUploadView({ token }: { token: string }) {
   );
 }
 
+function PublicFaqView() {
+  const params = new URLSearchParams(window.location.search);
+  const organizationId = params.get("organizationId") || "demo-org";
+  const [items, setItems] = useState<FaqItem[]>([]);
+  const [organizationName, setOrganizationName] = useState("Sylembra");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [problemType, setProblemType] = useState("Duvida sobre envio");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams({ organizationId });
+    if (query) search.set("query", query);
+    if (category) search.set("category", category);
+    try {
+      const response = await fetch(`/v1/public-faq?${search.toString()}`);
+      const payload = (await response.json()) as ApiResult<{
+        organization: { id: string; name: string };
+        items: FaqItem[];
+        total: number;
+      }>;
+      if (!payload.ok) throw new Error(payload.error.message);
+      setItems(payload.data.items);
+      setOrganizationName(payload.data.organization.name);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar FAQ.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function requestHelp(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    try {
+      const response = await fetch("/v1/public-help/wa-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ organizationId, problemType, message })
+      });
+      const payload = (await response.json()) as ApiResult<{ url: string; recipient: string }>;
+      if (!payload.ok) throw new Error(payload.error.message);
+      window.location.href = payload.data.url;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao gerar link de ajuda.");
+    }
+  }
+
+  return (
+    <main className="auth-page public-faq-page">
+      <section className="panel public-faq-panel">
+        <div>
+          <p className="eyebrow">{organizationName}</p>
+          <h1>FAQ</h1>
+        </div>
+        <OperationalFilters
+          fields={[
+            { key: "query", label: "Busca", value: query, placeholder: "Documento, link, prazo...", onChange: setQuery },
+            { key: "category", label: "Categoria", value: category, placeholder: "Envio", onChange: setCategory }
+          ]}
+          onSubmit={load}
+        />
+        {error ? <OperationalState state="error" title="Falha" detail={error} /> : null}
+        {loading ? (
+          <OperationalState state="loading" title="Carregando perguntas" />
+        ) : items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma pergunta encontrada" />
+        ) : (
+          <div className="faq-list">
+            {items.map((item) => (
+              <article className="faq-item" key={item.id}>
+                <span>{item.category}</span>
+                <strong>{item.question}</strong>
+                <p>{item.answer}</p>
+              </article>
+            ))}
+          </div>
+        )}
+        <form className="help-form" onSubmit={requestHelp}>
+          <h2>Estou tendo problemas</h2>
+          <label>
+            Tipo de problema
+            <input value={problemType} onChange={(event) => setProblemType(event.target.value)} />
+          </label>
+          <label>
+            Mensagem
+            <input value={message} onChange={(event) => setMessage(event.target.value)} />
+          </label>
+          <button disabled={!problemType.trim() || !message.trim()}>Abrir WhatsApp</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const [activeView, setActiveView] = useState<ViewKey>(visibleNav[0]?.key ?? "dashboard");
@@ -2138,11 +2331,12 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
 
 function App() {
   const uploadMatch = window.location.pathname.match(/^\/upload\/([^/]+)$/);
+  const isFaq = window.location.pathname === "/faq";
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (uploadMatch) {
+    if (uploadMatch || isFaq) {
       setReady(true);
       return;
     }
@@ -2150,7 +2344,7 @@ function App() {
       .then((result) => setUser(result.user))
       .catch(() => setUser(null))
       .finally(() => setReady(true));
-  }, [uploadMatch]);
+  }, [uploadMatch, isFaq]);
 
   if (!ready) {
     return <main className="auth-page">Carregando...</main>;
@@ -2158,6 +2352,10 @@ function App() {
 
   if (uploadMatch) {
     return <PublicUploadView token={decodeURIComponent(uploadMatch[1])} />;
+  }
+
+  if (isFaq) {
+    return <PublicFaqView />;
   }
 
   return user ? <AppShell user={user} onLogout={() => setUser(null)} /> : <LoginForm onLogin={setUser} />;
