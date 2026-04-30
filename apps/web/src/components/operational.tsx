@@ -15,10 +15,10 @@ const statusLabels: Record<string, string> = {
   EXPIRING: "A vencer",
   EXPIRED: "Vencida",
   PENDING_DOCUMENT: "Doc. pendente",
-  PENDING_VALIDATION: "Validacao pendente",
+  PENDING_VALIDATION: "Validação pendente",
   UPLOADED: "Enviado",
   APPROVED: "Aprovado",
-  REJECTED: "Rejeitado",
+  REJECTED: "Recusado",
   ARCHIVED: "Arquivado",
   PENDING: "Pendente",
   PROCESSING: "Processando",
@@ -54,6 +54,7 @@ interface FilterField {
   label: string;
   value: string;
   placeholder?: string;
+  help?: string;
   onChange: (value: string) => void;
 }
 
@@ -68,7 +69,15 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
     <section className="panel operational-filters">
       {fields.map((field) => (
         <label key={field.key}>
-          {field.label}
+          <span className="label-row">
+            {field.label}
+            {field.help ? (
+              <span className="info-tip" tabIndex={0} aria-label={field.help}>
+                i
+                <span role="tooltip">{field.help}</span>
+              </span>
+            ) : null}
+          </span>
           <input
             value={field.value}
             onChange={(event) => field.onChange(event.target.value)}

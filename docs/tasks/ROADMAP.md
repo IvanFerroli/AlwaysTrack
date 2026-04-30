@@ -3,7 +3,7 @@
 ## Metadata
 - status: proposed
 - owner: task-planner
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -52,6 +52,12 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 40. `TASK-QLT-003` E2E do fluxo principal.
 41. `TASK-QLT-004` revisao LGPD/seguranca.
 42. `TASK-REL-001` seed, demo e aceite final da V1.
+
+## Polimento pos-aceite
+43. `TASK-UX-003` header persistente, navegacao e breadcrumbs.
+44. `TASK-UX-004` microcopy, ajuda contextual e acentuacao.
+45. `TASK-UX-005` pagina Como usar e ajuda operacional.
+46. `TASK-UX-006` polimento de labels, formularios e tabelas.
 
 ## Gate final
 A V1 so fecha quando os 14 criterios de sucesso do documento central estiverem demonstraveis em ambiente de demo ou producao.

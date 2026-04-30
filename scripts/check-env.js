@@ -28,6 +28,9 @@ const optional = [
   "META_WHATSAPP_PHONE_NUMBER_ID",
   "META_WEBHOOK_VERIFY_TOKEN",
   "META_APP_SECRET",
+  "META_WHATSAPP_SMOKE_TO",
+  "META_WHATSAPP_SMOKE_TEMPLATE",
+  "META_WHATSAPP_SMOKE_TEMPLATE_LANGUAGE",
   "SUPPORT_PHONE",
   "NOTIFICATION_JOB_LIMIT"
 ];
@@ -36,7 +39,7 @@ const missing = required.filter((key) => !process.env[key] || process.env[key] =
 const provider = process.env.NOTIFICATION_PROVIDER ?? "fake";
 
 if (provider === "meta") {
-  for (const key of ["META_WHATSAPP_TOKEN", "META_WHATSAPP_PHONE_NUMBER_ID", "META_WEBHOOK_VERIFY_TOKEN"]) {
+  for (const key of ["META_WHATSAPP_TOKEN", "META_WHATSAPP_PHONE_NUMBER_ID", "META_WEBHOOK_VERIFY_TOKEN", "META_APP_SECRET"]) {
     if (!process.env[key]) missing.push(key);
   }
 }

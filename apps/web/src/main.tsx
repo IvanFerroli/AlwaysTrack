@@ -18,7 +18,8 @@ import {
 } from "./components/operational";
 import "./styles.css";
 
-type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "audit" | "settings";
+type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "audit" | "settings" | "help";
+type IconName = "home" | "users" | "badge" | "file" | "chart" | "audit" | "settings" | "help" | "logout" | "download" | "check";
 
 interface AuditLogItem {
   id: string;
@@ -35,7 +36,7 @@ interface AuditLogItem {
   };
 }
 
-function formatAuditMetadata(value: unknown) {
+function formatAuditMetadados(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "Sem metadata";
   }
@@ -305,18 +306,47 @@ interface NavItem {
   key: ViewKey;
   label: string;
   description: string;
+  icon: IconName;
   roles: CurrentUser["role"][];
 }
 
 const navItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", description: "Visao operacional do dia", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "professionals", label: "Profissionais", description: "Cadastro e acompanhamento", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "licenses", label: "Licencas", description: "Vencimentos e status", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "documents", label: "Documentos", description: "Uploads e validacoes", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "reports", label: "Relatorios", description: "Consultas operacionais", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "audit", label: "Auditoria", description: "Trilha de eventos", roles: ["ADMIN"] },
-  { key: "settings", label: "Configuracoes", description: "Usuarios e organizacao", roles: ["ADMIN"] }
+  { key: "dashboard", label: "Dashboard", description: "Visão operacional do dia", icon: "home", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "professionals", label: "Profissionais", description: "Cadastro e acompanhamento", icon: "users", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "licenses", label: "Licenças", description: "Vencimentos e status", icon: "badge", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "documents", label: "Documentos", description: "Uploads e validações", icon: "file", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "reports", label: "Relatórios", description: "Consultas operacionais", icon: "chart", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
+  { key: "settings", label: "Configurações", description: "Usuários e organização", icon: "settings", roles: ["ADMIN"] },
+  { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: ["ADMIN", "RT", "SUPERVISOR"] }
 ];
+
+const iconLabels: Record<IconName, string> = {
+  home: "⌂",
+  users: "◎",
+  badge: "◈",
+  file: "□",
+  chart: "▥",
+  audit: "≡",
+  settings: "⚙",
+  help: "?",
+  logout: "↗",
+  download: "↓",
+  check: "✓"
+};
+
+function Icon({ name }: { name: IconName }) {
+  return <span className="icon" aria-hidden="true">{iconLabels[name]}</span>;
+}
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="info-tip" tabIndex={0} aria-label={text}>
+      i
+      <span role="tooltip">{text}</span>
+    </span>
+  );
+}
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -365,7 +395,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
         <div>
           <p className="eyebrow">Sylembra</p>
           <h1>Entrar</h1>
-          <p className="muted">Acesso administrativo para operacao de licencas e documentos.</p>
+          <p className="muted">Acesso administrativo para operação de licenças e documentos.</p>
         </div>
         <label>
           Email
@@ -392,7 +422,7 @@ function PlaceholderView({ item }: { item: NavItem }) {
     <section className="panel empty-state">
       <p className="eyebrow">{item.label}</p>
       <h2>{item.description}</h2>
-      <p className="muted">Modulo reservado no shell. A implementacao funcional entra nas proximas tasks do roadmap.</p>
+      <p className="muted">Módulo reservado no shell. A implementação funcional entra nas próximas tasks do roadmap.</p>
     </section>
   );
 }
@@ -429,36 +459,36 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
 
   if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
   if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
-  if (!dashboard) return <OperationalState state="empty" title="Dashboard indisponivel" />;
+  if (!dashboard) return <OperationalState state="empty" title="Dashboard indisponível" />;
 
   return (
     <div className="content-stack">
       <section className="metrics-grid">
         <MetricCard label="Profissionais" value={dashboard.metrics.totalProfessionals} />
-        <MetricCard label="Licencas regulares" value={dashboard.metrics.licenses.regular} />
-        <MetricCard label="Licencas a vencer" value={dashboard.metrics.licenses.expiring} />
-        <MetricCard label="Licencas vencidas" value={dashboard.metrics.licenses.expired} />
-        <MetricCard label="Docs em validacao" value={dashboard.metrics.documents.pendingValidation} />
-        <MetricCard label="Notificacoes pendentes" value={dashboard.metrics.notifications.pending} />
-        <MetricCard label="Notificacoes enviadas" value={dashboard.metrics.notifications.sent} />
-        <MetricCard label="Notificacoes com falha" value={dashboard.metrics.notifications.failed} />
+        <MetricCard label="Licenças regulares" value={dashboard.metrics.licenses.regular} />
+        <MetricCard label="Licenças a vencer" value={dashboard.metrics.licenses.expiring} />
+        <MetricCard label="Licenças vencidas" value={dashboard.metrics.licenses.expired} />
+        <MetricCard label="Docs em validação" value={dashboard.metrics.documents.pendingValidation} />
+        <MetricCard label="Notificações pendentes" value={dashboard.metrics.notifications.pending} />
+        <MetricCard label="Notificações enviadas" value={dashboard.metrics.notifications.sent} />
+        <MetricCard label="Notificações com falha" value={dashboard.metrics.notifications.failed} />
       </section>
 
       <section className="dashboard-grid">
         <div className="panel table-panel">
           <h2>Vencendo em 30 dias</h2>
           {dashboard.queues.expiringLicenses.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma licenca a vencer" />
+            <OperationalState state="empty" title="Nenhuma licença a vencer" />
           ) : (
             <OperationalTable
               items={dashboard.queues.expiringLicenses}
               getRowKey={(item) => item.id}
               columns={[
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "license", header: "Licenca", render: (item) => item.licenseType.name },
+                { key: "license", header: "Licença", render: (item) => item.licenseType.name },
                 { key: "expires", header: "Vence", render: (item) => (item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("pt-BR") : "-") },
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver licencas</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver licenças</button> }
               ]}
             />
           )}
@@ -467,7 +497,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
         <div className="panel table-panel">
           <h2>Vencidas</h2>
           {dashboard.queues.expiredLicenses.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma licenca vencida" />
+            <OperationalState state="empty" title="Nenhuma licença vencida" />
           ) : (
             <OperationalTable
               items={dashboard.queues.expiredLicenses}
@@ -475,8 +505,8 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "sector", header: "Setor", render: (item) => item.professional.sector.name },
-                { key: "license", header: "Licenca", render: (item) => item.licenseType.name },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Regularizar</button> }
+                { key: "license", header: "Licença", render: (item) => item.licenseType.name },
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Regularizar</button> }
               ]}
             />
           )}
@@ -494,7 +524,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
                 { key: "file", header: "Arquivo", render: (item) => item.fileName },
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="document" value={item.status} /> },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Validar</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Validar</button> }
               ]}
             />
           )}
@@ -512,7 +542,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
                 { key: "file", header: "Arquivo", render: (item) => item.fileName },
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "createdAt", header: "Recebido", render: (item) => new Date(item.createdAt).toLocaleDateString("pt-BR") },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Abrir</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Abrir</button> }
               ]}
             />
           )}
@@ -531,16 +561,16 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "label", header: "Setor", render: (item) => item.label },
                 { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver</button> }
               ]}
             />
           )}
         </div>
 
         <div className="panel table-panel">
-          <h2>Pendencias por RT</h2>
+          <h2>Pendências por RT</h2>
           {dashboard.queues.pendingDocumentsByRt.length === 0 ? (
-            <OperationalState state="empty" title="Sem pendencias por RT" />
+            <OperationalState state="empty" title="Sem pendências por RT" />
           ) : (
             <OperationalTable
               items={dashboard.queues.pendingDocumentsByRt}
@@ -548,16 +578,16 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "label", header: "RT", render: (item) => item.label },
                 { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
               ]}
             />
           )}
         </div>
 
         <div className="panel table-panel">
-          <h2>Pendencias por unidade</h2>
+          <h2>Pendências por unidade</h2>
           {dashboard.queues.pendingDocumentsByUnit.length === 0 ? (
-            <OperationalState state="empty" title="Sem pendencias por unidade" />
+            <OperationalState state="empty" title="Sem pendências por unidade" />
           ) : (
             <OperationalTable
               items={dashboard.queues.pendingDocumentsByUnit}
@@ -565,16 +595,16 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "label", header: "Unidade", render: (item) => item.label },
                 { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
               ]}
             />
           )}
         </div>
 
         <div className="panel table-panel">
-          <h2>Falhas de notificacao</h2>
+          <h2>Falhas de notificação</h2>
           {dashboard.queues.failedNotifications.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma falha de notificacao" />
+            <OperationalState state="empty" title="Nenhuma falha de notificação" />
           ) : (
             <OperationalTable
               items={dashboard.queues.failedNotifications}
@@ -583,7 +613,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "template", header: "Template", render: (item) => item.templateKey },
                 { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
-                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("settings")}>Ajustar</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("settings")}>Ajustar</button> }
               ]}
             />
           )}
@@ -594,14 +624,14 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
 }
 
 const reportOptions: Array<{ key: ReportKey; label: string; endpoint: string; fileName: string }> = [
-  { key: "licensesExpired", label: "Licencas vencidas", endpoint: "/v1/reports/licenses/expired", fileName: "licencas-vencidas.csv" },
-  { key: "licensesExpiring", label: "Licencas a vencer", endpoint: "/v1/reports/licenses/expiring", fileName: "licencas-a-vencer.csv" },
+  { key: "licensesExpired", label: "Licenças vencidas", endpoint: "/v1/reports/licenses/expired", fileName: "licenças-vencidas.csv" },
+  { key: "licensesExpiring", label: "Licenças a vencer", endpoint: "/v1/reports/licenses/expiring", fileName: "licenças-a-vencer.csv" },
   { key: "rtSummary", label: "Resumo por RT", endpoint: "/v1/reports/groups/rt", fileName: "resumo-por-rt.csv" },
   { key: "areaSummary", label: "Resumo por unidade/setor", endpoint: "/v1/reports/groups/areas", fileName: "resumo-por-area.csv" },
   { key: "documentsPending", label: "Documentos pendentes", endpoint: "/v1/reports/documents/pending", fileName: "documentos-pendentes.csv" },
   { key: "documentsRejected", label: "Documentos recusados", endpoint: "/v1/reports/documents/rejected", fileName: "documentos-recusados.csv" },
-  { key: "notifications", label: "Notificacoes", endpoint: "/v1/reports/notifications", fileName: "notificacoes.csv" },
-  { key: "regularization", label: "Regularizacao", endpoint: "/v1/reports/regularization", fileName: "regularizacao.csv" }
+  { key: "notifications", label: "Notificações", endpoint: "/v1/reports/notifications", fileName: "notificações.csv" },
+  { key: "regularization", label: "Regularização", endpoint: "/v1/reports/regularization", fileName: "regularização.csv" }
 ];
 
 function reportText(row: Record<string, unknown>, key: string) {
@@ -625,18 +655,18 @@ function reportColumns(report: ReportKey) {
   const byReport: Record<ReportKey, Record<string, string>> = {
     licensesExpired: {
       ...base,
-      number: "Numero",
+      number: "Número",
       expiresAt: "Venceu em",
       daysExpired: "Dias vencida",
-      lastNotificationStatus: "Ultima notif.",
+      lastNotificationStatus: "Última notif.",
       lastDocumentStatus: "Ultimo doc."
     },
     licensesExpiring: {
       ...base,
-      number: "Numero",
+      number: "Número",
       expiresAt: "Vence em",
       daysRemaining: "Dias restantes",
-      lastNotificationStatus: "Ultima notif.",
+      lastNotificationStatus: "Última notif.",
       lastDocumentStatus: "Ultimo doc."
     },
     rtSummary: {
@@ -645,9 +675,9 @@ function reportColumns(report: ReportKey) {
       regular: "Regulares",
       expiring: "A vencer",
       expired: "Vencidas",
-      pendingValidation: "Validacoes",
+      pendingValidation: "Validações",
       failedNotifications: "Falhas",
-      pendingPercent: "% pendencia"
+      pendingPercent: "% pendência"
     },
     areaSummary: {
       label: "Unidade / setor",
@@ -655,21 +685,21 @@ function reportColumns(report: ReportKey) {
       regular: "Regulares",
       expiring: "A vencer",
       expired: "Vencidas",
-      pendingValidation: "Validacoes",
+      pendingValidation: "Validações",
       failedNotifications: "Falhas",
-      pendingPercent: "% pendencia"
+      pendingPercent: "% pendência"
     },
     documentsPending: {
       fileName: "Arquivo",
       ...base,
-      licenseStatus: "Licenca",
+      licenseStatus: "Licença",
       uploadedAt: "Enviado em",
       waitingDays: "Dias aguardando"
     },
     documentsRejected: {
       fileName: "Arquivo",
       ...base,
-      licenseStatus: "Licenca",
+      licenseStatus: "Licença",
       rejectedAt: "Recusado em",
       rejectedBy: "Recusado por",
       rejectionReason: "Motivo"
@@ -678,7 +708,7 @@ function reportColumns(report: ReportKey) {
       ...base,
       channel: "Canal",
       templateKey: "Template",
-      recipient: "Destinatario",
+      recipient: "Destinatário",
       scheduledFor: "Agendada",
       sentAt: "Enviada",
       errorMessage: "Erro",
@@ -686,11 +716,11 @@ function reportColumns(report: ReportKey) {
     },
     regularization: {
       ...base,
-      notificationAt: "Notificacao",
+      notificationAt: "Notificação",
       notificationStatus: "Status notif.",
       uploadedAt: "Upload",
-      validationAt: "Validacao",
-      validationStatus: "Status validacao",
+      validationAt: "Validação",
+      validationStatus: "Status validação",
       totalDays: "Dias totais"
     }
   };
@@ -745,7 +775,7 @@ function ReportsView() {
       setData(await api<ReportResponse>(`${selected.endpoint}?${search.toString()}`));
       setPage(nextPage);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar relatorio.");
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar relatório.");
     } finally {
       setLoading(false);
     }
@@ -778,7 +808,7 @@ function ReportsView() {
     <div className="content-stack">
       <section className="panel report-selector">
         <label>
-          Relatorio
+          Relatório
           <select value={report} onChange={(event) => setReport(event.target.value as ReportKey)}>
             {reportOptions.map((option) => (
               <option key={option.key} value={option.key}>
@@ -788,22 +818,22 @@ function ReportsView() {
           </select>
         </label>
         <button className="secondary" type="button" onClick={() => void downloadCsv()}>
-          Exportar CSV
+          <Icon name="download" /> Exportar CSV
         </button>
       </section>
 
       <OperationalFilters
         fields={[
-          { key: "from", label: "Inicio", value: from, placeholder: "2026-04-01", onChange: setFrom },
+          { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
           { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
-          { key: "unitId", label: "Unidade ID", value: unitId, placeholder: "unit-1", onChange: setUnitId },
-          { key: "sectorId", label: "Setor ID", value: sectorId, placeholder: "sector-1", onChange: setSectorId },
-          { key: "rtId", label: "RT ID", value: rtId, placeholder: "user-1", onChange: setRtId },
-          { key: "licenseTypeId", label: "Tipo ID", value: licenseTypeId, placeholder: "type-1", onChange: setLicenseTypeId },
-          { key: "status", label: "Status", value: status, placeholder: "FAILED", onChange: setStatus },
+          { key: "unitId", label: "Unidade", value: unitId, placeholder: "ID da unidade", help: "Use o identificador técnico da unidade quando precisar restringir a consulta.", onChange: setUnitId },
+          { key: "sectorId", label: "Setor", value: sectorId, placeholder: "ID do setor", help: "Use o identificador técnico do setor quando o filtro por unidade não for suficiente.", onChange: setSectorId },
+          { key: "rtId", label: "RT responsável", value: rtId, placeholder: "ID do usuário RT", help: "Filtra profissionais vinculados a um RT específico.", onChange: setRtId },
+          { key: "licenseTypeId", label: "Tipo de licença", value: licenseTypeId, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", onChange: setLicenseTypeId },
+          { key: "status", label: "Status", value: status, placeholder: "FAILED", help: "Use o status técnico quando precisar auditar uma situação específica.", onChange: setStatus },
           { key: "channel", label: "Canal", value: channel, placeholder: "WHATSAPP", onChange: setChannel },
-          { key: "windowDays", label: "Janela", value: windowDays, placeholder: "7, 15, 30, 60", onChange: setWindowDays },
-          { key: "pageSize", label: "Por pagina", value: pageSize, placeholder: "25", onChange: setPageSize }
+          { key: "windowDays", label: "Janela em dias", value: windowDays, placeholder: "7, 15, 30, 60", onChange: setWindowDays },
+          { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
         ]}
         onSubmit={() => void load(1)}
       />
@@ -811,9 +841,9 @@ function ReportsView() {
       <section className="panel table-panel">
         <h2>{selected.label}</h2>
         {error ? (
-          <OperationalState state="error" title="Falha ao carregar relatorio" detail={error} />
+          <OperationalState state="error" title="Falha ao carregar relatório" detail={error} />
         ) : loading ? (
-          <OperationalState state="loading" title="Carregando relatorio" />
+          <OperationalState state="loading" title="Carregando relatório" />
         ) : !data || data.items.length === 0 ? (
           <OperationalState state="empty" title="Nenhum dado encontrado" detail="Ajuste os filtros ou gere novos eventos operacionais." />
         ) : (
@@ -835,7 +865,7 @@ function ReportsView() {
                   disabled={page * pageSizeNumber >= data.total || loading}
                   onClick={() => void load(page + 1)}
                 >
-                  Proxima
+                  Próxima
                 </button>
               </div>
             </div>
@@ -892,13 +922,13 @@ function AuditView() {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "action", label: "Acao", value: action, placeholder: "auth.login", onChange: setAction },
-          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", onChange: setEntityType },
-          { key: "entityId", label: "ID da entidade", value: entityId, placeholder: "user-1", onChange: setEntityId },
-          { key: "actorId", label: "ID do ator", value: actorId, placeholder: "user-1", onChange: setActorId },
-          { key: "from", label: "Inicio", value: from, placeholder: "2026-04-01", onChange: setFrom },
+          { key: "action", label: "Ação", value: action, placeholder: "auth.login", help: "Nome do evento gravado na trilha de auditoria.", onChange: setAction },
+          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", help: "Tipo técnico do registro alterado.", onChange: setEntityType },
+          { key: "entityId", label: "Registro", value: entityId, placeholder: "ID do registro", help: "Identificador técnico da entidade auditada.", onChange: setEntityId },
+          { key: "actorId", label: "Usuário executor", value: actorId, placeholder: "ID do usuário", help: "Filtra ações feitas por um usuário específico.", onChange: setActorId },
+          { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
           { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
-          { key: "pageSize", label: "Por pagina", value: pageSize, placeholder: "25", onChange: setPageSize }
+          { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
         ]}
         onSubmit={() => void load(1)}
       />
@@ -909,7 +939,7 @@ function AuditView() {
         ) : loading ? (
           <OperationalState state="loading" title="Carregando eventos" />
         ) : items.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum evento encontrado" detail="Ajuste os filtros ou gere novas acoes." />
+          <OperationalState state="empty" title="Nenhum evento encontrado" detail="Ajuste os filtros ou gere novas ações." />
         ) : (
           <>
             <OperationalTable
@@ -917,7 +947,7 @@ function AuditView() {
               getRowKey={(item) => item.id}
               columns={[
                 { key: "date", header: "Data", render: (item) => new Date(item.createdAt).toLocaleString("pt-BR") },
-                { key: "action", header: "Acao", render: (item) => item.action },
+                { key: "action", header: "Ação", render: (item) => item.action },
                 { key: "entity", header: "Entidade", render: (item) => `${item.entityType} / ${item.entityId}` },
                 {
                   key: "actor",
@@ -926,8 +956,8 @@ function AuditView() {
                 },
                 {
                   key: "metadata",
-                  header: "Metadata",
-                  render: (item) => <pre className="metadata-preview">{formatAuditMetadata(item.metadataJson)}</pre>
+                  header: "Metadados",
+                  render: (item) => <pre className="metadata-preview">{formatAuditMetadados(item.metadataJson)}</pre>
                 }
               ]}
             />
@@ -943,7 +973,7 @@ function AuditView() {
                   disabled={page * (Number(pageSize) || 25) >= total || loading}
                   onClick={() => void load(page + 1)}
                 >
-                  Proxima
+                  Próxima
                 </button>
               </div>
             </div>
@@ -1095,10 +1125,10 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Nome, CPF, email ou cargo", onChange: setQuery },
-          { key: "active", label: "Ativo", value: activeFilter, placeholder: "true ou false", onChange: setActiveFilter },
-          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", onChange: setUnitFilter },
-          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", onChange: setSectorFilter },
-          { key: "rt", label: "RT", value: rtFilter, placeholder: "ID do RT", onChange: setRtFilter }
+          { key: "active", label: "Situação", value: activeFilter, placeholder: "true ou false", help: "Use true para ativos ou false para inativos.", onChange: setActiveFilter },
+          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", help: "Filtra pelo identificador técnico da unidade.", onChange: setUnitFilter },
+          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", help: "Filtra pelo identificador técnico do setor.", onChange: setSectorFilter },
+          { key: "rt", label: "RT responsável", value: rtFilter, placeholder: "ID do RT", help: "Filtra pelo usuário RT responsável.", onChange: setRtFilter }
         ]}
         onSubmit={load}
       />
@@ -1158,7 +1188,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                RT responsavel
+                <span className="label-row">RT responsável <InfoTip text="Pessoa responsável técnica pelo acompanhamento deste profissional." /></span>
                 <select value={responsibleRtId} onChange={(event) => setResponsibleRtId(event.target.value)}>
                   <option value="">Sem RT</option>
                   {rtUsers.map((rt) => (
@@ -1169,9 +1199,9 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Usuario vinculado
+                <span className="label-row">Usuário vinculado <InfoTip text="Opcional. Use quando o profissional também acessa o sistema." /></span>
                 <select value={linkedUserId} onChange={(event) => setLinkedUserId(event.target.value)}>
-                  <option value="">Sem usuario</option>
+                  <option value="">Sem usuário</option>
                   {linkableUsers.map((linkedUser) => (
                     <option key={linkedUser.id} value={linkedUser.id}>
                       {linkedUser.name} ({linkedUser.role})
@@ -1180,7 +1210,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Observacoes
+                Observações
                 <input value={notes} onChange={(event) => setNotes(event.target.value)} />
               </label>
             </div>
@@ -1206,9 +1236,9 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 { key: "rt", header: "RT", render: (item) => item.responsibleRt?.name ?? "Sem RT" },
                 {
                   key: "counts",
-                  header: "Historico",
+                  header: "Histórico",
                   render: (item) =>
-                    `${item._count.licenses} licencas / ${item._count.documents} docs / ${item._count.notificationJobs} avisos`
+                    `${item._count.licenses} licenças / ${item._count.documents} docs / ${item._count.notificationJobs} avisos`
                 },
                 {
                   key: "status",
@@ -1217,7 +1247,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 },
                 {
                   key: "actions",
-                  header: "Acoes",
+                  header: "Ações",
                   render: (item) => (
                     <div className="row-actions">
                       <button className="secondary" type="button" onClick={() => void showDetail(item)}>
@@ -1230,7 +1260,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                           </button>
                           <ConfirmButton
                             disabled={saving}
-                            confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                            confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
                             onConfirm={() =>
                               void run(async () => {
                                 await api(`/v1/professionals/${item.id}`, {
@@ -1269,13 +1299,13 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
           </div>
           <div className="detail-grid">
             <div>
-              <strong>Licencas</strong>
+              <strong>Licenças</strong>
               {selected.licenses.length === 0 ? (
-                <p className="muted">Sem licencas.</p>
+                <p className="muted">Sem licenças.</p>
               ) : (
                 selected.licenses.map((license) => (
                   <p key={license.id}>
-                    {license.licenseType.name} / {license.number ?? "sem numero"} / {license.status}
+                    {license.licenseType.name} / {license.number ?? "sem número"} / {license.status}
                   </p>
                 ))
               )}
@@ -1293,9 +1323,9 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               )}
             </div>
             <div>
-              <strong>Notificacoes</strong>
+              <strong>Notificações</strong>
               {selected.notificationJobs.length === 0 ? (
-                <p className="muted">Sem notificacoes.</p>
+                <p className="muted">Sem notificações.</p>
               ) : (
                 selected.notificationJobs.map((job) => (
                   <p key={job.id}>
@@ -1362,7 +1392,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
       setProfessionalId((current) => current || professionalsResult.items[0]?.id || "");
       setLicenseTypeId((current) => current || typesResult.items[0]?.id || "");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar licencas.");
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar licenças.");
     } finally {
       setLoading(false);
     }
@@ -1379,7 +1409,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
       await action();
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao salvar licenca.");
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar licença.");
     } finally {
       setSaving(false);
     }
@@ -1430,11 +1460,11 @@ function LicensesView({ user }: { user: CurrentUser }) {
   }
 
   async function editType(licenseType: LicenseTypeItem) {
-    const name = window.prompt("Nome do tipo de licenca", licenseType.name);
+    const name = window.prompt("Nome do tipo de licença", licenseType.name);
     if (!name) return;
-    const description = window.prompt("Descricao", licenseType.description ?? "") ?? licenseType.description;
+    const description = window.prompt("Descrição", licenseType.description ?? "") ?? licenseType.description;
     const defaultWarningDays =
-      window.prompt("Dias de aviso padrao, separados por virgula", licenseType.defaultWarningDays ?? "") ??
+      window.prompt("Dias de aviso padrão, separados por virgula", licenseType.defaultWarningDays ?? "") ??
       licenseType.defaultWarningDays;
     await run(async () => {
       await api(`/v1/license-types/${licenseType.id}`, {
@@ -1449,7 +1479,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
   }
 
   async function editLicense(license: LicenseItem) {
-    const nextNumber = window.prompt("Numero da licenca", license.number ?? "") ?? license.number;
+    const nextNumber = window.prompt("Número da licença", license.number ?? "") ?? license.number;
     const nextIssuer = window.prompt("Emissor", license.issuer ?? "") ?? license.issuer;
     const nextUf = window.prompt("UF", license.uf ?? "") ?? license.uf;
     const nextExpiresAt = window.prompt("Vencimento (AAAA-MM-DD)", toDateInput(license.expiresAt));
@@ -1502,16 +1532,17 @@ function LicensesView({ user }: { user: CurrentUser }) {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "query", label: "Busca", value: query, placeholder: "Profissional, CPF, tipo ou numero", onChange: setQuery },
-          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", onChange: setStatusFilter },
+          { key: "query", label: "Busca", value: query, placeholder: "Profissional, CPF, tipo ou número", onChange: setQuery },
+          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", help: "Use o status técnico da licença quando necessário.", onChange: setStatusFilter },
           {
             key: "professional",
             label: "Profissional",
             value: professionalFilter,
             placeholder: "ID do profissional",
+            help: "Filtra pelo identificador técnico do profissional.",
             onChange: setProfessionalFilter
           },
-          { key: "type", label: "Tipo", value: licenseTypeFilter, placeholder: "ID do tipo", onChange: setLicenseTypeFilter }
+          { key: "type", label: "Tipo de licença", value: licenseTypeFilter, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", onChange: setLicenseTypeFilter }
         ]}
         onSubmit={load}
       />
@@ -1530,17 +1561,17 @@ function LicensesView({ user }: { user: CurrentUser }) {
         <div className="settings-grid">
           <section className="panel form-panel">
             <form onSubmit={createType}>
-              <h2>Novo tipo de licenca</h2>
+              <h2>Novo tipo de licença</h2>
               <label>
                 Nome
                 <input value={typeName} onChange={(event) => setTypeName(event.target.value)} />
               </label>
               <label>
-                Descricao
+                Descrição
                 <input value={typeDescription} onChange={(event) => setTypeDescription(event.target.value)} />
               </label>
               <label>
-                Avisos padrao
+                <span className="label-row">Avisos padrão <InfoTip text="Dias antes do vencimento, separados por vírgula. Exemplo: 90,60,30." /></span>
                 <input
                   value={typeWarningDays}
                   onChange={(event) => setTypeWarningDays(event.target.value)}
@@ -1553,7 +1584,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
           <section className="panel form-panel full-span">
             <form onSubmit={createLicenseRecord}>
-              <h2>Nova licenca</h2>
+              <h2>Nova licença</h2>
               <div className="form-grid">
                 <label>
                   Profissional
@@ -1576,7 +1607,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   </select>
                 </label>
                 <label>
-                  Numero
+                  Número
                   <input value={number} onChange={(event) => setNumber(event.target.value)} />
                 </label>
                 <label>
@@ -1588,7 +1619,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   <input value={uf} onChange={(event) => setUf(event.target.value)} maxLength={2} />
                 </label>
                 <label>
-                  Emissao
+                  Emissão
                   <input value={issuedAt} onChange={(event) => setIssuedAt(event.target.value)} type="date" />
                 </label>
                 <label>
@@ -1606,11 +1637,11 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   </select>
                 </label>
                 <label>
-                  Observacoes
+                  Observações
                   <input value={notes} onChange={(event) => setNotes(event.target.value)} />
                 </label>
               </div>
-              <button disabled={saving || !professionalId || !licenseTypeId}>Criar licenca</button>
+              <button disabled={saving || !professionalId || !licenseTypeId}>Criar licença</button>
             </form>
           </section>
         </div>
@@ -1618,9 +1649,9 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
       <section className="panel table-panel">
         {loading ? (
-          <OperationalState state="loading" title="Carregando licencas" />
+          <OperationalState state="loading" title="Carregando licenças" />
         ) : licenses.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma licenca encontrada" />
+          <OperationalState state="empty" title="Nenhuma licença encontrada" />
         ) : (
           <>
             <OperationalTable
@@ -1629,7 +1660,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
               columns={[
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "type", header: "Tipo", render: (item) => item.licenseType.name },
-                { key: "number", header: "Numero", render: (item) => item.number ?? "Sem numero" },
+                { key: "number", header: "Número", render: (item) => item.number ?? "Sem número" },
                 { key: "issuer", header: "Emissor/UF", render: (item) => `${item.issuer ?? "Sem emissor"} / ${item.uf ?? "--"}` },
                 {
                   key: "expires",
@@ -1639,12 +1670,12 @@ function LicensesView({ user }: { user: CurrentUser }) {
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
                 {
                   key: "history",
-                  header: "Historico",
+                  header: "Histórico",
                   render: (item) => `${item._count.documents} docs / ${item._count.notificationJobs} avisos`
                 },
                 {
                   key: "actions",
-                  header: "Acoes",
+                  header: "Ações",
                   render: (item) =>
                     user.role === "ADMIN" ? (
                       <div className="row-actions">
@@ -1656,7 +1687,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                         </button>
                         <ConfirmButton
                           disabled={saving}
-                          confirmLabel="Confirmar inativacao"
+                          confirmLabel="Confirmar inativação"
                           onConfirm={() =>
                             void run(async () => {
                               await api(`/v1/licenses/${item.id}`, {
@@ -1682,14 +1713,14 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
       <section className="panel table-panel">
         {licenseTypes.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum tipo de licenca cadastrado" />
+          <OperationalState state="empty" title="Nenhum tipo de licença cadastrado" />
         ) : (
           <OperationalTable
             items={licenseTypes}
             getRowKey={(item) => item.id}
             columns={[
               { key: "name", header: "Tipo", render: (item) => item.name },
-              { key: "warning", header: "Avisos", render: (item) => item.defaultWarningDays ?? "Sem padrao" },
+              { key: "warning", header: "Avisos", render: (item) => item.defaultWarningDays ?? "Sem padrão" },
               {
                 key: "status",
                 header: "Status",
@@ -1697,7 +1728,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
               },
               {
                 key: "actions",
-                header: "Acoes",
+                header: "Ações",
                 render: (item) =>
                   user.role === "ADMIN" ? (
                     <div className="row-actions">
@@ -1706,7 +1737,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                       </button>
                       <ConfirmButton
                         disabled={saving}
-                        confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                        confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
                         onConfirm={() =>
                           void run(async () => {
                             await api(`/v1/license-types/${item.id}`, {
@@ -1804,15 +1835,16 @@ function DocumentsView({ user }: { user: CurrentUser }) {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", onChange: setStatusFilter },
+          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", help: "UPLOADED indica documentos aguardando validação.", onChange: setStatusFilter },
           {
             key: "professional",
             label: "Profissional",
             value: professionalFilter,
             placeholder: "ID do profissional",
+            help: "Filtra pelo identificador técnico do profissional.",
             onChange: setProfessionalFilter
           },
-          { key: "license", label: "Licenca", value: licenseFilter, placeholder: "ID da licenca", onChange: setLicenseFilter }
+          { key: "license", label: "Licença", value: licenseFilter, placeholder: "ID da licença", help: "Filtra por uma licença específica.", onChange: setLicenseFilter }
         ]}
         onSubmit={load}
       />
@@ -1834,14 +1866,14 @@ function DocumentsView({ user }: { user: CurrentUser }) {
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 {
                   key: "license",
-                  header: "Licenca",
+                  header: "Licença",
                   render: (item) => `${item.license.licenseType.name}${item.license.number ? ` / ${item.license.number}` : ""}`
                 },
                 { key: "unit", header: "Unidade/Setor", render: (item) => `${item.professional.unit.name} / ${item.professional.sector.name}` },
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="document" value={item.status} /> },
                 {
                   key: "validated",
-                  header: "Validacao",
+                  header: "Validação",
                   render: (item) =>
                     item.validatedBy
                       ? `${item.validatedBy.name} / ${item.validatedAt ? new Date(item.validatedAt).toLocaleString("pt-BR") : ""}`
@@ -1849,16 +1881,16 @@ function DocumentsView({ user }: { user: CurrentUser }) {
                 },
                 {
                   key: "actions",
-                  header: "Acoes",
+                  header: "Ações",
                   render: (item) => (
                     <div className="row-actions">
                       <button className="secondary" type="button" onClick={() => download(item)}>
-                        Baixar
+                        <Icon name="download" /> Baixar
                       </button>
                       {(user.role === "ADMIN" || user.role === "RT") && item.status === "UPLOADED" ? (
                         <>
                           <button disabled={saving} type="button" onClick={() => void approve(item)}>
-                            Aprovar
+                            <Icon name="check" /> Aprovar
                           </button>
                           <button className="danger" disabled={saving} type="button" onClick={() => void reject(item)}>
                             Recusar
@@ -1936,7 +1968,7 @@ function SettingsView() {
       setSectorUnitId(result.organization.units[0]?.id ?? "");
       setRuleTemplateKey((current) => current || notificationsResult.templates[0]?.key || "");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar configuracoes.");
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar configurações.");
     } finally {
       setLoading(false);
     }
@@ -1953,7 +1985,7 @@ function SettingsView() {
       await action();
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao salvar configuracao.");
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar configuração.");
     } finally {
       setSaving(false);
     }
@@ -2101,15 +2133,15 @@ function SettingsView() {
   }
 
   async function editUser(user: ManagedUserItem) {
-    const name = window.prompt("Nome do usuario", user.name);
+    const name = window.prompt("Nome do usuário", user.name);
     if (!name) return;
-    const email = window.prompt("Email do usuario", user.email);
+    const email = window.prompt("Email do usuário", user.email);
     if (!email) return;
-    const roleInput = window.prompt("Role do usuario: ADMIN, RT ou SUPERVISOR", user.role);
+    const roleInput = window.prompt("Perfil do usuário: ADMIN, RT ou SUPERVISOR", user.role);
     if (!roleInput) return;
     const role = roleInput.toUpperCase() as UserRole;
     if (!userRoles.includes(role)) {
-      setError("Role invalida.");
+      setError("Perfil inválida.");
       return;
     }
     const unitScopeIds =
@@ -2158,15 +2190,15 @@ function SettingsView() {
   }
 
   if (loading) {
-    return <OperationalState state="loading" title="Carregando configuracoes" />;
+    return <OperationalState state="loading" title="Carregando configurações" />;
   }
 
   if (error && !organization) {
-    return <OperationalState state="error" title="Falha ao carregar configuracoes" detail={error} />;
+    return <OperationalState state="error" title="Falha ao carregar configurações" detail={error} />;
   }
 
   if (!organization) {
-    return <OperationalState state="empty" title="Organizacao nao encontrada" />;
+    return <OperationalState state="empty" title="Organização nao encontrada" />;
   }
 
   const sectors = organization.units.flatMap((unit) =>
@@ -2182,7 +2214,7 @@ function SettingsView() {
 
       <section className="panel form-panel">
         <form onSubmit={saveOrganization}>
-          <h2>Organizacao</h2>
+          <h2>Organização</h2>
           <label>
             Nome
             <input value={orgName} onChange={(event) => setOrgName(event.target.value)} />
@@ -2196,7 +2228,7 @@ function SettingsView() {
             <button disabled={saving || !orgName.trim()}>Salvar</button>
             <ConfirmButton
               disabled={saving}
-              confirmLabel={organization.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+              confirmLabel={organization.active ? "Confirmar desativação" : "Confirmar reativação"}
               onConfirm={() =>
                 void run(async () => {
                   await api("/v1/organization", {
@@ -2246,7 +2278,7 @@ function SettingsView() {
 
       <section className="panel form-panel full-span">
         <form onSubmit={addUser}>
-          <h2>Novo usuario administrativo</h2>
+          <h2>Novo usuário administrativo</h2>
           <div className="form-grid">
             <label>
               Nome
@@ -2266,7 +2298,7 @@ function SettingsView() {
               />
             </label>
             <label>
-              Role
+              Perfil
               <select value={userRole} onChange={(event) => setUserRole(event.target.value as UserRole)}>
                 {userRoles.map((role) => (
                   <option key={role} value={role}>
@@ -2307,21 +2339,21 @@ function SettingsView() {
             </div>
           )}
           <button disabled={saving || !userName.trim() || !userEmail.trim() || userPassword.length < 8}>
-            {saving ? "Salvando..." : "Criar usuario"}
+            {saving ? "Salvando..." : "Criar usuário"}
           </button>
         </form>
       </section>
 
       <section className="panel table-panel full-span">
         {users.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum usuario cadastrado" />
+          <OperationalState state="empty" title="Nenhum usuário cadastrado" />
         ) : (
           <OperationalTable
             items={users}
             getRowKey={(item) => item.id}
             columns={[
-              { key: "name", header: "Usuario", render: (item) => `${item.name} (${item.email})` },
-              { key: "role", header: "Role", render: (item) => item.role },
+              { key: "name", header: "Usuário", render: (item) => `${item.name} (${item.email})` },
+              { key: "role", header: "Perfil", render: (item) => item.role },
               {
                 key: "scope",
                 header: "Escopo",
@@ -2337,7 +2369,7 @@ function SettingsView() {
               },
               {
                 key: "actions",
-                header: "Acoes",
+                header: "Ações",
                 render: (item) => (
                   <div className="row-actions">
                     <button className="secondary" type="button" onClick={() => void editUser(item)}>
@@ -2348,7 +2380,7 @@ function SettingsView() {
                     </button>
                     <ConfirmButton
                       disabled={saving}
-                      confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                      confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
                       onConfirm={() =>
                         void run(async () => {
                           await api(`/v1/users/${item.id}`, {
@@ -2377,7 +2409,7 @@ function SettingsView() {
               <input value={templateKey} onChange={(event) => setTemplateKey(event.target.value)} placeholder="license-expiration" />
             </label>
             <label>
-              Template Meta
+              <span className="label-row">Template Meta <InfoTip text="Nome aprovado no painel da Meta. Deixe vazio para provider fake/local." /></span>
               <input value={templateMetaName} onChange={(event) => setTemplateMetaName(event.target.value)} />
             </label>
             <label>
@@ -2391,7 +2423,7 @@ function SettingsView() {
 
       <section className="panel form-panel full-span">
         <form onSubmit={addNotificationRule}>
-          <h2>Nova regra de notificacao</h2>
+          <h2>Nova regra de notificação</h2>
           <div className="form-grid">
             <label>
               Template
@@ -2404,15 +2436,15 @@ function SettingsView() {
               </select>
             </label>
             <label>
-              Tipo de licenca
+              <span className="label-row">Tipo de licença <InfoTip text="Informe o ID do tipo quando a regra valer para uma licença específica. Vazio aplica a todos." /></span>
               <input value={ruleLicenseTypeId} onChange={(event) => setRuleLicenseTypeId(event.target.value)} placeholder="vazio = todos" />
             </label>
             <label>
-              Dias antes
+              <span className="label-row">Dias antes <InfoTip text="Quando criar aviso antes do vencimento. Exemplo: 30." /></span>
               <input value={ruleDaysBefore} onChange={(event) => setRuleDaysBefore(event.target.value)} type="number" />
             </label>
             <label>
-              Repetir apos vencida
+              <span className="label-row">Repetir após vencida <InfoTip text="Intervalo em dias para novas notificações depois do vencimento." /></span>
               <input value={ruleRepeatAfter} onChange={(event) => setRuleRepeatAfter(event.target.value)} type="number" />
             </label>
             <label className="checkbox-row">
@@ -2451,7 +2483,7 @@ function SettingsView() {
 
       <section className="panel table-panel full-span">
         {notificationRules.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma regra de notificacao" />
+          <OperationalState state="empty" title="Nenhuma regra de notificação" />
         ) : (
           <OperationalTable
             items={notificationRules}
@@ -2477,7 +2509,7 @@ function SettingsView() {
 
       <section className="panel table-panel full-span">
         {notificationJobs.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum job de notificacao" />
+          <OperationalState state="empty" title="Nenhum job de notificação" />
         ) : (
           <OperationalTable
             items={notificationJobs}
@@ -2485,7 +2517,7 @@ function SettingsView() {
             columns={[
               { key: "date", header: "Agendado", render: (item) => new Date(item.scheduledFor).toLocaleString("pt-BR") },
               { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-              { key: "license", header: "Licenca", render: (item) => item.license.licenseType.name },
+              { key: "license", header: "Licença", render: (item) => item.license.licenseType.name },
               { key: "template", header: "Template", render: (item) => item.templateKey },
               { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
               { key: "status", header: "Status", render: (item) => <StatusBadge kind="notification" value={item.status as never} /> }
@@ -2533,11 +2565,11 @@ function SettingsView() {
               },
               {
                 key: "actions",
-                header: "Acoes",
+                header: "Ações",
                 render: (item) => (
                   <ConfirmButton
                     disabled={saving}
-                    confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                    confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
                     onConfirm={() =>
                       void run(async () => {
                         await api(`/v1/faq/${item.id}`, {
@@ -2573,7 +2605,7 @@ function SettingsView() {
               { key: "sectors", header: "Setores", render: (unit) => unit.sectors.length },
               {
                 key: "actions",
-                header: "Acoes",
+                header: "Ações",
                 render: (unit) => (
                   <div className="row-actions">
                     <button className="secondary" type="button" onClick={() => void renameUnit(unit)}>
@@ -2581,7 +2613,7 @@ function SettingsView() {
                     </button>
                     <ConfirmButton
                       disabled={saving}
-                      confirmLabel={unit.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                      confirmLabel={unit.active ? "Confirmar desativação" : "Confirmar reativação"}
                       onConfirm={() =>
                         void run(async () => {
                           await api(`/v1/organization/units/${unit.id}`, {
@@ -2618,7 +2650,7 @@ function SettingsView() {
               },
               {
                 key: "actions",
-                header: "Acoes",
+                header: "Ações",
                 render: (sector) => (
                   <div className="row-actions">
                     <button className="secondary" type="button" onClick={() => void renameSector(sector)}>
@@ -2626,7 +2658,7 @@ function SettingsView() {
                     </button>
                     <ConfirmButton
                       disabled={saving}
-                      confirmLabel={sector.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                      confirmLabel={sector.active ? "Confirmar desativação" : "Confirmar reativação"}
                       onConfirm={() =>
                         void run(async () => {
                           await api(`/v1/organization/sectors/${sector.id}`, {
@@ -2697,7 +2729,7 @@ function PublicUploadView({ token }: { token: string }) {
           <h1>Enviar documento</h1>
         </div>
         {loading ? <OperationalState state="loading" title="Carregando link" /> : null}
-        {error ? <OperationalState state="error" title="Nao foi possivel continuar" detail={error} /> : null}
+        {error ? <OperationalState state="error" title="Não foi possivel continuar" detail={error} /> : null}
         {uploadToken && !success ? (
           <form onSubmit={submit}>
             <div className="public-upload-summary">
@@ -2828,10 +2860,69 @@ function PublicFaqView() {
   );
 }
 
+function HelpView({ user }: { user: CurrentUser }) {
+  const roleCards = [
+    ["Admin", "Organiza unidades, setores, usuários, tipos de licença, regras de notificação e acompanha auditoria."],
+    ["RT", "Acompanha profissionais sob sua responsabilidade, valida documentos e consulta pendências."],
+    ["Supervisor", "Consulta profissionais, documentos, licenças e relatórios dentro do escopo de unidade ou setor."]
+  ];
+  const flows = [
+    ["Dashboard", "Comece pelas filas de vencimento, documentos pendentes e falhas de notificação."],
+    ["Profissionais", "Revise vínculo de unidade, setor e RT antes de criar licenças."],
+    ["Licenças", "Acompanhe status e gere links temporários de upload quando necessário."],
+    ["Documentos", "Baixe o arquivo, aprove quando estiver correto ou recuse informando o motivo."],
+    ["Relatórios", "Filtre por período, escopo e status; exporte CSV para conferência operacional."],
+    ["Configurações", "Mantenha templates, regras, usuários, unidades e FAQ alinhados com a operação."]
+  ];
+
+  return (
+    <div className="content-stack">
+      <section className="panel help-hero">
+        <p className="eyebrow">Ajuda operacional</p>
+        <h2>Fluxo essencial da V1</h2>
+        <p className="muted">
+          Você está como {user.role}. Use esta página para demonstração, treinamento rápido e checagem diária sem expor segredos.
+        </p>
+      </section>
+
+      <section className="help-grid">
+        {roleCards.map(([title, detail]) => (
+          <article className="panel help-card" key={title}>
+            <h2>{title}</h2>
+            <p>{detail}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="panel table-panel">
+        <h2>Roteiro de operação</h2>
+        <OperationalTable
+          items={flows}
+          getRowKey={(item) => item[0]}
+          columns={[
+            { key: "step", header: "Área", render: (item) => item[0] },
+            { key: "detail", header: "Quando usar", render: (item) => item[1] }
+          ]}
+        />
+      </section>
+
+      <section className="panel help-card">
+        <h2>Atenções</h2>
+        <div className="help-list">
+          <p>Meta real só deve ser ativada em ambiente privado, com token e app secret fora do git.</p>
+          <p>Links de upload são temporários e devem ser enviados apenas ao profissional correto.</p>
+          <p>Recusas de documento devem ter motivo claro para orientar regularização.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const [activeView, setActiveView] = useState<ViewKey>(visibleNav[0]?.key ?? "dashboard");
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
+  const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings");
 
   async function logout() {
     await api("/v1/auth/logout", { method: "POST" });
@@ -2843,16 +2934,16 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
       <aside className="sidebar">
         <div className="brand">
           <p className="eyebrow">Sylembra</p>
-          <strong>Operacao</strong>
+          <strong>Operação</strong>
         </div>
-        <nav className="nav-list" aria-label="Navegacao principal">
+        <nav className="nav-list" aria-label="Navegação principal">
           {visibleNav.map((item) => (
             <button
               className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
               key={item.key}
               onClick={() => setActiveView(item.key)}
             >
-              <span>{item.label}</span>
+              <span><Icon name={item.icon} /> {item.label}</span>
               <small>{item.description}</small>
             </button>
           ))}
@@ -2861,16 +2952,36 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
 
       <section className="workspace">
         <header className="topbar">
-          <div>
+          <div className="topbar-title">
+            <nav className="breadcrumbs" aria-label="Breadcrumbs">
+              <button type="button" onClick={() => setActiveView("dashboard")}>Início</button>
+              <span>/</span>
+              <strong>{activeItem.label}</strong>
+            </nav>
             <p className="eyebrow">{user.role}</p>
-            <h1>{activeItem.label}</h1>
+            <h1><Icon name={activeItem.icon} /> {activeItem.label}</h1>
+            <p className="muted">{activeItem.description}</p>
           </div>
           <div className="user-actions">
             <span>{user.name}</span>
             <button className="secondary" onClick={logout}>
-              Sair
+              <Icon name="logout" /> Sair
             </button>
           </div>
+          <nav className="top-nav" aria-label="Atalhos principais">
+            {primaryNav.map((item) => (
+              <button
+                className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
+                key={item.key}
+                type="button"
+                onClick={() => setActiveView(item.key)}
+                title={item.description}
+              >
+                <Icon name={item.icon} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
         </header>
         {activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
@@ -2886,6 +2997,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <AuditView />
         ) : activeItem.key === "settings" ? (
           <SettingsView />
+        ) : activeItem.key === "help" ? (
+          <HelpView user={user} />
         ) : (
           <PlaceholderView item={activeItem} />
         )}

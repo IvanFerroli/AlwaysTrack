@@ -20,6 +20,7 @@
     "test": "npm run test --workspaces --if-present",
     "env:check": "node scripts/check-env.js",
     "job:notifications": "npm run job:notifications --workspace @sylembra/api",
+    "smoke:whatsapp": "npm run smoke:whatsapp --workspace @sylembra/api",
     "prisma:generate": "prisma generate --schema services/api/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema services/api/prisma/schema.prisma",
     "prisma:seed": "npm run seed --workspace @sylembra/api"
