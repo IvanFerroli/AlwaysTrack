@@ -300,10 +300,15 @@ th {
 }
 
 .report-selector {
+  align-items: end;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
   padding: 16px;
 }
 
 .report-selector label {
+  flex: 1;
   max-width: 360px;
 }
 
@@ -555,6 +560,11 @@ legend {
   }
 
   .pagination-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-selector {
     align-items: stretch;
     flex-direction: column;
   }

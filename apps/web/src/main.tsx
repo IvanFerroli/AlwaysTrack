@@ -591,15 +591,15 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
   );
 }
 
-const reportOptions: Array<{ key: ReportKey; label: string; endpoint: string }> = [
-  { key: "licensesExpired", label: "Licencas vencidas", endpoint: "/v1/reports/licenses/expired" },
-  { key: "licensesExpiring", label: "Licencas a vencer", endpoint: "/v1/reports/licenses/expiring" },
-  { key: "rtSummary", label: "Resumo por RT", endpoint: "/v1/reports/groups/rt" },
-  { key: "areaSummary", label: "Resumo por unidade/setor", endpoint: "/v1/reports/groups/areas" },
-  { key: "documentsPending", label: "Documentos pendentes", endpoint: "/v1/reports/documents/pending" },
-  { key: "documentsRejected", label: "Documentos recusados", endpoint: "/v1/reports/documents/rejected" },
-  { key: "notifications", label: "Notificacoes", endpoint: "/v1/reports/notifications" },
-  { key: "regularization", label: "Regularizacao", endpoint: "/v1/reports/regularization" }
+const reportOptions: Array<{ key: ReportKey; label: string; endpoint: string; fileName: string }> = [
+  { key: "licensesExpired", label: "Licencas vencidas", endpoint: "/v1/reports/licenses/expired", fileName: "licencas-vencidas.csv" },
+  { key: "licensesExpiring", label: "Licencas a vencer", endpoint: "/v1/reports/licenses/expiring", fileName: "licencas-a-vencer.csv" },
+  { key: "rtSummary", label: "Resumo por RT", endpoint: "/v1/reports/groups/rt", fileName: "resumo-por-rt.csv" },
+  { key: "areaSummary", label: "Resumo por unidade/setor", endpoint: "/v1/reports/groups/areas", fileName: "resumo-por-area.csv" },
+  { key: "documentsPending", label: "Documentos pendentes", endpoint: "/v1/reports/documents/pending", fileName: "documentos-pendentes.csv" },
+  { key: "documentsRejected", label: "Documentos recusados", endpoint: "/v1/reports/documents/rejected", fileName: "documentos-recusados.csv" },
+  { key: "notifications", label: "Notificacoes", endpoint: "/v1/reports/notifications", fileName: "notificacoes.csv" },
+  { key: "regularization", label: "Regularizacao", endpoint: "/v1/reports/regularization", fileName: "regularizacao.csv" }
 ];
 
 function reportText(row: Record<string, unknown>, key: string) {
@@ -717,10 +717,7 @@ function ReportsView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load(nextPage = page) {
-    setLoading(true);
-    setError(null);
-    const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
+  function buildReportSearch(nextPage: number) {
     const search = new URLSearchParams();
     if (from) search.set("from", from);
     if (to) search.set("to", to);
@@ -733,6 +730,14 @@ function ReportsView() {
     if (windowDays) search.set("windowDays", windowDays);
     if (pageSize) search.set("pageSize", pageSize);
     search.set("page", String(nextPage));
+    return search;
+  }
+
+  async function load(nextPage = page) {
+    setLoading(true);
+    setError(null);
+    const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
+    const search = buildReportSearch(nextPage);
 
     try {
       setData(await api<ReportResponse>(`${selected.endpoint}?${search.toString()}`));
@@ -742,6 +747,22 @@ function ReportsView() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function downloadCsv() {
+    const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
+    const response = await fetch(`${selected.endpoint}/csv?${buildReportSearch(1).toString()}`, { credentials: "include" });
+    if (!response.ok) {
+      setError("Falha ao exportar CSV.");
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = selected.fileName;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => {
@@ -764,6 +785,9 @@ function ReportsView() {
             ))}
           </select>
         </label>
+        <button className="secondary" type="button" onClick={() => void downloadCsv()}>
+          Exportar CSV
+        </button>
       </section>
 
       <OperationalFilters

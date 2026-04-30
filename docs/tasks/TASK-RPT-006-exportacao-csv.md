@@ -1,9 +1,9 @@
 # TASK-RPT-006 - Exportacao CSV
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-006-exportacao-csv.md
 
 ## Modo
@@ -43,3 +43,15 @@ Adicionar exportacao CSV para relatorios principais usando as mesmas queries val
 
 ## Riscos
 - exportar dados fora do escopo
+
+## Evidencias de conclusao
+- Adicionadas rotas `/csv` para os relatorios RPT-002 a RPT-005 usando `exportReportCsv`.
+- Exportacao reaproveita `runReport`, preservando filtros e escopo de acesso da query principal.
+- CSV limita campos aos DTOs operacionais ja usados na tela, sem metadata sensivel adicional.
+- Tela de Relatorios ganhou botao `Exportar CSV` usando os filtros ativos.
+
+## Validacao executada
+- `npm run check` - 88 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run setup` - migrations/seed alinhados.
+- Smoke local: download de `/v1/reports/documents/rejected/csv` retornou `text/csv` e `content-disposition` de anexo.

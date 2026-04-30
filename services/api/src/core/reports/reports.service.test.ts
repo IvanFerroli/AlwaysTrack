@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseReportFilters, runReport } from "./reports.service.js";
+import { exportReportCsv, parseReportFilters, runReport } from "./reports.service.js";
 
 describe("reports service", () => {
   it("parses reusable report filters with capped pagination", () => {
@@ -126,5 +126,48 @@ describe("reports service", () => {
       pendingValidation: 1,
       failedNotifications: 1
     });
+  });
+
+  it("exports CSV using report query rows with escaped values", async () => {
+    const prisma = {
+      document: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "doc-1",
+            fileName: 'registro,"final".pdf',
+            status: "REJECTED",
+            validatedAt: new Date("2026-04-20T00:00:00.000Z"),
+            rejectionReason: 'Imagem "ilegivel"',
+            professional: {
+              name: "Ana",
+              unit: { name: "Unidade A" },
+              sector: { name: "UTI" },
+              responsibleRt: { name: "RT A" }
+            },
+            license: { status: "PENDING_DOCUMENT", licenseType: { name: "COREN" } },
+            validatedBy: { name: "Admin" }
+          }
+        ]),
+        count: vi.fn().mockResolvedValue(1)
+      },
+      $transaction: vi.fn()
+    };
+    prisma.$transaction.mockResolvedValue([await prisma.document.findMany(), 1]);
+
+    const csv = await exportReportCsv(
+      prisma as never,
+      { id: "admin-1", organizationId: "org-1", role: "ADMIN", name: "Admin", email: "admin@test", unitScopeIds: [], sectorScopeIds: [] },
+      "rejectedDocuments",
+      parseReportFilters({ sectorId: "sector-1" })
+    );
+
+    expect(prisma.document.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        professional: expect.objectContaining({ organizationId: "org-1", sectorId: "sector-1" })
+      })
+    });
+    expect(csv.split("\n")[0]).toContain('"Arquivo","Profissional"');
+    expect(csv).toContain('"registro,""final"".pdf"');
+    expect(csv).toContain('"Imagem ""ilegivel"""');
   });
 });

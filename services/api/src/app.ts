@@ -65,13 +65,21 @@ import {
 } from "./core/faq/faq.handlers.js";
 import { getDashboardHandler } from "./core/dashboard/dashboard.handlers.js";
 import {
+  areaSummaryCsvReportHandler,
   areaSummaryReportHandler,
+  expiredLicensesCsvReportHandler,
   expiredLicensesReportHandler,
+  expiringLicensesCsvReportHandler,
   expiringLicensesReportHandler,
+  notificationsCsvReportHandler,
   notificationsReportHandler,
+  pendingDocumentsCsvReportHandler,
   pendingDocumentsReportHandler,
+  rejectedDocumentsCsvReportHandler,
   rejectedDocumentsReportHandler,
+  regularizationCsvReportHandler,
   regularizationReportHandler,
+  rtSummaryCsvReportHandler,
   rtSummaryReportHandler
 } from "./core/reports/reports.handlers.js";
 
@@ -100,13 +108,21 @@ export function createApp() {
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
   app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
+  app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
   app.get("/v1/reports/licenses/expiring", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesReportHandler);
+  app.get("/v1/reports/licenses/expiring/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesCsvReportHandler);
   app.get("/v1/reports/groups/rt", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryReportHandler);
+  app.get("/v1/reports/groups/rt/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryCsvReportHandler);
   app.get("/v1/reports/groups/areas", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryReportHandler);
+  app.get("/v1/reports/groups/areas/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryCsvReportHandler);
   app.get("/v1/reports/documents/pending", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsReportHandler);
+  app.get("/v1/reports/documents/pending/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsCsvReportHandler);
   app.get("/v1/reports/documents/rejected", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsReportHandler);
+  app.get("/v1/reports/documents/rejected/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsCsvReportHandler);
   app.get("/v1/reports/notifications", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsReportHandler);
+  app.get("/v1/reports/notifications/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsCsvReportHandler);
   app.get("/v1/reports/regularization", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationReportHandler);
+  app.get("/v1/reports/regularization/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationCsvReportHandler);
   app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
   app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
   app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);

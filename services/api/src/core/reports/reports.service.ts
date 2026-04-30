@@ -21,7 +21,7 @@ export interface ReportFilters {
   pageSize: number;
 }
 
-type ReportKind =
+export type ReportKind =
   | "expiredLicenses"
   | "expiringLicenses"
   | "rtSummary"
@@ -30,6 +30,109 @@ type ReportKind =
   | "rejectedDocuments"
   | "notifications"
   | "regularization";
+
+type ReportRow = Record<string, unknown>;
+
+const csvColumns: Record<ReportKind, Array<{ key: string; header: string }>> = {
+  expiredLicenses: [
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "number", header: "Numero" },
+    { key: "expiresAt", header: "Venceu em" },
+    { key: "daysExpired", header: "Dias vencida" },
+    { key: "status", header: "Status" },
+    { key: "lastNotificationStatus", header: "Ultima notificacao" },
+    { key: "lastDocumentStatus", header: "Ultimo documento" }
+  ],
+  expiringLicenses: [
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "number", header: "Numero" },
+    { key: "expiresAt", header: "Vence em" },
+    { key: "daysRemaining", header: "Dias restantes" },
+    { key: "status", header: "Status" },
+    { key: "lastNotificationStatus", header: "Ultima notificacao" },
+    { key: "lastDocumentStatus", header: "Ultimo documento" }
+  ],
+  rtSummary: [
+    { key: "label", header: "RT" },
+    { key: "total", header: "Profissionais" },
+    { key: "regular", header: "Regulares" },
+    { key: "expiring", header: "A vencer" },
+    { key: "expired", header: "Vencidas" },
+    { key: "pendingValidation", header: "Validacoes pendentes" },
+    { key: "failedNotifications", header: "Falhas notificacao" },
+    { key: "pendingPercent", header: "Percentual pendencia" }
+  ],
+  areaSummary: [
+    { key: "label", header: "Unidade / setor" },
+    { key: "total", header: "Profissionais" },
+    { key: "regular", header: "Regulares" },
+    { key: "expiring", header: "A vencer" },
+    { key: "expired", header: "Vencidas" },
+    { key: "pendingValidation", header: "Validacoes pendentes" },
+    { key: "failedNotifications", header: "Falhas notificacao" },
+    { key: "pendingPercent", header: "Percentual pendencia" }
+  ],
+  pendingDocuments: [
+    { key: "fileName", header: "Arquivo" },
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "licenseStatus", header: "Status licenca" },
+    { key: "uploadedAt", header: "Enviado em" },
+    { key: "waitingDays", header: "Dias aguardando" }
+  ],
+  rejectedDocuments: [
+    { key: "fileName", header: "Arquivo" },
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "licenseStatus", header: "Status licenca" },
+    { key: "rejectedAt", header: "Recusado em" },
+    { key: "rejectedBy", header: "Recusado por" },
+    { key: "rejectionReason", header: "Motivo" }
+  ],
+  notifications: [
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "channel", header: "Canal" },
+    { key: "templateKey", header: "Template" },
+    { key: "recipient", header: "Destinatario" },
+    { key: "status", header: "Status" },
+    { key: "scheduledFor", header: "Agendada" },
+    { key: "sentAt", header: "Enviada" },
+    { key: "errorMessage", header: "Erro" },
+    { key: "providerMessageId", header: "Provider ID" }
+  ],
+  regularization: [
+    { key: "professionalName", header: "Profissional" },
+    { key: "unitName", header: "Unidade" },
+    { key: "sectorName", header: "Setor" },
+    { key: "rtName", header: "RT" },
+    { key: "licenseTypeName", header: "Tipo" },
+    { key: "notificationAt", header: "Notificacao" },
+    { key: "notificationStatus", header: "Status notificacao" },
+    { key: "uploadedAt", header: "Upload" },
+    { key: "validationAt", header: "Validacao" },
+    { key: "validationStatus", header: "Status validacao" },
+    { key: "validatedBy", header: "Validado por" },
+    { key: "totalDays", header: "Dias totais" }
+  ]
+};
 
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
@@ -380,4 +483,23 @@ export async function runReport(prisma: PrismaClient, actor: CurrentUser, kind: 
   if (kind === "notifications") return listNotificationReport(prisma, actor, filters);
   if (kind === "regularization") return listRegularizationReport(prisma, actor, filters);
   throw new ReportError("INVALID_REPORT");
+}
+
+function formatCsvValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function escapeCsv(value: unknown) {
+  return `"${formatCsvValue(value).replaceAll('"', '""')}"`;
+}
+
+export async function exportReportCsv(prisma: PrismaClient, actor: CurrentUser, kind: ReportKind, filters: ReportFilters) {
+  const exportFilters = { ...filters, page: 1, pageSize: 5000 };
+  const report = await runReport(prisma, actor, kind, exportFilters);
+  const columns = csvColumns[kind];
+  const header = columns.map((column) => escapeCsv(column.header)).join(",");
+  const rows = (report.items as ReportRow[]).map((item) => columns.map((column) => escapeCsv(item[column.key])).join(","));
+  return `${[header, ...rows].join("\n")}\n`;
 }
