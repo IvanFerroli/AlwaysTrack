@@ -1,9 +1,9 @@
 # TASK-DEP-001 - Ambiente local e secrets
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: ops-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-DEP-001-ambiente-local-secrets.md
 
 ## Modo
@@ -43,3 +43,16 @@ Documentar e automatizar ambiente local com banco, storage fake/real e secrets s
 
 ## Riscos
 - vazar credenciais
+
+## Evidencias de conclusao
+- `.env.example` reorganizado com envs locais, web/API, storage, Meta e job.
+- Criado `npm run env:check` com leitura de `.env`/`.env.production` e validacao estrita em producao.
+- `npm run setup` permanece como bootstrap local de Prisma, SQLite e seed.
+- Criado runbook local `docs/runbooks/RUNBOOK-001-ambiente-local.md`.
+- Secrets reais continuam bloqueados por `.gitignore`; storage/banco/logs locais nao entram no repo.
+
+## Validacao executada
+- `npm run env:check` - passou em modo local.
+- `npm run setup` - passou.
+- `npm run check` - 88 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.

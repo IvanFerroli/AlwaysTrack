@@ -1,9 +1,9 @@
 # TASK-DEP-002 - Deploy e jobs em producao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: ops-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-DEP-002-deploy-producao-jobs.md
 
 ## Modo
@@ -47,3 +47,19 @@ Preparar deploy economico com web, API, banco, storage, cron/worker e webhook pu
 
 ## Riscos
 - cron nao rodar no provider escolhido
+
+## Evidencias de conclusao
+- Criados `Dockerfile.api`, `Dockerfile.web`, `.dockerignore`, `deploy/nginx.conf` e `deploy/docker-compose.example.yml`.
+- Web suporta `VITE_API_BASE_URL`; API suporta `CORS_ORIGIN` para deploy separado.
+- Criado job CLI `npm run job:notifications` para scanner/processamento previsivel de notificacoes.
+- Criado `deploy/cron.example` com frequencia recomendada e runbook `docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md`.
+- Webhook Meta documentado com URL publica, verify token e validacao de assinatura.
+
+## Validacao executada
+- `npm run job:notifications` - passou com provider fake e retornou JSON operacional.
+- `npm run check` - 88 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run setup` - migrations/seed alinhados.
+
+## Ressalva
+- Deploy real nao foi executado neste ambiente; foi entregue configuracao/runbook e smoke local do job.

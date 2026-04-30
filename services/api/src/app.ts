@@ -1,4 +1,5 @@
 import express from "express";
+import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
 import { sendError, sendOk } from "./core/http/responses.js";
 import { listAuditLogsHandler } from "./core/audit/audit.handlers.js";
@@ -85,7 +86,20 @@ import {
 
 export function createApp() {
   const app = express();
+  const env = loadEnv();
 
+  app.use((request, response, next) => {
+    if (env.corsOrigin) {
+      response.header("access-control-allow-origin", env.corsOrigin);
+      response.header("access-control-allow-credentials", "true");
+      response.header("access-control-allow-headers", "content-type");
+      response.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    }
+    if (request.method === "OPTIONS") {
+      return response.sendStatus(204);
+    }
+    return next();
+  });
   app.use(express.json({ limit: "1mb" }));
   app.use(attachRequestContext);
 

@@ -318,8 +318,10 @@ const navItems: NavItem[] = [
   { key: "settings", label: "Configuracoes", description: "Usuarios e organizacao", roles: ["ADMIN"] }
 ];
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     credentials: "include",
     headers: {
       "content-type": "application/json",
@@ -751,7 +753,7 @@ function ReportsView() {
 
   async function downloadCsv() {
     const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
-    const response = await fetch(`${selected.endpoint}/csv?${buildReportSearch(1).toString()}`, { credentials: "include" });
+    const response = await fetch(`${apiBaseUrl}${selected.endpoint}/csv?${buildReportSearch(1).toString()}`, { credentials: "include" });
     if (!response.ok) {
       setError("Falha ao exportar CSV.");
       return;
@@ -2656,7 +2658,7 @@ function PublicUploadView({ token }: { token: string }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/v1/public-upload/${token}`)
+    fetch(`${apiBaseUrl}/v1/public-upload/${token}`)
       .then(async (response) => {
         const payload = (await response.json()) as ApiResult<{ uploadToken: PublicUploadToken }>;
         if (!payload.ok) throw new Error(payload.error.message);
@@ -2672,7 +2674,7 @@ function PublicUploadView({ token }: { token: string }) {
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/v1/public-upload/${token}?fileName=${encodeURIComponent(file.name)}`, {
+      const response = await fetch(`${apiBaseUrl}/v1/public-upload/${token}?fileName=${encodeURIComponent(file.name)}`, {
         method: "POST",
         headers: { "content-type": file.type },
         body: file
@@ -2742,7 +2744,7 @@ function PublicFaqView() {
     if (query) search.set("query", query);
     if (category) search.set("category", category);
     try {
-      const response = await fetch(`/v1/public-faq?${search.toString()}`);
+      const response = await fetch(`${apiBaseUrl}/v1/public-faq?${search.toString()}`);
       const payload = (await response.json()) as ApiResult<{
         organization: { id: string; name: string };
         items: FaqItem[];
@@ -2766,7 +2768,7 @@ function PublicFaqView() {
     event.preventDefault();
     setError(null);
     try {
-      const response = await fetch("/v1/public-help/wa-link", {
+      const response = await fetch(`${apiBaseUrl}/v1/public-help/wa-link`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ organizationId, problemType, message })

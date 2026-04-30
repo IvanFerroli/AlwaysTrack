@@ -1,0 +1,2 @@
+# Run every 10 minutes on the production host.
+*/10 * * * * cd /opt/sylembra/deploy && docker compose --profile jobs run --rm notification-job >> /var/log/sylembra-notifications.log 2>&1

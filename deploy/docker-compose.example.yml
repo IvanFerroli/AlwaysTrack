@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    env_file:
+      - ../.env.production
+    volumes:
+      - api-data:/app/services/api/prisma
+      - api-storage:/app/services/api/.storage
+    ports:
+      - "3333:3333"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3333/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3333}
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  notification-job:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    env_file:
+      - ../.env.production
+    command: ["npm", "run", "job:notifications", "--workspace", "@sylembra/api"]
+    profiles:
+      - jobs
+    volumes:
+      - api-data:/app/services/api/prisma
+      - api-storage:/app/services/api/.storage
+
+volumes:
+  api-data:
+  api-storage:
