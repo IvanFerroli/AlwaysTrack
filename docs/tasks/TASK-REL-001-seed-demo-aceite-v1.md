@@ -1,9 +1,9 @@
 # TASK-REL-001 - Seed, demo e aceite final da V1
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: orchestrator
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-REL-001-seed-demo-aceite-v1.md
 
 ## Modo
@@ -25,7 +25,7 @@ Preparar demo realista e comprovar que os 14 criterios de sucesso da V1 foram at
 
 ## Dependencias
 - satisfeitas: `TASK-QLT-004`, `TASK-DEP-002`
-- em aberto: dados ficticios aprovados para demo
+- em aberto: n/a
 
 ## Alvos explicitos
 1. seed de demo
@@ -50,3 +50,15 @@ Preparar demo realista e comprovar que os 14 criterios de sucesso da V1 foram at
 
 ## Riscos
 - demo mascarar falha operacional real
+
+## Execucao
+- Seed de demo ampliado com organizacao, unidade, setor, admin, RT, supervisor, profissionais e licencas em cenarios `REGULAR`, `EXPIRING` e `EXPIRED`.
+- Seed inclui documentos aprovado/pendente/recusado, token publico de demo, notificacoes fake com status `SENT` e `FAILED`, logs e auditoria.
+- Criado checklist dos 14 criterios, roteiro curto de apresentacao e relatorio de gaps.
+- Credenciais Meta reais ficaram explicitamente fora do escopo desta execucao; demo usa provider `fake` ate preenchimento privado da `.env`.
+
+## Evidencias
+- `services/api/prisma/seed.ts`
+- `docs/operations/v1-demo-acceptance-2026-04-30.md`
+- `npm run prisma:seed`
+- `npm run check`
