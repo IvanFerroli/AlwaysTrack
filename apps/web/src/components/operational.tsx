@@ -79,7 +79,7 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
             {field.label}
             {field.help ? (
               <button
-                className="info-tip"
+                className="ui-info-button"
                 type="button"
                 aria-label={`${field.help} Abrir ajuda.`}
                 onClick={() => openHelp(field.helpHref)}

@@ -321,6 +321,23 @@ const navItems: NavItem[] = [
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: ["ADMIN", "RT", "SUPERVISOR"] }
 ];
 
+const helpAnchorIds = new Set([
+  "visao-geral",
+  "primeiro-acesso",
+  "dashboard",
+  "profissionais",
+  "licencas",
+  "documentos",
+  "upload-publico",
+  "notificacoes",
+  "relatorios",
+  "auditoria",
+  "configuracoes",
+  "perfis-e-permissoes",
+  "filtros-e-ids",
+  "problemas-comuns"
+]);
+
 const iconLabels: Record<IconName, string> = {
   home: "⌂",
   users: "◎",
@@ -346,7 +363,7 @@ function InfoTip({ text, href }: { text: string; href?: string }) {
   }
 
   return (
-    <button className="info-tip" type="button" aria-label={`${text} Abrir ajuda.`} onClick={openHelp}>
+    <button className="ui-info-button" type="button" aria-label={`${text} Abrir ajuda.`} onClick={openHelp}>
       i
       <span className="info-tip-tooltip" role="tooltip">{text}</span>
     </button>
@@ -3057,9 +3074,36 @@ function HelpView({ user }: { user: CurrentUser }) {
 
 function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
-  const [activeView, setActiveView] = useState<ViewKey>(visibleNav[0]?.key ?? "dashboard");
+  const initialHelpId = window.location.hash.replace("#", "");
+  const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : visibleNav[0]?.key ?? "dashboard");
+  const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings");
+
+  function clearHelpHash() {
+    if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    }
+  }
+
+  function openHelpHash(hash = "#visao-geral") {
+    const normalizedHash = hash.startsWith("#") ? hash : `#${hash}`;
+    const id = normalizedHash.replace("#", "");
+    if (!helpAnchorIds.has(id)) return;
+    setPendingHelpHash(normalizedHash);
+    setActiveView("help");
+  }
+
+  function openView(key: ViewKey) {
+    if (key === "help") {
+      openHelpHash("#visao-geral");
+      return;
+    }
+    setPendingHelpHash(null);
+    clearHelpHash();
+    setActiveView(key);
+  }
 
   async function logout() {
     await api("/v1/auth/logout", { method: "POST" });
@@ -3069,19 +3113,30 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
   useEffect(() => {
     function openHelp(event: Event) {
       const hash = (event as CustomEvent<{ hash?: string }>).detail?.hash ?? "#visao-geral";
-      setActiveView("help");
-      window.setTimeout(() => {
-        window.history.replaceState(null, "", hash);
-        const section = document.getElementById(hash.replace("#", ""));
-        section?.scrollIntoView({ behavior: "smooth", block: "start" });
-        section?.classList.add("help-section-flash");
-        window.setTimeout(() => section?.classList.remove("help-section-flash"), 1400);
-      }, 0);
+      openHelpHash(hash);
     }
 
     window.addEventListener("sylembra:open-help", openHelp);
     return () => window.removeEventListener("sylembra:open-help", openHelp);
   }, []);
+
+  useEffect(() => {
+    if (activeView !== "help" || !pendingHelpHash) return;
+    let cancelled = false;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        window.history.replaceState(null, "", pendingHelpHash);
+        const section = document.getElementById(pendingHelpHash.replace("#", ""));
+        section?.scrollIntoView({ behavior: "smooth", block: "start" });
+        section?.classList.add("help-section-flash");
+        window.setTimeout(() => section?.classList.remove("help-section-flash"), 1400);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeView, pendingHelpHash]);
 
   return (
     <main className="app-frame">
@@ -3095,7 +3150,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
             <button
               className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
               key={item.key}
-              onClick={() => setActiveView(item.key)}
+              onClick={() => openView(item.key)}
             >
               <span><Icon name={item.icon} /> {item.label}</span>
               <small>{item.description}</small>
@@ -3108,7 +3163,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         <header className="topbar">
           <div className="topbar-title">
             <nav className="breadcrumbs" aria-label="Breadcrumbs">
-              <button type="button" onClick={() => setActiveView("dashboard")}>Início</button>
+              <button type="button" onClick={() => openView("dashboard")}>Início</button>
               <span>/</span>
               <strong>{activeItem.label}</strong>
             </nav>
@@ -3128,7 +3183,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
                 className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
                 key={item.key}
                 type="button"
-                onClick={() => setActiveView(item.key)}
+                onClick={() => openView(item.key)}
                 title={item.description}
               >
                 <Icon name={item.icon} />
@@ -3140,7 +3195,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         {activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
         ) : activeItem.key === "dashboard" ? (
-          <DashboardView onOpen={setActiveView} />
+          <DashboardView onOpen={openView} />
         ) : activeItem.key === "licenses" ? (
           <LicensesView user={user} />
         ) : activeItem.key === "documents" ? (
