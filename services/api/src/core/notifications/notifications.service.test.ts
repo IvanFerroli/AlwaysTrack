@@ -11,7 +11,7 @@ import {
   scanNotificationJobs,
   verifyWebhookChallenge
 } from "./notifications.service.js";
-import { FakeNotificationProvider } from "./provider.js";
+import { FakeNotificationProvider, NotificationProviderError } from "./provider.js";
 
 const admin: CurrentUser = {
   id: "admin-1",
@@ -153,6 +153,54 @@ describe("notifications service", () => {
     );
     expect(prisma.notificationLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SENT" }) })
+    );
+  });
+
+  it("keeps failed provider sends retryable and logs sanitized provider response", async () => {
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "job-1",
+            templateKey: "venc",
+            recipientPhone: "+550000",
+            payloadJson: "{}",
+            attempts: 0,
+            maxAttempts: 3
+          }
+        ]),
+        update: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "job-1", attempts: 1, maxAttempts: 3 })
+          .mockResolvedValueOnce({ id: "job-1", status: "FAILED" })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", metaTemplateName: "tpl_venc", language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+    const provider = {
+      sendWhatsAppTemplate: vi.fn().mockRejectedValue(new NotificationProviderError("META_WHATSAPP_SEND_FAILED", { error: "rate_limit" }))
+    };
+
+    await processNotificationJobs(prisma as never, admin, provider);
+
+    expect(prisma.notificationJob.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          errorMessage: "META_WHATSAPP_SEND_FAILED",
+          nextRetryAt: expect.any(Date)
+        })
+      })
+    );
+    expect(prisma.notificationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          rawResponse: JSON.stringify({ error: "rate_limit" })
+        })
+      })
     );
   });
 

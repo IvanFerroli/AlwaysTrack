@@ -1,9 +1,9 @@
 # TASK-QLT-003 - E2E do fluxo principal
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: quality-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-QLT-003-e2e-fluxo-principal.md
 
 ## Modo
@@ -22,7 +22,7 @@ Validar o caminho completo admin/RT/profissional/notificacao/relatorio.
 
 ## Dependencias
 - satisfeitas: `TASK-QLT-002`, `TASK-DEP-001`
-- em aberto: ambiente E2E
+- em aberto: n/a
 
 ## Alvos explicitos
 1. teste E2E happy path
@@ -46,3 +46,12 @@ Validar o caminho completo admin/RT/profissional/notificacao/relatorio.
 
 ## Riscos
 - E2E fragil por depender de provider externo
+
+## Execucao
+- Criado E2E leve automatizado em Vitest para o fluxo principal em nivel de dominio/API, usando Prisma mockado e `FakeNotificationProvider`.
+- Fluxo coberto: admin cria licenca, status e calculado, job de notificacao e criado/processado, profissional envia documento por token publico, RT aprova e status e recalculado dentro do escopo.
+- Mantida decisao conservadora de nao introduzir Playwright/browser porque nao havia setup E2E no repo.
+
+## Evidencias
+- `services/api/src/core/quality/main-flow.e2e.test.ts`
+- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.

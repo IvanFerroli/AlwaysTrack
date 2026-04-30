@@ -1,9 +1,9 @@
 # TASK-QLT-004 - Revisao LGPD e seguranca
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: security-reviewer
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-QLT-004-revisao-lgpd-seguranca.md
 
 ## Modo
@@ -46,3 +46,14 @@ Auditar dados sensiveis, acesso, tokens, storage, logs e exports antes do aceite
 
 ## Riscos
 - dado pessoal aparecer em log ou export
+
+## Execucao
+- Criado relatorio operacional de LGPD/seguranca com checklist da secao 19.2.
+- Revisados tokens, storage privado, roles, logs, exports, auditoria e historico critico.
+- Corrigido recálculo de licenca apos validacao por RT: recálculo de item especifico agora respeita escopo do usuario, enquanto recálculo em massa permanece restrito a ADMIN.
+
+## Evidencias
+- `docs/operations/lgpd-security-review-2026-04-30.md`
+- `services/api/src/core/licenses/licenses.service.ts`
+- `services/api/src/core/quality/main-flow.e2e.test.ts`
+- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.

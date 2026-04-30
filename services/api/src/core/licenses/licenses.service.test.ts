@@ -278,4 +278,47 @@ describe("licenses service", () => {
       })
     );
   });
+
+  it("allows scoped single-license recalculation for non-admin users", async () => {
+    const prisma = {
+      license: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lic-1",
+            status: "EXPIRING",
+            expiresAt: new Date("2027-01-01T00:00:00.000Z"),
+            licenseType: { defaultWarningDays: "30", notificationRules: [] },
+            documents: [{ status: "APPROVED" }]
+          }
+        ]),
+        update: vi.fn().mockResolvedValue({ id: "lic-1", status: "REGULAR" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const result = await recalculateLicenses(prisma as never, supervisor, { licenseId: "lic-1" });
+
+    expect(prisma.license.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "lic-1",
+          professional: expect.objectContaining({
+            organizationId: "org-1",
+            OR: [{ unitId: { in: ["unit-1"] } }, { id: "__no_sector_scope__" }]
+          })
+        })
+      })
+    );
+    expect(result.changed).toBe(1);
+  });
+
+  it("keeps mass recalculation restricted to admins", async () => {
+    const prisma = {
+      license: { findMany: vi.fn() },
+      auditLog: { create: vi.fn() }
+    };
+
+    await expect(recalculateLicenses(prisma as never, supervisor)).rejects.toEqual(new LicenseManagementError("FORBIDDEN"));
+    expect(prisma.license.findMany).not.toHaveBeenCalled();
+  });
 });

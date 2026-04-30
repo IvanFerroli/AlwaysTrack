@@ -1,9 +1,9 @@
 # TASK-QLT-002 - Testes de dominio e integracao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: quality-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-QLT-002-testes-dominio-integracao.md
 
 ## Modo
@@ -44,3 +44,13 @@ Cobrir regras criticas de dominio e integracoes internas antes do E2E final.
 
 ## Riscos
 - teste testar mock demais e comportamento real de menos
+
+## Execucao
+- Suite de dominio/integracao reforcada em API.
+- Adicionado teste para falha/retry de provider de notificacao com log normalizado.
+- Mantida cobertura existente para status de licenca, tokens/upload, relatorios, roles, documentos, auth, auditoria e jobs.
+
+## Evidencias
+- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.
+- `services/api/src/core/notifications/notifications.service.test.ts`
+- `services/api/src/core/quality/main-flow.e2e.test.ts`

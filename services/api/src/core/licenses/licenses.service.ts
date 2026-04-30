@@ -443,12 +443,14 @@ export async function recalculateLicenses(
   actor: CurrentUser,
   input: RecalculateLicensesInput = {}
 ) {
-  await ensureAdmin(actor);
+  if (actor.role !== "ADMIN" && !input.licenseId) {
+    throw new LicenseManagementError("FORBIDDEN");
+  }
 
   const licenses = await prisma.license.findMany({
     where: {
       id: input.licenseId,
-      professional: { organizationId: actor.organizationId }
+      professional: scopedProfessionalWhere(actor)
     },
     include: includeLicenseStatusRelations(),
     orderBy: { createdAt: "asc" }
