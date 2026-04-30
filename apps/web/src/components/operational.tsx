@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { DocumentStatus, LicenseStatus, NotificationStatus } from "@sylembra/shared";
 
 type StatusKind = "license" | "document" | "notification" | "active";
@@ -49,6 +50,77 @@ export function OperationalState({ state, title, detail }: OperationalStateProps
   );
 }
 
+interface HelpTipProps {
+  text: string;
+  href?: string;
+}
+
+export function HelpTip({ text, href }: HelpTipProps) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<CSSProperties>({});
+
+  function openHelp() {
+    if (!href) return;
+    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash: href } }));
+  }
+
+  function updatePosition() {
+    const button = buttonRef.current;
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const margin = 12;
+    const width = Math.min(280, window.innerWidth - margin * 2);
+    const centeredLeft = rect.left + rect.width / 2 - width / 2;
+    const left = Math.max(margin, Math.min(centeredLeft, window.innerWidth - width - margin));
+    const showAbove = rect.top > 58;
+    setStyle({
+      left,
+      top: showAbove ? rect.top - 10 : rect.bottom + 10,
+      transform: showAbove ? "translateY(-100%)" : "none",
+      width
+    });
+  }
+
+  function show() {
+    updatePosition();
+    setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        className="ui-info-button"
+        type="button"
+        aria-label={`${text} Abrir ajuda.`}
+        ref={buttonRef}
+        onBlur={() => setOpen(false)}
+        onClick={openHelp}
+        onFocus={show}
+        onMouseEnter={show}
+        onMouseLeave={() => setOpen(false)}
+      >
+        i
+      </button>
+      {open ? createPortal(
+        <span className="info-tip-tooltip" role="tooltip" style={style}>{text}</span>,
+        document.body
+      ) : null}
+    </>
+  );
+}
+
 interface FilterField {
   key: string;
   label: string;
@@ -66,11 +138,6 @@ interface OperationalFiltersProps {
 }
 
 export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }: OperationalFiltersProps) {
-  function openHelp(hash?: string) {
-    if (!hash) return;
-    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash } }));
-  }
-
   return (
     <section className="panel operational-filters">
       {fields.map((field) => (
@@ -78,15 +145,7 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
           <span className="label-row">
             {field.label}
             {field.help ? (
-              <button
-                className="ui-info-button"
-                type="button"
-                aria-label={`${field.help} Abrir ajuda.`}
-                onClick={() => openHelp(field.helpHref)}
-              >
-                i
-                <span className="info-tip-tooltip" role="tooltip">{field.help}</span>
-              </button>
+              <HelpTip text={field.help} href={field.helpHref} />
             ) : null}
           </span>
           <input

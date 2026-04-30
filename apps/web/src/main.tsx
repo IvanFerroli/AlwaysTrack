@@ -10,6 +10,7 @@ import {
 } from "@sylembra/shared";
 import {
   ConfirmButton,
+  HelpTip,
   OperationalFilters,
   OperationalState,
   OperationalTable,
@@ -335,6 +336,14 @@ const helpAnchorIds = new Set([
   "configuracoes",
   "perfis-e-permissoes",
   "filtros-e-ids",
+  "cadastro-profissional",
+  "cadastro-licenca",
+  "validacao-documentos",
+  "links-de-upload",
+  "configuracao-usuarios",
+  "configuracao-organizacao",
+  "jobs-notificacao",
+  "glossario",
   "problemas-comuns"
 ]);
 
@@ -361,17 +370,7 @@ function BrandMark({ className = "" }: { className?: string }) {
 }
 
 function InfoTip({ text, href }: { text: string; href?: string }) {
-  function openHelp() {
-    if (!href) return;
-    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash: href } }));
-  }
-
-  return (
-    <button className="ui-info-button" type="button" aria-label={`${text} Abrir ajuda.`} onClick={openHelp}>
-      i
-      <span className="info-tip-tooltip" role="tooltip">{text}</span>
-    </button>
-  );
+  return <HelpTip text={text} href={href} />;
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -1176,15 +1175,15 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 <input value={name} onChange={(event) => setName(event.target.value)} />
               </label>
               <label>
-                CPF
+                <span className="label-row">CPF <InfoTip text="Use o CPF para evitar duplicidade de profissional." href="#cadastro-profissional" /></span>
                 <input value={cpf} onChange={(event) => setCpf(event.target.value)} />
               </label>
               <label>
-                Email
+                <span className="label-row">Email <InfoTip text="Use email correto quando a pessoa tambem precisar acessar ou receber contato." href="#cadastro-profissional" /></span>
                 <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
               </label>
               <label>
-                Telefone
+                <span className="label-row">Telefone <InfoTip text="Informe telefone de contato operacional; notificacoes reais dependem de configuracao." href="#notificacoes" /></span>
                 <input value={phone} onChange={(event) => setPhone(event.target.value)} />
               </label>
               <label>
@@ -1192,7 +1191,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 <input value={position} onChange={(event) => setPosition(event.target.value)} />
               </label>
               <label>
-                Unidade
+                <span className="label-row">Unidade <InfoTip text="Unidade define escopo, filtros e relatorios deste profissional." href="#configuracao-organizacao" /></span>
                 <select
                   value={unitId}
                   onChange={(event) => {
@@ -1209,7 +1208,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Setor
+                <span className="label-row">Setor <InfoTip text="Setor limita visualizacao e ajuda a localizar pendencias." href="#configuracao-organizacao" /></span>
                 <select value={sectorId} onChange={(event) => setSectorId(event.target.value)}>
                   {selectedUnitSectors.map((sector) => (
                     <option key={sector.id} value={sector.id}>
@@ -1241,7 +1240,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Observações
+                <span className="label-row">Observações <InfoTip text="Registre apenas contexto operacional; nao cole senhas, tokens ou segredos." href="#glossario" /></span>
                 <input value={notes} onChange={(event) => setNotes(event.target.value)} />
               </label>
             </div>
@@ -1583,9 +1582,12 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
       {user.role === "ADMIN" ? (
         <section className="panel action-panel">
-          <button className="secondary" disabled={saving} type="button" onClick={() => void recalculateStatuses()}>
-            Recalcular status
-          </button>
+          <span className="label-row">
+            <button className="secondary" disabled={saving} type="button" onClick={() => void recalculateStatuses()}>
+              Recalcular status
+            </button>
+            <InfoTip text="Reavalia vencimentos das licencas sem alterar documentos enviados." href="#cadastro-licenca" />
+          </span>
         </section>
       ) : null}
 
@@ -1619,7 +1621,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
               <h2>Nova licença</h2>
               <div className="form-grid">
                 <label>
-                  Profissional
+                  <span className="label-row">Profissional <InfoTip text="A licenca ficara vinculada a este profissional." href="#cadastro-licenca" /></span>
                   <select value={professionalId} onChange={(event) => setProfessionalId(event.target.value)}>
                     {activeProfessionals.map((professional) => (
                       <option key={professional.id} value={professional.id}>
@@ -1629,7 +1631,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   </select>
                 </label>
                 <label>
-                  Tipo
+                  <span className="label-row">Tipo <InfoTip text="O tipo influencia relatorios e avisos padrao de vencimento." href="#cadastro-licenca" /></span>
                   <select value={licenseTypeId} onChange={(event) => setLicenseTypeId(event.target.value)}>
                     {activeLicenseTypes.map((licenseType) => (
                       <option key={licenseType.id} value={licenseType.id}>
@@ -1639,27 +1641,27 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   </select>
                 </label>
                 <label>
-                  Número
+                  <span className="label-row">Número <InfoTip text="Copie o numero exatamente como aparece no documento." href="#cadastro-licenca" /></span>
                   <input value={number} onChange={(event) => setNumber(event.target.value)} />
                 </label>
                 <label>
-                  Emissor
+                  <span className="label-row">Emissor <InfoTip text="Informe o orgao ou entidade emissora da licenca." href="#cadastro-licenca" /></span>
                   <input value={issuer} onChange={(event) => setIssuer(event.target.value)} />
                 </label>
                 <label>
-                  UF
+                  <span className="label-row">UF <InfoTip text="Use a sigla do estado do registro, com duas letras." href="#cadastro-licenca" /></span>
                   <input value={uf} onChange={(event) => setUf(event.target.value)} maxLength={2} />
                 </label>
                 <label>
-                  Emissão
+                  <span className="label-row">Emissão <InfoTip text="Confira a data de emissao antes de salvar." href="#cadastro-licenca" /></span>
                   <input value={issuedAt} onChange={(event) => setIssuedAt(event.target.value)} type="date" />
                 </label>
                 <label>
-                  Vencimento
+                  <span className="label-row">Vencimento <InfoTip text="Esta data alimenta status, dashboard e notificacoes." href="#cadastro-licenca" /></span>
                   <input value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} type="date" />
                 </label>
                 <label>
-                  Status
+                  <span className="label-row">Status <InfoTip text="Use status manual com cuidado; o recalculo pode reavaliar vencimentos." href="#cadastro-licenca" /></span>
                   <select value={status} onChange={(event) => setStatus(event.target.value as LicenseStatus)}>
                     {licenseStatuses.map((item) => (
                       <option key={item} value={item}>
@@ -1669,7 +1671,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   </select>
                 </label>
                 <label>
-                  Observações
+                  <span className="label-row">Observações <InfoTip text="Use para contexto operacional, nunca para credenciais." href="#glossario" /></span>
                   <input value={notes} onChange={(event) => setNotes(event.target.value)} />
                 </label>
               </div>
@@ -1714,9 +1716,12 @@ function LicensesView({ user }: { user: CurrentUser }) {
                         <button className="secondary" type="button" onClick={() => void editLicense(item)}>
                           Editar
                         </button>
-                        <button className="secondary" type="button" onClick={() => void generateUploadLink(item)}>
-                          Gerar link
-                        </button>
+                        <span className="label-row">
+                          <button className="secondary" type="button" onClick={() => void generateUploadLink(item)}>
+                            Gerar link
+                          </button>
+                          <InfoTip text="Gera link temporario para upload do documento desta licenca." href="#links-de-upload" />
+                        </span>
                         <ConfirmButton
                           disabled={saving}
                           confirmLabel="Confirmar inativação"
@@ -1922,12 +1927,18 @@ function DocumentsView({ user }: { user: CurrentUser }) {
                       </button>
                       {(user.role === "ADMIN" || user.role === "RT") && item.status === "UPLOADED" ? (
                         <>
-                          <button disabled={saving} type="button" onClick={() => void approve(item)}>
-                            <Icon name="check" /> Aprovar
-                          </button>
-                          <button className="danger" disabled={saving} type="button" onClick={() => void reject(item)}>
-                            Recusar
-                          </button>
+                          <span className="label-row">
+                            <button disabled={saving} type="button" onClick={() => void approve(item)}>
+                              <Icon name="check" /> Aprovar
+                            </button>
+                            <InfoTip text="Aprove somente depois de conferir profissional, licenca, validade e legibilidade." href="#validacao-documentos" />
+                          </span>
+                          <span className="label-row">
+                            <button className="danger" disabled={saving} type="button" onClick={() => void reject(item)}>
+                              Recusar
+                            </button>
+                            <InfoTip text="Recuse com motivo claro para orientar a correcao do profissional." href="#validacao-documentos" />
+                          </span>
                         </>
                       ) : null}
                     </div>
@@ -2247,15 +2258,15 @@ function SettingsView() {
 
       <section className="panel form-panel">
         <form onSubmit={saveOrganization}>
-          <h2>Organização</h2>
-          <label>
-            Nome
-            <input value={orgName} onChange={(event) => setOrgName(event.target.value)} />
-          </label>
-          <label>
-            Documento
-            <input value={orgDocument} onChange={(event) => setOrgDocument(event.target.value)} />
-          </label>
+              <h2>Organização</h2>
+              <label>
+                Nome
+                <input value={orgName} onChange={(event) => setOrgName(event.target.value)} />
+              </label>
+              <label>
+                <span className="label-row">Documento <InfoTip text="Identificador institucional, como CNPJ, para referencia administrativa." href="#configuracao-organizacao" /></span>
+                <input value={orgDocument} onChange={(event) => setOrgDocument(event.target.value)} />
+              </label>
           <div className="form-actions">
             <StatusBadge kind="active" value={organization.active ? "ACTIVE" : "INACTIVE"} />
             <button disabled={saving || !orgName.trim()}>Salvar</button>
@@ -2281,7 +2292,7 @@ function SettingsView() {
         <form onSubmit={addUnit}>
           <h2>Nova unidade</h2>
           <label>
-            Nome
+            <span className="label-row">Nome <InfoTip text="Unidades organizam escopo, filtros e relatorios." href="#configuracao-organizacao" /></span>
             <input value={unitName} onChange={(event) => setUnitName(event.target.value)} />
           </label>
           <button disabled={saving || !unitName.trim()}>Criar unidade</button>
@@ -2292,7 +2303,7 @@ function SettingsView() {
         <form onSubmit={addSector}>
           <h2>Novo setor</h2>
           <label>
-            Unidade
+            <span className="label-row">Unidade <InfoTip text="Escolha onde o novo setor sera criado." href="#configuracao-organizacao" /></span>
             <select value={sectorUnitId} onChange={(event) => setSectorUnitId(event.target.value)}>
               {organization.units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
@@ -2302,7 +2313,7 @@ function SettingsView() {
             </select>
           </label>
           <label>
-            Nome
+            <span className="label-row">Nome <InfoTip text="Setores ajudam a limitar acesso e localizar pendencias." href="#configuracao-organizacao" /></span>
             <input value={sectorName} onChange={(event) => setSectorName(event.target.value)} />
           </label>
           <button disabled={saving || !sectorName.trim() || !sectorUnitId}>Criar setor</button>
@@ -2322,7 +2333,7 @@ function SettingsView() {
               <input value={userEmail} onChange={(event) => setUserEmail(event.target.value)} type="email" />
             </label>
             <label>
-              Senha inicial
+              <span className="label-row">Senha inicial <InfoTip text="Use ao menos 8 caracteres e compartilhe por canal seguro." href="#configuracao-usuarios" /></span>
               <input
                 value={userPassword}
                 onChange={(event) => setUserPassword(event.target.value)}
@@ -2331,7 +2342,7 @@ function SettingsView() {
               />
             </label>
             <label>
-              Perfil
+              <span className="label-row">Perfil <InfoTip text="Admin opera tudo; RT e Supervisor dependem do escopo definido." href="#perfis-e-permissoes" /></span>
               <select value={userRole} onChange={(event) => setUserRole(event.target.value as UserRole)}>
                 {userRoles.map((role) => (
                   <option key={role} value={role}>
@@ -2344,7 +2355,7 @@ function SettingsView() {
           {userRole === "ADMIN" ? null : (
             <div className="scope-grid">
               <fieldset>
-                <legend>Unidades</legend>
+                <legend>Unidades <InfoTip text="Unidades marcadas limitam o que o usuario pode ver." href="#configuracao-usuarios" /></legend>
                 {organization.units.map((unit) => (
                   <label className="checkbox-row" key={unit.id}>
                     <input
@@ -2357,7 +2368,7 @@ function SettingsView() {
                 ))}
               </fieldset>
               <fieldset>
-                <legend>Setores</legend>
+                <legend>Setores <InfoTip text="Setores marcados refinam o escopo de visualizacao." href="#configuracao-usuarios" /></legend>
                 {sectors.map((sector) => (
                   <label className="checkbox-row" key={sector.id}>
                     <input
@@ -2446,7 +2457,7 @@ function SettingsView() {
               <input value={templateMetaName} onChange={(event) => setTemplateMetaName(event.target.value)} />
             </label>
             <label>
-              Preview
+              <span className="label-row">Preview <InfoTip text="Texto para conferencia operacional; a mensagem real da Meta depende do template aprovado." href="#jobs-notificacao" /></span>
               <input value={templatePreview} onChange={(event) => setTemplatePreview(event.target.value)} />
             </label>
           </div>
@@ -2482,7 +2493,7 @@ function SettingsView() {
             </label>
             <label className="checkbox-row">
               <input checked={ruleNotifyRt} onChange={() => setRuleNotifyRt((current) => !current)} type="checkbox" />
-              Notificar RT
+              <span className="label-row">Notificar RT <InfoTip text="Tambem cria aviso para o responsavel tecnico vinculado." href="#jobs-notificacao" /></span>
             </label>
           </div>
           <button disabled={saving || !ruleTemplateKey}>Criar regra</button>
@@ -2491,12 +2502,18 @@ function SettingsView() {
 
       <section className="panel table-panel full-span">
         <div className="action-panel">
-          <button className="secondary" disabled={saving} type="button" onClick={() => void scanNotifications()}>
-            Criar jobs
-          </button>
-          <button disabled={saving} type="button" onClick={() => void processNotifications()}>
-            Processar jobs
-          </button>
+          <span className="label-row">
+            <button className="secondary" disabled={saving} type="button" onClick={() => void scanNotifications()}>
+              Criar jobs
+            </button>
+            <InfoTip text="Gera pendencias de notificacao conforme regras e vencimentos." href="#jobs-notificacao" />
+          </span>
+          <span className="label-row">
+            <button disabled={saving} type="button" onClick={() => void processNotifications()}>
+              Processar jobs
+            </button>
+            <InfoTip text="Tenta enviar as pendencias pelo provider configurado." href="#jobs-notificacao" />
+          </span>
         </div>
         <OperationalTable
           items={notificationTemplates}
@@ -2774,7 +2791,7 @@ function PublicUploadView({ token }: { token: string }) {
               <span>Expira em {new Date(uploadToken.expiresAt).toLocaleString("pt-BR")}</span>
             </div>
             <label>
-              Arquivo
+              <span className="label-row">Arquivo <InfoTip text="Envie PDF ou imagem legivel da licenca correta." href="#links-de-upload" /></span>
               <input
                 accept="application/pdf,image/jpeg,image/png,image/webp"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
@@ -2856,7 +2873,7 @@ function PublicFaqView() {
         <OperationalFilters
           fields={[
             { key: "query", label: "Busca", value: query, placeholder: "Documento, link, prazo...", onChange: setQuery },
-            { key: "category", label: "Categoria", value: category, placeholder: "Envio", onChange: setCategory }
+            { key: "category", label: "Categoria", value: category, placeholder: "Envio", help: "Use categoria para encontrar respostas por assunto.", helpHref: "#problemas-comuns", onChange: setCategory }
           ]}
           onSubmit={load}
         />
@@ -3024,6 +3041,86 @@ function HelpView({ user }: { user: CurrentUser }) {
       check: "Não confunda ID interno com CPF, número de licença, telefone ou WABA ID.",
       common: "Um caractere errado no ID pode zerar a lista.",
       support: "Peça suporte se você precisa de um ID e não sabe onde encontrá-lo."
+    },
+    {
+      id: "cadastro-profissional",
+      title: "Cadastro de profissional",
+      who: "Admin",
+      text: "Cria a pessoa acompanhada pela operação. Unidade, setor e RT definem onde ela aparece e quem acompanha suas pendências.",
+      steps: ["Preencha nome, CPF, email e telefone.", "Escolha unidade e setor corretos.", "Vincule RT e usuário apenas quando fizer sentido."],
+      check: "Confira CPF, email, unidade, setor e duplicidade antes de criar.",
+      common: "Vincular unidade ou setor errado faz o profissional sumir para quem deveria acompanhá-lo.",
+      support: "Peça suporte se existir duplicidade de CPF/email ou se o profissional precisar mudar de escopo."
+    },
+    {
+      id: "cadastro-licenca",
+      title: "Cadastro de licença",
+      who: "Admin",
+      text: "Registra a licença que será acompanhada por vencimento, documento e notificação.",
+      steps: ["Escolha profissional e tipo.", "Copie número, emissor, UF e datas do documento.", "Revise status e observações antes de salvar."],
+      check: "Profissional, tipo, número, emissor, UF, emissão e vencimento devem bater com o documento.",
+      common: "Data de vencimento errada altera dashboard, relatórios e notificações.",
+      support: "Procure suporte se o status não recalcular como esperado ou se o tipo de licença estiver faltando."
+    },
+    {
+      id: "validacao-documentos",
+      title: "Validação de documentos",
+      who: "Admin e RT",
+      text: "Aprovação transforma o upload em evidência aceita; recusa devolve correção para o profissional.",
+      steps: ["Baixe e abra o arquivo.", "Confira profissional, licença, número, validade e legibilidade.", "Aprove se estiver correto ou recuse com motivo objetivo."],
+      check: "Nunca aprove documento ilegível, vencido, de outra pessoa ou de outra licença.",
+      common: "Motivo de recusa genérico atrasa a regularização; diga exatamente o que precisa corrigir.",
+      support: "Acione suporte se o arquivo não abrir, parecer adulterado ou estiver ligado ao registro errado."
+    },
+    {
+      id: "links-de-upload",
+      title: "Links de upload",
+      who: "Admin e RT geram; profissional envia",
+      text: "Link de upload é temporário e vale para uma licença específica. Ele não deve ser reaproveitado para outra pessoa.",
+      steps: ["Gere o link na linha da licença.", "Envie apenas ao profissional correto.", "Acompanhe o novo documento em Documentos."],
+      check: "Confirme profissional, licença e prazo antes de compartilhar.",
+      common: "Link expirado ou enviado para pessoa errada exige gerar outro link.",
+      support: "Peça suporte se o profissional não conseguir anexar PDF/imagem ou se o upload não aparecer."
+    },
+    {
+      id: "configuracao-usuarios",
+      title: "Configuração de usuários",
+      who: "Admin",
+      text: "Usuários controlam acesso. Perfil e escopo definem o que cada pessoa enxerga e pode fazer.",
+      steps: ["Crie nome, email e senha inicial.", "Escolha perfil.", "Marque unidades e setores para RT ou Supervisor."],
+      check: "Senha inicial deve ter no mínimo 8 caracteres e ser compartilhada por canal seguro.",
+      common: "RT ou Supervisor sem escopo vê menos dados do que espera.",
+      support: "Acione suporte para corrigir acesso, resetar usuário crítico ou investigar visibilidade indevida."
+    },
+    {
+      id: "configuracao-organizacao",
+      title: "Configuração da organização",
+      who: "Admin",
+      text: "Organização, unidades e setores sustentam filtros, relatórios, escopos e cadastros.",
+      steps: ["Mantenha nome e documento institucional.", "Cadastre unidades.", "Cadastre setores dentro da unidade correta."],
+      check: "Antes de desativar algo, confira se há usuários, profissionais ou licenças dependentes.",
+      common: "Setor criado na unidade errada confunde filtros e permissões.",
+      support: "Procure suporte antes de reestruturar unidades ou desativar organização em ambiente real."
+    },
+    {
+      id: "jobs-notificacao",
+      title: "Jobs de notificação",
+      who: "Admin",
+      text: "Criar jobs monta pendências de aviso. Processar jobs tenta enviar pelo provider configurado, fake/local ou Meta real.",
+      steps: ["Configure template e regra.", "Use Criar jobs para gerar pendências.", "Use Processar jobs para tentar envio."],
+      check: "Confirme dias, repetição, RT, template e ambiente antes de processar.",
+      common: "Provider fake não envia mensagem real; falhas de Meta real podem envolver template, credencial ou webhook.",
+      support: "Chame suporte para troca de fake para Meta real, falhas repetidas ou dúvidas sobre credenciais."
+    },
+    {
+      id: "glossario",
+      title: "Glossário rápido",
+      who: "Todos os perfis",
+      text: "Alguns termos são internos do sistema e aparecem em filtros, relatórios e auditoria.",
+      steps: ["ID é identificador interno.", "RT é responsável técnico.", "Job é uma pendência de processamento.", "Escopo é o conjunto de dados que um usuário pode ver."],
+      check: "Não confunda ID interno com CPF, telefone, número de licença ou credencial Meta.",
+      common: "Status técnico ajuda em filtros, mas a decisão operacional deve considerar o contexto do registro.",
+      support: "Peça suporte quando um termo técnico bloquear uma decisão operacional."
     },
     {
       id: "problemas-comuns",
