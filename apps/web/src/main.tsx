@@ -1,6 +1,20 @@
 import { StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  BadgeCheck,
+  BarChart3,
+  Check,
+  CircleHelp,
+  Download,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  ScrollText,
+  Settings,
+  Users,
+  type LucideIcon
+} from "lucide-react";
+import {
   licenseStatuses,
   userRoles,
   type ApiResult,
@@ -347,22 +361,23 @@ const helpAnchorIds = new Set([
   "problemas-comuns"
 ]);
 
-const iconLabels: Record<IconName, string> = {
-  home: "⌂",
-  users: "◎",
-  badge: "◈",
-  file: "□",
-  chart: "▥",
-  audit: "≡",
-  settings: "⚙",
-  help: "?",
-  logout: "↗",
-  download: "↓",
-  check: "✓"
+const iconComponents: Record<IconName, LucideIcon> = {
+  home: LayoutDashboard,
+  users: Users,
+  badge: BadgeCheck,
+  file: FileText,
+  chart: BarChart3,
+  audit: ScrollText,
+  settings: Settings,
+  help: CircleHelp,
+  logout: LogOut,
+  download: Download,
+  check: Check
 };
 
 function Icon({ name }: { name: IconName }) {
-  return <span className="icon" aria-hidden="true">{iconLabels[name]}</span>;
+  const IconComponent = iconComponents[name];
+  return <IconComponent className="icon" aria-hidden="true" strokeWidth={2.25} />;
 }
 
 function BrandMark({ className = "" }: { className?: string }) {

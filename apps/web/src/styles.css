@@ -229,13 +229,15 @@ label {
 
 .icon {
   align-items: center;
+  color: currentColor;
   display: inline-flex;
   flex: 0 0 auto;
-  font-size: 17px;
-  font-weight: 900;
+  height: 17px;
   justify-content: center;
   line-height: 1;
-  min-width: 18px;
+  min-width: 17px;
+  stroke: currentColor;
+  width: 17px;
 }
 
 h1,
@@ -523,13 +525,15 @@ button .icon {
 }
 
 .nav-item .icon {
-  font-size: 20px;
+  height: 20px;
   min-width: 24px;
+  width: 20px;
 }
 
 .top-nav-item .icon {
-  font-size: 19px;
+  height: 19px;
   min-width: 22px;
+  width: 19px;
 }
 
 .nav-item small {
