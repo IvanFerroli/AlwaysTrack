@@ -1,7 +1,7 @@
 # TASK-DSH-002 - Dashboard filas operacionais
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: frontend implementer
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-DSH-002-dashboard-filas-operacionais.md
@@ -43,3 +43,15 @@ Adicionar listas acionaveis para o que precisa de atencao hoje.
 
 ## Riscos
 - dashboard ficar decorativo e nao operacional
+
+## Evidencias de conclusao
+- Dashboard lista licencas vencendo em 30 dias, licencas vencidas, documentos pendentes, uploads recentes e falhas de notificacao.
+- Incluidas agregacoes operacionais por setor, RT e unidade.
+- Cada fila possui acao direta para Licencas, Documentos ou Configuracoes.
+- Estados vazios sao tratados com `OperationalState`.
+
+## Validacao executada
+- `npm run check` - 83 testes passaram.
+- `npm run setup` - migrations/seed executados com sucesso.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local em `/v1/dashboard` confirmou retorno das filas e agregacoes.

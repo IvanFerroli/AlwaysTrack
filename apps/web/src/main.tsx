@@ -229,6 +229,25 @@ interface FaqItem {
   active?: boolean;
 }
 
+interface DashboardData {
+  metrics: {
+    totalProfessionals: number;
+    licenses: { regular: number; expiring: number; expired: number };
+    documents: { pendingValidation: number };
+    notifications: { pending: number; sent: number; failed: number };
+  };
+  queues: {
+    expiringLicenses: LicenseItem[];
+    expiredLicenses: LicenseItem[];
+    pendingDocuments: DocumentItem[];
+    recentUploads: DocumentItem[];
+    failedNotifications: NotificationJobItem[];
+    expiredBySector: Array<{ label: string; total: number }>;
+    pendingDocumentsByRt: Array<{ label: string; total: number }>;
+    pendingDocumentsByUnit: Array<{ label: string; total: number }>;
+  };
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -320,6 +339,202 @@ function PlaceholderView({ item }: { item: NavItem }) {
       <h2>{item.description}</h2>
       <p className="muted">Modulo reservado no shell. A implementacao funcional entra nas proximas tasks do roadmap.</p>
     </section>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      setDashboard(await api<DashboardData>("/v1/dashboard"));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
+  if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
+  if (!dashboard) return <OperationalState state="empty" title="Dashboard indisponivel" />;
+
+  return (
+    <div className="content-stack">
+      <section className="metrics-grid">
+        <MetricCard label="Profissionais" value={dashboard.metrics.totalProfessionals} />
+        <MetricCard label="Licencas regulares" value={dashboard.metrics.licenses.regular} />
+        <MetricCard label="Licencas a vencer" value={dashboard.metrics.licenses.expiring} />
+        <MetricCard label="Licencas vencidas" value={dashboard.metrics.licenses.expired} />
+        <MetricCard label="Docs em validacao" value={dashboard.metrics.documents.pendingValidation} />
+        <MetricCard label="Notificacoes pendentes" value={dashboard.metrics.notifications.pending} />
+        <MetricCard label="Notificacoes enviadas" value={dashboard.metrics.notifications.sent} />
+        <MetricCard label="Notificacoes com falha" value={dashboard.metrics.notifications.failed} />
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel table-panel">
+          <h2>Vencendo em 30 dias</h2>
+          {dashboard.queues.expiringLicenses.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma licenca a vencer" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.expiringLicenses}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "license", header: "Licenca", render: (item) => item.licenseType.name },
+                { key: "expires", header: "Vence", render: (item) => (item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("pt-BR") : "-") },
+                { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver licencas</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Vencidas</h2>
+          {dashboard.queues.expiredLicenses.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma licenca vencida" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.expiredLicenses}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "sector", header: "Setor", render: (item) => item.professional.sector.name },
+                { key: "license", header: "Licenca", render: (item) => item.licenseType.name },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Regularizar</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Documentos pendentes</h2>
+          {dashboard.queues.pendingDocuments.length === 0 ? (
+            <OperationalState state="empty" title="Nenhum documento pendente" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.pendingDocuments}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "file", header: "Arquivo", render: (item) => item.fileName },
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "status", header: "Status", render: (item) => <StatusBadge kind="document" value={item.status} /> },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Validar</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Uploads recentes</h2>
+          {dashboard.queues.recentUploads.length === 0 ? (
+            <OperationalState state="empty" title="Nenhum upload recente" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.recentUploads}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "file", header: "Arquivo", render: (item) => item.fileName },
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "createdAt", header: "Recebido", render: (item) => new Date(item.createdAt).toLocaleDateString("pt-BR") },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Abrir</button> }
+              ]}
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel table-panel">
+          <h2>Vencidas por setor</h2>
+          {dashboard.queues.expiredBySector.length === 0 ? (
+            <OperationalState state="empty" title="Sem vencidas por setor" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.expiredBySector}
+              getRowKey={(item) => item.label}
+              columns={[
+                { key: "label", header: "Setor", render: (item) => item.label },
+                { key: "total", header: "Total", render: (item) => item.total },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Pendencias por RT</h2>
+          {dashboard.queues.pendingDocumentsByRt.length === 0 ? (
+            <OperationalState state="empty" title="Sem pendencias por RT" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.pendingDocumentsByRt}
+              getRowKey={(item) => item.label}
+              columns={[
+                { key: "label", header: "RT", render: (item) => item.label },
+                { key: "total", header: "Total", render: (item) => item.total },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Pendencias por unidade</h2>
+          {dashboard.queues.pendingDocumentsByUnit.length === 0 ? (
+            <OperationalState state="empty" title="Sem pendencias por unidade" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.pendingDocumentsByUnit}
+              getRowKey={(item) => item.label}
+              columns={[
+                { key: "label", header: "Unidade", render: (item) => item.label },
+                { key: "total", header: "Total", render: (item) => item.total },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Falhas de notificacao</h2>
+          {dashboard.queues.failedNotifications.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma falha de notificacao" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.failedNotifications}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+                { key: "template", header: "Template", render: (item) => item.templateKey },
+                { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
+                { key: "action", header: "Acao", render: () => <button className="secondary" onClick={() => onOpen("settings")}>Ajustar</button> }
+              ]}
+            />
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -2313,6 +2528,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         </header>
         {activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
+        ) : activeItem.key === "dashboard" ? (
+          <DashboardView onOpen={setActiveView} />
         ) : activeItem.key === "licenses" ? (
           <LicensesView user={user} />
         ) : activeItem.key === "documents" ? (

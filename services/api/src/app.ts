@@ -63,6 +63,7 @@ import {
   listPublicFaqItemsHandler,
   updateFaqItemHandler
 } from "./core/faq/faq.handlers.js";
+import { getDashboardHandler } from "./core/dashboard/dashboard.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -87,6 +88,7 @@ export function createApp() {
   app.get("/v1/auth/me", requireAuth, meHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
+  app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
   app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
   app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);

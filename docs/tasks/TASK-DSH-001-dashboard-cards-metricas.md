@@ -1,7 +1,7 @@
 # TASK-DSH-001 - Dashboard cards e metricas
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-DSH-001-dashboard-cards-metricas.md
@@ -43,3 +43,15 @@ Implementar cards principais do dashboard com dados reais do banco.
 
 ## Riscos
 - metricas ignorarem permissoes
+
+## Evidencias de conclusao
+- Criado endpoint protegido `GET /v1/dashboard` para ADMIN, RT e SUPERVISOR.
+- Cards do dashboard usam dados reais para profissionais, licencas, documentos e notificacoes.
+- Agregacoes respeitam escopo por organizacao, RT responsavel e escopos de unidade/setor do supervisor.
+- Testes cobrem agregacao ADMIN e restricao de escopo SUPERVISOR.
+
+## Validacao executada
+- `npm run check` - 83 testes passaram.
+- `npm run setup` - migrations/seed executados com sucesso.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local em `/v1/dashboard` com seed retornou metricas reais.
