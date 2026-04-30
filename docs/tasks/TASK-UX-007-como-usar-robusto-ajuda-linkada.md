@@ -1,7 +1,7 @@
 # TASK-UX-007 - Como usar robusto e ajuda contextual linkada
 
 ## Metadata
-- status: proposed
+- status: done
 - owner: taskyfier
 - last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-UX-007-como-usar-robusto-ajuda-linkada.md
@@ -156,3 +156,12 @@ O `Como usar` atual cobre apenas orientacao basica. Ele ainda deixa brechas para
 - validacao executada
 - riscos residuais
 - sugestao de commit sem mencionar secrets
+
+## Execucao 2026-04-30
+- `Como usar` reescrito com sumario interno e anchors estaveis para todos os fluxos essenciais.
+- Icones `i` em filtros e formularios passam a abrir a secao correspondente por clique ou teclado, mantendo resumo em hover/focus.
+- Nenhum `.env`, segredo Meta, token, Phone Number ID real, WABA ID real ou job de notificacoes foi alterado.
+
+## Evidencias 2026-04-30
+- Anchors implementadas: `#visao-geral`, `#primeiro-acesso`, `#dashboard`, `#profissionais`, `#licencas`, `#documentos`, `#upload-publico`, `#notificacoes`, `#relatorios`, `#auditoria`, `#configuracoes`, `#perfis-e-permissoes`, `#filtros-e-ids`, `#problemas-comuns`.
+- Validacao executada: `npm run build --workspace @sylembra/web` e `npm run check`.

@@ -187,18 +187,29 @@ label {
   background: var(--color-primary-soft);
   border: 1px solid #cce9ef;
   border-radius: var(--radius-pill);
+  box-shadow: none;
   color: var(--color-primary);
+  cursor: pointer;
   display: inline-flex;
+  flex: 0 0 auto;
   font-size: 11px;
   font-weight: 900;
   height: 18px;
   justify-content: center;
   line-height: 1;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0;
   position: relative;
   width: 18px;
 }
 
-.info-tip span {
+.info-tip:hover:not(:disabled) {
+  box-shadow: none;
+  transform: none;
+}
+
+.info-tip-tooltip {
   background: var(--color-heading);
   border-radius: var(--radius-sm);
   bottom: calc(100% + 8px);
@@ -216,8 +227,8 @@ label {
   z-index: 30;
 }
 
-.info-tip:hover span,
-.info-tip:focus span {
+.info-tip:hover .info-tip-tooltip,
+.info-tip:focus .info-tip-tooltip {
   display: block;
 }
 
@@ -996,6 +1007,48 @@ legend {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.help-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.help-summary a {
+  background: var(--color-primary-soft);
+  border: 1px solid #cce9ef;
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 11px;
+  text-decoration: none;
+}
+
+.help-section-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.help-section {
+  scroll-margin-top: 24px;
+}
+
+.help-section ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.help-section li + li {
+  margin-top: 4px;
+}
+
+.help-section:target,
+.help-section-flash {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(18, 161, 139, 0.16), var(--shadow-sm);
+}
+
 .help-list {
   display: grid;
   gap: 8px;
@@ -1056,6 +1109,7 @@ legend {
 
   .dashboard-grid,
   .settings-grid,
+  .help-section-grid,
   .help-grid,
   .detail-grid {
     grid-template-columns: 1fr;
@@ -1088,6 +1142,7 @@ legend {
   .metrics-grid,
   .dashboard-grid,
   .settings-grid,
+  .help-section-grid,
   .help-grid,
   .form-grid,
   .scope-grid,

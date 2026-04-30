@@ -55,6 +55,7 @@ interface FilterField {
   value: string;
   placeholder?: string;
   help?: string;
+  helpHref?: string;
   onChange: (value: string) => void;
 }
 
@@ -65,6 +66,11 @@ interface OperationalFiltersProps {
 }
 
 export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }: OperationalFiltersProps) {
+  function openHelp(hash?: string) {
+    if (!hash) return;
+    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash } }));
+  }
+
   return (
     <section className="panel operational-filters">
       {fields.map((field) => (
@@ -72,10 +78,15 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
           <span className="label-row">
             {field.label}
             {field.help ? (
-              <span className="info-tip" tabIndex={0} aria-label={field.help}>
+              <button
+                className="info-tip"
+                type="button"
+                aria-label={`${field.help} Abrir ajuda.`}
+                onClick={() => openHelp(field.helpHref)}
+              >
                 i
-                <span role="tooltip">{field.help}</span>
-              </span>
+                <span className="info-tip-tooltip" role="tooltip">{field.help}</span>
+              </button>
             ) : null}
           </span>
           <input

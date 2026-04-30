@@ -339,12 +339,17 @@ function Icon({ name }: { name: IconName }) {
   return <span className="icon" aria-hidden="true">{iconLabels[name]}</span>;
 }
 
-function InfoTip({ text }: { text: string }) {
+function InfoTip({ text, href }: { text: string; href?: string }) {
+  function openHelp() {
+    if (!href) return;
+    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash: href } }));
+  }
+
   return (
-    <span className="info-tip" tabIndex={0} aria-label={text}>
+    <button className="info-tip" type="button" aria-label={`${text} Abrir ajuda.`} onClick={openHelp}>
       i
-      <span role="tooltip">{text}</span>
-    </span>
+      <span className="info-tip-tooltip" role="tooltip">{text}</span>
+    </button>
   );
 }
 
@@ -826,11 +831,11 @@ function ReportsView() {
         fields={[
           { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
           { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
-          { key: "unitId", label: "Unidade", value: unitId, placeholder: "ID da unidade", help: "Use o identificador técnico da unidade quando precisar restringir a consulta.", onChange: setUnitId },
-          { key: "sectorId", label: "Setor", value: sectorId, placeholder: "ID do setor", help: "Use o identificador técnico do setor quando o filtro por unidade não for suficiente.", onChange: setSectorId },
-          { key: "rtId", label: "RT responsável", value: rtId, placeholder: "ID do usuário RT", help: "Filtra profissionais vinculados a um RT específico.", onChange: setRtId },
-          { key: "licenseTypeId", label: "Tipo de licença", value: licenseTypeId, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", onChange: setLicenseTypeId },
-          { key: "status", label: "Status", value: status, placeholder: "FAILED", help: "Use o status técnico quando precisar auditar uma situação específica.", onChange: setStatus },
+          { key: "unitId", label: "Unidade", value: unitId, placeholder: "ID da unidade", help: "Use o identificador interno da unidade quando precisar restringir a consulta.", helpHref: "#filtros-e-ids", onChange: setUnitId },
+          { key: "sectorId", label: "Setor", value: sectorId, placeholder: "ID do setor", help: "Use o identificador interno do setor quando o filtro por unidade não for suficiente.", helpHref: "#filtros-e-ids", onChange: setSectorId },
+          { key: "rtId", label: "RT responsável", value: rtId, placeholder: "ID do usuário RT", help: "Filtra profissionais vinculados a um RT específico.", helpHref: "#perfis-e-permissoes", onChange: setRtId },
+          { key: "licenseTypeId", label: "Tipo de licença", value: licenseTypeId, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", helpHref: "#licencas", onChange: setLicenseTypeId },
+          { key: "status", label: "Status", value: status, placeholder: "FAILED", help: "Use o status técnico quando precisar auditar uma situação específica.", helpHref: "#relatorios", onChange: setStatus },
           { key: "channel", label: "Canal", value: channel, placeholder: "WHATSAPP", onChange: setChannel },
           { key: "windowDays", label: "Janela em dias", value: windowDays, placeholder: "7, 15, 30, 60", onChange: setWindowDays },
           { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
@@ -922,10 +927,10 @@ function AuditView() {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "action", label: "Ação", value: action, placeholder: "auth.login", help: "Nome do evento gravado na trilha de auditoria.", onChange: setAction },
-          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", help: "Tipo técnico do registro alterado.", onChange: setEntityType },
-          { key: "entityId", label: "Registro", value: entityId, placeholder: "ID do registro", help: "Identificador técnico da entidade auditada.", onChange: setEntityId },
-          { key: "actorId", label: "Usuário executor", value: actorId, placeholder: "ID do usuário", help: "Filtra ações feitas por um usuário específico.", onChange: setActorId },
+          { key: "action", label: "Ação", value: action, placeholder: "auth.login", help: "Nome do evento gravado na trilha de auditoria.", helpHref: "#auditoria", onChange: setAction },
+          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", help: "Tipo técnico do registro alterado.", helpHref: "#auditoria", onChange: setEntityType },
+          { key: "entityId", label: "Registro", value: entityId, placeholder: "ID do registro", help: "Identificador interno da entidade auditada.", helpHref: "#auditoria", onChange: setEntityId },
+          { key: "actorId", label: "Usuário executor", value: actorId, placeholder: "ID do usuário", help: "Filtra ações feitas por um usuário específico.", helpHref: "#auditoria", onChange: setActorId },
           { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
           { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
           { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
@@ -1125,10 +1130,10 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Nome, CPF, email ou cargo", onChange: setQuery },
-          { key: "active", label: "Situação", value: activeFilter, placeholder: "true ou false", help: "Use true para ativos ou false para inativos.", onChange: setActiveFilter },
-          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", help: "Filtra pelo identificador técnico da unidade.", onChange: setUnitFilter },
-          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", help: "Filtra pelo identificador técnico do setor.", onChange: setSectorFilter },
-          { key: "rt", label: "RT responsável", value: rtFilter, placeholder: "ID do RT", help: "Filtra pelo usuário RT responsável.", onChange: setRtFilter }
+          { key: "active", label: "Situação", value: activeFilter, placeholder: "true ou false", help: "Use true para ativos ou false para inativos.", helpHref: "#profissionais", onChange: setActiveFilter },
+          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", help: "Filtra pelo identificador interno da unidade.", helpHref: "#filtros-e-ids", onChange: setUnitFilter },
+          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", help: "Filtra pelo identificador interno do setor.", helpHref: "#filtros-e-ids", onChange: setSectorFilter },
+          { key: "rt", label: "RT responsável", value: rtFilter, placeholder: "ID do RT", help: "Filtra pelo usuário RT responsável.", helpHref: "#perfis-e-permissoes", onChange: setRtFilter }
         ]}
         onSubmit={load}
       />
@@ -1188,7 +1193,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                <span className="label-row">RT responsável <InfoTip text="Pessoa responsável técnica pelo acompanhamento deste profissional." /></span>
+                <span className="label-row">RT responsável <InfoTip text="Pessoa responsável técnica pelo acompanhamento deste profissional." href="#perfis-e-permissoes" /></span>
                 <select value={responsibleRtId} onChange={(event) => setResponsibleRtId(event.target.value)}>
                   <option value="">Sem RT</option>
                   {rtUsers.map((rt) => (
@@ -1199,7 +1204,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                <span className="label-row">Usuário vinculado <InfoTip text="Opcional. Use quando o profissional também acessa o sistema." /></span>
+                <span className="label-row">Usuário vinculado <InfoTip text="Opcional. Use quando o profissional também acessa o sistema." href="#profissionais" /></span>
                 <select value={linkedUserId} onChange={(event) => setLinkedUserId(event.target.value)}>
                   <option value="">Sem usuário</option>
                   {linkableUsers.map((linkedUser) => (
@@ -1533,16 +1538,17 @@ function LicensesView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Profissional, CPF, tipo ou número", onChange: setQuery },
-          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", help: "Use o status técnico da licença quando necessário.", onChange: setStatusFilter },
+          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", help: "Use o status técnico da licença quando necessário.", helpHref: "#licencas", onChange: setStatusFilter },
           {
             key: "professional",
             label: "Profissional",
             value: professionalFilter,
             placeholder: "ID do profissional",
-            help: "Filtra pelo identificador técnico do profissional.",
+            help: "Filtra pelo identificador interno do profissional.",
+            helpHref: "#filtros-e-ids",
             onChange: setProfessionalFilter
           },
-          { key: "type", label: "Tipo de licença", value: licenseTypeFilter, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", onChange: setLicenseTypeFilter }
+          { key: "type", label: "Tipo de licença", value: licenseTypeFilter, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", helpHref: "#licencas", onChange: setLicenseTypeFilter }
         ]}
         onSubmit={load}
       />
@@ -1571,7 +1577,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                 <input value={typeDescription} onChange={(event) => setTypeDescription(event.target.value)} />
               </label>
               <label>
-                <span className="label-row">Avisos padrão <InfoTip text="Dias antes do vencimento, separados por vírgula. Exemplo: 90,60,30." /></span>
+                <span className="label-row">Avisos padrão <InfoTip text="Dias antes do vencimento, separados por vírgula. Exemplo: 90,60,30." href="#notificacoes" /></span>
                 <input
                   value={typeWarningDays}
                   onChange={(event) => setTypeWarningDays(event.target.value)}
@@ -1835,16 +1841,17 @@ function DocumentsView({ user }: { user: CurrentUser }) {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", help: "UPLOADED indica documentos aguardando validação.", onChange: setStatusFilter },
+          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", help: "UPLOADED indica documentos aguardando validação.", helpHref: "#documentos", onChange: setStatusFilter },
           {
             key: "professional",
             label: "Profissional",
             value: professionalFilter,
             placeholder: "ID do profissional",
-            help: "Filtra pelo identificador técnico do profissional.",
+            help: "Filtra pelo identificador interno do profissional.",
+            helpHref: "#filtros-e-ids",
             onChange: setProfessionalFilter
           },
-          { key: "license", label: "Licença", value: licenseFilter, placeholder: "ID da licença", help: "Filtra por uma licença específica.", onChange: setLicenseFilter }
+          { key: "license", label: "Licença", value: licenseFilter, placeholder: "ID da licença", help: "Filtra por uma licença específica.", helpHref: "#filtros-e-ids", onChange: setLicenseFilter }
         ]}
         onSubmit={load}
       />
@@ -2409,7 +2416,7 @@ function SettingsView() {
               <input value={templateKey} onChange={(event) => setTemplateKey(event.target.value)} placeholder="license-expiration" />
             </label>
             <label>
-              <span className="label-row">Template Meta <InfoTip text="Nome aprovado no painel da Meta. Deixe vazio para provider fake/local." /></span>
+              <span className="label-row">Template Meta <InfoTip text="Nome aprovado no painel da Meta. Deixe vazio para provider fake/local." href="#notificacoes" /></span>
               <input value={templateMetaName} onChange={(event) => setTemplateMetaName(event.target.value)} />
             </label>
             <label>
@@ -2436,15 +2443,15 @@ function SettingsView() {
               </select>
             </label>
             <label>
-              <span className="label-row">Tipo de licença <InfoTip text="Informe o ID do tipo quando a regra valer para uma licença específica. Vazio aplica a todos." /></span>
+              <span className="label-row">Tipo de licença <InfoTip text="Informe o ID do tipo quando a regra valer para uma licença específica. Vazio aplica a todos." href="#licencas" /></span>
               <input value={ruleLicenseTypeId} onChange={(event) => setRuleLicenseTypeId(event.target.value)} placeholder="vazio = todos" />
             </label>
             <label>
-              <span className="label-row">Dias antes <InfoTip text="Quando criar aviso antes do vencimento. Exemplo: 30." /></span>
+              <span className="label-row">Dias antes <InfoTip text="Quando criar aviso antes do vencimento. Exemplo: 30." href="#notificacoes" /></span>
               <input value={ruleDaysBefore} onChange={(event) => setRuleDaysBefore(event.target.value)} type="number" />
             </label>
             <label>
-              <span className="label-row">Repetir após vencida <InfoTip text="Intervalo em dias para novas notificações depois do vencimento." /></span>
+              <span className="label-row">Repetir após vencida <InfoTip text="Intervalo em dias para novas notificações depois do vencimento." href="#notificacoes" /></span>
               <input value={ruleRepeatAfter} onChange={(event) => setRuleRepeatAfter(event.target.value)} type="number" />
             </label>
             <label className="checkbox-row">
@@ -2861,59 +2868,189 @@ function PublicFaqView() {
 }
 
 function HelpView({ user }: { user: CurrentUser }) {
-  const roleCards = [
-    ["Admin", "Organiza unidades, setores, usuários, tipos de licença, regras de notificação e acompanha auditoria."],
-    ["RT", "Acompanha profissionais sob sua responsabilidade, valida documentos e consulta pendências."],
-    ["Supervisor", "Consulta profissionais, documentos, licenças e relatórios dentro do escopo de unidade ou setor."]
+  const sections = [
+    {
+      id: "visao-geral",
+      title: "Visão geral",
+      who: "Todos os perfis",
+      text: "Use a V1 para acompanhar profissionais, licenças, documentos, notificações e evidências de auditoria em uma rotina única.",
+      steps: ["Entre no sistema.", "Confira o Dashboard.", "Aja primeiro sobre vencimentos, documentos pendentes e falhas."],
+      check: "Confirme unidade, setor, RT responsável e período antes de confiar no resultado filtrado.",
+      common: "Se algo não aparecer, limpe filtros por ID e tente uma busca por nome ou CPF.",
+      support: "Procure suporte se dados do seed demo sumirem ou se uma tela falhar mesmo sem filtros."
+    },
+    {
+      id: "primeiro-acesso",
+      title: "Primeiro acesso",
+      who: "Admin libera usuários; RT e Supervisor entram com acesso já criado.",
+      text: "A conta determina quais telas e registros você enxerga. Admin vê a operação completa; RT e Supervisor veem apenas o escopo permitido.",
+      steps: ["Acesse com email e senha.", "Confira seu perfil no topo da página.", "Use Sair quando terminar em computador compartilhado."],
+      check: "Antes de operar, confirme se o perfil exibido combina com sua função.",
+      common: "Senha incorreta ou usuário inativo impedem entrada.",
+      support: "Peça ajuda ao Admin se sua unidade, setor ou perfil estiver incorreto."
+    },
+    {
+      id: "dashboard",
+      title: "Dashboard",
+      who: "Todos os perfis",
+      text: "Mostra o estado do dia: licenças vencendo, documentos aguardando validação e notificações com problema.",
+      steps: ["Leia os cards de resumo.", "Abra a lista indicada pelo atalho.", "Resolva primeiro itens vencidos, pendentes ou com falha."],
+      check: "Confira se os números fazem sentido para seu escopo de acesso.",
+      common: "Números zerados podem ser normais em usuário sem escopo ou filtro muito restrito.",
+      support: "Acione suporte se houver erro de carregamento ou contagem muito diferente do relatório."
+    },
+    {
+      id: "profissionais",
+      title: "Profissionais",
+      who: "Admin cadastra; RT e Supervisor consultam conforme escopo.",
+      text: "Centraliza dados do profissional, vínculo com unidade/setor, usuário de acesso e RT responsável.",
+      steps: ["Busque por nome, CPF, email ou cargo.", "Admin pode cadastrar ou editar.", "Revise vínculos antes de criar licenças."],
+      check: "CPF, email, unidade, setor, situação ativa e RT responsável devem estar corretos.",
+      common: "Usuário vinculado é opcional; use apenas se o profissional também acessar o sistema.",
+      support: "Peça suporte se houver duplicidade de CPF/email ou vínculo que você não consegue ajustar."
+    },
+    {
+      id: "licencas",
+      title: "Licenças",
+      who: "Admin cria; RT e Supervisor acompanham.",
+      text: "Controla tipo, número, validade, status e documentos relacionados a cada profissional.",
+      steps: ["Filtre por profissional, status ou tipo.", "Confira vencimento e status.", "Use link de upload quando faltar documento."],
+      check: "Tipo, número, validade e profissional precisam bater com o documento recebido.",
+      common: "Status técnico como REGULAR, EXPIRING ou EXPIRED aparece em filtros avançados.",
+      support: "Procure suporte se uma licença não muda de status depois de aprovar documento correto."
+    },
+    {
+      id: "documentos",
+      title: "Documentos",
+      who: "Admin e RT validam; Supervisor consulta.",
+      text: "Lista uploads enviados para comprovar licença. UPLOADED significa aguardando decisão.",
+      steps: ["Abra a linha pendente.", "Baixe o arquivo.", "Aprove se estiver correto ou recuse com motivo claro."],
+      check: "Confira nome, número da licença, validade, legibilidade e profissional antes de aprovar.",
+      common: "Recusa sem motivo atrasa correção; escreva uma orientação simples para o profissional.",
+      support: "Chame suporte se o arquivo não baixar, vier corrompido ou aparecer ligado ao profissional errado."
+    },
+    {
+      id: "upload-publico",
+      title: "Upload público",
+      who: "Admin e RT geram link; profissional usa sem entrar no sistema.",
+      text: "O link temporário permite enviar documento de uma licença específica. Envie somente ao profissional correto.",
+      steps: ["Gere o link na licença.", "Compartilhe pelo canal combinado.", "Depois acompanhe o documento na tela Documentos."],
+      check: "Verifique profissional, licença e prazo do link antes de enviar.",
+      common: "Link expirado exige gerar um novo. Link trocado faz upload cair na licença errada.",
+      support: "Peça suporte se o profissional não consegue abrir o link ou se o upload não aparece."
+    },
+    {
+      id: "notificacoes",
+      title: "Notificações",
+      who: "Admin configura; demais perfis acompanham impactos.",
+      text: "Regras criam avisos antes e depois do vencimento. Provider fake é modo de teste sem envio real; Meta real usa credenciais privadas fora do git.",
+      steps: ["Configure dias antes do vencimento.", "Associe tipo de licença se a regra for específica.", "Use template Meta aprovado apenas quando o envio real estiver pronto."],
+      check: "Confirme dias, repetição, template e se o ambiente está em teste ou Meta real.",
+      common: "Template errado ou credencial ausente gera falha de envio; não coloque tokens em telas, docs ou git.",
+      support: "Procure suporte ao trocar de fake para Meta real, validar webhook ou investigar falhas repetidas."
+    },
+    {
+      id: "relatorios",
+      title: "Relatórios",
+      who: "Todos conforme permissão",
+      text: "Ajuda a conferir operação por período, unidade, setor, RT, status e canal.",
+      steps: ["Escolha o relatório.", "Informe período e filtros necessários.", "Exporte CSV para análise externa quando preciso."],
+      check: "Período, escopo e status precisam estar corretos antes de comparar números.",
+      common: "Filtro por ID vazio mostra mais dados; filtro errado pode parecer falta de informação.",
+      support: "Acione suporte se o CSV não exporta ou diverge claramente da tela."
+    },
+    {
+      id: "auditoria",
+      title: "Auditoria",
+      who: "Admin acompanha eventos sensíveis.",
+      text: "Registra ações importantes, quem executou, quando ocorreu e qual registro foi afetado.",
+      steps: ["Filtre por ação, entidade, registro, usuário ou período.", "Abra o evento.", "Compare metadados com a alteração esperada."],
+      check: "Use IDs com cuidado: ID é identificador interno do registro, não CPF nem número de licença.",
+      common: "Ação técnica como auth.login descreve o evento gravado pelo sistema.",
+      support: "Procure suporte se faltar evento de uma ação crítica ou se metadados parecerem inconsistentes."
+    },
+    {
+      id: "configuracoes",
+      title: "Configurações",
+      who: "Admin",
+      text: "Mantém usuários, organização, tipos de licença, FAQ e regras operacionais alinhados à rotina.",
+      steps: ["Altere uma configuração por vez.", "Salve.", "Volte à tela afetada para conferir o efeito."],
+      check: "Evite inativar usuário, unidade, setor ou tipo de licença que ainda esteja em uso.",
+      common: "Mudanças de regra podem afetar notificações futuras, não necessariamente as já criadas.",
+      support: "Peça suporte antes de mudanças grandes em produção ou ativação de Meta real."
+    },
+    {
+      id: "perfis-e-permissoes",
+      title: "Perfis e permissões",
+      who: "Admin gerencia; todos precisam entender seu alcance.",
+      text: "Admin opera tudo; RT acompanha profissionais sob sua responsabilidade; Supervisor consulta o escopo de unidade ou setor.",
+      steps: ["Confira seu perfil no topo.", "Use filtros do seu escopo.", "Peça ajuste se registros esperados não aparecerem."],
+      check: "Antes de concluir que falta dado, confirme se você tem permissão para vê-lo.",
+      common: "RT sem vínculo ou Supervisor sem unidade/setor pode enxergar menos do que espera.",
+      support: "Acione Admin ou suporte para corrigir perfil, usuário vinculado ou escopo."
+    },
+    {
+      id: "filtros-e-ids",
+      title: "Filtros e IDs",
+      who: "Todos que usam filtros avançados",
+      text: "ID é identificador interno do sistema. Use quando a busca por texto não for suficiente ou quando suporte pedir um registro exato.",
+      steps: ["Prefira busca por nome, CPF, email ou número.", "Use ID apenas quando souber o valor correto.", "Remova o ID para voltar a uma busca ampla."],
+      check: "Não confunda ID interno com CPF, número de licença, telefone ou WABA ID.",
+      common: "Um caractere errado no ID pode zerar a lista.",
+      support: "Peça suporte se você precisa de um ID e não sabe onde encontrá-lo."
+    },
+    {
+      id: "problemas-comuns",
+      title: "Problemas comuns",
+      who: "Todos os perfis",
+      text: "A maioria dos bloqueios vem de filtro restrito, perfil sem escopo, documento incorreto, link expirado ou notificação em modo de teste.",
+      steps: ["Limpe filtros.", "Recarregue a tela.", "Confira perfil e escopo.", "Leia a mensagem de erro antes de tentar novamente."],
+      check: "Nunca cole tokens, secrets ou credenciais Meta em chamados, documentos ou campos do sistema.",
+      common: "Provider fake não envia mensagem real; ele só simula a operação para validação local.",
+      support: "Procure suporte se o erro persistir, se envolver credenciais Meta ou se impactar operação real."
+    }
   ];
-  const flows = [
-    ["Dashboard", "Comece pelas filas de vencimento, documentos pendentes e falhas de notificação."],
-    ["Profissionais", "Revise vínculo de unidade, setor e RT antes de criar licenças."],
-    ["Licenças", "Acompanhe status e gere links temporários de upload quando necessário."],
-    ["Documentos", "Baixe o arquivo, aprove quando estiver correto ou recuse informando o motivo."],
-    ["Relatórios", "Filtre por período, escopo e status; exporte CSV para conferência operacional."],
-    ["Configurações", "Mantenha templates, regras, usuários, unidades e FAQ alinhados com a operação."]
-  ];
+
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    window.setTimeout(() => document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, []);
 
   return (
     <div className="content-stack">
       <section className="panel help-hero">
         <p className="eyebrow">Ajuda operacional</p>
-        <h2>Fluxo essencial da V1</h2>
+        <h2>Como usar a V1 sem treinamento técnico</h2>
         <p className="muted">
-          Você está como {user.role}. Use esta página para demonstração, treinamento rápido e checagem diária sem expor segredos.
+          Você está como {user.role}. Use o sumário para ir direto ao fluxo, ou clique nos ícones i dos campos para abrir a seção certa.
         </p>
       </section>
 
-      <section className="help-grid">
-        {roleCards.map(([title, detail]) => (
-          <article className="panel help-card" key={title}>
-            <h2>{title}</h2>
-            <p>{detail}</p>
-          </article>
+      <section className="panel help-card help-summary" aria-label="Sumário do Como usar">
+        {sections.map((section) => (
+          <a href={`#${section.id}`} key={section.id}>{section.title}</a>
         ))}
       </section>
 
-      <section className="panel table-panel">
-        <h2>Roteiro de operação</h2>
-        <OperationalTable
-          items={flows}
-          getRowKey={(item) => item[0]}
-          columns={[
-            { key: "step", header: "Área", render: (item) => item[0] },
-            { key: "detail", header: "Quando usar", render: (item) => item[1] }
-          ]}
-        />
-      </section>
-
-      <section className="panel help-card">
-        <h2>Atenções</h2>
-        <div className="help-list">
-          <p>Meta real só deve ser ativada em ambiente privado, com token e app secret fora do git.</p>
-          <p>Links de upload são temporários e devem ser enviados apenas ao profissional correto.</p>
-          <p>Recusas de documento devem ter motivo claro para orientar regularização.</p>
-        </div>
-      </section>
+      <div className="help-section-grid">
+        {sections.map((section) => (
+          <section className="panel help-card help-section" id={section.id} key={section.id}>
+            <p className="eyebrow">{section.who}</p>
+            <h2>{section.title}</h2>
+            <p>{section.text}</p>
+            <div>
+              <strong>Passo a passo</strong>
+              <ol>
+                {section.steps.map((step) => <li key={step}>{step}</li>)}
+              </ol>
+            </div>
+            <p><strong>Antes de salvar/processar:</strong> {section.check}</p>
+            <p><strong>Erro comum:</strong> {section.common}</p>
+            <p><strong>Quando chamar suporte:</strong> {section.support}</p>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2928,6 +3065,23 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
     await api("/v1/auth/logout", { method: "POST" });
     onLogout();
   }
+
+  useEffect(() => {
+    function openHelp(event: Event) {
+      const hash = (event as CustomEvent<{ hash?: string }>).detail?.hash ?? "#visao-geral";
+      setActiveView("help");
+      window.setTimeout(() => {
+        window.history.replaceState(null, "", hash);
+        const section = document.getElementById(hash.replace("#", ""));
+        section?.scrollIntoView({ behavior: "smooth", block: "start" });
+        section?.classList.add("help-section-flash");
+        window.setTimeout(() => section?.classList.remove("help-section-flash"), 1400);
+      }, 0);
+    }
+
+    window.addEventListener("sylembra:open-help", openHelp);
+    return () => window.removeEventListener("sylembra:open-help", openHelp);
+  }, []);
 
   return (
     <main className="app-frame">
