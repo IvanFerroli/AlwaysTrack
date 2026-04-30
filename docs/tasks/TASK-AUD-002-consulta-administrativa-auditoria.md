@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-AUD-002-consulta-administrativa-auditoria.md
 
 ## Modo
@@ -56,3 +56,10 @@ Permitir que Admin consulte trilhas de auditoria por periodo, ator, acao e entid
 
 ## Ressalva
 - `TASK-AUT-002` e `TASK-UX-002` ainda nao existem como tasks completas; esta task entregou o minimo necessario de role ADMIN e UI propria para consulta.
+
+## Refinamento 2026-04-30
+- Tela de auditoria passou a filtrar tambem por periodo, actorId e entityId.
+- Paginacao da tela agora envia `page` e `pageSize`, com controles de anterior/proxima.
+- Metadata passou a ser exibida em bloco limitado com mascaramento basico de chaves sensiveis.
+- Cobertura do service ampliada para filtros investigativos e limite de `pageSize`.
+- Validacao executada: `npm run check` (84 testes) e `npm run build --workspace @sylembra/web`.

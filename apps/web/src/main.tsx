@@ -35,6 +35,42 @@ interface AuditLogItem {
   };
 }
 
+function formatAuditMetadata(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "Sem metadata";
+  }
+
+  const sensitiveKeys = ["password", "token", "secret", "hash", "authorization", "cookie"];
+
+  function redact(input: unknown): unknown {
+    if (Array.isArray(input)) {
+      return input.map(redact);
+    }
+
+    if (input && typeof input === "object") {
+      return Object.fromEntries(
+        Object.entries(input).map(([key, item]) => [
+          key,
+          sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive)) ? "[redacted]" : redact(item)
+        ])
+      );
+    }
+
+    return input;
+  }
+
+  let parsed = value;
+  if (typeof value === "string" && value.trim() !== "") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = value;
+    }
+  }
+
+  return JSON.stringify(redact(parsed), null, 2);
+}
+
 interface SectorItem {
   id: string;
   unitId: string;
@@ -543,19 +579,32 @@ function AuditView() {
   const [total, setTotal] = useState(0);
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
+  const [entityId, setEntityId] = useState("");
+  const [actorId, setActorId] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState("25");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  async function load(nextPage = page) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
     if (action) search.set("action", action);
     if (entityType) search.set("entityType", entityType);
+    if (entityId) search.set("entityId", entityId);
+    if (actorId) search.set("actorId", actorId);
+    if (from) search.set("from", from);
+    if (to) search.set("to", to);
+    if (pageSize) search.set("pageSize", pageSize);
+    search.set("page", String(nextPage));
     try {
       const result = await api<{ items: AuditLogItem[]; total: number }>(`/v1/audit-logs?${search.toString()}`);
       setItems(result.items);
       setTotal(result.total);
+      setPage(nextPage);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar auditoria.");
     } finally {
@@ -572,9 +621,14 @@ function AuditView() {
       <OperationalFilters
         fields={[
           { key: "action", label: "Acao", value: action, placeholder: "auth.login", onChange: setAction },
-          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", onChange: setEntityType }
+          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", onChange: setEntityType },
+          { key: "entityId", label: "ID da entidade", value: entityId, placeholder: "user-1", onChange: setEntityId },
+          { key: "actorId", label: "ID do ator", value: actorId, placeholder: "user-1", onChange: setActorId },
+          { key: "from", label: "Inicio", value: from, placeholder: "2026-04-01", onChange: setFrom },
+          { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
+          { key: "pageSize", label: "Por pagina", value: pageSize, placeholder: "25", onChange: setPageSize }
         ]}
-        onSubmit={load}
+        onSubmit={() => void load(1)}
       />
 
       <section className="panel table-panel">
@@ -597,10 +651,30 @@ function AuditView() {
                   key: "actor",
                   header: "Ator",
                   render: (item) => (item.actor ? `${item.actor.name} (${item.actor.email})` : "Contexto publico")
+                },
+                {
+                  key: "metadata",
+                  header: "Metadata",
+                  render: (item) => <pre className="metadata-preview">{formatAuditMetadata(item.metadataJson)}</pre>
                 }
               ]}
             />
-            <PaginationSummary page={1} pageSize={25} total={total} />
+            <div className="pagination-actions">
+              <PaginationSummary page={page} pageSize={Number(pageSize) || 25} total={total} />
+              <div>
+                <button className="secondary" type="button" disabled={page <= 1 || loading} onClick={() => void load(page - 1)}>
+                  Anterior
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={page * (Number(pageSize) || 25) >= total || loading}
+                  onClick={() => void load(page + 1)}
+                >
+                  Proxima
+                </button>
+              </div>
+            </div>
           </>
         )}
       </section>

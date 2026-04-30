@@ -62,4 +62,41 @@ describe("audit service", () => {
       })
     });
   });
+
+  it("applies investigation filters and caps page size", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const count = vi.fn().mockResolvedValue(0);
+    const transaction = vi.fn().mockResolvedValue([[], 0]);
+    const prisma = {
+      auditLog: { findMany, count },
+      $transaction: transaction
+    };
+    const from = new Date("2026-04-01T00:00:00.000Z");
+    const to = new Date("2026-04-30T23:59:59.000Z");
+
+    await listAuditLogs(prisma as never, {
+      organizationId: "org-1",
+      actorId: "user-1",
+      action: "license.update",
+      entityType: "License",
+      entityId: "license-1",
+      from,
+      to,
+      pageSize: 500
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: "org-1",
+          actorId: "user-1",
+          action: "license.update",
+          entityType: "License",
+          entityId: "license-1",
+          createdAt: { gte: from, lte: to }
+        },
+        take: 100
+      })
+    );
+  });
 });
