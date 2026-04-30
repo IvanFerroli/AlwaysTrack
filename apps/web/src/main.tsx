@@ -184,6 +184,42 @@ interface DocumentItem {
   validatedBy: null | { id: string; name: string; email: string; role: string };
 }
 
+interface NotificationTemplateItem {
+  id: string;
+  key: string;
+  channel: string;
+  metaTemplateName: string | null;
+  language: string;
+  bodyPreview: string | null;
+  active: boolean;
+}
+
+interface NotificationRuleItem {
+  id: string;
+  licenseTypeId: string | null;
+  daysBeforeExpiration: number | null;
+  repeatAfterExpiredDays: number | null;
+  channel: string;
+  templateKey: string;
+  notifyProfessional: boolean;
+  notifyRt: boolean;
+  active: boolean;
+  licenseType: null | { id: string; name: string };
+}
+
+interface NotificationJobItem {
+  id: string;
+  status: string;
+  channel: string;
+  templateKey: string;
+  recipientPhone: string | null;
+  providerMessageId: string | null;
+  attempts: number;
+  scheduledFor: string;
+  professional: { id: string; name: string };
+  license: { id: string; number: string | null; licenseType: { name: string } };
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -1275,6 +1311,9 @@ function DocumentsView({ user }: { user: CurrentUser }) {
 function SettingsView() {
   const [organization, setOrganization] = useState<OrganizationItem | null>(null);
   const [users, setUsers] = useState<ManagedUserItem[]>([]);
+  const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplateItem[]>([]);
+  const [notificationRules, setNotificationRules] = useState<NotificationRuleItem[]>([]);
+  const [notificationJobs, setNotificationJobs] = useState<NotificationJobItem[]>([]);
   const [orgName, setOrgName] = useState("");
   const [orgDocument, setOrgDocument] = useState("");
   const [unitName, setUnitName] = useState("");
@@ -1286,6 +1325,14 @@ function SettingsView() {
   const [userRole, setUserRole] = useState<UserRole>("SUPERVISOR");
   const [userUnitScopeIds, setUserUnitScopeIds] = useState<string[]>([]);
   const [userSectorScopeIds, setUserSectorScopeIds] = useState<string[]>([]);
+  const [templateKey, setTemplateKey] = useState("");
+  const [templateMetaName, setTemplateMetaName] = useState("");
+  const [templatePreview, setTemplatePreview] = useState("");
+  const [ruleTemplateKey, setRuleTemplateKey] = useState("");
+  const [ruleLicenseTypeId, setRuleLicenseTypeId] = useState("");
+  const [ruleDaysBefore, setRuleDaysBefore] = useState("30");
+  const [ruleRepeatAfter, setRuleRepeatAfter] = useState("");
+  const [ruleNotifyRt, setRuleNotifyRt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1298,11 +1345,20 @@ function SettingsView() {
         api<{ organization: OrganizationItem }>("/v1/organization"),
         api<{ users: ManagedUserItem[] }>("/v1/users")
       ]);
+      const notificationsResult = await api<{
+        templates: NotificationTemplateItem[];
+        rules: NotificationRuleItem[];
+        jobs: NotificationJobItem[];
+      }>("/v1/notifications/config");
       setOrganization(result.organization);
       setUsers(usersResult.users);
+      setNotificationTemplates(notificationsResult.templates);
+      setNotificationRules(notificationsResult.rules);
+      setNotificationJobs(notificationsResult.jobs);
       setOrgName(result.organization.name);
       setOrgDocument(result.organization.document ?? "");
       setSectorUnitId(result.organization.units[0]?.id ?? "");
+      setRuleTemplateKey((current) => current || notificationsResult.templates[0]?.key || "");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar configuracoes.");
     } finally {
@@ -1379,6 +1435,57 @@ function SettingsView() {
       setUserRole("SUPERVISOR");
       setUserUnitScopeIds([]);
       setUserSectorScopeIds([]);
+    });
+  }
+
+  async function addNotificationTemplate(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/notifications/templates", {
+        method: "POST",
+        body: JSON.stringify({
+          key: templateKey,
+          channel: "WHATSAPP",
+          metaTemplateName: templateMetaName || null,
+          language: "pt_BR",
+          bodyPreview: templatePreview || null
+        })
+      });
+      setTemplateKey("");
+      setTemplateMetaName("");
+      setTemplatePreview("");
+    });
+  }
+
+  async function addNotificationRule(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/notifications/rules", {
+        method: "POST",
+        body: JSON.stringify({
+          licenseTypeId: ruleLicenseTypeId || null,
+          daysBeforeExpiration: ruleDaysBefore ? Number(ruleDaysBefore) : null,
+          repeatAfterExpiredDays: ruleRepeatAfter ? Number(ruleRepeatAfter) : null,
+          channel: "WHATSAPP",
+          templateKey: ruleTemplateKey,
+          notifyProfessional: true,
+          notifyRt: ruleNotifyRt
+        })
+      });
+      setRuleDaysBefore("30");
+      setRuleRepeatAfter("");
+    });
+  }
+
+  async function scanNotifications() {
+    await run(async () => {
+      await api("/v1/notifications/scan", { method: "POST", body: JSON.stringify({}) });
+    });
+  }
+
+  async function processNotifications() {
+    await run(async () => {
+      await api("/v1/notifications/process", { method: "POST", body: JSON.stringify({}) });
     });
   }
 
@@ -1667,6 +1774,132 @@ function SettingsView() {
                   </div>
                 )
               }
+            ]}
+          />
+        )}
+      </section>
+
+      <section className="panel form-panel full-span">
+        <form onSubmit={addNotificationTemplate}>
+          <h2>Novo template WhatsApp</h2>
+          <div className="form-grid">
+            <label>
+              Chave
+              <input value={templateKey} onChange={(event) => setTemplateKey(event.target.value)} placeholder="license-expiration" />
+            </label>
+            <label>
+              Template Meta
+              <input value={templateMetaName} onChange={(event) => setTemplateMetaName(event.target.value)} />
+            </label>
+            <label>
+              Preview
+              <input value={templatePreview} onChange={(event) => setTemplatePreview(event.target.value)} />
+            </label>
+          </div>
+          <button disabled={saving || !templateKey.trim()}>Criar template</button>
+        </form>
+      </section>
+
+      <section className="panel form-panel full-span">
+        <form onSubmit={addNotificationRule}>
+          <h2>Nova regra de notificacao</h2>
+          <div className="form-grid">
+            <label>
+              Template
+              <select value={ruleTemplateKey} onChange={(event) => setRuleTemplateKey(event.target.value)}>
+                {notificationTemplates.map((template) => (
+                  <option key={template.id} value={template.key}>
+                    {template.key}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tipo de licenca
+              <input value={ruleLicenseTypeId} onChange={(event) => setRuleLicenseTypeId(event.target.value)} placeholder="vazio = todos" />
+            </label>
+            <label>
+              Dias antes
+              <input value={ruleDaysBefore} onChange={(event) => setRuleDaysBefore(event.target.value)} type="number" />
+            </label>
+            <label>
+              Repetir apos vencida
+              <input value={ruleRepeatAfter} onChange={(event) => setRuleRepeatAfter(event.target.value)} type="number" />
+            </label>
+            <label className="checkbox-row">
+              <input checked={ruleNotifyRt} onChange={() => setRuleNotifyRt((current) => !current)} type="checkbox" />
+              Notificar RT
+            </label>
+          </div>
+          <button disabled={saving || !ruleTemplateKey}>Criar regra</button>
+        </form>
+      </section>
+
+      <section className="panel table-panel full-span">
+        <div className="action-panel">
+          <button className="secondary" disabled={saving} type="button" onClick={() => void scanNotifications()}>
+            Criar jobs
+          </button>
+          <button disabled={saving} type="button" onClick={() => void processNotifications()}>
+            Processar jobs
+          </button>
+        </div>
+        <OperationalTable
+          items={notificationTemplates}
+          getRowKey={(item) => item.id}
+          columns={[
+            { key: "key", header: "Template", render: (item) => `${item.key} / ${item.metaTemplateName ?? "fake"}` },
+            { key: "channel", header: "Canal", render: (item) => item.channel },
+            { key: "preview", header: "Preview", render: (item) => item.bodyPreview ?? "Sem preview" },
+            {
+              key: "status",
+              header: "Status",
+              render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+            }
+          ]}
+        />
+      </section>
+
+      <section className="panel table-panel full-span">
+        {notificationRules.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma regra de notificacao" />
+        ) : (
+          <OperationalTable
+            items={notificationRules}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "template", header: "Template", render: (item) => item.templateKey },
+              { key: "licenseType", header: "Tipo", render: (item) => item.licenseType?.name ?? "Todos" },
+              {
+                key: "schedule",
+                header: "Agenda",
+                render: (item) => `${item.daysBeforeExpiration ?? "-"} antes / ${item.repeatAfterExpiredDays ?? "-"} vencida`
+              },
+              { key: "targets", header: "Destinos", render: (item) => `Profissional${item.notifyRt ? " + RT" : ""}` },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+              }
+            ]}
+          />
+        )}
+      </section>
+
+      <section className="panel table-panel full-span">
+        {notificationJobs.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum job de notificacao" />
+        ) : (
+          <OperationalTable
+            items={notificationJobs}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "date", header: "Agendado", render: (item) => new Date(item.scheduledFor).toLocaleString("pt-BR") },
+              { key: "professional", header: "Profissional", render: (item) => item.professional.name },
+              { key: "license", header: "Licenca", render: (item) => item.license.licenseType.name },
+              { key: "template", header: "Template", render: (item) => item.templateKey },
+              { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
+              { key: "status", header: "Status", render: (item) => <StatusBadge kind="notification" value={item.status as never} /> }
             ]}
           />
         )}

@@ -1,7 +1,7 @@
 # TASK-NOT-003 - Meta WhatsApp Provider
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: integrations-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-NOT-003-meta-whatsapp-provider.md
@@ -45,3 +45,15 @@ Implementar adaptador direto para Meta WhatsApp Cloud API com contrato substitui
 
 ## Riscos
 - acoplar dominio a detalhes da Meta
+
+## Evidencias de entrega
+- Criado contrato `NotificationProvider`.
+- Criado `FakeNotificationProvider` para dev/testes.
+- Criado `MetaWhatsAppProvider` para WhatsApp Cloud API com payload de template aprovado.
+- Config segura por env: `NOTIFICATION_PROVIDER`, `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`.
+- Provider normaliza `providerMessageId` e erros sem logar credenciais.
+
+## Validacao realizada
+- `npm run check` passou com 73 testes.
+- Testes cobrem provider fake, Meta aceito, erro Meta e assinatura.
+- Smoke local usou provider fake.

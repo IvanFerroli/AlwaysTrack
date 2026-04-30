@@ -1,7 +1,7 @@
 # TASK-NOT-004 - Worker de envio e retentativas
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-NOT-004-worker-envio-retentativas.md
@@ -45,3 +45,15 @@ Processar NotificationJobs pendentes com status, tentativas e logs persistidos.
 
 ## Riscos
 - concorrencia enviar job duplicado
+
+## Evidencias de entrega
+- Criado worker `processNotificationJobs`.
+- Endpoint ADMIN `POST /v1/notifications/process`.
+- Worker pega jobs `PENDING`/`FAILED` elegiveis e marca `PROCESSING`.
+- Sucesso marca `SENT`, salva provider/providerMessageId e `NotificationLog`.
+- Falha marca `FAILED`, incrementa attempts, salva errorMessage e nextRetryAt quando aplicavel.
+- UI em `Configuracoes` possui acao `Processar jobs`.
+
+## Validacao realizada
+- `npm run check` passou com 73 testes.
+- Smoke local: worker processou job com provider fake e salvou status `SENT`.

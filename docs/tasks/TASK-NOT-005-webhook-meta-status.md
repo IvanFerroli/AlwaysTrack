@@ -1,7 +1,7 @@
 # TASK-NOT-005 - Webhook da Meta e status de entrega
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: integrations-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-NOT-005-webhook-meta-status.md
@@ -45,3 +45,15 @@ Receber eventos da Meta, validar webhook e atualizar NotificationJob/Notificatio
 
 ## Riscos
 - aceitar webhook falso
+
+## Evidencias de entrega
+- Criado endpoint `GET /v1/webhooks/meta-whatsapp` para verificacao de webhook.
+- Criado endpoint `POST /v1/webhooks/meta-whatsapp` para eventos de status.
+- Suporte a assinatura `x-hub-signature-256` quando `META_APP_SECRET` estiver configurado.
+- Evento localiza job por `providerMessageId`.
+- Status mapeia `SENT`, `DELIVERED`, `READ`, `FAILED` e atualiza datas correspondentes.
+- Payload bruto controlado fica em `NotificationLog`.
+
+## Validacao realizada
+- `npm run check` passou com 73 testes.
+- Smoke local: webhook mockado atualizou job fake para `DELIVERED`.

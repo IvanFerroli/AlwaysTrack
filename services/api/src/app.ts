@@ -45,6 +45,17 @@ import {
   invalidateUploadTokenHandler,
   publicUploadDocumentHandler
 } from "./core/documents/upload-tokens.handlers.js";
+import {
+  createNotificationRuleHandler,
+  createNotificationTemplateHandler,
+  listNotificationConfigHandler,
+  metaWebhookHandler,
+  processNotificationJobsHandler,
+  scanNotificationJobsHandler,
+  updateNotificationRuleHandler,
+  updateNotificationTemplateHandler,
+  verifyMetaWebhookHandler
+} from "./core/notifications/notifications.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -53,6 +64,8 @@ export function createApp() {
   app.use(attachRequestContext);
 
   app.get("/health", (_request, response) => sendOk(response, { status: "ok" }));
+  app.get("/v1/webhooks/meta-whatsapp", verifyMetaWebhookHandler);
+  app.post("/v1/webhooks/meta-whatsapp", metaWebhookHandler);
   app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
   app.post(
     "/v1/public-upload/:token",
@@ -108,6 +121,18 @@ export function createApp() {
     requireRole(["ADMIN", "RT"]),
     validateDocumentHandler
   );
+  app.get("/v1/notifications/config", requireAuth, requireRole(["ADMIN"]), listNotificationConfigHandler);
+  app.post("/v1/notifications/templates", requireAuth, requireRole(["ADMIN"]), createNotificationTemplateHandler);
+  app.patch(
+    "/v1/notifications/templates/:templateId",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    updateNotificationTemplateHandler
+  );
+  app.post("/v1/notifications/rules", requireAuth, requireRole(["ADMIN"]), createNotificationRuleHandler);
+  app.patch("/v1/notifications/rules/:ruleId", requireAuth, requireRole(["ADMIN"]), updateNotificationRuleHandler);
+  app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
+  app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

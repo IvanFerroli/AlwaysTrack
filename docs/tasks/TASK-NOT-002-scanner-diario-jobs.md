@@ -1,7 +1,7 @@
 # TASK-NOT-002 - Scanner diario cria NotificationJobs
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-NOT-002-scanner-diario-jobs.md
@@ -44,3 +44,15 @@ Criar jobs de notificacao a partir de licencas, status e NotificationRules.
 
 ## Riscos
 - gerar spam por duplicidade
+
+## Evidencias de entrega
+- Criado scanner `scanNotificationJobs`.
+- Endpoint ADMIN `POST /v1/notifications/scan`.
+- Scanner busca licencas ativas em status `REGULAR`, `EXPIRING` e `EXPIRED`.
+- Consulta `NotificationRule` ativa e cria `NotificationJob` com payload de template.
+- Dedupe por `licenseId`, `ruleId`, periodo e destinatario.
+- UI em `Configuracoes` possui acao `Criar jobs`.
+
+## Validacao realizada
+- `npm run check` passou com 73 testes.
+- Smoke local: regra 365 dias antes criou job `PENDING` deduplicado.

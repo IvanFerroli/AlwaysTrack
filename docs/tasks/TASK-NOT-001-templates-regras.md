@@ -1,7 +1,7 @@
 # TASK-NOT-001 - Templates e regras de notificacao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
 - last-updated: 2026-04-29
 - source-of-truth: docs/tasks/TASK-NOT-001-templates-regras.md
@@ -44,3 +44,17 @@ Implementar NotificationTemplate e NotificationRule como configuracao, sem hardc
 
 ## Riscos
 - templates ficarem acoplados a texto fixo no codigo
+
+## Evidencias de entrega
+- Criado modulo `services/api/src/core/notifications`.
+- Entregue CRUD administrativo de templates e regras via `/v1/notifications/*`.
+- Templates possuem key, channel, metaTemplateName, language, preview e active.
+- Rules configuram dias antes, repeticao pos-vencimento, canal, template e destinatarios.
+- Alteracoes geram auditoria `notification_template.*` e `notification_rule.*`.
+- UI simples em `Configuracoes` para criar templates/regras e ver configuracao.
+
+## Validacao realizada
+- `npm run check` passou com 73 testes.
+- `npm run setup` passou.
+- `npm run build --workspace @sylembra/web` passou.
+- Smoke local: criar template e regra por API.
