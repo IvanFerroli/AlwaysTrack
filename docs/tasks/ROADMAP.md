@@ -59,6 +59,7 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 45. `TASK-UX-005` pagina Como usar e ajuda operacional.
 46. `TASK-UX-006` polimento de labels, formularios e tabelas.
 47. `TASK-UX-007` Como usar robusto e ajuda contextual linkada.
+48. `TASK-BRD-001` aplicar favicon e identidade web da marca.
 
 ## Gate final
 A V1 so fecha quando os 14 criterios de sucesso do documento central estiverem demonstraveis em ambiente de demo ou producao.
