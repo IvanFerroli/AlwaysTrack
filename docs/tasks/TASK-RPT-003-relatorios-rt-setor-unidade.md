@@ -1,9 +1,9 @@
 # TASK-RPT-003 - Relatorios por RT, setor e unidade
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-003-relatorios-rt-setor-unidade.md
 
 ## Modo
@@ -42,3 +42,14 @@ Mostrar carga, risco e pendencias por responsavel e area.
 
 ## Riscos
 - numeros divergirem do dashboard
+
+## Evidencias de conclusao
+- Implementados `GET /v1/reports/groups/rt` e `GET /v1/reports/groups/areas`.
+- Agregacoes mostram totais, regulares, a vencer, vencidas, validacoes pendentes, falhas e percentual de pendencia.
+- Dados usam o mesmo escopo de acesso operacional dos demais modulos.
+- Tela de Relatorios exibe resumo por RT e por unidade/setor.
+
+## Validacao executada
+- `npm run check` - 87 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local: endpoints de RT e area responderam `ok`.

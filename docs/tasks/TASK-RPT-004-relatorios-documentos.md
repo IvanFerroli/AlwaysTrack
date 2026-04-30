@@ -1,9 +1,9 @@
 # TASK-RPT-004 - Relatorios de documentos
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-004-relatorios-documentos.md
 
 ## Modo
@@ -42,3 +42,14 @@ Implementar relatorios de documentos aguardando validacao e recusados.
 
 ## Riscos
 - perder motivo de recusa no historico
+
+## Evidencias de conclusao
+- Implementados `GET /v1/reports/documents/pending` e `GET /v1/reports/documents/rejected`.
+- Pendentes exibem tempo aguardando validacao.
+- Recusados exibem motivo, responsavel pela recusa e status atual da licenca/documento.
+- Tela de Relatorios exibe ambos usando filtros comuns.
+
+## Validacao executada
+- `npm run check` - 87 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local: endpoints de documentos pendentes e recusados responderam `ok`.

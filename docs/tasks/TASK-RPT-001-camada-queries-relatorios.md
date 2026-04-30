@@ -1,9 +1,9 @@
 # TASK-RPT-001 - Camada de queries de relatorios
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: contracts-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-001-camada-queries-relatorios.md
 
 ## Modo
@@ -43,3 +43,14 @@ Criar base de filtros, paginacao e DTOs para relatorios operacionais.
 
 ## Riscos
 - relatorios nascerem acoplados ao layout
+
+## Evidencias de conclusao
+- Criado modulo `services/api/src/core/reports` com service, handlers, filtros comuns e paginacao.
+- Filtros reutilizaveis: periodo, unidade, setor, RT, tipo de licenca, status, canal, janela e paginacao.
+- Queries respeitam escopo por ADMIN, RT responsavel e SUPERVISOR por unidade/setor.
+- Testes cobrem parsing de filtros, escopo e agregacao.
+
+## Validacao executada
+- `npm run check` - 87 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run setup` - migrations/seed alinhados.

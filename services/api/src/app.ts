@@ -64,6 +64,16 @@ import {
   updateFaqItemHandler
 } from "./core/faq/faq.handlers.js";
 import { getDashboardHandler } from "./core/dashboard/dashboard.handlers.js";
+import {
+  areaSummaryReportHandler,
+  expiredLicensesReportHandler,
+  expiringLicensesReportHandler,
+  notificationsReportHandler,
+  pendingDocumentsReportHandler,
+  rejectedDocumentsReportHandler,
+  regularizationReportHandler,
+  rtSummaryReportHandler
+} from "./core/reports/reports.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -89,6 +99,14 @@ export function createApp() {
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
   app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
+  app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
+  app.get("/v1/reports/licenses/expiring", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesReportHandler);
+  app.get("/v1/reports/groups/rt", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryReportHandler);
+  app.get("/v1/reports/groups/areas", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryReportHandler);
+  app.get("/v1/reports/documents/pending", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsReportHandler);
+  app.get("/v1/reports/documents/rejected", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsReportHandler);
+  app.get("/v1/reports/notifications", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsReportHandler);
+  app.get("/v1/reports/regularization", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationReportHandler);
   app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
   app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
   app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);

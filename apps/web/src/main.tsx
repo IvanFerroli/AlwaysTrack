@@ -284,6 +284,23 @@ interface DashboardData {
   };
 }
 
+type ReportKey =
+  | "licensesExpired"
+  | "licensesExpiring"
+  | "rtSummary"
+  | "areaSummary"
+  | "documentsPending"
+  | "documentsRejected"
+  | "notifications"
+  | "regularization";
+
+interface ReportResponse {
+  items: Array<Record<string, unknown>>;
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 interface NavItem {
   key: ViewKey;
   label: string;
@@ -569,6 +586,235 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
             />
           )}
         </div>
+      </section>
+    </div>
+  );
+}
+
+const reportOptions: Array<{ key: ReportKey; label: string; endpoint: string }> = [
+  { key: "licensesExpired", label: "Licencas vencidas", endpoint: "/v1/reports/licenses/expired" },
+  { key: "licensesExpiring", label: "Licencas a vencer", endpoint: "/v1/reports/licenses/expiring" },
+  { key: "rtSummary", label: "Resumo por RT", endpoint: "/v1/reports/groups/rt" },
+  { key: "areaSummary", label: "Resumo por unidade/setor", endpoint: "/v1/reports/groups/areas" },
+  { key: "documentsPending", label: "Documentos pendentes", endpoint: "/v1/reports/documents/pending" },
+  { key: "documentsRejected", label: "Documentos recusados", endpoint: "/v1/reports/documents/rejected" },
+  { key: "notifications", label: "Notificacoes", endpoint: "/v1/reports/notifications" },
+  { key: "regularization", label: "Regularizacao", endpoint: "/v1/reports/regularization" }
+];
+
+function reportText(row: Record<string, unknown>, key: string) {
+  const value = row[key];
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString("pt-BR");
+  return String(value);
+}
+
+function reportColumns(report: ReportKey) {
+  const base = {
+    professionalName: "Profissional",
+    unitName: "Unidade",
+    sectorName: "Setor",
+    rtName: "RT",
+    licenseTypeName: "Tipo",
+    status: "Status"
+  };
+
+  const byReport: Record<ReportKey, Record<string, string>> = {
+    licensesExpired: {
+      ...base,
+      number: "Numero",
+      expiresAt: "Venceu em",
+      daysExpired: "Dias vencida",
+      lastNotificationStatus: "Ultima notif.",
+      lastDocumentStatus: "Ultimo doc."
+    },
+    licensesExpiring: {
+      ...base,
+      number: "Numero",
+      expiresAt: "Vence em",
+      daysRemaining: "Dias restantes",
+      lastNotificationStatus: "Ultima notif.",
+      lastDocumentStatus: "Ultimo doc."
+    },
+    rtSummary: {
+      label: "RT",
+      total: "Profissionais",
+      regular: "Regulares",
+      expiring: "A vencer",
+      expired: "Vencidas",
+      pendingValidation: "Validacoes",
+      failedNotifications: "Falhas",
+      pendingPercent: "% pendencia"
+    },
+    areaSummary: {
+      label: "Unidade / setor",
+      total: "Profissionais",
+      regular: "Regulares",
+      expiring: "A vencer",
+      expired: "Vencidas",
+      pendingValidation: "Validacoes",
+      failedNotifications: "Falhas",
+      pendingPercent: "% pendencia"
+    },
+    documentsPending: {
+      fileName: "Arquivo",
+      ...base,
+      licenseStatus: "Licenca",
+      uploadedAt: "Enviado em",
+      waitingDays: "Dias aguardando"
+    },
+    documentsRejected: {
+      fileName: "Arquivo",
+      ...base,
+      licenseStatus: "Licenca",
+      rejectedAt: "Recusado em",
+      rejectedBy: "Recusado por",
+      rejectionReason: "Motivo"
+    },
+    notifications: {
+      ...base,
+      channel: "Canal",
+      templateKey: "Template",
+      recipient: "Destinatario",
+      scheduledFor: "Agendada",
+      sentAt: "Enviada",
+      errorMessage: "Erro",
+      providerMessageId: "Provider ID"
+    },
+    regularization: {
+      ...base,
+      notificationAt: "Notificacao",
+      notificationStatus: "Status notif.",
+      uploadedAt: "Upload",
+      validationAt: "Validacao",
+      validationStatus: "Status validacao",
+      totalDays: "Dias totais"
+    }
+  };
+
+  return Object.entries(byReport[report]).map(([key, header]) => ({
+    key,
+    header,
+    render: (row: Record<string, unknown>) => reportText(row, key)
+  }));
+}
+
+function ReportsView() {
+  const [report, setReport] = useState<ReportKey>("licensesExpired");
+  const [data, setData] = useState<ReportResponse | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [unitId, setUnitId] = useState("");
+  const [sectorId, setSectorId] = useState("");
+  const [rtId, setRtId] = useState("");
+  const [licenseTypeId, setLicenseTypeId] = useState("");
+  const [status, setStatus] = useState("");
+  const [channel, setChannel] = useState("");
+  const [windowDays, setWindowDays] = useState("30");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState("25");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function load(nextPage = page) {
+    setLoading(true);
+    setError(null);
+    const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
+    const search = new URLSearchParams();
+    if (from) search.set("from", from);
+    if (to) search.set("to", to);
+    if (unitId) search.set("unitId", unitId);
+    if (sectorId) search.set("sectorId", sectorId);
+    if (rtId) search.set("rtId", rtId);
+    if (licenseTypeId) search.set("licenseTypeId", licenseTypeId);
+    if (status) search.set("status", status);
+    if (channel) search.set("channel", channel);
+    if (windowDays) search.set("windowDays", windowDays);
+    if (pageSize) search.set("pageSize", pageSize);
+    search.set("page", String(nextPage));
+
+    try {
+      setData(await api<ReportResponse>(`${selected.endpoint}?${search.toString()}`));
+      setPage(nextPage);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar relatorio.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load(1);
+  }, [report]);
+
+  const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
+  const pageSizeNumber = Number(pageSize) || 25;
+
+  return (
+    <div className="content-stack">
+      <section className="panel report-selector">
+        <label>
+          Relatorio
+          <select value={report} onChange={(event) => setReport(event.target.value as ReportKey)}>
+            {reportOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      <OperationalFilters
+        fields={[
+          { key: "from", label: "Inicio", value: from, placeholder: "2026-04-01", onChange: setFrom },
+          { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
+          { key: "unitId", label: "Unidade ID", value: unitId, placeholder: "unit-1", onChange: setUnitId },
+          { key: "sectorId", label: "Setor ID", value: sectorId, placeholder: "sector-1", onChange: setSectorId },
+          { key: "rtId", label: "RT ID", value: rtId, placeholder: "user-1", onChange: setRtId },
+          { key: "licenseTypeId", label: "Tipo ID", value: licenseTypeId, placeholder: "type-1", onChange: setLicenseTypeId },
+          { key: "status", label: "Status", value: status, placeholder: "FAILED", onChange: setStatus },
+          { key: "channel", label: "Canal", value: channel, placeholder: "WHATSAPP", onChange: setChannel },
+          { key: "windowDays", label: "Janela", value: windowDays, placeholder: "7, 15, 30, 60", onChange: setWindowDays },
+          { key: "pageSize", label: "Por pagina", value: pageSize, placeholder: "25", onChange: setPageSize }
+        ]}
+        onSubmit={() => void load(1)}
+      />
+
+      <section className="panel table-panel">
+        <h2>{selected.label}</h2>
+        {error ? (
+          <OperationalState state="error" title="Falha ao carregar relatorio" detail={error} />
+        ) : loading ? (
+          <OperationalState state="loading" title="Carregando relatorio" />
+        ) : !data || data.items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum dado encontrado" detail="Ajuste os filtros ou gere novos eventos operacionais." />
+        ) : (
+          <>
+            <OperationalTable
+              items={data.items}
+              getRowKey={(item) => reportText(item, "id") + reportText(item, "label")}
+              columns={reportColumns(report)}
+            />
+            <div className="pagination-actions">
+              <PaginationSummary page={page} pageSize={pageSizeNumber} total={data.total} />
+              <div>
+                <button className="secondary" type="button" disabled={page <= 1 || loading} onClick={() => void load(page - 1)}>
+                  Anterior
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={page * pageSizeNumber >= data.total || loading}
+                  onClick={() => void load(page + 1)}
+                >
+                  Proxima
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
@@ -2608,6 +2854,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <LicensesView user={user} />
         ) : activeItem.key === "documents" ? (
           <DocumentsView user={user} />
+        ) : activeItem.key === "reports" ? (
+          <ReportsView />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (

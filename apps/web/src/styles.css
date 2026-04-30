@@ -299,6 +299,14 @@ th {
   padding: 16px;
 }
 
+.report-selector {
+  padding: 16px;
+}
+
+.report-selector label {
+  max-width: 360px;
+}
+
 .table-panel {
   overflow: auto;
 }

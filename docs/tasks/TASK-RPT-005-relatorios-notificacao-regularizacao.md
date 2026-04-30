@@ -1,9 +1,9 @@
 # TASK-RPT-005 - Relatorios de notificacao e regularizacao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-005-relatorios-notificacao-regularizacao.md
 
 ## Modo
@@ -42,3 +42,14 @@ Exibir historico de notificacoes e ciclo de regularizacao.
 
 ## Riscos
 - nao registrar timestamps necessarios antes desta task
+
+## Evidencias de conclusao
+- Implementados `GET /v1/reports/notifications` e `GET /v1/reports/regularization`.
+- Notificacoes exibem canal, template, destinatario, status, datas, erro e `providerMessageId`.
+- Regularizacao cruza ultima notificacao da licenca, upload, validacao e tempo total.
+- Filtros por status, canal, periodo, tipo, RT, unidade e setor usam a camada comum.
+
+## Validacao executada
+- `npm run check` - 87 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local: endpoints de notificacoes e regularizacao responderam `ok`.

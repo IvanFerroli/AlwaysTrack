@@ -1,9 +1,9 @@
 # TASK-RPT-002 - Relatorios de vencidas e a vencer
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
-- last-updated: 2026-04-29
+- last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-RPT-002-relatorios-vencidas-vencer.md
 
 ## Modo
@@ -42,3 +42,14 @@ Implementar relatorios de licencas vencidas e licencas a vencer.
 
 ## Riscos
 - dias restantes/vencidos calculados de forma inconsistente
+
+## Evidencias de conclusao
+- Implementados `GET /v1/reports/licenses/expired` e `GET /v1/reports/licenses/expiring`.
+- Relatorio de vencidas inclui dias vencidos, ultima notificacao e ultimo documento.
+- Relatorio de a vencer suporta `windowDays` e periodo customizado por `from`/`to`.
+- Tela de Relatorios exibe ambos com filtros comuns.
+
+## Validacao executada
+- `npm run check` - 87 testes passaram.
+- `npm run build --workspace @sylembra/web` - build passou.
+- Smoke local: endpoints de vencidas e a vencer responderam `ok`.
