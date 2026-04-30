@@ -356,6 +356,10 @@ function Icon({ name }: { name: IconName }) {
   return <span className="icon" aria-hidden="true">{iconLabels[name]}</span>;
 }
 
+function BrandMark({ className = "" }: { className?: string }) {
+  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="Sylembra" />;
+}
+
 function InfoTip({ text, href }: { text: string; href?: string }) {
   function openHelp() {
     if (!href) return;
@@ -414,9 +418,14 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   return (
     <main className="auth-page">
       <form className="panel login-panel" onSubmit={submit}>
+        <div className="login-brand">
+          <BrandMark className="login-brand-mark" />
+          <div>
+            <p className="eyebrow">Sylembra</p>
+            <h1>Entrar</h1>
+          </div>
+        </div>
         <div>
-          <p className="eyebrow">Sylembra</p>
-          <h1>Entrar</h1>
           <p className="muted">Acesso administrativo para operação de licenças e documentos.</p>
         </div>
         <label>
@@ -3142,8 +3151,11 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
     <main className="app-frame">
       <aside className="sidebar">
         <div className="brand">
-          <p className="eyebrow">Sylembra</p>
-          <strong>Operação</strong>
+          <BrandMark />
+          <div>
+            <strong>Sylembra</strong>
+            <small>Licenças e documentos</small>
+          </div>
         </div>
         <nav className="nav-list" aria-label="Navegação principal">
           {visibleNav.map((item) => (
@@ -3171,26 +3183,28 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
             <h1><Icon name={activeItem.icon} /> {activeItem.label}</h1>
             <p className="muted">{activeItem.description}</p>
           </div>
-          <div className="user-actions">
+          <div className="topbar-nav-group">
+            <nav className="top-nav" aria-label="Atalhos principais">
+              {primaryNav.map((item) => (
+                <button
+                  className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
+                  key={item.key}
+                  type="button"
+                  onClick={() => openView(item.key)}
+                  title={item.description}
+                >
+                  <Icon name={item.icon} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="topbar-account user-actions">
             <span>{user.name}</span>
             <button className="secondary" onClick={logout}>
               <Icon name="logout" /> Sair
             </button>
           </div>
-          <nav className="top-nav" aria-label="Atalhos principais">
-            {primaryNav.map((item) => (
-              <button
-                className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
-                key={item.key}
-                type="button"
-                onClick={() => openView(item.key)}
-                title={item.description}
-              >
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
         </header>
         {activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />

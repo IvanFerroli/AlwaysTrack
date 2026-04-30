@@ -312,6 +312,10 @@ tr:hover td {
 
 .auth-page {
   align-items: center;
+  background:
+    radial-gradient(circle at 22% 18%, rgb(34 160 107 / 18%), transparent 28%),
+    radial-gradient(circle at 76% 18%, rgb(15 61 76 / 18%), transparent 30%),
+    linear-gradient(135deg, #072832 0%, var(--color-primary) 42%, #f3f8f8 42%, #f6f8fa 100%);
   display: grid;
   min-height: 100vh;
   padding: 24px;
@@ -326,31 +330,51 @@ tr:hover td {
 }
 
 .login-panel {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 96%), rgb(248 252 252 / 94%));
+  border-color: rgb(216 225 232 / 84%);
   display: grid;
   gap: 20px;
   justify-self: center;
   max-width: 430px;
-  padding: 30px;
+  padding: 34px;
+  position: relative;
   width: 100%;
 }
 
-.login-panel::before {
-  background:
-    linear-gradient(135deg, var(--color-primary), var(--color-success));
+.login-panel::after {
+  background: linear-gradient(90deg, var(--color-primary), var(--color-success));
   border-radius: var(--radius-pill);
-  color: white;
-  content: "S";
-  display: grid;
-  font-size: 24px;
-  font-weight: 900;
-  height: 54px;
-  place-items: center;
-  width: 54px;
+  content: "";
+  height: 4px;
+  left: 34px;
+  position: absolute;
+  right: 34px;
+  top: 0;
 }
 
 .login-panel form {
   display: grid;
   gap: 15px;
+}
+
+.login-brand {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.brand-mark {
+  display: block;
+  flex: 0 0 auto;
+  height: 44px;
+  width: 44px;
+}
+
+.login-brand-mark {
+  filter: drop-shadow(0 12px 22px rgb(15 61 76 / 18%));
+  height: 72px;
+  width: 72px;
 }
 
 .public-upload-summary {
@@ -432,39 +456,36 @@ tr:hover td {
 }
 
 .brand {
-  display: grid;
-  gap: 5px;
+  align-items: center;
+  display: flex;
+  gap: 11px;
   padding: 0 8px;
   position: relative;
   z-index: 1;
 }
 
-.brand strong {
-  align-items: center;
-  display: inline-flex;
-  font-size: 24px;
-  gap: 10px;
-  letter-spacing: -0.04em;
+.brand .brand-mark {
+  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 18%));
+  height: 48px;
+  width: 48px;
 }
 
-.brand strong::before {
-  background:
-    linear-gradient(135deg, white, var(--color-primary-soft));
-  border-radius: var(--radius-pill);
-  box-shadow: 0 10px 20px rgb(0 0 0 / 16%);
-  color: var(--color-primary);
-  content: "S";
-  display: inline-grid;
-  font-size: 18px;
-  font-weight: 900;
-  height: 38px;
-  place-items: center;
-  width: 38px;
+.brand strong {
+  color: white;
+  display: block;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
 
 .brand span,
 .brand small {
   color: #b8dce3;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
 }
 
 .nav-list {
@@ -526,14 +547,14 @@ button .icon {
 }
 
 .topbar {
-  align-items: center;
+  align-items: stretch;
   background: rgb(246 248 250 / 88%);
   border: 1px solid rgb(216 225 232 / 72%);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
+  display: grid;
+  column-gap: 24px;
+  grid-template-columns: minmax(260px, max-content) minmax(0, 1fr) auto;
   padding: 16px;
   position: sticky;
   top: 16px;
@@ -545,6 +566,7 @@ button .icon {
   display: grid;
   gap: 5px;
   min-width: 220px;
+  padding-right: 0;
 }
 
 .topbar h1 {
@@ -573,13 +595,21 @@ button .icon {
   padding: 0;
 }
 
+.topbar-nav-group {
+  align-items: center;
+  border-left: 1px solid var(--color-border-soft);
+  border-right: 1px solid var(--color-border-soft);
+  display: flex;
+  min-width: 0;
+  padding: 0 24px;
+}
+
 .top-nav {
   display: flex;
-  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
-  min-width: 280px;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .top-nav-item {
@@ -610,6 +640,12 @@ button .icon {
   align-items: center;
   display: flex;
   gap: 12px;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
+.topbar-account {
+  padding-left: 2px;
 }
 
 .content-stack {
@@ -1104,6 +1140,21 @@ legend {
 /* Responsividade */
 
 @media (max-width: 1100px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-title,
+  .topbar-nav-group {
+    border: 0;
+    padding: 0;
+  }
+
+  .topbar-nav-group,
+  .user-actions {
+    justify-content: flex-start;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1164,6 +1215,9 @@ legend {
 
 @media (max-width: 560px) {
   .auth-page {
+    background:
+      radial-gradient(circle at top left, rgb(34 160 107 / 18%), transparent 36%),
+      linear-gradient(180deg, #072832 0%, var(--color-primary) 34%, #f6f8fa 34%);
     padding: 14px;
   }
 
@@ -1176,10 +1230,8 @@ legend {
     grid-template-columns: 1fr;
   }
 
-  .topbar,
-  .user-actions {
+  .topbar {
     align-items: stretch;
-    flex-direction: column;
   }
 
   .top-nav {
