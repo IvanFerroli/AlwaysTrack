@@ -77,7 +77,7 @@ describe("notifications service", () => {
     );
   });
 
-  it("scans active rules and dedupes jobs", async () => {
+  it("scans active rules with detailed professional payload and future RT escalation hint", async () => {
     const prisma = {
       notificationRule: {
         findMany: vi.fn().mockResolvedValue([
@@ -90,6 +90,16 @@ describe("notifications service", () => {
             templateKey: "venc",
             notifyProfessional: true,
             notifyRt: false
+          },
+          {
+            id: "rule-2",
+            licenseTypeId: "type-1",
+            daysBeforeExpiration: 15,
+            repeatAfterExpiredDays: null,
+            channel: "WHATSAPP",
+            templateKey: "venc-final",
+            notifyProfessional: true,
+            notifyRt: true
           }
         ])
       },
@@ -100,9 +110,12 @@ describe("notifications service", () => {
             professionalId: "pro-1",
             licenseTypeId: "type-1",
             number: "123",
+            issuer: "COREN",
+            uf: "SP",
+            issuedAt: new Date("2025-05-29T00:00:00.000Z"),
             expiresAt: new Date("2026-05-29T00:00:00.000Z"),
             licenseType: { name: "Registro" },
-            professional: { name: "Ana", phone: "+550000", email: null, responsibleRt: null }
+            professional: { name: "Ana", phone: "+550000", email: null, responsibleRt: { name: "RT Maria", phone: "+5511999991234" } }
           }
         ])
       },
@@ -120,6 +133,124 @@ describe("notifications service", () => {
         data: expect.objectContaining({ dedupeKey: expect.stringContaining("lic-1:rule-1:before:30") })
       })
     );
+    const payload = JSON.parse(prisma.notificationJob.create.mock.calls[0][0].data.payloadJson);
+    expect(payload).toEqual(
+      expect.objectContaining({
+        issuer: "COREN",
+        uf: "SP",
+        issuedAt: "2025-05-29T00:00:00.000Z",
+        expiresAt: "2026-05-29T00:00:00.000Z",
+        daysUntilExpiration: 30,
+        daysExpired: 0,
+        responsibleRtName: "RT Maria",
+        responsibleRtPhoneMasked: "*********1234",
+        willEscalateToRt: true,
+        recipientKind: "professional"
+      })
+    );
+  });
+
+  it("creates separate professional and RT jobs for RT escalation rules", async () => {
+    const prisma = {
+      notificationRule: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "rule-1",
+            licenseTypeId: "type-1",
+            daysBeforeExpiration: 30,
+            repeatAfterExpiredDays: null,
+            channel: "WHATSAPP",
+            templateKey: "venc-final",
+            notifyProfessional: true,
+            notifyRt: true
+          }
+        ])
+      },
+      license: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lic-1",
+            professionalId: "pro-1",
+            licenseTypeId: "type-1",
+            number: "123",
+            issuer: "COREN",
+            uf: "SP",
+            issuedAt: null,
+            expiresAt: new Date("2026-05-29T00:00:00.000Z"),
+            licenseType: { name: "Registro" },
+            professional: {
+              name: "Ana",
+              phone: "+550000",
+              email: null,
+              responsibleRt: { name: "RT Maria", phone: "+5511999991234", email: "rt@example.com" }
+            }
+          }
+        ])
+      },
+      notificationJob: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: `job-${data.recipientPhone}`, ...data }))
+      }
+    };
+
+    const result = await scanNotificationJobs(prisma as never, admin, { today: new Date("2026-04-29T00:00:00.000Z") });
+
+    expect(result.created).toHaveLength(2);
+    expect(result.created.map((job) => JSON.parse(job.payloadJson).recipientKind)).toEqual(["professional", "rt"]);
+    expect(result.created.map((job) => job.dedupeKey)).toEqual([
+      "lic-1:rule-1:before:30:2026-04-29:professional",
+      "lic-1:rule-1:before:30:2026-04-29:rt"
+    ]);
+  });
+
+  it("keeps professional job and reports skipped RT when RT has no phone", async () => {
+    const prisma = {
+      notificationRule: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "rule-1",
+            licenseTypeId: "type-1",
+            daysBeforeExpiration: 30,
+            repeatAfterExpiredDays: null,
+            channel: "WHATSAPP",
+            templateKey: "venc-final",
+            notifyProfessional: true,
+            notifyRt: true
+          }
+        ])
+      },
+      license: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "lic-1",
+            professionalId: "pro-1",
+            licenseTypeId: "type-1",
+            number: "123",
+            issuer: null,
+            uf: null,
+            issuedAt: null,
+            expiresAt: new Date("2026-05-29T00:00:00.000Z"),
+            licenseType: { name: "Registro" },
+            professional: { name: "Ana", phone: "+550000", email: null, responsibleRt: { name: "RT Maria", phone: null } }
+          }
+        ])
+      },
+      notificationJob: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "job-1", ...data }))
+      }
+    };
+
+    const result = await scanNotificationJobs(prisma as never, admin, { today: new Date("2026-04-29T00:00:00.000Z") });
+
+    expect(result.created).toHaveLength(1);
+    expect(JSON.parse(result.created[0].payloadJson).recipientKind).toBe("professional");
+    expect(result.skipped).toContainEqual({
+      licenseId: "lic-1",
+      notificationRuleId: "rule-1",
+      recipientKind: "rt",
+      reason: "missing_rt_phone"
+    });
   });
 
   it("processes pending jobs with provider and logs success", async () => {
@@ -130,7 +261,7 @@ describe("notifications service", () => {
             id: "job-1",
             templateKey: "venc",
             recipientPhone: "+550000",
-            payloadJson: "{}",
+            payloadJson: JSON.stringify({ professionalName: "Ana", expiresAt: "2026-05-29T00:00:00.000Z" }),
             attempts: 0,
             maxAttempts: 3
           }
@@ -141,12 +272,21 @@ describe("notifications service", () => {
           .mockResolvedValueOnce({ id: "job-1", status: "SENT" })
       },
       notificationTemplate: {
-        findFirst: vi.fn().mockResolvedValue({ key: "venc", metaTemplateName: "tpl_venc", language: "pt_BR" })
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ key: "venc", metaTemplateName: "tpl_venc", language: "pt_BR", bodyPreview: "Ola {{professionalName}}, vence em {{expiresAt}}." })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
     };
+    const provider = { sendWhatsAppTemplate: vi.fn(new FakeNotificationProvider().sendWhatsAppTemplate) };
 
-    await processNotificationJobs(prisma as never, admin, new FakeNotificationProvider());
+    await processNotificationJobs(prisma as never, admin, provider);
+
+    expect(provider.sendWhatsAppTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bodyParameters: ["Ana", "2026-05-29"]
+      })
+    );
 
     expect(prisma.notificationJob.update).toHaveBeenLastCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SENT", providerMessageId: expect.stringMatching(/^fake_/) }) })

@@ -63,6 +63,7 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 49. `TASK-UX-008` ajuda contextual complementar e Como usar intuitivo.
 50. `TASK-UX-009` icones SVG intuitivos na navegacao.
 51. `TASK-IMP-001` importacao CSV de profissionais e licencas.
+52. `TASK-NOT-006` escalonamento para RT/superior nos ultimos avisos.
 
 ## Gate final
 A V1 so fecha quando os 14 criterios de sucesso do documento central estiverem demonstraveis em ambiente de demo ou producao.

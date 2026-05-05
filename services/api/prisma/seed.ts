@@ -452,7 +452,8 @@ async function main() {
     update: {
       channel: "WHATSAPP",
       language: "pt_BR",
-      bodyPreview: "Ola {{professionalName}}, seu registro {{licenseNumber}} vence em breve.",
+      bodyPreview:
+        "Ola {{professionalName}}, seu {{licenseTypeName}} {{licenseNumber}} ({{issuer}}/{{uf}}) vence em {{expiresAt}}. Restam {{daysUntilExpiration}} dias. {{responsibleRtName}} sera copiado no ultimo aviso.",
       active: true
     },
     create: {
@@ -460,9 +461,34 @@ async function main() {
       key: "license-expiration-demo",
       channel: "WHATSAPP",
       language: "pt_BR",
-      bodyPreview: "Ola {{professionalName}}, seu registro {{licenseNumber}} vence em breve."
+      bodyPreview:
+        "Ola {{professionalName}}, seu {{licenseTypeName}} {{licenseNumber}} ({{issuer}}/{{uf}}) vence em {{expiresAt}}. Restam {{daysUntilExpiration}} dias. {{responsibleRtName}} sera copiado no ultimo aviso."
     }
   });
+
+  const existingEarlyRule = await prisma.notificationRule.findFirst({
+    where: {
+      organizationId: organization.id,
+      licenseTypeId: licenseType.id,
+      channel: "WHATSAPP",
+      templateKey: "license-expiration-demo",
+      daysBeforeExpiration: 60
+    }
+  });
+
+  if (!existingEarlyRule) {
+    await prisma.notificationRule.create({
+      data: {
+        organizationId: organization.id,
+        licenseTypeId: licenseType.id,
+        daysBeforeExpiration: 60,
+        channel: "WHATSAPP",
+        templateKey: "license-expiration-demo",
+        notifyProfessional: true,
+        notifyRt: false
+      }
+    });
+  }
 
   const existingRule = await prisma.notificationRule.findFirst({
     where: {
@@ -557,7 +583,15 @@ async function main() {
       professionalName: expiringProfessional.name,
       licenseTypeName: licenseType.name,
       licenseNumber: expiringLicense.number,
+      issuer: expiringLicense.issuer,
+      uf: expiringLicense.uf,
+      issuedAt: expiringLicense.issuedAt?.toISOString(),
       expiresAt: expiringLicense.expiresAt?.toISOString(),
+      daysUntilExpiration: 30,
+      daysExpired: 0,
+      responsibleRtName: rt.name,
+      responsibleRtPhoneMasked: "********0001",
+      willEscalateToRt: true,
       recipientKind: "professional"
     }),
     status: "SENT",
@@ -579,7 +613,15 @@ async function main() {
       professionalName: expiredProfessional.name,
       licenseTypeName: licenseType.name,
       licenseNumber: expiredLicense.number,
+      issuer: expiredLicense.issuer,
+      uf: expiredLicense.uf,
+      issuedAt: expiredLicense.issuedAt?.toISOString(),
       expiresAt: expiredLicense.expiresAt?.toISOString(),
+      daysUntilExpiration: -15,
+      daysExpired: 15,
+      responsibleRtName: rt.name,
+      responsibleRtPhoneMasked: "********0001",
+      willEscalateToRt: true,
       recipientKind: "professional"
     }),
     status: "FAILED",

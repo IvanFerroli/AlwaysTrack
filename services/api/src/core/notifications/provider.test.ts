@@ -36,6 +36,32 @@ describe("notification providers", () => {
     );
   });
 
+  it("meta provider sends body template parameters when provided", async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ messages: [{ id: "wamid.1" }] })
+    });
+
+    await new MetaWhatsAppProvider("token", "phone-id", fetcher as never).sendWhatsAppTemplate({
+      to: "+550000",
+      templateName: "venc",
+      language: "pt_BR",
+      payload: {},
+      bodyParameters: ["Ana", "30"]
+    });
+
+    const body = JSON.parse(fetcher.mock.calls[0][1].body);
+    expect(body.template.components).toEqual([
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: "Ana" },
+          { type: "text", text: "30" }
+        ]
+      }
+    ]);
+  });
+
   it("meta provider normalizes failures without exposing token", async () => {
     const fetcher = vi.fn().mockResolvedValue({
       ok: false,

@@ -6,6 +6,7 @@ export interface NotificationSendInput {
   templateName: string;
   language: string;
   payload: Record<string, unknown>;
+  bodyParameters?: string[];
 }
 
 export interface NotificationSendResult {
@@ -48,6 +49,7 @@ export class MetaWhatsAppProvider implements NotificationProvider {
   ) {}
 
   async sendWhatsAppTemplate(input: NotificationSendInput): Promise<NotificationSendResult> {
+    const bodyParameters = input.bodyParameters?.filter((value) => value.trim().length > 0) ?? [];
     const payload = {
       messaging_product: "whatsapp",
       to: input.to,
@@ -55,7 +57,16 @@ export class MetaWhatsAppProvider implements NotificationProvider {
       template: {
         name: input.templateName,
         language: { code: input.language },
-        components: []
+        ...(bodyParameters.length
+          ? {
+              components: [
+                {
+                  type: "body",
+                  parameters: bodyParameters.map((text) => ({ type: "text", text }))
+                }
+              ]
+            }
+          : {})
       }
     };
 

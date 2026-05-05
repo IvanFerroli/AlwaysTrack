@@ -2629,7 +2629,7 @@ function SettingsView() {
               <input value={templateMetaName} onChange={(event) => setTemplateMetaName(event.target.value)} />
             </label>
             <label>
-              <span className="label-row">Preview <InfoTip text="Texto para conferencia operacional; a mensagem real da Meta depende do template aprovado." href="#jobs-notificacao" /></span>
+              <span className="label-row">Preview <InfoTip text="Pode usar professionalName, licenseTypeName, licenseNumber, issuer, uf, issuedAt, expiresAt, daysUntilExpiration, daysExpired, responsibleRtName e willEscalateToRt." href="#jobs-notificacao" /></span>
               <input value={templatePreview} onChange={(event) => setTemplatePreview(event.target.value)} />
             </label>
           </div>
@@ -2665,7 +2665,7 @@ function SettingsView() {
             </label>
             <label className="checkbox-row">
               <input checked={ruleNotifyRt} onChange={() => setRuleNotifyRt((current) => !current)} type="checkbox" />
-              <span className="label-row">Notificar RT <InfoTip text="Tambem cria aviso para o responsavel tecnico vinculado." href="#jobs-notificacao" /></span>
+              <span className="label-row">Notificar RT <InfoTip text="Use nos ultimos avisos: cria um job separado para o responsavel tecnico vinculado quando houver telefone." href="#jobs-notificacao" /></span>
             </label>
           </div>
           <button disabled={saving || !ruleTemplateKey}>Criar regra</button>
@@ -3158,9 +3158,9 @@ function HelpView({ user }: { user: CurrentUser }) {
       id: "notificacoes",
       title: "Notificações",
       who: "Admin configura; demais perfis acompanham impactos.",
-      text: "Regras criam avisos antes e depois do vencimento. Provider fake é modo de teste sem envio real; Meta real usa credenciais privadas fora do git.",
-      steps: ["Configure dias antes do vencimento.", "Associe tipo de licença se a regra for específica.", "Use template Meta aprovado apenas quando o envio real estiver pronto."],
-      check: "Confirme dias, repetição, template e se o ambiente está em teste ou Meta real.",
+      text: "Regras criam avisos antes e depois do vencimento. Nos ultimos avisos, marque Notificar RT para copiar o responsavel tecnico junto com o profissional.",
+      steps: ["Configure avisos iniciais apenas para o profissional.", "Crie o ultimo aviso com Notificar RT marcado.", "Use template Meta aprovado apenas quando o envio real estiver pronto."],
+      check: "Confirme dias, repetição, template, telefone do RT e se o ambiente está em teste ou Meta real.",
       common: "Template errado ou credencial ausente gera falha de envio; não coloque tokens em telas, docs ou git.",
       support: "Procure suporte ao trocar de fake para Meta real, validar webhook ou investigar falhas repetidas."
     },
@@ -3278,9 +3278,9 @@ function HelpView({ user }: { user: CurrentUser }) {
       id: "jobs-notificacao",
       title: "Jobs de notificação",
       who: "Admin",
-      text: "Criar jobs monta pendências de aviso. Processar jobs tenta enviar pelo provider configurado, fake/local ou Meta real.",
-      steps: ["Configure template e regra.", "Use Criar jobs para gerar pendências.", "Use Processar jobs para tentar envio."],
-      check: "Confirme dias, repetição, RT, template e ambiente antes de processar.",
+      text: "Criar jobs monta pendências de aviso. Regra com Notificar RT gera um job para o profissional e outro para o RT quando ambos têm telefone.",
+      steps: ["Configure template e regra.", "Use Criar jobs para gerar pendências.", "Revise destinos e processe pelo provider configurado."],
+      check: "Confirme dias, repetição, RT, template, telefone do RT e ambiente antes de processar.",
       common: "Provider fake não envia mensagem real; falhas de Meta real podem envolver template, credencial ou webhook.",
       support: "Chame suporte para troca de fake para Meta real, falhas repetidas ou dúvidas sobre credenciais."
     },

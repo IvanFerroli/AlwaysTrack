@@ -87,6 +87,36 @@ function daysBetween(from: Date, to: Date) {
   return Math.ceil((dateOnly(to).getTime() - dateOnly(from).getTime()) / 86_400_000);
 }
 
+function isoDate(value: Date | null | undefined) {
+  return value ? value.toISOString() : null;
+}
+
+function maskPhone(value: string | null | undefined) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 4) return "****";
+  return `${"*".repeat(Math.max(digits.length - 4, 4))}${digits.slice(-4)}`;
+}
+
+function formatTemplateParameter(value: unknown) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return value.slice(0, 10);
+  return String(value);
+}
+
+function templateBodyParameters(bodyPreview: string | null | undefined, payload: Record<string, unknown>) {
+  if (!bodyPreview) return [];
+  const parameters = [];
+  const seen = new Set<string>();
+  for (const match of bodyPreview.matchAll(/{{\s*([a-zA-Z0-9_.-]+)\s*}}/g)) {
+    const key = match[1];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parameters.push(formatTemplateParameter(payload[key]));
+  }
+  return parameters;
+}
+
 function requireAdmin(actor: CurrentUser) {
   if (actor.role !== "ADMIN") throw new NotificationError("FORBIDDEN");
 }
@@ -314,6 +344,23 @@ function recipientsFor(rule: { notifyProfessional: boolean; notifyRt: boolean },
   return recipients;
 }
 
+function hasFutureRtEscalation(
+  rule: { id: string; licenseTypeId: string | null; channel: string; daysBeforeExpiration: number | null; notifyRt: boolean },
+  rules: Array<{ id: string; licenseTypeId: string | null; channel: string; daysBeforeExpiration: number | null; notifyRt: boolean }>
+) {
+  const currentDaysBeforeExpiration = rule.daysBeforeExpiration;
+  if (currentDaysBeforeExpiration === null) return false;
+  return rules.some(
+    (candidate) =>
+      candidate.id !== rule.id &&
+      candidate.notifyRt &&
+      candidate.channel === rule.channel &&
+      candidate.licenseTypeId === rule.licenseTypeId &&
+      candidate.daysBeforeExpiration !== null &&
+      candidate.daysBeforeExpiration < currentDaysBeforeExpiration
+  );
+}
+
 export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentUser, input: NotificationScanInput = {}) {
   requireAdmin(actor);
   const today = input.today ?? new Date();
@@ -335,13 +382,32 @@ export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentU
     for (const license of licenses.filter((item) => !rule.licenseTypeId || item.licenseTypeId === rule.licenseTypeId)) {
       const periodKey = shouldSchedule(rule, license, today);
       if (!periodKey) continue;
+      const daysUntilExpiration = license.expiresAt ? daysBetween(today, license.expiresAt) : null;
+      const daysExpired = daysUntilExpiration !== null && daysUntilExpiration < 0 ? Math.abs(daysUntilExpiration) : 0;
+      const willEscalateToRt = rule.notifyRt || hasFutureRtEscalation(rule, rules);
+      if (rule.notifyRt && !license.professional.responsibleRt?.phone) {
+        skipped.push({
+          licenseId: license.id,
+          notificationRuleId: rule.id,
+          recipientKind: "rt",
+          reason: license.professional.responsibleRt ? "missing_rt_phone" : "missing_rt"
+        });
+      }
       for (const recipient of recipientsFor(rule, license)) {
         const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}`;
         const payload = {
           professionalName: license.professional.name,
           licenseTypeName: license.licenseType.name,
           licenseNumber: license.number,
-          expiresAt: license.expiresAt?.toISOString(),
+          issuer: license.issuer,
+          uf: license.uf,
+          issuedAt: isoDate(license.issuedAt),
+          expiresAt: isoDate(license.expiresAt),
+          daysUntilExpiration,
+          daysExpired,
+          responsibleRtName: license.professional.responsibleRt?.name ?? null,
+          responsibleRtPhoneMasked: maskPhone(license.professional.responsibleRt?.phone),
+          willEscalateToRt,
           recipientKind: recipient.kind
         };
         const existing = await prisma.notificationJob.findUnique({ where: { dedupeKey } });
@@ -420,11 +486,13 @@ export async function processNotificationJobs(prisma: PrismaClient, actor: Curre
     }
 
     try {
+      const payload = JSON.parse(job.payloadJson) as Record<string, unknown>;
       const sendResult = await provider.sendWhatsAppTemplate({
         to: job.recipientPhone,
         templateName: template.metaTemplateName ?? template.key,
         language: template.language,
-        payload: JSON.parse(job.payloadJson)
+        payload,
+        bodyParameters: templateBodyParameters(template.bodyPreview, payload)
       });
       const sent = await prisma.notificationJob.update({
         where: { id: job.id },

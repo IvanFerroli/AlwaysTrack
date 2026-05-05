@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 export interface ApiEnv {
   databaseUrl: string;
   sessionSecret: string;
@@ -15,7 +18,32 @@ export interface ApiEnv {
   notificationJobLimit: number;
 }
 
+let dotEnvLoaded = false;
+
+function loadDotEnv() {
+  if (dotEnvLoaded) return;
+  dotEnvLoaded = true;
+  if (process.env.NODE_ENV === "test") return;
+
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "../.env"),
+    path.resolve(process.cwd(), "../../.env")
+  ];
+  const envPath = candidates.find((candidate) => existsSync(candidate));
+  if (!envPath) return;
+
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...rest] = trimmed.split("=");
+    if (process.env[key]) continue;
+    process.env[key] = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+  }
+}
+
 export function loadEnv(source = process.env): ApiEnv {
+  loadDotEnv();
   return {
     databaseUrl: source.DATABASE_URL ?? "file:./dev.db",
     sessionSecret: source.SESSION_SECRET ?? "dev-only-session-secret",

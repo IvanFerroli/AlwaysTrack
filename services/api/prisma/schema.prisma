@@ -302,7 +302,6 @@ model NotificationJob {
   notificationRule NotificationRule? @relation(fields: [notificationRuleId], references: [id])
   logs             NotificationLog[]
 
-  @@unique([licenseId, notificationRuleId, periodKey])
   @@index([organizationId])
   @@index([professionalId])
   @@index([licenseId])

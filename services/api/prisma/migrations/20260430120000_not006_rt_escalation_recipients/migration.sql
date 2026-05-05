@@ -1,0 +1,1 @@
+DROP INDEX "NotificationJob_licenseId_notificationRuleId_periodKey_key";
