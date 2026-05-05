@@ -442,86 +442,115 @@ async function main() {
     }
   });
 
-  await prisma.notificationTemplate.upsert({
-    where: {
-      organizationId_key: {
-        organizationId: organization.id,
-        key: "license-expiration-demo"
-      }
-    },
-    update: {
-      channel: "WHATSAPP",
-      language: "pt_BR",
+  const officialTemplates = [
+    {
+      key: "license_expiration_notice",
       bodyPreview:
-        "Ola {{professionalName}}, seu {{licenseTypeName}} {{licenseNumber}} ({{issuer}}/{{uf}}) vence em {{expiresAt}}. Restam {{daysUntilExpiration}} dias. {{responsibleRtName}} sera copiado no ultimo aviso.",
-      active: true
+        "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
     },
-    create: {
-      organizationId: organization.id,
-      key: "license-expiration-demo",
-      channel: "WHATSAPP",
-      language: "pt_BR",
+    {
+      key: "responsible_license_expiration_notice",
       bodyPreview:
-        "Ola {{professionalName}}, seu {{licenseTypeName}} {{licenseNumber}} ({{issuer}}/{{uf}}) vence em {{expiresAt}}. Restam {{daysUntilExpiration}} dias. {{responsibleRtName}} sera copiado no ultimo aviso."
+        "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
+    },
+    {
+      key: "license_expired_notice",
+      bodyPreview:
+        "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+    },
+    {
+      key: "responsible_license_expired_notice",
+      bodyPreview:
+        "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
     }
-  });
+  ];
 
-  const existingEarlyRule = await prisma.notificationRule.findFirst({
-    where: {
-      organizationId: organization.id,
-      licenseTypeId: licenseType.id,
-      channel: "WHATSAPP",
-      templateKey: "license-expiration-demo",
-      daysBeforeExpiration: 60
-    }
-  });
-
-  if (!existingEarlyRule) {
-    await prisma.notificationRule.create({
-      data: {
-        organizationId: organization.id,
-        licenseTypeId: licenseType.id,
-        daysBeforeExpiration: 60,
+  for (const template of officialTemplates) {
+    await prisma.notificationTemplate.upsert({
+      where: {
+        organizationId_key: {
+          organizationId: organization.id,
+          key: template.key
+        }
+      },
+      update: {
         channel: "WHATSAPP",
-        templateKey: "license-expiration-demo",
-        notifyProfessional: true,
-        notifyRt: false
+        metaTemplateName: template.key,
+        language: "pt_BR",
+        bodyPreview: template.bodyPreview,
+        active: true
+      },
+      create: {
+        organizationId: organization.id,
+        key: template.key,
+        channel: "WHATSAPP",
+        metaTemplateName: template.key,
+        language: "pt_BR",
+        bodyPreview: template.bodyPreview
       }
     });
   }
 
-  const existingRule = await prisma.notificationRule.findFirst({
-    where: {
-      organizationId: organization.id,
-      licenseTypeId: licenseType.id,
-      channel: "WHATSAPP",
-      templateKey: "license-expiration-demo",
-      daysBeforeExpiration: 30
-    }
-  });
+  async function ensureRule(input: {
+    templateKey: string;
+    daysBeforeExpiration?: number;
+    repeatAfterExpiredDays?: number;
+    notifyProfessional: boolean;
+    notifyRt: boolean;
+  }) {
+    const existing = await prisma.notificationRule.findFirst({
+      where: {
+        organizationId: organization.id,
+        licenseTypeId: licenseType.id,
+        channel: "WHATSAPP",
+        templateKey: input.templateKey,
+        daysBeforeExpiration: input.daysBeforeExpiration ?? null,
+        repeatAfterExpiredDays: input.repeatAfterExpiredDays ?? null,
+        notifyProfessional: input.notifyProfessional,
+        notifyRt: input.notifyRt
+      }
+    });
 
-  if (!existingRule) {
-    await prisma.notificationRule.create({
+    if (existing) return existing;
+
+    return prisma.notificationRule.create({
       data: {
         organizationId: organization.id,
         licenseTypeId: licenseType.id,
-        daysBeforeExpiration: 30,
+        daysBeforeExpiration: input.daysBeforeExpiration ?? null,
+        repeatAfterExpiredDays: input.repeatAfterExpiredDays ?? null,
         channel: "WHATSAPP",
-        templateKey: "license-expiration-demo",
-        notifyProfessional: true,
-        notifyRt: true
+        templateKey: input.templateKey,
+        notifyProfessional: input.notifyProfessional,
+        notifyRt: input.notifyRt
       }
     });
   }
 
-  const notificationRule = await prisma.notificationRule.findFirstOrThrow({
-    where: {
-      organizationId: organization.id,
-      licenseTypeId: licenseType.id,
-      channel: "WHATSAPP",
-      templateKey: "license-expiration-demo",
-      daysBeforeExpiration: 30
-    }
+  await ensureRule({ templateKey: "license_expiration_notice", daysBeforeExpiration: 60, notifyProfessional: true, notifyRt: false });
+  const notificationRule = await ensureRule({
+    templateKey: "license_expiration_notice",
+    daysBeforeExpiration: 30,
+    notifyProfessional: true,
+    notifyRt: false
+  });
+  await ensureRule({
+    templateKey: "responsible_license_expiration_notice",
+    daysBeforeExpiration: 30,
+    notifyProfessional: false,
+    notifyRt: true
+  });
+  const expiredNotificationRule = await ensureRule({
+    templateKey: "license_expired_notice",
+    repeatAfterExpiredDays: 15,
+    notifyProfessional: true,
+    notifyRt: false
+  });
+  await ensureRule({
+    templateKey: "responsible_license_expired_notice",
+    repeatAfterExpiredDays: 15,
+    notifyProfessional: false,
+    notifyRt: true
   });
 
   const approvedDocument = await ensureDocument({
@@ -578,7 +607,7 @@ async function main() {
     dedupeKey: `${expiringLicense.id}:${notificationRule.id}:demo-sent:professional`,
     recipientPhone: expiringProfessional.phone,
     recipientEmail: expiringProfessional.email,
-    templateKey: "license-expiration-demo",
+    templateKey: "license_expiration_notice",
     payloadJson: JSON.stringify({
       professionalName: expiringProfessional.name,
       licenseTypeName: licenseType.name,
@@ -603,12 +632,12 @@ async function main() {
     organizationId: organization.id,
     professionalId: expiredProfessional.id,
     licenseId: expiredLicense.id,
-    notificationRuleId: notificationRule.id,
+    notificationRuleId: expiredNotificationRule.id,
     periodKey: `expired:demo:${now.toISOString().slice(0, 10)}`,
     dedupeKey: `${expiredLicense.id}:${notificationRule.id}:demo-failed:professional`,
     recipientPhone: expiredProfessional.phone,
     recipientEmail: expiredProfessional.email,
-    templateKey: "license-expiration-demo",
+    templateKey: "license_expired_notice",
     payloadJson: JSON.stringify({
       professionalName: expiredProfessional.name,
       licenseTypeName: licenseType.name,

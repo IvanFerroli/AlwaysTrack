@@ -2151,6 +2151,7 @@ function SettingsView() {
   const [ruleLicenseTypeId, setRuleLicenseTypeId] = useState("");
   const [ruleDaysBefore, setRuleDaysBefore] = useState("30");
   const [ruleRepeatAfter, setRuleRepeatAfter] = useState("");
+  const [ruleNotifyProfessional, setRuleNotifyProfessional] = useState(true);
   const [ruleNotifyRt, setRuleNotifyRt] = useState(false);
   const [faqCategory, setFaqCategory] = useState("");
   const [faqQuestion, setFaqQuestion] = useState("");
@@ -2292,12 +2293,14 @@ function SettingsView() {
           repeatAfterExpiredDays: ruleRepeatAfter ? Number(ruleRepeatAfter) : null,
           channel: "WHATSAPP",
           templateKey: ruleTemplateKey,
-          notifyProfessional: true,
+          notifyProfessional: ruleNotifyProfessional,
           notifyRt: ruleNotifyRt
         })
       });
       setRuleDaysBefore("30");
       setRuleRepeatAfter("");
+      setRuleNotifyProfessional(true);
+      setRuleNotifyRt(false);
     });
   }
 
@@ -2664,11 +2667,15 @@ function SettingsView() {
               <input value={ruleRepeatAfter} onChange={(event) => setRuleRepeatAfter(event.target.value)} type="number" />
             </label>
             <label className="checkbox-row">
+              <input checked={ruleNotifyProfessional} onChange={() => setRuleNotifyProfessional((current) => !current)} type="checkbox" />
+              <span className="label-row">Notificar profissional <InfoTip text="Desmarque apenas quando a regra for exclusiva para RT/responsavel." href="#jobs-notificacao" /></span>
+            </label>
+            <label className="checkbox-row">
               <input checked={ruleNotifyRt} onChange={() => setRuleNotifyRt((current) => !current)} type="checkbox" />
               <span className="label-row">Notificar RT <InfoTip text="Use nos ultimos avisos: cria um job separado para o responsavel tecnico vinculado quando houver telefone." href="#jobs-notificacao" /></span>
             </label>
           </div>
-          <button disabled={saving || !ruleTemplateKey}>Criar regra</button>
+          <button disabled={saving || !ruleTemplateKey || (!ruleNotifyProfessional && !ruleNotifyRt)}>Criar regra</button>
         </form>
       </section>
 
