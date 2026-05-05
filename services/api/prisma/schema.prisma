@@ -24,6 +24,7 @@ model Organization {
   faqItems              FaqItem[]
   professionals         Professional[]
   auditLogs             AuditLog[]
+  documentAiExtractions DocumentAiExtraction[]
 }
 
 model Unit {
@@ -80,6 +81,7 @@ model User {
   validatedLicenses   License[]      @relation("LicenseValidatedBy")
   uploadedDocuments   Document[]     @relation("DocumentUploadedByUser")
   validatedDocuments  Document[]     @relation("DocumentValidatedBy")
+  appliedExtractions  DocumentAiExtraction[] @relation("DocumentAiExtractionAppliedBy")
 
   @@index([organizationId])
   @@index([role])
@@ -194,6 +196,7 @@ model Document {
   uploadedByUser User?        @relation("DocumentUploadedByUser", fields: [uploadedByUserId], references: [id])
   uploadToken    UploadToken? @relation(fields: [uploadTokenId], references: [id])
   validatedBy    User?        @relation("DocumentValidatedBy", fields: [validatedById], references: [id])
+  aiExtractions  DocumentAiExtraction[]
 
   @@index([professionalId])
   @@index([licenseId])
@@ -201,6 +204,30 @@ model Document {
   @@index([uploadedByUserId])
   @@index([uploadTokenId])
   @@index([validatedById])
+}
+
+model DocumentAiExtraction {
+  id             String    @id @default(cuid())
+  organizationId String
+  documentId     String
+  provider       String
+  model          String?
+  status         String
+  resultJson     String?
+  errorMessage   String?
+  appliedAt      DateTime?
+  appliedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  document     Document     @relation(fields: [documentId], references: [id])
+  appliedBy    User?        @relation("DocumentAiExtractionAppliedBy", fields: [appliedById], references: [id])
+
+  @@index([organizationId])
+  @@index([documentId])
+  @@index([status])
+  @@index([appliedById])
 }
 
 model UploadToken {

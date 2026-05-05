@@ -64,6 +64,8 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 50. `TASK-UX-009` icones SVG intuitivos na navegacao.
 51. `TASK-IMP-001` importacao CSV de profissionais e licencas.
 52. `TASK-NOT-006` escalonamento para RT/superior nos ultimos avisos.
+53. `TASK-PAT-001` patches MVP: telefone em usuarios, datas BR, logo e envio manual de notificacoes. Status: completed.
+54. `TASK-AI-001` analise automatica de documentos por OCR/IA. Status: completed-mvp.
 
 ## Gate final
 A V1 so fecha quando os 14 criterios de sucesso do documento central estiverem demonstraveis em ambiente de demo ou producao.

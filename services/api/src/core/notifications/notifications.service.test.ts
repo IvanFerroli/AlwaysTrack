@@ -284,7 +284,7 @@ describe("notifications service", () => {
 
     expect(provider.sendWhatsAppTemplate).toHaveBeenCalledWith(
       expect.objectContaining({
-        bodyParameters: ["Ana", "2026-05-29"]
+        bodyParameters: ["Ana", "29/05/2026"]
       })
     );
 

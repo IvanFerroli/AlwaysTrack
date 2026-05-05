@@ -44,6 +44,11 @@ export interface NotificationScanInput {
   today?: Date;
 }
 
+export interface ManualLicenseNotificationInput {
+  licenseId?: string;
+  processNow?: boolean;
+}
+
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -100,7 +105,10 @@ function maskPhone(value: string | null | undefined) {
 
 function formatTemplateParameter(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return value.slice(0, 10);
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  }
   return String(value);
 }
 
@@ -154,6 +162,14 @@ export function parseNotificationScanInput(payload: unknown): NotificationScanIn
   return {
     dryRun: cleanBoolean(input.dryRun),
     today: today && !Number.isNaN(today.getTime()) ? today : undefined
+  };
+}
+
+export function parseManualLicenseNotificationInput(payload: unknown): ManualLicenseNotificationInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    licenseId: cleanText(input.licenseId),
+    processNow: cleanBoolean(input.processNow)
   };
 }
 
@@ -361,6 +377,31 @@ function hasFutureRtEscalation(
   );
 }
 
+function notificationPayload(
+  license: Prisma.LicenseGetPayload<{ include: { professional: { include: { responsibleRt: true } }; licenseType: true } }>,
+  today: Date,
+  willEscalateToRt: boolean,
+  recipientKind: string
+) {
+  const daysUntilExpiration = license.expiresAt ? daysBetween(today, license.expiresAt) : null;
+  const daysExpired = daysUntilExpiration !== null && daysUntilExpiration < 0 ? Math.abs(daysUntilExpiration) : 0;
+  return {
+    professionalName: license.professional.name,
+    licenseTypeName: license.licenseType.name,
+    licenseNumber: license.number,
+    issuer: license.issuer,
+    uf: license.uf,
+    issuedAt: isoDate(license.issuedAt),
+    expiresAt: isoDate(license.expiresAt),
+    daysUntilExpiration,
+    daysExpired,
+    responsibleRtName: license.professional.responsibleRt?.name ?? null,
+    responsibleRtPhoneMasked: maskPhone(license.professional.responsibleRt?.phone),
+    willEscalateToRt,
+    recipientKind
+  };
+}
+
 export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentUser, input: NotificationScanInput = {}) {
   requireAdmin(actor);
   const today = input.today ?? new Date();
@@ -382,8 +423,6 @@ export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentU
     for (const license of licenses.filter((item) => !rule.licenseTypeId || item.licenseTypeId === rule.licenseTypeId)) {
       const periodKey = shouldSchedule(rule, license, today);
       if (!periodKey) continue;
-      const daysUntilExpiration = license.expiresAt ? daysBetween(today, license.expiresAt) : null;
-      const daysExpired = daysUntilExpiration !== null && daysUntilExpiration < 0 ? Math.abs(daysUntilExpiration) : 0;
       const willEscalateToRt = rule.notifyRt || hasFutureRtEscalation(rule, rules);
       if (rule.notifyRt && !license.professional.responsibleRt?.phone) {
         skipped.push({
@@ -395,21 +434,7 @@ export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentU
       }
       for (const recipient of recipientsFor(rule, license)) {
         const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}`;
-        const payload = {
-          professionalName: license.professional.name,
-          licenseTypeName: license.licenseType.name,
-          licenseNumber: license.number,
-          issuer: license.issuer,
-          uf: license.uf,
-          issuedAt: isoDate(license.issuedAt),
-          expiresAt: isoDate(license.expiresAt),
-          daysUntilExpiration,
-          daysExpired,
-          responsibleRtName: license.professional.responsibleRt?.name ?? null,
-          responsibleRtPhoneMasked: maskPhone(license.professional.responsibleRt?.phone),
-          willEscalateToRt,
-          recipientKind: recipient.kind
-        };
+        const payload = notificationPayload(license, today, willEscalateToRt, recipient.kind);
         const existing = await prisma.notificationJob.findUnique({ where: { dedupeKey } });
         if (existing) {
           skipped.push({ dedupeKey, reason: "duplicate" });
@@ -441,15 +466,112 @@ export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentU
   return { created, skipped, dryRun: input.dryRun ?? false };
 }
 
+export async function sendManualLicenseNotification(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  provider: NotificationProvider,
+  input: ManualLicenseNotificationInput
+) {
+  requireAdmin(actor);
+  if (!input.licenseId) throw new NotificationError("INVALID_INPUT");
+  const today = new Date();
+  const periodKey = `manual:${dateOnly(today).toISOString().slice(0, 10)}`;
+  const license = await prisma.license.findFirst({
+    where: { id: input.licenseId, professional: { organizationId: actor.organizationId, active: true } },
+    include: { licenseType: true, professional: { include: { responsibleRt: true } } }
+  });
+  if (!license) throw new NotificationError("NOT_FOUND");
+  if (!license.expiresAt) throw new NotificationError("INVALID_INPUT");
+
+  const daysUntilExpiration = daysBetween(today, license.expiresAt);
+  const rules = await prisma.notificationRule.findMany({
+    where: {
+      organizationId: actor.organizationId,
+      active: true,
+      OR: [{ licenseTypeId: null }, { licenseTypeId: license.licenseTypeId }]
+    }
+  });
+  const applicableRules = rules.filter((rule) =>
+    daysUntilExpiration >= 0 ? rule.daysBeforeExpiration !== null : rule.repeatAfterExpiredDays !== null
+  );
+
+  const created = [];
+  const skipped = [];
+  for (const rule of applicableRules) {
+    if (rule.notifyProfessional && !license.professional.phone) {
+      skipped.push({ licenseId: license.id, notificationRuleId: rule.id, recipientKind: "professional", reason: "missing_phone" });
+    }
+    if (rule.notifyRt && !license.professional.responsibleRt?.phone) {
+      skipped.push({
+        licenseId: license.id,
+        notificationRuleId: rule.id,
+        recipientKind: "rt",
+        reason: license.professional.responsibleRt ? "missing_rt_phone" : "missing_rt"
+      });
+    }
+    for (const recipient of recipientsFor(rule, license)) {
+      const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}`;
+      const existing = await prisma.notificationJob.findUnique({ where: { dedupeKey } });
+      if (existing) {
+        skipped.push({ dedupeKey, reason: "duplicate" });
+        continue;
+      }
+      const payload = notificationPayload(license, today, rule.notifyRt, recipient.kind);
+      created.push(
+        await prisma.notificationJob.create({
+          data: {
+            organizationId: actor.organizationId,
+            professionalId: license.professionalId,
+            licenseId: license.id,
+            notificationRuleId: rule.id,
+            periodKey,
+            dedupeKey,
+            channel: rule.channel,
+            recipientPhone: recipient.phone,
+            recipientEmail: recipient.email,
+            templateKey: rule.templateKey,
+            payloadJson: JSON.stringify(payload),
+            status: "PENDING",
+            scheduledFor: today
+          }
+        })
+      );
+    }
+  }
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "notification.manual_license",
+    entityType: "License",
+    entityId: license.id,
+    metadata: { created: created.length, skipped: skipped.length, processNow: input.processNow ?? true }
+  });
+
+  const processed =
+    input.processNow === false || created.length === 0
+      ? []
+      : (await processNotificationJobs(prisma, actor, provider, created.length, created.map((job) => job.id))).processed;
+
+  return { created, skipped, processed };
+}
+
 function nextRetryDate(attempts: number) {
   return addDays(new Date(), Math.min(attempts, 6));
 }
 
-export async function processNotificationJobs(prisma: PrismaClient, actor: CurrentUser, provider: NotificationProvider, limit = 25) {
+export async function processNotificationJobs(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  provider: NotificationProvider,
+  limit = 25,
+  jobIds?: string[]
+) {
   requireAdmin(actor);
   const jobs = await prisma.notificationJob.findMany({
     where: {
       organizationId: actor.organizationId,
+      id: jobIds?.length ? { in: jobIds } : undefined,
       status: { in: ["PENDING", "FAILED"] },
       scheduledFor: { lte: new Date() },
       OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],

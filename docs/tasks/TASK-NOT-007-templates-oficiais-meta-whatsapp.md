@@ -1,7 +1,7 @@
 # TASK-NOT-007 - Templates oficiais Meta WhatsApp
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-05-05
 - source-of-truth: docs/tasks/TASK-NOT-007-templates-oficiais-meta-whatsapp.md

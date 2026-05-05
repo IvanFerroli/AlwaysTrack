@@ -41,6 +41,11 @@ import {
   validateDocumentHandler
 } from "./core/documents/documents.handlers.js";
 import {
+  analyzeDocumentHandler,
+  applyDocumentAnalysisHandler,
+  listDocumentAnalysesHandler
+} from "./core/document-ai/document-ai.handlers.js";
+import {
   createUploadTokenHandler,
   getPublicUploadTokenHandler,
   invalidateUploadTokenHandler,
@@ -50,6 +55,7 @@ import {
   createNotificationRuleHandler,
   createNotificationTemplateHandler,
   listNotificationConfigHandler,
+  manualLicenseNotificationHandler,
   metaWebhookHandler,
   processNotificationJobsHandler,
   scanNotificationJobsHandler,
@@ -203,6 +209,9 @@ export function createApp() {
     requireRole(["ADMIN", "RT"]),
     validateDocumentHandler
   );
+  app.post("/v1/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "RT"]), analyzeDocumentHandler);
+  app.get("/v1/documents/:documentId/analysis", requireAuth, requireRole(["ADMIN", "RT"]), listDocumentAnalysesHandler);
+  app.post("/v1/documents/:documentId/analysis/apply", requireAuth, requireRole(["ADMIN", "RT"]), applyDocumentAnalysisHandler);
   app.get("/v1/notifications/config", requireAuth, requireRole(["ADMIN"]), listNotificationConfigHandler);
   app.post("/v1/notifications/templates", requireAuth, requireRole(["ADMIN"]), createNotificationTemplateHandler);
   app.patch(
@@ -215,6 +224,7 @@ export function createApp() {
   app.patch("/v1/notifications/rules/:ruleId", requireAuth, requireRole(["ADMIN"]), updateNotificationRuleHandler);
   app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
   app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
+  app.post("/v1/notifications/manual-license", requireAuth, requireRole(["ADMIN"]), manualLicenseNotificationHandler);
   app.get("/v1/faq", requireAuth, requireRole(["ADMIN"]), listFaqItemsHandler);
   app.post("/v1/faq", requireAuth, requireRole(["ADMIN"]), createFaqItemHandler);
   app.patch("/v1/faq/:faqItemId", requireAuth, requireRole(["ADMIN"]), updateFaqItemHandler);

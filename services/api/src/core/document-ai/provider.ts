@@ -1,0 +1,191 @@
+import { loadEnv } from "../../config/env.js";
+
+export interface ExtractedField<T = string> {
+  value: T | null;
+  confidence: number | null;
+  evidence: string | null;
+}
+
+export interface DocumentAiResult {
+  documentKind: string | null;
+  rawText: string | null;
+  fields: {
+    professionalName: ExtractedField;
+    cpf: ExtractedField;
+    licenseTypeName: ExtractedField;
+    licenseNumber: ExtractedField;
+    issuer: ExtractedField;
+    uf: ExtractedField;
+    issuedAt: ExtractedField;
+    expiresAt: ExtractedField;
+  };
+  warnings: string[];
+}
+
+export interface DocumentAiProvider {
+  provider: string;
+  model?: string;
+  analyze(input: { body: Buffer; mimeType: string; fileName: string }): Promise<DocumentAiResult>;
+}
+
+const emptyResult: DocumentAiResult = {
+  documentKind: null,
+  rawText: null,
+  fields: {
+    professionalName: { value: null, confidence: null, evidence: null },
+    cpf: { value: null, confidence: null, evidence: null },
+    licenseTypeName: { value: null, confidence: null, evidence: null },
+    licenseNumber: { value: null, confidence: null, evidence: null },
+    issuer: { value: null, confidence: null, evidence: null },
+    uf: { value: null, confidence: null, evidence: null },
+    issuedAt: { value: null, confidence: null, evidence: null },
+    expiresAt: { value: null, confidence: null, evidence: null }
+  },
+  warnings: []
+};
+
+export class FakeDocumentAiProvider implements DocumentAiProvider {
+  provider = "fake";
+
+  async analyze() {
+    return {
+      ...emptyResult,
+      warnings: ["DOCUMENT_AI_PROVIDER nao configurado. Configure openai para extracao real."]
+    };
+  }
+}
+
+function extractionSchema() {
+  const field = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      value: { type: ["string", "null"] },
+      confidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
+      evidence: { type: ["string", "null"] }
+    },
+    required: ["value", "confidence", "evidence"]
+  };
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      documentKind: { type: ["string", "null"] },
+      rawText: { type: ["string", "null"] },
+      fields: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          professionalName: field,
+          cpf: field,
+          licenseTypeName: field,
+          licenseNumber: field,
+          issuer: field,
+          uf: field,
+          issuedAt: field,
+          expiresAt: field
+        },
+        required: ["professionalName", "cpf", "licenseTypeName", "licenseNumber", "issuer", "uf", "issuedAt", "expiresAt"]
+      },
+      warnings: { type: "array", items: { type: "string" } }
+    },
+    required: ["documentKind", "rawText", "fields", "warnings"]
+  };
+}
+
+function outputText(response: unknown) {
+  const output = (response as { output_text?: unknown }).output_text;
+  if (typeof output === "string") return output;
+
+  const items = (response as { output?: Array<{ content?: Array<{ text?: unknown }> }> }).output ?? [];
+  return items
+    .flatMap((item) => item.content ?? [])
+    .map((content) => (typeof content.text === "string" ? content.text : ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function inputContent(input: { body: Buffer; mimeType: string; fileName: string }) {
+  const base64 = input.body.toString("base64");
+  if (input.mimeType === "application/pdf") {
+    return [
+      {
+        type: "input_file",
+        filename: input.fileName,
+        file_data: `data:${input.mimeType};base64,${base64}`
+      }
+    ];
+  }
+
+  return [
+    {
+      type: "input_image",
+      detail: "high",
+      image_url: `data:${input.mimeType};base64,${base64}`
+    }
+  ];
+}
+
+export class OpenAiDocumentAiProvider implements DocumentAiProvider {
+  provider = "openai";
+
+  constructor(
+    private readonly apiKey: string,
+    public readonly model: string
+  ) {}
+
+  async analyze(input: { body: Buffer; mimeType: string; fileName: string }) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${this.apiKey}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        model: this.model,
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text:
+                  "Extraia dados de documento profissional brasileiro para cadastro operacional. " +
+                  "Responda somente pelo schema. Use null quando o campo nao estiver legivel. " +
+                  "Nao invente datas, CPF ou numero. Datas devem sair em YYYY-MM-DD quando houver certeza."
+              },
+              ...inputContent(input)
+            ]
+          }
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "sylembra_document_extraction",
+            strict: true,
+            schema: extractionSchema()
+          }
+        }
+      })
+    });
+
+    const raw = (await response.json().catch(() => null)) as unknown;
+    if (!response.ok) {
+      const message = typeof raw === "object" && raw ? JSON.stringify(raw) : `OpenAI HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const text = outputText(raw);
+    if (!text) throw new Error("EMPTY_AI_RESPONSE");
+    return JSON.parse(text) as DocumentAiResult;
+  }
+}
+
+export function getDocumentAiProvider(): DocumentAiProvider {
+  const env = loadEnv();
+  if (env.documentAiProvider === "openai" && env.openAiApiKey) {
+    return new OpenAiDocumentAiProvider(env.openAiApiKey, env.documentAiModel);
+  }
+  return new FakeDocumentAiProvider();
+}

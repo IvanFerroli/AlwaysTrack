@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   BadgeCheck,
   BarChart3,
+  Bell,
   Check,
   CircleHelp,
   Download,
@@ -11,6 +12,7 @@ import {
   LogOut,
   ScrollText,
   Settings,
+  ScanSearch,
   Users,
   type LucideIcon
 } from "lucide-react";
@@ -34,7 +36,20 @@ import {
 import "./styles.css";
 
 type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "audit" | "settings" | "help";
-type IconName = "home" | "users" | "badge" | "file" | "chart" | "audit" | "settings" | "help" | "logout" | "download" | "check";
+type IconName =
+  | "home"
+  | "users"
+  | "badge"
+  | "file"
+  | "chart"
+  | "audit"
+  | "settings"
+  | "help"
+  | "logout"
+  | "download"
+  | "check"
+  | "bell"
+  | "scan";
 
 interface AuditLogItem {
   id: string;
@@ -263,6 +278,39 @@ interface DocumentItem {
   validatedBy: null | { id: string; name: string; email: string; role: string };
 }
 
+interface DocumentAiField {
+  value: string | null;
+  confidence: number | null;
+  evidence: string | null;
+}
+
+interface DocumentAiResult {
+  documentKind: string | null;
+  rawText: string | null;
+  fields: {
+    professionalName: DocumentAiField;
+    cpf: DocumentAiField;
+    licenseTypeName: DocumentAiField;
+    licenseNumber: DocumentAiField;
+    issuer: DocumentAiField;
+    uf: DocumentAiField;
+    issuedAt: DocumentAiField;
+    expiresAt: DocumentAiField;
+  };
+  warnings: string[];
+}
+
+interface DocumentAiExtractionItem {
+  id: string;
+  provider: string;
+  model: string | null;
+  status: "PROCESSING" | "COMPLETED" | "FAILED";
+  resultJson: string | null;
+  errorMessage: string | null;
+  appliedAt: string | null;
+  createdAt: string;
+}
+
 interface NotificationTemplateItem {
   id: string;
   key: string;
@@ -400,7 +448,9 @@ const iconComponents: Record<IconName, LucideIcon> = {
   help: CircleHelp,
   logout: LogOut,
   download: Download,
-  check: Check
+  check: Check,
+  bell: Bell,
+  scan: ScanSearch
 };
 
 function Icon({ name }: { name: IconName }) {
@@ -559,7 +609,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "license", header: "Licença", render: (item) => item.licenseType.name },
-                { key: "expires", header: "Vence", render: (item) => (item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("pt-BR") : "-") },
+                { key: "expires", header: "Vence", render: (item) => formatDateBr(item.expiresAt) },
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
                 { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver licenças</button> }
               ]}
@@ -614,7 +664,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
               columns={[
                 { key: "file", header: "Arquivo", render: (item) => item.fileName },
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "createdAt", header: "Recebido", render: (item) => new Date(item.createdAt).toLocaleDateString("pt-BR") },
+                { key: "createdAt", header: "Recebido", render: (item) => formatDateBr(item.createdAt) },
                 { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Abrir</button> }
               ]}
             />
@@ -711,8 +761,31 @@ function reportText(row: Record<string, unknown>, key: string) {
   const value = row[key];
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "number") return String(value);
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString("pt-BR");
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return formatDateTimeBr(value);
   return String(value);
+}
+
+function formatDateBr(value: string | null | undefined) {
+  if (!value) return "-";
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString("pt-BR");
+}
+
+function formatDateTimeBr(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("pt-BR");
+}
+
+function parseDocumentAiResult(extraction: DocumentAiExtractionItem | null) {
+  if (!extraction?.resultJson) return null;
+  try {
+    return JSON.parse(extraction.resultJson) as DocumentAiResult;
+  } catch {
+    return null;
+  }
 }
 
 function reportColumns(report: ReportKey) {
@@ -1019,7 +1092,7 @@ function AuditView() {
               items={items}
               getRowKey={(item) => item.id}
               columns={[
-                { key: "date", header: "Data", render: (item) => new Date(item.createdAt).toLocaleString("pt-BR") },
+                { key: "date", header: "Data", render: (item) => formatDateTimeBr(item.createdAt) },
                 { key: "action", header: "Ação", render: (item) => item.action },
                 { key: "entity", header: "Entidade", render: (item) => `${item.entityType} / ${item.entityId}` },
                 {
@@ -1727,6 +1800,18 @@ function LicensesView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function notifyLicense(license: LicenseItem) {
+    await run(async () => {
+      const result = await api<{ created: unknown[]; skipped: unknown[]; processed: unknown[] }>("/v1/notifications/manual-license", {
+        method: "POST",
+        body: JSON.stringify({ licenseId: license.id, processNow: true })
+      });
+      window.alert(
+        `Notificação manual concluída. Criadas: ${result.created.length}. Enviadas/processadas: ${result.processed.length}. Ignoradas: ${result.skipped.length}.`
+      );
+    });
+  }
+
   const activeLicenseTypes = licenseTypes.filter((item) => item.active);
   const activeProfessionals = professionals.filter((item) => item.active);
 
@@ -1871,7 +1956,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                 {
                   key: "expires",
                   header: "Vencimento",
-                  render: (item) => (item.expiresAt ? new Date(item.expiresAt).toLocaleDateString("pt-BR") : "Sem data")
+                  render: (item) => (item.expiresAt ? formatDateBr(item.expiresAt) : "Sem data")
                 },
                 { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
                 {
@@ -1893,6 +1978,12 @@ function LicensesView({ user }: { user: CurrentUser }) {
                             Gerar link
                           </button>
                           <InfoTip text="Gera link temporario para upload do documento desta licenca." href="#links-de-upload" />
+                        </span>
+                        <span className="label-row">
+                          <button className="secondary" disabled={saving} type="button" onClick={() => void notifyLicense(item)}>
+                            <Icon name="bell" /> Notificar
+                          </button>
+                          <InfoTip text="Cria e envia manualmente os avisos WhatsApp aplicaveis para esta licenca." href="#jobs-notificacao" />
                         </span>
                         <ConfirmButton
                           disabled={saving}
@@ -1973,6 +2064,8 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
 function DocumentsView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<DocumentItem[]>([]);
+  const [analysisDocument, setAnalysisDocument] = useState<DocumentItem | null>(null);
+  const [analysisPreview, setAnalysisPreview] = useState<DocumentAiExtractionItem | null>(null);
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("UPLOADED");
   const [professionalFilter, setProfessionalFilter] = useState("");
@@ -2040,6 +2133,58 @@ function DocumentsView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function analyze(document: DocumentItem) {
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ extraction: DocumentAiExtractionItem }>(`/v1/documents/${document.id}/analyze`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      setAnalysisDocument(document);
+      setAnalysisPreview(result.extraction);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao analisar documento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function loadAnalysis(document: DocumentItem) {
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ items: DocumentAiExtractionItem[] }>(`/v1/documents/${document.id}/analysis`);
+      setAnalysisDocument(document);
+      setAnalysisPreview(result.items[0] ?? null);
+      if (result.items.length === 0) setError("Este documento ainda nao tem analise automatica.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar analise.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function applyAnalysis() {
+    if (!analysisDocument || !analysisPreview) return;
+    await run(async () => {
+      const result = await api<{ changed: Record<string, unknown>; warnings: string[] }>(
+        `/v1/documents/${analysisDocument.id}/analysis/apply`,
+        {
+          method: "POST",
+          body: JSON.stringify({ extractionId: analysisPreview.id })
+        }
+      );
+      setAnalysisPreview(null);
+      setAnalysisDocument(null);
+      window.alert(
+        `Sugestões aplicadas. Campos alterados: ${Object.keys(result.changed).length}. Avisos: ${result.warnings.length}.`
+      );
+    });
+  }
+
+  const parsedAnalysis = parseDocumentAiResult(analysisPreview);
+
   return (
     <div className="content-stack">
       <OperationalFilters
@@ -2060,6 +2205,56 @@ function DocumentsView({ user }: { user: CurrentUser }) {
       />
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {analysisPreview ? (
+        <section className="panel analysis-panel">
+          <div className="detail-header">
+            <div>
+              <p className="eyebrow">Analise automatica</p>
+              <h2>{analysisDocument?.fileName ?? "Documento"}</h2>
+              <p className="muted">
+                {analysisPreview.provider}
+                {analysisPreview.model ? ` / ${analysisPreview.model}` : ""} / {analysisPreview.status}
+              </p>
+            </div>
+            <div className="row-actions">
+              {analysisPreview.status === "COMPLETED" ? (
+                <button disabled={saving} type="button" onClick={() => void applyAnalysis()}>
+                  Aplicar sugestões
+                </button>
+              ) : null}
+              <button className="secondary" type="button" onClick={() => setAnalysisPreview(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+          {parsedAnalysis ? (
+            <>
+              <div className="analysis-grid">
+                {([
+                  ["Profissional", parsedAnalysis.fields.professionalName],
+                  ["CPF", parsedAnalysis.fields.cpf],
+                  ["Tipo", parsedAnalysis.fields.licenseTypeName],
+                  ["Número", parsedAnalysis.fields.licenseNumber],
+                  ["Emissor", parsedAnalysis.fields.issuer],
+                  ["UF", parsedAnalysis.fields.uf],
+                  ["Emissão", parsedAnalysis.fields.issuedAt],
+                  ["Vencimento", parsedAnalysis.fields.expiresAt]
+                ] as Array<[string, DocumentAiField]>).map(([label, field]) => (
+                  <div key={String(label)}>
+                    <span>{label}</span>
+                    <strong>{field.value ?? "-"}</strong>
+                    <small>Confiança: {field.confidence ?? "-"}</small>
+                  </div>
+                ))}
+              </div>
+              {parsedAnalysis.warnings.length ? <p className="error">{parsedAnalysis.warnings.join(" ")}</p> : null}
+            </>
+          ) : (
+            <p className="error">{analysisPreview.errorMessage ?? "Resultado indisponivel."}</p>
+          )}
+        </section>
+      ) : null}
 
       <section className="panel table-panel">
         {loading ? (
@@ -2086,7 +2281,7 @@ function DocumentsView({ user }: { user: CurrentUser }) {
                   header: "Validação",
                   render: (item) =>
                     item.validatedBy
-                      ? `${item.validatedBy.name} / ${item.validatedAt ? new Date(item.validatedAt).toLocaleString("pt-BR") : ""}`
+                      ? `${item.validatedBy.name} / ${item.validatedAt ? formatDateTimeBr(item.validatedAt) : ""}`
                       : item.rejectionReason ?? "Pendente"
                 },
                 {
@@ -2099,6 +2294,15 @@ function DocumentsView({ user }: { user: CurrentUser }) {
                       </button>
                       {(user.role === "ADMIN" || user.role === "RT") && item.status === "UPLOADED" ? (
                         <>
+                          <span className="label-row">
+                            <button className="secondary" disabled={saving} type="button" onClick={() => void analyze(item)}>
+                              <Icon name="scan" /> Analisar
+                            </button>
+                            <InfoTip text="Extrai sugestoes de cadastro do documento para revisao humana antes de aplicar." href="#validacao-documentos" />
+                          </span>
+                          <button className="secondary" disabled={saving} type="button" onClick={() => void loadAnalysis(item)}>
+                            Ver análise
+                          </button>
                           <span className="label-row">
                             <button disabled={saving} type="button" onClick={() => void approve(item)}>
                               <Icon name="check" /> Aprovar
@@ -2140,6 +2344,7 @@ function SettingsView() {
   const [sectorUnitId, setSectorUnitId] = useState("");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
+  const [userPhone, setUserPhone] = useState("");
   const [userPassword, setUserPassword] = useState("");
   const [userRole, setUserRole] = useState<UserRole>("SUPERVISOR");
   const [userUnitScopeIds, setUserUnitScopeIds] = useState<string[]>([]);
@@ -2248,6 +2453,7 @@ function SettingsView() {
         body: JSON.stringify({
           name: userName,
           email: userEmail,
+          phone: userPhone || null,
           password: userPassword,
           role: userRole,
           unitScopeIds: userRole === "ADMIN" ? [] : userUnitScopeIds,
@@ -2256,6 +2462,7 @@ function SettingsView() {
       });
       setUserName("");
       setUserEmail("");
+      setUserPhone("");
       setUserPassword("");
       setUserRole("SUPERVISOR");
       setUserUnitScopeIds([]);
@@ -2356,6 +2563,7 @@ function SettingsView() {
     if (!name) return;
     const email = window.prompt("Email do usuário", user.email);
     if (!email) return;
+    const phone = window.prompt("Telefone WhatsApp do usuário", user.phone ?? "") ?? user.phone;
     const roleInput = window.prompt("Perfil do usuário: ADMIN, RT ou SUPERVISOR", user.role);
     if (!roleInput) return;
     const role = roleInput.toUpperCase() as UserRole;
@@ -2380,7 +2588,7 @@ function SettingsView() {
     await run(async () => {
       await api(`/v1/users/${user.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name, email, role, unitScopeIds, sectorScopeIds })
+        body: JSON.stringify({ name, email, phone: phone || null, role, unitScopeIds, sectorScopeIds })
       });
     });
   }
@@ -2508,6 +2716,10 @@ function SettingsView() {
               <input value={userEmail} onChange={(event) => setUserEmail(event.target.value)} type="email" />
             </label>
             <label>
+              <span className="label-row">WhatsApp <InfoTip text="Use DDI e DDD. O telefone do RT/responsavel e usado nos avisos por WhatsApp." href="#configuracao-usuarios" /></span>
+              <input value={userPhone} onChange={(event) => setUserPhone(event.target.value)} placeholder="+55 83 9 0000-0000" />
+            </label>
+            <label>
               <span className="label-row">Senha inicial <InfoTip text="Use ao menos 8 caracteres e compartilhe por canal seguro." href="#configuracao-usuarios" /></span>
               <input
                 value={userPassword}
@@ -2572,6 +2784,7 @@ function SettingsView() {
             getRowKey={(item) => item.id}
             columns={[
               { key: "name", header: "Usuário", render: (item) => `${item.name} (${item.email})` },
+              { key: "phone", header: "WhatsApp", render: (item) => item.phone ?? "Sem telefone" },
               { key: "role", header: "Perfil", render: (item) => item.role },
               {
                 key: "scope",
@@ -2744,7 +2957,7 @@ function SettingsView() {
             items={notificationJobs}
             getRowKey={(item) => item.id}
             columns={[
-              { key: "date", header: "Agendado", render: (item) => new Date(item.scheduledFor).toLocaleString("pt-BR") },
+              { key: "date", header: "Agendado", render: (item) => formatDateTimeBr(item.scheduledFor) },
               { key: "professional", header: "Profissional", render: (item) => item.professional.name },
               { key: "license", header: "Licença", render: (item) => item.license.licenseType.name },
               { key: "template", header: "Template", render: (item) => item.templateKey },
@@ -2967,7 +3180,7 @@ function PublicUploadView({ token }: { token: string }) {
                 {uploadToken.license.licenseType.name}
                 {uploadToken.license.number ? ` / ${uploadToken.license.number}` : ""}
               </span>
-              <span>Expira em {new Date(uploadToken.expiresAt).toLocaleString("pt-BR")}</span>
+              <span>Expira em {formatDateTimeBr(uploadToken.expiresAt)}</span>
             </div>
             <label>
               <span className="label-row">Arquivo <InfoTip text="Envie PDF ou imagem legivel da licenca correta." href="#links-de-upload" /></span>

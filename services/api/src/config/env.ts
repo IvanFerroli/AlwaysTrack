@@ -16,6 +16,9 @@ export interface ApiEnv {
   metaAppSecret?: string;
   supportPhone?: string;
   notificationJobLimit: number;
+  documentAiProvider: "fake" | "openai";
+  documentAiModel: string;
+  openAiApiKey?: string;
 }
 
 let dotEnvLoaded = false;
@@ -58,6 +61,9 @@ export function loadEnv(source = process.env): ApiEnv {
     metaWebhookVerifyToken: source.META_WEBHOOK_VERIFY_TOKEN,
     metaAppSecret: source.META_APP_SECRET,
     supportPhone: source.SUPPORT_PHONE,
-    notificationJobLimit: Number(source.NOTIFICATION_JOB_LIMIT ?? "25")
+    notificationJobLimit: Number(source.NOTIFICATION_JOB_LIMIT ?? "25"),
+    documentAiProvider: source.DOCUMENT_AI_PROVIDER === "openai" ? "openai" : "fake",
+    documentAiModel: source.DOCUMENT_AI_MODEL ?? "gpt-4.1-mini",
+    openAiApiKey: source.OPENAI_API_KEY
   };
 }

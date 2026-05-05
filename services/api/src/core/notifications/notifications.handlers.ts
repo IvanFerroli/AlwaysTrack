@@ -8,11 +8,13 @@ import {
   handleMetaWebhook,
   listNotificationConfig,
   NotificationError,
+  parseManualLicenseNotificationInput,
   parseNotificationRuleInput,
   parseNotificationScanInput,
   parseNotificationTemplateInput,
   processNotificationJobs,
   scanNotificationJobs,
+  sendManualLicenseNotification,
   updateNotificationRule,
   updateNotificationTemplate,
   verifyWebhookChallenge
@@ -104,6 +106,22 @@ export async function scanNotificationJobsHandler(request: Request, response: Re
 export async function processNotificationJobsHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await processNotificationJobs(prisma, actorFrom(request), getNotificationProvider()));
+  } catch (error) {
+    return sendNotificationError(response, error);
+  }
+}
+
+export async function manualLicenseNotificationHandler(request: Request, response: Response) {
+  try {
+    return sendOk(
+      response,
+      await sendManualLicenseNotification(
+        prisma,
+        actorFrom(request),
+        getNotificationProvider(),
+        parseManualLicenseNotificationInput(request.body)
+      )
+    );
   } catch (error) {
     return sendNotificationError(response, error);
   }
