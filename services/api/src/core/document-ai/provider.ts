@@ -50,7 +50,7 @@ export class FakeDocumentAiProvider implements DocumentAiProvider {
   async analyze() {
     return {
       ...emptyResult,
-      warnings: ["DOCUMENT_AI_PROVIDER nao configurado. Configure openai para extracao real."]
+      warnings: ["DOCUMENT_AI_PROVIDER nao configurado. Configure openai ou gemini para extracao real."]
     };
   }
 }
@@ -182,10 +182,98 @@ export class OpenAiDocumentAiProvider implements DocumentAiProvider {
   }
 }
 
+function geminiExtractionSchema() {
+  const field = {
+    type: "OBJECT",
+    properties: {
+      value: { type: "STRING", nullable: true },
+      confidence: { type: "NUMBER", nullable: true },
+      evidence: { type: "STRING", nullable: true }
+    }
+  };
+
+  return {
+    type: "OBJECT",
+    properties: {
+      documentKind: { type: "STRING", nullable: true },
+      rawText: { type: "STRING", nullable: true },
+      fields: {
+        type: "OBJECT",
+        properties: {
+          professionalName: field,
+          cpf: field,
+          licenseTypeName: field,
+          licenseNumber: field,
+          issuer: field,
+          uf: field,
+          issuedAt: field,
+          expiresAt: field
+        }
+      },
+      warnings: { type: "ARRAY", items: { type: "STRING" } }
+    }
+  };
+}
+
+export class GeminiDocumentAiProvider implements DocumentAiProvider {
+  provider = "gemini";
+
+  constructor(
+    private readonly apiKey: string,
+    public readonly model: string
+  ) {}
+
+  async analyze(input: { body: Buffer; mimeType: string; fileName: string }) {
+    const base64 = input.body.toString("base64");
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "Extraia dados de documento profissional brasileiro para cadastro operacional. Responda somente pelo schema. Use null quando o campo nao estiver legivel. Nao invente datas, CPF ou numero. Datas devem sair em YYYY-MM-DD quando houver certeza."
+              },
+              {
+                inlineData: {
+                  mimeType: input.mimeType === "application/pdf" ? "application/pdf" : input.mimeType,
+                  data: base64
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: geminiExtractionSchema()
+        }
+      })
+    });
+
+    const raw = (await response.json().catch(() => null)) as any;
+    if (!response.ok) {
+      const message = typeof raw === "object" && raw ? JSON.stringify(raw) : `Gemini HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const text = raw.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("EMPTY_AI_RESPONSE");
+    return JSON.parse(text) as DocumentAiResult;
+  }
+}
+
 export function getDocumentAiProvider(): DocumentAiProvider {
   const env = loadEnv();
   if (env.documentAiProvider === "openai" && env.openAiApiKey) {
     return new OpenAiDocumentAiProvider(env.openAiApiKey, env.documentAiModel);
+  }
+  if (env.documentAiProvider === "gemini" && env.geminiApiKey) {
+    return new GeminiDocumentAiProvider(env.geminiApiKey, env.documentAiModel);
   }
   return new FakeDocumentAiProvider();
 }

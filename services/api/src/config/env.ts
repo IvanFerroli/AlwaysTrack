@@ -16,9 +16,10 @@ export interface ApiEnv {
   metaAppSecret?: string;
   supportPhone?: string;
   notificationJobLimit: number;
-  documentAiProvider: "fake" | "openai";
+  documentAiProvider: "fake" | "openai" | "gemini";
   documentAiModel: string;
   openAiApiKey?: string;
+  geminiApiKey?: string;
 }
 
 let dotEnvLoaded = false;
@@ -62,8 +63,9 @@ export function loadEnv(source = process.env): ApiEnv {
     metaAppSecret: source.META_APP_SECRET,
     supportPhone: source.SUPPORT_PHONE,
     notificationJobLimit: Number(source.NOTIFICATION_JOB_LIMIT ?? "25"),
-    documentAiProvider: source.DOCUMENT_AI_PROVIDER === "openai" ? "openai" : "fake",
-    documentAiModel: source.DOCUMENT_AI_MODEL ?? "gpt-4.1-mini",
-    openAiApiKey: source.OPENAI_API_KEY
+    documentAiProvider: source.DOCUMENT_AI_PROVIDER === "openai" ? "openai" : source.DOCUMENT_AI_PROVIDER === "gemini" ? "gemini" : "fake",
+    documentAiModel: source.DOCUMENT_AI_MODEL ?? "gemini-2.5-flash",
+    openAiApiKey: source.OPENAI_API_KEY,
+    geminiApiKey: source.GEMINI_API_KEY
   };
 }
