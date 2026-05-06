@@ -25,7 +25,7 @@ Use `templates-licencas-prontos-meta.md` como documento principal para copiar os
 
 ## Contexto operacional
 - Envio real via backend ja foi validado com template de teste.
-- Phone Number ID real do Sylembra: `1091327844065291`.
+- Phone Number ID real do SyLembra: `1091327844065291`.
 - `.env` local ja aponta `META_WHATSAPP_PHONE_NUMBER_ID` para o numero real.
 - `META_WHATSAPP_TOKEN` permanece privado e nao deve ser exposto em docs, logs ou commits.
 - Provider Meta ja envia variaveis de corpo via `components[].parameters`.
@@ -164,7 +164,7 @@ Olá {{1}}, o documento da licença {{2}} número {{3}} foi recusado. Motivo: {{
   - `notifyRt`
 
 ## Passo a passo executado no WhatsApp Manager
-1. Acessado WhatsApp Manager do numero Sylembra.
+1. Acessado WhatsApp Manager do numero SyLembra.
 2. Criados quatro modelos de mensagem.
 3. Categoria usada: `Utility`.
 4. Idioma usado: `Portuguese (BR)` / `pt_BR`.

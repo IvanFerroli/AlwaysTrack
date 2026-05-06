@@ -180,7 +180,7 @@ describe("notifications service", () => {
             licenseType: { name: "Registro" },
             professional: {
               name: "Ana",
-              phone: "+550000",
+              phone: "+55 (83) 98674-8048",
               email: null,
               responsibleRt: { name: "RT Maria", phone: "+5511999991234", email: "rt@example.com" }
             }
@@ -198,8 +198,8 @@ describe("notifications service", () => {
     expect(result.created).toHaveLength(2);
     expect(result.created.map((job) => JSON.parse(job.payloadJson).recipientKind)).toEqual(["professional", "rt"]);
     expect(result.created.map((job) => job.dedupeKey)).toEqual([
-      "lic-1:rule-1:before:30:2026-04-29:professional",
-      "lic-1:rule-1:before:30:2026-04-29:rt"
+      "lic-1:rule-1:before:30:2026-04-29:professional:5583986748048",
+      "lic-1:rule-1:before:30:2026-04-29:rt:5511999991234"
     ]);
   });
 

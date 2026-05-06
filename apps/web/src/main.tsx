@@ -459,7 +459,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function BrandMark({ className = "" }: { className?: string }) {
-  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="Sylembra" />;
+  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="SyLembra" />;
 }
 
 function InfoTip({ text, href }: { text: string; href?: string }) {
@@ -513,7 +513,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
         <div className="login-brand">
           <BrandMark className="login-brand-mark" />
           <div>
-            <p className="eyebrow">Sylembra</p>
+            <p className="eyebrow">SyLembra</p>
             <h1>Entrar</h1>
           </div>
         </div>
@@ -1136,6 +1136,10 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   const [organization, setOrganization] = useState<OrganizationItem | null>(null);
   const [users, setUsers] = useState<ManagedUserItem[]>([]);
   const [selected, setSelected] = useState<ProfessionalDetail | null>(null);
+  const [showProfessionalCpf, setShowProfessionalCpf] = useState(true);
+  const [showProfessionalPhone, setShowProfessionalPhone] = useState(true);
+  const [showProfessionalEmail, setShowProfessionalEmail] = useState(false);
+  const [showProfessionalPosition, setShowProfessionalPosition] = useState(false);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
@@ -1151,6 +1155,15 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   const [responsibleRtId, setResponsibleRtId] = useState("");
   const [linkedUserId, setLinkedUserId] = useState("");
   const [notes, setNotes] = useState("");
+  const [editingProfessionalId, setEditingProfessionalId] = useState("");
+  const [editProfessionalName, setEditProfessionalName] = useState("");
+  const [editProfessionalEmail, setEditProfessionalEmail] = useState("");
+  const [editProfessionalPhone, setEditProfessionalPhone] = useState("");
+  const [editProfessionalPosition, setEditProfessionalPosition] = useState("");
+  const [editProfessionalUnitId, setEditProfessionalUnitId] = useState("");
+  const [editProfessionalSectorId, setEditProfessionalSectorId] = useState("");
+  const [editProfessionalRtId, setEditProfessionalRtId] = useState("");
+  const [editProfessionalUserId, setEditProfessionalUserId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -1247,22 +1260,48 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function editProfessional(professional: ProfessionalSummary) {
-    const nextName = window.prompt("Nome do profissional", professional.name);
-    if (!nextName) return;
-    const nextPosition = window.prompt("Cargo/função", professional.position ?? "") ?? professional.position;
-    const nextEmail = window.prompt("Email", professional.email ?? "") ?? professional.email;
-    const nextPhone = window.prompt("Telefone", professional.phone ?? "") ?? professional.phone;
+  function startProfessionalEdit(professional: ProfessionalSummary) {
+    setEditingProfessionalId(professional.id);
+    setEditProfessionalName(professional.name);
+    setEditProfessionalEmail(professional.email ?? "");
+    setEditProfessionalPhone(professional.phone ?? "");
+    setEditProfessionalPosition(professional.position ?? "");
+    setEditProfessionalUnitId(professional.unitId);
+    setEditProfessionalSectorId(professional.sectorId);
+    setEditProfessionalRtId(professional.responsibleRtId ?? "");
+    setEditProfessionalUserId(professional.userId ?? "");
+  }
+
+  function cancelProfessionalEdit() {
+    setEditingProfessionalId("");
+    setEditProfessionalName("");
+    setEditProfessionalEmail("");
+    setEditProfessionalPhone("");
+    setEditProfessionalPosition("");
+    setEditProfessionalUnitId("");
+    setEditProfessionalSectorId("");
+    setEditProfessionalRtId("");
+    setEditProfessionalUserId("");
+  }
+
+  async function saveProfessionalEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingProfessionalId) return;
     await run(async () => {
-      await api(`/v1/professionals/${professional.id}`, {
+      await api(`/v1/professionals/${editingProfessionalId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name: nextName,
-          position: nextPosition || null,
-          email: nextEmail || null,
-          phone: nextPhone || null
+          name: editProfessionalName,
+          email: editProfessionalEmail || null,
+          phone: editProfessionalPhone || null,
+          position: editProfessionalPosition || null,
+          unitId: editProfessionalUnitId,
+          sectorId: editProfessionalSectorId,
+          responsibleRtId: editProfessionalRtId || null,
+          userId: editProfessionalUserId || null
         })
       });
+      cancelProfessionalEdit();
     });
   }
 
@@ -1323,8 +1362,12 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
 
   const sectors = organization?.units.flatMap((unit) => unit.sectors.map((sector) => ({ ...sector, unitName: unit.name }))) ?? [];
   const selectedUnitSectors = organization?.units.find((unit) => unit.id === unitId)?.sectors ?? [];
+  const editUnitSectors = organization?.units.find((unit) => unit.id === editProfessionalUnitId)?.sectors ?? [];
   const rtUsers = users.filter((item) => item.role === "RT" && item.active);
   const linkableUsers = users.filter((item) => !items.some((professional) => professional.userId === item.id));
+  const editableUsers = users.filter(
+    (item) => !items.some((professional) => professional.userId === item.id && professional.id !== editingProfessionalId)
+  );
 
   return (
     <div className="content-stack">
@@ -1340,6 +1383,28 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       />
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      <section className="panel action-panel">
+        <span className="label-row">
+          <strong>Exibir na tabela</strong>
+        </span>
+        <label className="checkbox-row compact-toggle">
+          <input checked={showProfessionalCpf} onChange={() => setShowProfessionalCpf((current) => !current)} type="checkbox" />
+          CPF
+        </label>
+        <label className="checkbox-row compact-toggle">
+          <input checked={showProfessionalPhone} onChange={() => setShowProfessionalPhone((current) => !current)} type="checkbox" />
+          Telefone
+        </label>
+        <label className="checkbox-row compact-toggle">
+          <input checked={showProfessionalEmail} onChange={() => setShowProfessionalEmail((current) => !current)} type="checkbox" />
+          Email
+        </label>
+        <label className="checkbox-row compact-toggle">
+          <input checked={showProfessionalPosition} onChange={() => setShowProfessionalPosition((current) => !current)} type="checkbox" />
+          Cargo
+        </label>
+      </section>
 
       {user.role === "ADMIN" && organization ? (
         <section className="panel form-panel">
@@ -1407,6 +1472,89 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               </div>
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {user.role === "ADMIN" && organization && editingProfessionalId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveProfessionalEdit}>
+            <h2>Editar profissional</h2>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input value={editProfessionalName} onChange={(event) => setEditProfessionalName(event.target.value)} />
+              </label>
+              <label>
+                Email
+                <input value={editProfessionalEmail} onChange={(event) => setEditProfessionalEmail(event.target.value)} type="email" />
+              </label>
+              <label>
+                Telefone
+                <input value={editProfessionalPhone} onChange={(event) => setEditProfessionalPhone(event.target.value)} />
+              </label>
+              <label>
+                Cargo
+                <input value={editProfessionalPosition} onChange={(event) => setEditProfessionalPosition(event.target.value)} />
+              </label>
+              <label>
+                Unidade
+                <select
+                  value={editProfessionalUnitId}
+                  onChange={(event) => {
+                    const nextUnitId = event.target.value;
+                    setEditProfessionalUnitId(nextUnitId);
+                    setEditProfessionalSectorId(organization.units.find((unit) => unit.id === nextUnitId)?.sectors[0]?.id ?? "");
+                  }}
+                >
+                  {organization.units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Setor
+                <select value={editProfessionalSectorId} onChange={(event) => setEditProfessionalSectorId(event.target.value)}>
+                  {editUnitSectors.map((sector) => (
+                    <option key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                RT responsável
+                <select value={editProfessionalRtId} onChange={(event) => setEditProfessionalRtId(event.target.value)}>
+                  <option value="">Sem RT</option>
+                  {rtUsers.map((rt) => (
+                    <option key={rt.id} value={rt.id}>
+                      {rt.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Usuário vinculado
+                <select value={editProfessionalUserId} onChange={(event) => setEditProfessionalUserId(event.target.value)}>
+                  <option value="">Sem usuário</option>
+                  {editableUsers.map((linkedUser) => (
+                    <option key={linkedUser.id} value={linkedUser.id}>
+                      {linkedUser.name} ({linkedUser.role})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="form-actions">
+              <button disabled={saving || !editProfessionalName.trim() || !editProfessionalUnitId || !editProfessionalSectorId}>
+                Salvar edição
+              </button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelProfessionalEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
         </section>
       ) : null}
 
@@ -1505,7 +1653,21 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               items={items}
               getRowKey={(item) => item.id}
               columns={[
-                { key: "name", header: "Profissional", render: (item) => `${item.name}${item.cpf ? ` / ${item.cpf}` : ""}` },
+                {
+                  key: "name",
+                  header: "Profissional",
+                  render: (item) => (
+                    <div className="table-identity">
+                      <strong>{item.name}</strong>
+                      <div className="table-identity-meta">
+                        {showProfessionalCpf && item.cpf ? <span>CPF: {item.cpf}</span> : null}
+                        {showProfessionalPhone && item.phone ? <span>Tel: {item.phone}</span> : null}
+                        {showProfessionalEmail && item.email ? <span>Email: {item.email}</span> : null}
+                        {showProfessionalPosition && item.position ? <span>Cargo: {item.position}</span> : null}
+                      </div>
+                    </div>
+                  )
+                },
                 { key: "unit", header: "Unidade", render: (item) => item.unit.name },
                 { key: "sector", header: "Setor", render: (item) => item.sector.name },
                 { key: "rt", header: "RT", render: (item) => item.responsibleRt?.name ?? "Sem RT" },
@@ -1530,7 +1692,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                       </button>
                       {user.role === "ADMIN" ? (
                         <>
-                          <button className="secondary" type="button" onClick={() => void editProfessional(item)}>
+                          <button className="secondary" type="button" onClick={() => startProfessionalEdit(item)}>
                             Editar
                           </button>
                           <ConfirmButton
@@ -1641,6 +1803,16 @@ function LicensesView({ user }: { user: CurrentUser }) {
   const [expiresAt, setExpiresAt] = useState("");
   const [status, setStatus] = useState<LicenseStatus>("REGULAR");
   const [notes, setNotes] = useState("");
+  const [editingLicenseTypeId, setEditingLicenseTypeId] = useState("");
+  const [editTypeName, setEditTypeName] = useState("");
+  const [editTypeDescription, setEditTypeDescription] = useState("");
+  const [editTypeWarningDays, setEditTypeWarningDays] = useState("");
+  const [editingLicenseId, setEditingLicenseId] = useState("");
+  const [editLicenseNumber, setEditLicenseNumber] = useState("");
+  const [editLicenseIssuer, setEditLicenseIssuer] = useState("");
+  const [editLicenseUf, setEditLicenseUf] = useState("");
+  const [editLicenseExpiresAt, setEditLicenseExpiresAt] = useState("");
+  const [editLicenseStatus, setEditLicenseStatus] = useState<LicenseStatus>("REGULAR");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1734,47 +1906,69 @@ function LicensesView({ user }: { user: CurrentUser }) {
     });
   }
 
-  async function editType(licenseType: LicenseTypeItem) {
-    const name = window.prompt("Nome do tipo de licença", licenseType.name);
-    if (!name) return;
-    const description = window.prompt("Descrição", licenseType.description ?? "") ?? licenseType.description;
-    const defaultWarningDays =
-      window.prompt("Dias de aviso padrão, separados por virgula", licenseType.defaultWarningDays ?? "") ??
-      licenseType.defaultWarningDays;
+  function startLicenseTypeEdit(licenseType: LicenseTypeItem) {
+    setEditingLicenseTypeId(licenseType.id);
+    setEditTypeName(licenseType.name);
+    setEditTypeDescription(licenseType.description ?? "");
+    setEditTypeWarningDays(licenseType.defaultWarningDays ?? "");
+  }
+
+  function cancelLicenseTypeEdit() {
+    setEditingLicenseTypeId("");
+    setEditTypeName("");
+    setEditTypeDescription("");
+    setEditTypeWarningDays("");
+  }
+
+  async function saveLicenseTypeEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingLicenseTypeId) return;
     await run(async () => {
-      await api(`/v1/license-types/${licenseType.id}`, {
+      await api(`/v1/license-types/${editingLicenseTypeId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name,
-          description: description || null,
-          defaultWarningDays: defaultWarningDays || null
+          name: editTypeName,
+          description: editTypeDescription || null,
+          defaultWarningDays: editTypeWarningDays || null
         })
       });
+      cancelLicenseTypeEdit();
     });
   }
 
-  async function editLicense(license: LicenseItem) {
-    const nextNumber = window.prompt("Número da licença", license.number ?? "") ?? license.number;
-    const nextIssuer = window.prompt("Emissor", license.issuer ?? "") ?? license.issuer;
-    const nextUf = window.prompt("UF", license.uf ?? "") ?? license.uf;
-    const nextExpiresAt = window.prompt("Vencimento (AAAA-MM-DD)", toDateInput(license.expiresAt));
-    if (nextExpiresAt === null) return;
-    const nextStatus = window.prompt(`Status: ${licenseStatuses.join(", ")}`, license.status);
-    if (!nextStatus || !licenseStatuses.includes(nextStatus as LicenseStatus)) {
-      setError("Status invalido.");
-      return;
-    }
+  function startLicenseEdit(license: LicenseItem) {
+    setEditingLicenseId(license.id);
+    setEditLicenseNumber(license.number ?? "");
+    setEditLicenseIssuer(license.issuer ?? "");
+    setEditLicenseUf(license.uf ?? "");
+    setEditLicenseExpiresAt(toDateInput(license.expiresAt));
+    setEditLicenseStatus(license.status);
+  }
+
+  function cancelLicenseEdit() {
+    setEditingLicenseId("");
+    setEditLicenseNumber("");
+    setEditLicenseIssuer("");
+    setEditLicenseUf("");
+    setEditLicenseExpiresAt("");
+    setEditLicenseStatus("REGULAR");
+  }
+
+  async function saveLicenseEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingLicenseId) return;
     await run(async () => {
-      await api(`/v1/licenses/${license.id}`, {
+      await api(`/v1/licenses/${editingLicenseId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          number: nextNumber || null,
-          issuer: nextIssuer || null,
-          uf: nextUf || null,
-          expiresAt: nextExpiresAt || null,
-          status: nextStatus
+          number: editLicenseNumber || null,
+          issuer: editLicenseIssuer || null,
+          uf: editLicenseUf || null,
+          expiresAt: editLicenseExpiresAt || null,
+          status: editLicenseStatus
         })
       });
+      cancelLicenseEdit();
     });
   }
 
@@ -1802,10 +1996,21 @@ function LicensesView({ user }: { user: CurrentUser }) {
 
   async function notifyLicense(license: LicenseItem) {
     await run(async () => {
-      const result = await api<{ created: unknown[]; skipped: unknown[]; processed: unknown[] }>("/v1/notifications/manual-license", {
+      let result = await api<{ created: unknown[]; skipped: unknown[]; processed: unknown[] }>("/v1/notifications/manual-license", {
         method: "POST",
         body: JSON.stringify({ licenseId: license.id, processNow: true })
       });
+      if (result.created.length === 0 && result.skipped.length > 0) {
+        const retry = window.confirm(
+          "Nenhuma nova mensagem foi criada agora, provavelmente por duplicidade do mesmo dia. Deseja forçar um reenvio manual?"
+        );
+        if (retry) {
+          result = await api<{ created: unknown[]; skipped: unknown[]; processed: unknown[] }>("/v1/notifications/manual-license", {
+            method: "POST",
+            body: JSON.stringify({ licenseId: license.id, processNow: true, force: true })
+          });
+        }
+      }
       window.alert(
         `Notificação manual concluída. Criadas: ${result.created.length}. Enviadas/processadas: ${result.processed.length}. Ignoradas: ${result.skipped.length}.`
       );
@@ -1845,6 +2050,76 @@ function LicensesView({ user }: { user: CurrentUser }) {
             </button>
             <InfoTip text="Reavalia vencimentos das licencas sem alterar documentos enviados." href="#cadastro-licenca" />
           </span>
+        </section>
+      ) : null}
+
+      {user.role === "ADMIN" && editingLicenseTypeId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveLicenseTypeEdit}>
+            <h2>Editar tipo de licença</h2>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input value={editTypeName} onChange={(event) => setEditTypeName(event.target.value)} />
+              </label>
+              <label>
+                Descrição
+                <input value={editTypeDescription} onChange={(event) => setEditTypeDescription(event.target.value)} />
+              </label>
+              <label>
+                Avisos padrão
+                <input value={editTypeWarningDays} onChange={(event) => setEditTypeWarningDays(event.target.value)} placeholder="90,60,30" />
+              </label>
+            </div>
+            <div className="form-actions">
+              <button disabled={saving || !editTypeName.trim()}>Salvar edição</button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelLicenseTypeEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      {user.role === "ADMIN" && editingLicenseId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveLicenseEdit}>
+            <h2>Editar licença</h2>
+            <div className="form-grid">
+              <label>
+                Número
+                <input value={editLicenseNumber} onChange={(event) => setEditLicenseNumber(event.target.value)} />
+              </label>
+              <label>
+                Emissor
+                <input value={editLicenseIssuer} onChange={(event) => setEditLicenseIssuer(event.target.value)} />
+              </label>
+              <label>
+                UF
+                <input value={editLicenseUf} onChange={(event) => setEditLicenseUf(event.target.value.toUpperCase())} maxLength={2} />
+              </label>
+              <label>
+                Vencimento
+                <input value={editLicenseExpiresAt} onChange={(event) => setEditLicenseExpiresAt(event.target.value)} type="date" />
+              </label>
+              <label>
+                Status
+                <select value={editLicenseStatus} onChange={(event) => setEditLicenseStatus(event.target.value as LicenseStatus)}>
+                  {licenseStatuses.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="form-actions">
+              <button disabled={saving}>Salvar edição</button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelLicenseEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
         </section>
       ) : null}
 
@@ -1970,7 +2245,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                   render: (item) =>
                     user.role === "ADMIN" ? (
                       <div className="row-actions">
-                        <button className="secondary" type="button" onClick={() => void editLicense(item)}>
+                        <button className="secondary" type="button" onClick={() => startLicenseEdit(item)}>
                           Editar
                         </button>
                         <span className="label-row">
@@ -2032,7 +2307,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
                 render: (item) =>
                   user.role === "ADMIN" ? (
                     <div className="row-actions">
-                      <button className="secondary" type="button" onClick={() => void editType(item)}>
+                      <button className="secondary" type="button" onClick={() => startLicenseTypeEdit(item)}>
                         Editar
                       </button>
                       <ConfirmButton
@@ -2349,6 +2624,17 @@ function SettingsView() {
   const [userRole, setUserRole] = useState<UserRole>("SUPERVISOR");
   const [userUnitScopeIds, setUserUnitScopeIds] = useState<string[]>([]);
   const [userSectorScopeIds, setUserSectorScopeIds] = useState<string[]>([]);
+  const [editingUnitId, setEditingUnitId] = useState("");
+  const [editingUnitName, setEditingUnitName] = useState("");
+  const [editingSectorId, setEditingSectorId] = useState("");
+  const [editingSectorName, setEditingSectorName] = useState("");
+  const [editingUserId, setEditingUserId] = useState("");
+  const [editingUserName, setEditingUserName] = useState("");
+  const [editingUserEmail, setEditingUserEmail] = useState("");
+  const [editingUserPhone, setEditingUserPhone] = useState("");
+  const [editingUserRole, setEditingUserRole] = useState<UserRole>("SUPERVISOR");
+  const [editingUserUnitScopeIds, setEditingUserUnitScopeIds] = useState<string[]>([]);
+  const [editingUserSectorScopeIds, setEditingUserSectorScopeIds] = useState<string[]>([]);
   const [templateKey, setTemplateKey] = useState("");
   const [templateMetaName, setTemplateMetaName] = useState("");
   const [templatePreview, setTemplatePreview] = useState("");
@@ -2536,60 +2822,85 @@ function SettingsView() {
     });
   }
 
-  async function renameUnit(unit: UnitItem) {
-    const name = window.prompt("Nome da unidade", unit.name);
-    if (!name) return;
+  function startUnitEdit(unit: UnitItem) {
+    setEditingUnitId(unit.id);
+    setEditingUnitName(unit.name);
+  }
+
+  function cancelUnitEdit() {
+    setEditingUnitId("");
+    setEditingUnitName("");
+  }
+
+  async function saveUnitEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingUnitId) return;
     await run(async () => {
-      await api(`/v1/organization/units/${unit.id}`, {
+      await api(`/v1/organization/units/${editingUnitId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name: editingUnitName })
       });
+      cancelUnitEdit();
     });
   }
 
-  async function renameSector(sector: SectorItem) {
-    const name = window.prompt("Nome do setor", sector.name);
-    if (!name) return;
+  function startSectorEdit(sector: SectorItem) {
+    setEditingSectorId(sector.id);
+    setEditingSectorName(sector.name);
+  }
+
+  function cancelSectorEdit() {
+    setEditingSectorId("");
+    setEditingSectorName("");
+  }
+
+  async function saveSectorEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingSectorId) return;
     await run(async () => {
-      await api(`/v1/organization/sectors/${sector.id}`, {
+      await api(`/v1/organization/sectors/${editingSectorId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name: editingSectorName })
       });
+      cancelSectorEdit();
     });
   }
 
-  async function editUser(user: ManagedUserItem) {
-    const name = window.prompt("Nome do usuário", user.name);
-    if (!name) return;
-    const email = window.prompt("Email do usuário", user.email);
-    if (!email) return;
-    const phone = window.prompt("Telefone WhatsApp do usuário", user.phone ?? "") ?? user.phone;
-    const roleInput = window.prompt("Perfil do usuário: ADMIN, RT ou SUPERVISOR", user.role);
-    if (!roleInput) return;
-    const role = roleInput.toUpperCase() as UserRole;
-    if (!userRoles.includes(role)) {
-      setError("Perfil inválida.");
-      return;
-    }
-    const unitScopeIds =
-      role === "ADMIN"
-        ? []
-        : (window.prompt("IDs de unidades separados por virgula", user.unitScopeIds.join(",")) ?? "")
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean);
-    const sectorScopeIds =
-      role === "ADMIN"
-        ? []
-        : (window.prompt("IDs de setores separados por virgula", user.sectorScopeIds.join(",")) ?? "")
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean);
+  function startUserEdit(user: ManagedUserItem) {
+    setEditingUserId(user.id);
+    setEditingUserName(user.name);
+    setEditingUserEmail(user.email);
+    setEditingUserPhone(user.phone ?? "");
+    setEditingUserRole(user.role);
+    setEditingUserUnitScopeIds(user.unitScopeIds);
+    setEditingUserSectorScopeIds(user.sectorScopeIds);
+  }
+
+  function cancelUserEdit() {
+    setEditingUserId("");
+    setEditingUserName("");
+    setEditingUserEmail("");
+    setEditingUserPhone("");
+    setEditingUserRole("SUPERVISOR");
+    setEditingUserUnitScopeIds([]);
+    setEditingUserSectorScopeIds([]);
+  }
+
+  async function saveUserEdit(event: FormEvent) {
+    event.preventDefault();
     await run(async () => {
-      await api(`/v1/users/${user.id}`, {
+      await api(`/v1/users/${editingUserId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name, email, phone: phone || null, role, unitScopeIds, sectorScopeIds })
+        body: JSON.stringify({
+          name: editingUserName,
+          email: editingUserEmail,
+          phone: editingUserPhone || null,
+          role: editingUserRole,
+          unitScopeIds: editingUserRole === "ADMIN" ? [] : editingUserUnitScopeIds,
+          sectorScopeIds: editingUserRole === "ADMIN" ? [] : editingUserSectorScopeIds
+        })
       });
+      cancelUserEdit();
     });
   }
 
@@ -2612,6 +2923,18 @@ function SettingsView() {
 
   function toggleSectorScope(sectorId: string) {
     setUserSectorScopeIds((current) =>
+      current.includes(sectorId) ? current.filter((item) => item !== sectorId) : [...current, sectorId]
+    );
+  }
+
+  function toggleEditingUserUnitScope(unitId: string) {
+    setEditingUserUnitScopeIds((current) =>
+      current.includes(unitId) ? current.filter((item) => item !== unitId) : [...current, unitId]
+    );
+  }
+
+  function toggleEditingUserSectorScope(sectorId: string) {
+    setEditingUserSectorScopeIds((current) =>
       current.includes(sectorId) ? current.filter((item) => item !== sectorId) : [...current, sectorId]
     );
   }
@@ -2775,6 +3098,74 @@ function SettingsView() {
         </form>
       </section>
 
+      {editingUserId ? (
+        <section className="panel form-panel full-span">
+          <form onSubmit={saveUserEdit}>
+            <h2>Editar usuário</h2>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input value={editingUserName} onChange={(event) => setEditingUserName(event.target.value)} />
+              </label>
+              <label>
+                Email
+                <input value={editingUserEmail} onChange={(event) => setEditingUserEmail(event.target.value)} type="email" />
+              </label>
+              <label>
+                WhatsApp
+                <input value={editingUserPhone} onChange={(event) => setEditingUserPhone(event.target.value)} />
+              </label>
+              <label>
+                Perfil
+                <select value={editingUserRole} onChange={(event) => setEditingUserRole(event.target.value as UserRole)}>
+                  {userRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {editingUserRole === "ADMIN" ? null : (
+              <div className="scope-grid">
+                <fieldset>
+                  <legend>Unidades</legend>
+                  {organization.units.map((unit) => (
+                    <label className="checkbox-row" key={unit.id}>
+                      <input
+                        checked={editingUserUnitScopeIds.includes(unit.id)}
+                        onChange={() => toggleEditingUserUnitScope(unit.id)}
+                        type="checkbox"
+                      />
+                      {unit.name}
+                    </label>
+                  ))}
+                </fieldset>
+                <fieldset>
+                  <legend>Setores</legend>
+                  {sectors.map((sector) => (
+                    <label className="checkbox-row" key={sector.id}>
+                      <input
+                        checked={editingUserSectorScopeIds.includes(sector.id)}
+                        onChange={() => toggleEditingUserSectorScope(sector.id)}
+                        type="checkbox"
+                      />
+                      {sector.name} / {sector.unitName}
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
+            )}
+            <div className="form-actions">
+              <button disabled={saving || !editingUserName.trim() || !editingUserEmail.trim()}>Salvar edição</button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelUserEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <section className="panel table-panel full-span">
         {users.length === 0 ? (
           <OperationalState state="empty" title="Nenhum usuário cadastrado" />
@@ -2804,7 +3195,7 @@ function SettingsView() {
                 header: "Ações",
                 render: (item) => (
                   <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => void editUser(item)}>
+                    <button className="secondary" type="button" onClick={() => startUserEdit(item)}>
                       Editar
                     </button>
                     <button className="secondary" type="button" onClick={() => void resetPassword(item)}>
@@ -3050,7 +3441,7 @@ function SettingsView() {
                 header: "Ações",
                 render: (unit) => (
                   <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => void renameUnit(unit)}>
+                    <button className="secondary" type="button" onClick={() => startUnitEdit(unit)}>
                       Editar
                     </button>
                     <ConfirmButton
@@ -3075,6 +3466,24 @@ function SettingsView() {
         )}
       </section>
 
+      {editingUnitId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveUnitEdit}>
+            <h2>Editar unidade</h2>
+            <label>
+              Nome
+              <input value={editingUnitName} onChange={(event) => setEditingUnitName(event.target.value)} />
+            </label>
+            <div className="form-actions">
+              <button disabled={saving || !editingUnitName.trim()}>Salvar edição</button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelUnitEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <section className="panel table-panel full-span">
         {sectors.length === 0 ? (
           <OperationalState state="empty" title="Nenhum setor cadastrado" />
@@ -3095,7 +3504,7 @@ function SettingsView() {
                 header: "Ações",
                 render: (sector) => (
                   <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => void renameSector(sector)}>
+                    <button className="secondary" type="button" onClick={() => startSectorEdit(sector)}>
                       Editar
                     </button>
                     <ConfirmButton
@@ -3119,6 +3528,24 @@ function SettingsView() {
           />
         )}
       </section>
+
+      {editingSectorId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveSectorEdit}>
+            <h2>Editar setor</h2>
+            <label>
+              Nome
+              <input value={editingSectorName} onChange={(event) => setEditingSectorName(event.target.value)} />
+            </label>
+            <div className="form-actions">
+              <button disabled={saving || !editingSectorName.trim()}>Salvar edição</button>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelSectorEdit}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -3167,7 +3594,7 @@ function PublicUploadView({ token }: { token: string }) {
     <main className="auth-page">
       <section className="panel login-panel">
         <div>
-          <p className="eyebrow">Sylembra</p>
+          <p className="eyebrow">SyLembra</p>
           <h1>Enviar documento</h1>
         </div>
         {loading ? <OperationalState state="loading" title="Carregando link" /> : null}
@@ -3203,7 +3630,7 @@ function PublicFaqView() {
   const params = new URLSearchParams(window.location.search);
   const organizationId = params.get("organizationId") || "demo-org";
   const [items, setItems] = useState<FaqItem[]>([]);
-  const [organizationName, setOrganizationName] = useState("Sylembra");
+  const [organizationName, setOrganizationName] = useState("SyLembra");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [problemType, setProblemType] = useState("Duvida sobre envio");
@@ -3652,7 +4079,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         <div className="brand">
           <BrandMark />
           <div>
-            <strong>Sylembra</strong>
+            <strong>SyLembra</strong>
             <small>Licenças e documentos</small>
           </div>
         </div>

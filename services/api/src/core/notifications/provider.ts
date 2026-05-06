@@ -50,9 +50,13 @@ export class MetaWhatsAppProvider implements NotificationProvider {
 
   async sendWhatsAppTemplate(input: NotificationSendInput): Promise<NotificationSendResult> {
     const bodyParameters = input.bodyParameters?.filter((value) => value.trim().length > 0) ?? [];
+    const to = input.to.replace(/\D/g, "");
+    if (to.length < 10) {
+      throw new NotificationProviderError("META_WHATSAPP_INVALID_RECIPIENT");
+    }
     const payload = {
       messaging_product: "whatsapp",
-      to: input.to,
+      to,
       type: "template",
       template: {
         name: input.templateName,

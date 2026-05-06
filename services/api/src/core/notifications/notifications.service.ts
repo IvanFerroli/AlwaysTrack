@@ -47,6 +47,7 @@ export interface NotificationScanInput {
 export interface ManualLicenseNotificationInput {
   licenseId?: string;
   processNow?: boolean;
+  force?: boolean;
 }
 
 function cleanText(value: unknown) {
@@ -169,8 +170,14 @@ export function parseManualLicenseNotificationInput(payload: unknown): ManualLic
   const input = (payload ?? {}) as Record<string, unknown>;
   return {
     licenseId: cleanText(input.licenseId),
-    processNow: cleanBoolean(input.processNow)
+    processNow: cleanBoolean(input.processNow),
+    force: cleanBoolean(input.force)
   };
+}
+
+function normalizeRecipientPhone(value: string | null | undefined) {
+  const digits = value?.replace(/\D/g, "") ?? "";
+  return digits.length >= 10 ? digits : null;
 }
 
 export async function listNotificationConfig(prisma: PrismaClient, actor: CurrentUser) {
@@ -433,7 +440,8 @@ export async function scanNotificationJobs(prisma: PrismaClient, actor: CurrentU
         });
       }
       for (const recipient of recipientsFor(rule, license)) {
-        const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}`;
+        const recipientPhoneKey = normalizeRecipientPhone(recipient.phone) ?? "no-phone";
+        const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}:${recipientPhoneKey}`;
         const payload = notificationPayload(license, today, willEscalateToRt, recipient.kind);
         const existing = await prisma.notificationJob.findUnique({ where: { dedupeKey } });
         if (existing) {
@@ -510,9 +518,11 @@ export async function sendManualLicenseNotification(
       });
     }
     for (const recipient of recipientsFor(rule, license)) {
-      const dedupeKey = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}`;
-      const existing = await prisma.notificationJob.findUnique({ where: { dedupeKey } });
-      if (existing) {
+      const recipientPhoneKey = normalizeRecipientPhone(recipient.phone) ?? "no-phone";
+      const dedupeKeyBase = `${license.id}:${rule.id}:${periodKey}:${recipient.kind}:${recipientPhoneKey}`;
+      const dedupeKey = input.force ? `${dedupeKeyBase}:force:${Date.now()}` : dedupeKeyBase;
+      const existing = input.force ? null : await prisma.notificationJob.findUnique({ where: { dedupeKey } });
+      if (existing && !input.force) {
         skipped.push({ dedupeKey, reason: "duplicate" });
         continue;
       }

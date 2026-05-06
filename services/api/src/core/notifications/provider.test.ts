@@ -22,7 +22,7 @@ describe("notification providers", () => {
     });
 
     const result = await new MetaWhatsAppProvider("token", "phone-id", fetcher as never).sendWhatsAppTemplate({
-      to: "+550000",
+      to: "+55 (83) 98674-8048",
       templateName: "venc",
       language: "pt_BR",
       payload: {}
@@ -34,6 +34,7 @@ describe("notification providers", () => {
       expect.stringContaining("/phone-id/messages"),
       expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer token" }) })
     );
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).to).toBe("5583986748048");
   });
 
   it("meta provider sends body template parameters when provided", async () => {
@@ -43,7 +44,7 @@ describe("notification providers", () => {
     });
 
     await new MetaWhatsAppProvider("token", "phone-id", fetcher as never).sendWhatsAppTemplate({
-      to: "+550000",
+      to: "+55 (83) 98674-8048",
       templateName: "venc",
       language: "pt_BR",
       payload: {},
@@ -70,12 +71,25 @@ describe("notification providers", () => {
 
     await expect(
       new MetaWhatsAppProvider("secret-token", "phone-id", fetcher as never).sendWhatsAppTemplate({
-        to: "+550000",
+        to: "+55 (83) 98674-8048",
         templateName: "venc",
         language: "pt_BR",
         payload: {}
       })
     ).rejects.toBeInstanceOf(NotificationProviderError);
+  });
+
+  it("rejects invalid recipient phones before calling Meta", async () => {
+    const fetcher = vi.fn();
+    await expect(
+      new MetaWhatsAppProvider("secret-token", "phone-id", fetcher as never).sendWhatsAppTemplate({
+        to: "123",
+        templateName: "venc",
+        language: "pt_BR",
+        payload: {}
+      })
+    ).rejects.toBeInstanceOf(NotificationProviderError);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("verifies Meta webhook signatures", () => {
