@@ -1324,6 +1324,18 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     URL.revokeObjectURL(url);
   }
 
+  async function downloadImportWorkbook() {
+    const response = await fetch(`${apiBaseUrl}/v1/imports/professionals-licenses/template.xlsx`, { credentials: "include" });
+    if (!response.ok) throw new Error("Falha ao baixar planilha guiada.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "modelo-profissionais-licencas.xlsx";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function validateImport() {
     setImporting(true);
     setImportError(null);
@@ -1395,6 +1407,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               <li>`rt_email` precisa ser o email real de um usuário com perfil `RT` já cadastrado e ativo.</li>
               <li>`unit_name`, `sector_name` e `license_type` precisam existir no sistema antes da validação.</li>
               <li>Datas devem estar em `YYYY-MM-DD` e o `status` deve usar valores como `REGULAR`, `EXPIRING` ou `EXPIRED`.</li>
+              <li>A planilha guiada `.xlsx` já traz listas válidas para unidade, setor, RT e tipo de licença. Depois de preencher, exporte como CSV para importar.</li>
             </ul>
           </div>
           <div className="form-grid">
@@ -1412,8 +1425,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
             </label>
           </div>
           <div className="form-actions">
+            <button className="secondary" disabled={importing} type="button" onClick={() => void downloadImportWorkbook()}>
+              Baixar planilha guiada (.xlsx)
+            </button>
             <button className="secondary" disabled={importing} type="button" onClick={() => void downloadImportTemplate()}>
-              Baixar modelo
+              Baixar CSV simples
             </button>
             <button className="secondary" disabled={importing || !importFile} type="button" onClick={() => void validateImport()}>
               Validar

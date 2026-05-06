@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { createHash } from "node:crypto";
+import ExcelJS from "exceljs";
 import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@sylembra/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "../licenses/status.js";
@@ -60,6 +61,8 @@ export interface ImportValidationResult {
 }
 
 export const professionalsLicensesCsvTemplate = `${headers.join(",")}\n`;
+
+const importTemplateStatuses = ["", ...licenseStatuses];
 
 function ensureAdmin(actor: CurrentUser) {
   if (actor.role !== "ADMIN") throw new ImportError("FORBIDDEN");
@@ -236,6 +239,111 @@ export async function validateProfessionalsLicensesCsv(prisma: PrismaClient, act
     metadata: { totalRows: result.totalRows, errorRows: result.errorRows }
   });
   return result;
+}
+
+function toValidationFormula(sheetName: string, column: string, valuesLength: number) {
+  const endRow = Math.max(valuesLength + 1, 2);
+  return `='${sheetName}'!$${column}$2:$${column}$${endRow}`;
+}
+
+function seedValidationColumn(worksheet: ExcelJS.Worksheet, column: string, values: string[]) {
+  worksheet.getCell(`${column}1`).value = column;
+  const seeded = values.length > 0 ? values : [""];
+  seeded.forEach((value, index) => {
+    worksheet.getCell(`${column}${index + 2}`).value = value;
+  });
+}
+
+export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, actor: CurrentUser) {
+  ensureAdmin(actor);
+
+  const [units, sectors, users, licenseTypes] = await Promise.all([
+    prisma.unit.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } }),
+    prisma.sector.findMany({
+      where: { unit: { organizationId: actor.organizationId }, active: true },
+      include: { unit: true },
+      orderBy: [{ unit: { name: "asc" } }, { name: "asc" }]
+    }),
+    prisma.user.findMany({ where: { organizationId: actor.organizationId, role: "RT", active: true }, orderBy: { email: "asc" } }),
+    prisma.licenseType.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } })
+  ]);
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SyLembra";
+  workbook.created = new Date();
+
+  const importSheet = workbook.addWorksheet("Importacao");
+  const listsSheet = workbook.addWorksheet("Listas", { state: "veryHidden" });
+  const instructionsSheet = workbook.addWorksheet("Instrucoes");
+
+  importSheet.addRow(headers);
+  importSheet.views = [{ state: "frozen", ySplit: 1 }];
+  importSheet.getRow(1).font = { bold: true };
+
+  const columnWidths = [24, 16, 28, 18, 24, 30, 30, 28, 18, 18, 18, 10, 14, 14, 14, 28];
+  headers.forEach((header, index) => {
+    importSheet.getColumn(index + 1).width = columnWidths[index];
+    importSheet.getCell(1, index + 1).note = header;
+  });
+  ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"].forEach((column) => {
+    importSheet.getColumn(column).numFmt = "@";
+  });
+
+  seedValidationColumn(listsSheet, "A", units.map((item) => item.name));
+  seedValidationColumn(listsSheet, "B", sectors.map((item) => item.name));
+  seedValidationColumn(listsSheet, "C", users.map((item) => item.email));
+  seedValidationColumn(listsSheet, "D", licenseTypes.map((item) => item.name));
+  seedValidationColumn(listsSheet, "E", importTemplateStatuses);
+
+  const maxRows = 500;
+  for (let row = 2; row <= maxRows + 1; row += 1) {
+    importSheet.getCell(`F${row}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [toValidationFormula("Listas", "A", units.length)]
+    };
+    importSheet.getCell(`G${row}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [toValidationFormula("Listas", "B", sectors.length)]
+    };
+    importSheet.getCell(`H${row}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [toValidationFormula("Listas", "C", users.length)]
+    };
+    importSheet.getCell(`I${row}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [toValidationFormula("Listas", "D", licenseTypes.length)]
+    };
+    importSheet.getCell(`O${row}`).dataValidation = {
+      type: "list",
+      allowBlank: true,
+      formulae: [toValidationFormula("Listas", "E", importTemplateStatuses.length)]
+    };
+  }
+
+  importSheet.getCell("A2").note = "Preencha uma linha por licença. Depois exporte a aba como CSV para importar no sistema.";
+  importSheet.getCell("H2").note = "Use o email real de um usuário RT já cadastrado e ativo.";
+  importSheet.getCell("M2").note = "Formato obrigatório: YYYY-MM-DD";
+  importSheet.getCell("N2").note = "Formato obrigatório: YYYY-MM-DD";
+
+  instructionsSheet.columns = [{ width: 110 }];
+  instructionsSheet.getCell("A1").value = "Como usar a planilha guiada";
+  instructionsSheet.getCell("A1").font = { bold: true, size: 14 };
+  [
+    "1. Preencha apenas a aba Importacao.",
+    "2. Use os dropdowns de unidade, setor, rt_email, tipo de licença e status para evitar erro.",
+    "3. Datas devem ficar em YYYY-MM-DD.",
+    "4. rt_email precisa existir como usuário RT ativo no sistema.",
+    "5. unit_name, sector_name e license_type precisam existir antes da importação.",
+    "6. Depois de preencher, exporte a aba Importacao como CSV e envie no importador do SyLembra."
+  ].forEach((line, index) => {
+    instructionsSheet.getCell(`A${index + 3}`).value = line;
+  });
+
+  return workbook.xlsx.writeBuffer();
 }
 
 export async function commitProfessionalsLicensesCsv(prisma: PrismaClient, actor: CurrentUser, csv: string) {

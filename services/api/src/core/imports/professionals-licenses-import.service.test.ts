@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@sylembra/shared";
 import {
+  buildProfessionalsLicensesWorkbook,
   commitProfessionalsLicensesCsv,
   ImportError,
   professionalsLicensesCsvTemplate,
@@ -18,6 +19,8 @@ const admin: CurrentUser = {
 };
 
 const supervisor: CurrentUser = { ...admin, id: "sup-1", role: "SUPERVISOR" };
+
+const validCsv = `${professionalsLicensesCsvTemplate}Maria Exemplo,12345678901,maria@example.com,11999999999,Enfermeira,RH-GERAL,GOVERNANCA,rt@example.com,Registro profissional demo,COREN-123,COREN,SP,2024-01-10,2026-01-10,,Carga inicial\n`;
 
 function basePrisma() {
   return {
@@ -59,7 +62,7 @@ function basePrisma() {
 describe("professionals/licenses CSV import", () => {
   it("validates a CSV and reports planned creates", async () => {
     const prisma = basePrisma();
-    const result = await validateProfessionalsLicensesCsv(prisma as never, admin, professionalsLicensesCsvTemplate);
+    const result = await validateProfessionalsLicensesCsv(prisma as never, admin, validCsv);
 
     expect(result).toMatchObject({
       totalRows: 1,
@@ -74,7 +77,7 @@ describe("professionals/licenses CSV import", () => {
   });
 
   it("rejects non-admin users", async () => {
-    await expect(validateProfessionalsLicensesCsv(basePrisma() as never, supervisor, professionalsLicensesCsvTemplate)).rejects.toEqual(
+    await expect(validateProfessionalsLicensesCsv(basePrisma() as never, supervisor, validCsv)).rejects.toEqual(
       new ImportError("FORBIDDEN")
     );
   });
@@ -83,7 +86,7 @@ describe("professionals/licenses CSV import", () => {
     const prisma = basePrisma();
     prisma.unit.findMany.mockResolvedValue([]);
 
-    const result = await validateProfessionalsLicensesCsv(prisma as never, admin, professionalsLicensesCsvTemplate);
+    const result = await validateProfessionalsLicensesCsv(prisma as never, admin, validCsv);
 
     expect(result.errorRows).toBe(1);
     expect(result.rows[0].errors).toContain("Unidade não encontrada ou inativa.");
@@ -92,7 +95,7 @@ describe("professionals/licenses CSV import", () => {
   it("commits only after a clean validation", async () => {
     const prisma = basePrisma();
 
-    const result = await commitProfessionalsLicensesCsv(prisma as never, admin, professionalsLicensesCsvTemplate);
+    const result = await commitProfessionalsLicensesCsv(prisma as never, admin, validCsv);
 
     expect(result.professionalsCreated).toBe(1);
     expect(result.licensesCreated).toBe(1);
@@ -100,5 +103,12 @@ describe("professionals/licenses CSV import", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "bulk_import.commit" }) })
     );
+  });
+
+  it("builds a guided workbook buffer", async () => {
+    const prisma = basePrisma();
+    const workbook = await buildProfessionalsLicensesWorkbook(prisma as never, admin);
+    expect(workbook).toBeInstanceOf(Buffer);
+    expect(workbook.byteLength).toBeGreaterThan(1000);
   });
 });

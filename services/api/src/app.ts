@@ -92,6 +92,7 @@ import {
 import {
   commitProfessionalsLicensesCsvHandler,
   professionalsLicensesTemplateHandler,
+  professionalsLicensesWorkbookHandler,
   validateProfessionalsLicensesCsvHandler
 } from "./core/imports/imports.handlers.js";
 
@@ -167,6 +168,12 @@ export function createApp() {
     requireAuth,
     requireRole(["ADMIN"]),
     professionalsLicensesTemplateHandler
+  );
+  app.get(
+    "/v1/imports/professionals-licenses/template.xlsx",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    professionalsLicensesWorkbookHandler
   );
   app.post(
     "/v1/imports/professionals-licenses/validate",

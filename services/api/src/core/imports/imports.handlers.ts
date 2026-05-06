@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
+  buildProfessionalsLicensesWorkbook,
   commitProfessionalsLicensesCsv,
   ImportError,
   professionalsLicensesCsvTemplate,
@@ -36,6 +37,20 @@ export function professionalsLicensesTemplateHandler(_request: Request, response
   response.header("content-type", "text/csv; charset=utf-8");
   response.header("content-disposition", 'attachment; filename="modelo-profissionais-licencas.csv"');
   return response.status(200).send(professionalsLicensesCsvTemplate);
+}
+
+export async function professionalsLicensesWorkbookHandler(request: Request, response: Response) {
+  try {
+    const workbook = await buildProfessionalsLicensesWorkbook(prisma, actorFrom(request));
+    response.header(
+      "content-type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    response.header("content-disposition", 'attachment; filename="modelo-profissionais-licencas.xlsx"');
+    return response.status(200).send(Buffer.from(workbook));
+  } catch (error) {
+    return sendImportError(response, error);
+  }
 }
 
 export async function validateProfessionalsLicensesCsvHandler(request: Request, response: Response) {
