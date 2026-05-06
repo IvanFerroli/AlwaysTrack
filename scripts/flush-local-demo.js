@@ -15,6 +15,49 @@ const adminConfig = {
   password: "sla-2026*"
 };
 
+const notificationTemplates = [
+  {
+    key: "license_expiration_notice",
+    metaTemplateName: "license_expiration_notice",
+    language: "pt_BR",
+    bodyPreview:
+      "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+  },
+  {
+    key: "responsible_license_expiration_notice",
+    metaTemplateName: "responsible_license_expiration_notice",
+    language: "pt_BR",
+    bodyPreview:
+      "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
+  },
+  {
+    key: "license_expired_notice",
+    metaTemplateName: "license_expired_notice",
+    language: "pt_BR",
+    bodyPreview:
+      "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+  },
+  {
+    key: "responsible_license_expired_notice",
+    metaTemplateName: "responsible_license_expired_notice",
+    language: "pt_BR",
+    bodyPreview:
+      "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
+  }
+];
+
+const notificationRules = [
+  { templateKey: "license_expiration_notice", daysBeforeExpiration: 30, repeatAfterExpiredDays: null, notifyProfessional: true, notifyRt: false },
+  { templateKey: "license_expiration_notice", daysBeforeExpiration: 15, repeatAfterExpiredDays: null, notifyProfessional: true, notifyRt: false },
+  { templateKey: "license_expiration_notice", daysBeforeExpiration: 7, repeatAfterExpiredDays: null, notifyProfessional: true, notifyRt: false },
+  { templateKey: "license_expiration_notice", daysBeforeExpiration: 3, repeatAfterExpiredDays: null, notifyProfessional: true, notifyRt: false },
+  { templateKey: "responsible_license_expiration_notice", daysBeforeExpiration: 3, repeatAfterExpiredDays: null, notifyProfessional: false, notifyRt: true },
+  { templateKey: "license_expiration_notice", daysBeforeExpiration: 0, repeatAfterExpiredDays: null, notifyProfessional: true, notifyRt: false },
+  { templateKey: "responsible_license_expiration_notice", daysBeforeExpiration: 0, repeatAfterExpiredDays: null, notifyProfessional: false, notifyRt: true },
+  { templateKey: "license_expired_notice", daysBeforeExpiration: null, repeatAfterExpiredDays: 3, notifyProfessional: true, notifyRt: false },
+  { templateKey: "responsible_license_expired_notice", daysBeforeExpiration: null, repeatAfterExpiredDays: 3, notifyProfessional: false, notifyRt: true }
+];
+
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
   const derivedKey = scryptSync(password, salt, 64);
@@ -39,7 +82,7 @@ function resetStorage() {
 }
 
 async function seedSingleAdmin() {
-  console.log("\n[SyLembra Flush] Recriando organizacao minima e admin...");
+  console.log("\n[SyLembra Flush] Recriando organizacao minima, admin, templates e regras...");
   const prisma = new PrismaClient();
 
   try {
@@ -62,9 +105,37 @@ async function seedSingleAdmin() {
       }
     });
 
+    await prisma.notificationTemplate.createMany({
+      data: notificationTemplates.map((template) => ({
+        organizationId: organization.id,
+        key: template.key,
+        channel: "WHATSAPP",
+        metaTemplateName: template.metaTemplateName,
+        language: template.language,
+        bodyPreview: template.bodyPreview,
+        active: true
+      }))
+    });
+
+    await prisma.notificationRule.createMany({
+      data: notificationRules.map((rule) => ({
+        organizationId: organization.id,
+        licenseTypeId: null,
+        channel: "WHATSAPP",
+        templateKey: rule.templateKey,
+        daysBeforeExpiration: rule.daysBeforeExpiration,
+        repeatAfterExpiredDays: rule.repeatAfterExpiredDays,
+        notifyProfessional: rule.notifyProfessional,
+        notifyRt: rule.notifyRt,
+        active: true
+      }))
+    });
+
     const counts = {
       organizations: await prisma.organization.count(),
       users: await prisma.user.count(),
+      notificationTemplates: await prisma.notificationTemplate.count(),
+      notificationRules: await prisma.notificationRule.count(),
       units: await prisma.unit.count(),
       sectors: await prisma.sector.count(),
       professionals: await prisma.professional.count(),
