@@ -1018,6 +1018,18 @@ legend {
   padding: 14px;
 }
 
+.import-hints ul {
+  color: var(--color-muted);
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.import-hints p {
+  margin: 0;
+}
+
 .analysis-panel {
   display: grid;
   gap: 16px;

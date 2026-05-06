@@ -59,9 +59,7 @@ export interface ImportValidationResult {
   rows: ImportRowResult[];
 }
 
-export const professionalsLicensesCsvTemplate = `${headers.join(",")}
-Maria Exemplo,12345678901,maria@example.com,11999999999,Enfermeira,RH-GERAL,GOVERNANCA,rt@example.com,Registro profissional demo,COREN-123,COREN,SP,2024-01-10,2026-01-10,,Carga inicial
-`;
+export const professionalsLicensesCsvTemplate = `${headers.join(",")}\n`;
 
 function ensureAdmin(actor: CurrentUser) {
   if (actor.role !== "ADMIN") throw new ImportError("FORBIDDEN");

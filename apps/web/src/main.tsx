@@ -1388,6 +1388,15 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
         <section className="panel form-panel">
           <h2>Importar CSV</h2>
           <p className="muted">Carga inicial de profissionais e licenças. Valide o arquivo antes de confirmar.</p>
+          <div className="import-preview import-hints">
+            <p><strong>Antes de importar</strong></p>
+            <ul>
+              <li>O arquivo deve usar exatamente o cabeçalho do modelo baixado.</li>
+              <li>`rt_email` precisa ser o email real de um usuário com perfil `RT` já cadastrado e ativo.</li>
+              <li>`unit_name`, `sector_name` e `license_type` precisam existir no sistema antes da validação.</li>
+              <li>Datas devem estar em `YYYY-MM-DD` e o `status` deve usar valores como `REGULAR`, `EXPIRING` ou `EXPIRED`.</li>
+            </ul>
+          </div>
           <div className="form-grid">
             <label>
               <span className="label-row">Arquivo CSV <InfoTip text="Use o modelo oficial; uma linha por licenca." href="#importacao-csv" /></span>
