@@ -3128,128 +3128,142 @@ function SettingsView() {
         </form>
       </section>
 
-      {editingUserId ? (
-        <section className="panel form-panel full-span">
-          <form onSubmit={saveUserEdit}>
-            <h2>Editar usuário</h2>
-            <div className="form-grid">
-              <label>
-                Nome
-                <input value={editingUserName} onChange={(event) => setEditingUserName(event.target.value)} />
-              </label>
-              <label>
-                Email
-                <input value={editingUserEmail} onChange={(event) => setEditingUserEmail(event.target.value)} type="email" />
-              </label>
-              <label>
-                WhatsApp
-                <input value={editingUserPhone} onChange={(event) => setEditingUserPhone(event.target.value)} />
-              </label>
-              <label>
-                Perfil
-                <select value={editingUserRole} onChange={(event) => setEditingUserRole(event.target.value as UserRole)}>
-                  {userRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {editingUserRole === "ADMIN" ? null : (
-              <div className="scope-grid">
-                <fieldset>
-                  <legend>Unidades</legend>
-                  {organization.units.map((unit) => (
-                    <label className="checkbox-row" key={unit.id}>
-                      <input
-                        checked={editingUserUnitScopeIds.includes(unit.id)}
-                        onChange={() => toggleEditingUserUnitScope(unit.id)}
-                        type="checkbox"
-                      />
-                      {unit.name}
-                    </label>
-                  ))}
-                </fieldset>
-                <fieldset>
-                  <legend>Setores</legend>
-                  {sectors.map((sector) => (
-                    <label className="checkbox-row" key={sector.id}>
-                      <input
-                        checked={editingUserSectorScopeIds.includes(sector.id)}
-                        onChange={() => toggleEditingUserSectorScope(sector.id)}
-                        type="checkbox"
-                      />
-                      {sector.name} / {sector.unitName}
-                    </label>
-                  ))}
-                </fieldset>
-              </div>
-            )}
-            <div className="form-actions">
-              <button disabled={saving || !editingUserName.trim() || !editingUserEmail.trim()}>Salvar edição</button>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelUserEdit}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
-
       <section className="panel table-panel full-span">
         {users.length === 0 ? (
           <OperationalState state="empty" title="Nenhum usuário cadastrado" />
         ) : (
-          <OperationalTable
-            items={users}
-            getRowKey={(item) => item.id}
-            columns={[
-              { key: "name", header: "Usuário", render: (item) => `${item.name} (${item.email})` },
-              { key: "phone", header: "WhatsApp", render: (item) => item.phone ?? "Sem telefone" },
-              { key: "role", header: "Perfil", render: (item) => item.role },
-              {
-                key: "scope",
-                header: "Escopo",
-                render: (item) =>
-                  item.role === "ADMIN"
-                    ? "Todas as unidades"
-                    : `${item.unitScopeIds.length} unidades / ${item.sectorScopeIds.length} setores`
-              },
-              {
-                key: "status",
-                header: "Status",
-                render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
-              },
-              {
-                key: "actions",
-                header: "Ações",
-                render: (item) => (
-                  <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => startUserEdit(item)}>
-                      Editar
-                    </button>
-                    <button className="secondary" type="button" onClick={() => void resetPassword(item)}>
-                      Resetar senha
-                    </button>
-                    <ConfirmButton
-                      disabled={saving}
-                      confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
-                      onConfirm={() =>
-                        void run(async () => {
-                          await api(`/v1/users/${item.id}`, {
-                            method: "PATCH",
-                            body: JSON.stringify({ active: !item.active })
-                          });
-                        })
-                      }
-                    >
-                      {item.active ? "Desativar" : "Reativar"}
-                    </ConfirmButton>
-                  </div>
-                )
-              }
-            ]}
-          />
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Usuário</th>
+                  <th>WhatsApp</th>
+                  <th>Perfil</th>
+                  <th>Escopo</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((item) => {
+                  const isEditing = editingUserId === item.id;
+                  return (
+                    <Fragment key={item.id}>
+                      <tr className={isEditing ? "table-row-editing" : undefined}>
+                        <td>{`${item.name} (${item.email})`}</td>
+                        <td>{item.phone ?? "Sem telefone"}</td>
+                        <td>{item.role}</td>
+                        <td>
+                          {item.role === "ADMIN"
+                            ? "Todas as unidades"
+                            : `${item.unitScopeIds.length} unidades / ${item.sectorScopeIds.length} setores`}
+                        </td>
+                        <td><StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} /></td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="secondary" type="button" onClick={() => startUserEdit(item)}>
+                              {isEditing ? "Editando" : "Editar"}
+                            </button>
+                            <button className="secondary" type="button" onClick={() => void resetPassword(item)}>
+                              Resetar senha
+                            </button>
+                            <ConfirmButton
+                              disabled={saving}
+                              confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
+                              onConfirm={() =>
+                                void run(async () => {
+                                  await api(`/v1/users/${item.id}`, {
+                                    method: "PATCH",
+                                    body: JSON.stringify({ active: !item.active })
+                                  });
+                                })
+                              }
+                            >
+                              {item.active ? "Desativar" : "Reativar"}
+                            </ConfirmButton>
+                          </div>
+                        </td>
+                      </tr>
+                      {isEditing ? (
+                        <tr className="inline-editor-row">
+                          <td colSpan={6}>
+                            <div className="inline-editor-shell">
+                              <form className="inline-editor-form" onSubmit={saveUserEdit}>
+                                <div className="inline-editor-header">
+                                  <h3>Editar usuário</h3>
+                                  <span className="muted">Ajuste perfil, contato e escopo sem sair da tabela.</span>
+                                </div>
+                                <div className="form-grid">
+                                  <label>
+                                    Nome
+                                    <input value={editingUserName} onChange={(event) => setEditingUserName(event.target.value)} />
+                                  </label>
+                                  <label>
+                                    Email
+                                    <input value={editingUserEmail} onChange={(event) => setEditingUserEmail(event.target.value)} type="email" />
+                                  </label>
+                                  <label>
+                                    WhatsApp
+                                    <input value={editingUserPhone} onChange={(event) => setEditingUserPhone(event.target.value)} />
+                                  </label>
+                                  <label>
+                                    Perfil
+                                    <select value={editingUserRole} onChange={(event) => setEditingUserRole(event.target.value as UserRole)}>
+                                      {userRoles.map((role) => (
+                                        <option key={role} value={role}>
+                                          {role}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                                {editingUserRole === "ADMIN" ? null : (
+                                  <div className="scope-grid">
+                                    <fieldset>
+                                      <legend>Unidades</legend>
+                                      {organization.units.map((unit) => (
+                                        <label className="checkbox-row" key={unit.id}>
+                                          <input
+                                            checked={editingUserUnitScopeIds.includes(unit.id)}
+                                            onChange={() => toggleEditingUserUnitScope(unit.id)}
+                                            type="checkbox"
+                                          />
+                                          {unit.name}
+                                        </label>
+                                      ))}
+                                    </fieldset>
+                                    <fieldset>
+                                      <legend>Setores</legend>
+                                      {sectors.map((sector) => (
+                                        <label className="checkbox-row" key={sector.id}>
+                                          <input
+                                            checked={editingUserSectorScopeIds.includes(sector.id)}
+                                            onChange={() => toggleEditingUserSectorScope(sector.id)}
+                                            type="checkbox"
+                                          />
+                                          {sector.name} / {sector.unitName}
+                                        </label>
+                                      ))}
+                                    </fieldset>
+                                  </div>
+                                )}
+                                <div className="form-actions">
+                                  <button disabled={saving || !editingUserName.trim() || !editingUserEmail.trim()}>Salvar edição</button>
+                                  <button className="secondary" disabled={saving} type="button" onClick={cancelUserEdit}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -3455,127 +3469,157 @@ function SettingsView() {
         {organization.units.length === 0 ? (
           <OperationalState state="empty" title="Nenhuma unidade cadastrada" />
         ) : (
-          <OperationalTable
-            items={organization.units}
-            getRowKey={(unit) => unit.id}
-            columns={[
-              { key: "name", header: "Unidade", render: (unit) => unit.name },
-              {
-                key: "status",
-                header: "Status",
-                render: (unit) => <StatusBadge kind="active" value={unit.active ? "ACTIVE" : "INACTIVE"} />
-              },
-              { key: "sectors", header: "Setores", render: (unit) => unit.sectors.length },
-              {
-                key: "actions",
-                header: "Ações",
-                render: (unit) => (
-                  <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => startUnitEdit(unit)}>
-                      Editar
-                    </button>
-                    <ConfirmButton
-                      disabled={saving}
-                      confirmLabel={unit.active ? "Confirmar desativação" : "Confirmar reativação"}
-                      onConfirm={() =>
-                        void run(async () => {
-                          await api(`/v1/organization/units/${unit.id}`, {
-                            method: "PATCH",
-                            body: JSON.stringify({ active: !unit.active })
-                          });
-                        })
-                      }
-                    >
-                      {unit.active ? "Desativar" : "Reativar"}
-                    </ConfirmButton>
-                  </div>
-                )
-              }
-            ]}
-          />
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Unidade</th>
+                  <th>Status</th>
+                  <th>Setores</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {organization.units.map((unit) => {
+                  const isEditing = editingUnitId === unit.id;
+                  return (
+                    <Fragment key={unit.id}>
+                      <tr className={isEditing ? "table-row-editing" : undefined}>
+                        <td>{unit.name}</td>
+                        <td><StatusBadge kind="active" value={unit.active ? "ACTIVE" : "INACTIVE"} /></td>
+                        <td>{unit.sectors.length}</td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="secondary" type="button" onClick={() => startUnitEdit(unit)}>
+                              {isEditing ? "Editando" : "Editar"}
+                            </button>
+                            <ConfirmButton
+                              disabled={saving}
+                              confirmLabel={unit.active ? "Confirmar desativação" : "Confirmar reativação"}
+                              onConfirm={() =>
+                                void run(async () => {
+                                  await api(`/v1/organization/units/${unit.id}`, {
+                                    method: "PATCH",
+                                    body: JSON.stringify({ active: !unit.active })
+                                  });
+                                })
+                              }
+                            >
+                              {unit.active ? "Desativar" : "Reativar"}
+                            </ConfirmButton>
+                          </div>
+                        </td>
+                      </tr>
+                      {isEditing ? (
+                        <tr className="inline-editor-row">
+                          <td colSpan={4}>
+                            <div className="inline-editor-shell">
+                              <form className="inline-editor-form" onSubmit={saveUnitEdit}>
+                                <div className="inline-editor-header">
+                                  <h3>Editar unidade</h3>
+                                  <span className="muted">Atualize o nome da unidade na própria linha.</span>
+                                </div>
+                                <label>
+                                  Nome
+                                  <input value={editingUnitName} onChange={(event) => setEditingUnitName(event.target.value)} />
+                                </label>
+                                <div className="form-actions">
+                                  <button disabled={saving || !editingUnitName.trim()}>Salvar edição</button>
+                                  <button className="secondary" disabled={saving} type="button" onClick={cancelUnitEdit}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
-
-      {editingUnitId ? (
-        <section className="panel form-panel">
-          <form onSubmit={saveUnitEdit}>
-            <h2>Editar unidade</h2>
-            <label>
-              Nome
-              <input value={editingUnitName} onChange={(event) => setEditingUnitName(event.target.value)} />
-            </label>
-            <div className="form-actions">
-              <button disabled={saving || !editingUnitName.trim()}>Salvar edição</button>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelUnitEdit}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
 
       <section className="panel table-panel full-span">
         {sectors.length === 0 ? (
           <OperationalState state="empty" title="Nenhum setor cadastrado" />
         ) : (
-          <OperationalTable
-            items={sectors}
-            getRowKey={(sector) => sector.id}
-            columns={[
-              { key: "name", header: "Setor", render: (sector) => sector.name },
-              { key: "unit", header: "Unidade", render: (sector) => sector.unitName },
-              {
-                key: "status",
-                header: "Status",
-                render: (sector) => <StatusBadge kind="active" value={sector.active ? "ACTIVE" : "INACTIVE"} />
-              },
-              {
-                key: "actions",
-                header: "Ações",
-                render: (sector) => (
-                  <div className="row-actions">
-                    <button className="secondary" type="button" onClick={() => startSectorEdit(sector)}>
-                      Editar
-                    </button>
-                    <ConfirmButton
-                      disabled={saving}
-                      confirmLabel={sector.active ? "Confirmar desativação" : "Confirmar reativação"}
-                      onConfirm={() =>
-                        void run(async () => {
-                          await api(`/v1/organization/sectors/${sector.id}`, {
-                            method: "PATCH",
-                            body: JSON.stringify({ active: !sector.active })
-                          });
-                        })
-                      }
-                    >
-                      {sector.active ? "Desativar" : "Reativar"}
-                    </ConfirmButton>
-                  </div>
-                )
-              }
-            ]}
-          />
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Setor</th>
+                  <th>Unidade</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectors.map((sector) => {
+                  const isEditing = editingSectorId === sector.id;
+                  return (
+                    <Fragment key={sector.id}>
+                      <tr className={isEditing ? "table-row-editing" : undefined}>
+                        <td>{sector.name}</td>
+                        <td>{sector.unitName}</td>
+                        <td><StatusBadge kind="active" value={sector.active ? "ACTIVE" : "INACTIVE"} /></td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="secondary" type="button" onClick={() => startSectorEdit(sector)}>
+                              {isEditing ? "Editando" : "Editar"}
+                            </button>
+                            <ConfirmButton
+                              disabled={saving}
+                              confirmLabel={sector.active ? "Confirmar desativação" : "Confirmar reativação"}
+                              onConfirm={() =>
+                                void run(async () => {
+                                  await api(`/v1/organization/sectors/${sector.id}`, {
+                                    method: "PATCH",
+                                    body: JSON.stringify({ active: !sector.active })
+                                  });
+                                })
+                              }
+                            >
+                              {sector.active ? "Desativar" : "Reativar"}
+                            </ConfirmButton>
+                          </div>
+                        </td>
+                      </tr>
+                      {isEditing ? (
+                        <tr className="inline-editor-row">
+                          <td colSpan={4}>
+                            <div className="inline-editor-shell">
+                              <form className="inline-editor-form" onSubmit={saveSectorEdit}>
+                                <div className="inline-editor-header">
+                                  <h3>Editar setor</h3>
+                                  <span className="muted">Ajuste o nome do setor diretamente na tabela.</span>
+                                </div>
+                                <label>
+                                  Nome
+                                  <input value={editingSectorName} onChange={(event) => setEditingSectorName(event.target.value)} />
+                                </label>
+                                <div className="form-actions">
+                                  <button disabled={saving || !editingSectorName.trim()}>Salvar edição</button>
+                                  <button className="secondary" disabled={saving} type="button" onClick={cancelSectorEdit}>
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
-
-      {editingSectorId ? (
-        <section className="panel form-panel">
-          <form onSubmit={saveSectorEdit}>
-            <h2>Editar setor</h2>
-            <label>
-              Nome
-              <input value={editingSectorName} onChange={(event) => setEditingSectorName(event.target.value)} />
-            </label>
-            <div className="form-actions">
-              <button disabled={saving || !editingSectorName.trim()}>Salvar edição</button>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelSectorEdit}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
     </div>
   );
 }
