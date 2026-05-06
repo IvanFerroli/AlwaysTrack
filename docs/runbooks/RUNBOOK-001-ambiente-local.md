@@ -7,7 +7,7 @@
 - source-of-truth: docs/runbooks/RUNBOOK-001-ambiente-local.md
 
 ## Objetivo
-Subir Sylembra localmente sem secrets reais e com banco/storage de desenvolvimento.
+Subir SyLembra localmente sem secrets reais e com banco/storage de desenvolvimento.
 
 ## Pre-condicoes
 - Node 22+ e npm instalados.

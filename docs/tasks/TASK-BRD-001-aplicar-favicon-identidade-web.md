@@ -8,7 +8,7 @@
 - source-of-truth: docs/tasks/TASK-BRD-001-aplicar-favicon-identidade-web.md
 
 ## Objetivo
-Fazer o projeto passar a apresentar a marca Sylembra no navegador e em instalacao web app, usando os assets oficiais de favicon fornecidos localmente.
+Fazer o projeto passar a apresentar a marca SyLembra no navegador e em instalacao web app, usando os assets oficiais de favicon fornecidos localmente.
 
 ## Contexto
 Os assets foram fornecidos em:

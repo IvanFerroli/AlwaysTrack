@@ -162,10 +162,10 @@ async function main() {
 
   const organization = await prisma.organization.upsert({
     where: { id: "demo-org" },
-    update: { name: "Sylembra Demo", document: "00.000.000/0001-00", active: true },
+    update: { name: "SyLembra Demo", document: "00.000.000/0001-00", active: true },
     create: {
       id: "demo-org",
-      name: "Sylembra Demo",
+      name: "SyLembra Demo",
       document: "00.000.000/0001-00"
     }
   });
