@@ -125,7 +125,9 @@ interface FilterField {
   key: string;
   label: string;
   value: string;
+  type?: "text" | "select" | "date" | "number";
   placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
   help?: string;
   helpHref?: string;
   onChange: (value: string) => void;
@@ -148,11 +150,23 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
               <HelpTip text={field.help} href={field.helpHref} />
             ) : null}
           </span>
-          <input
-            value={field.value}
-            onChange={(event) => field.onChange(event.target.value)}
-            placeholder={field.placeholder}
-          />
+          {field.type === "select" ? (
+            <select value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+              <option value="">{field.placeholder ?? "Todos"}</option>
+              {(field.options ?? []).map((option) => (
+                <option key={`${field.key}-${option.value}`} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={field.type ?? "text"}
+              value={field.value}
+              onChange={(event) => field.onChange(event.target.value)}
+              placeholder={field.placeholder}
+            />
+          )}
         </label>
       ))}
       <button type="button" onClick={onSubmit}>

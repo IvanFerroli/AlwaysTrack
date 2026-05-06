@@ -17,7 +17,10 @@ import {
   type LucideIcon
 } from "lucide-react";
 import {
+  documentStatuses,
   licenseStatuses,
+  notificationChannels,
+  notificationStatuses,
   userRoles,
   type ApiResult,
   type CurrentUser,
@@ -138,6 +141,35 @@ function formatPhoneInput(value: string) {
   if (digits.length <= 11) return formatBrazilPhoneCore(digits);
   return `+${digits}`;
 }
+
+function toFilterOptions(items: Array<{ value: string; label: string }>) {
+  return items;
+}
+
+const activeFilterOptions = toFilterOptions([
+  { value: "true", label: "Ativos" },
+  { value: "false", label: "Inativos" }
+]);
+
+const documentStatusFilterOptions = toFilterOptions(documentStatuses.map((value) => ({ value, label: value })));
+const licenseStatusFilterOptions = toFilterOptions(licenseStatuses.map((value) => ({ value, label: value })));
+const notificationStatusFilterOptions = toFilterOptions(notificationStatuses.map((value) => ({ value, label: value })));
+const notificationChannelFilterOptions = toFilterOptions(notificationChannels.map((value) => ({ value, label: value })));
+const pageSizeFilterOptions = toFilterOptions(["10", "25", "50", "100"].map((value) => ({ value, label: value })));
+const reportWindowFilterOptions = toFilterOptions(["7", "15", "30", "60", "90"].map((value) => ({ value, label: `${value} dias` })));
+const auditEntityTypeOptions = toFilterOptions([
+  { value: "Organization", label: "Organização" },
+  { value: "Unit", label: "Unidade" },
+  { value: "Sector", label: "Setor" },
+  { value: "User", label: "Usuário" },
+  { value: "Professional", label: "Profissional" },
+  { value: "LicenseType", label: "Tipo de licença" },
+  { value: "License", label: "Licença" },
+  { value: "Document", label: "Documento" },
+  { value: "NotificationRule", label: "Regra de notificação" },
+  { value: "NotificationJob", label: "Job de notificação" },
+  { value: "Faq", label: "FAQ" }
+]);
 
 interface SectorItem {
   id: string;
@@ -918,6 +950,9 @@ function reportColumns(report: ReportKey) {
 function ReportsView() {
   const [report, setReport] = useState<ReportKey>("licensesExpired");
   const [data, setData] = useState<ReportResponse | null>(null);
+  const [organization, setOrganization] = useState<OrganizationItem | null>(null);
+  const [users, setUsers] = useState<ManagedUserItem[]>([]);
+  const [licenseTypes, setLicenseTypes] = useState<LicenseTypeItem[]>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [unitId, setUnitId] = useState("");
@@ -955,7 +990,8 @@ function ReportsView() {
     const search = buildReportSearch(nextPage);
 
     try {
-      setData(await api<ReportResponse>(`${selected.endpoint}?${search.toString()}`));
+      const result = await api<ReportResponse>(`${selected.endpoint}?${search.toString()}`);
+      setData(result);
       setPage(nextPage);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar relatório.");
@@ -980,12 +1016,36 @@ function ReportsView() {
     URL.revokeObjectURL(url);
   }
 
+  async function loadFilterData() {
+    try {
+      const [organizationResult, usersResult, licenseTypesResult] = await Promise.all([
+        api<{ organization: OrganizationItem }>("/v1/organization"),
+        api<{ users: ManagedUserItem[] }>("/v1/users"),
+        api<{ items: LicenseTypeItem[]; total: number }>("/v1/license-types")
+      ]);
+      setOrganization(organizationResult.organization);
+      setUsers(usersResult.users);
+      setLicenseTypes(licenseTypesResult.items);
+    } catch {
+      // Keep report execution available even if supporting filter data fails.
+    }
+  }
+
   useEffect(() => {
+    void loadFilterData();
     void load(1);
   }, [report]);
 
   const selected = reportOptions.find((option) => option.key === report) ?? reportOptions[0];
   const pageSizeNumber = Number(pageSize) || 25;
+  const sectors = organization?.units.flatMap((unit) => unit.sectors.map((sector) => ({ value: sector.id, label: `${sector.name} / ${unit.name}` }))) ?? [];
+  const rtUsers = users.filter((item) => item.role === "RT" && item.active);
+  const statusOptions =
+    report === "notifications"
+      ? notificationStatusFilterOptions
+      : report === "documentsPending" || report === "documentsRejected"
+        ? documentStatusFilterOptions
+        : licenseStatusFilterOptions;
 
   return (
     <div className="content-stack">
@@ -1007,16 +1067,66 @@ function ReportsView() {
 
       <OperationalFilters
         fields={[
-          { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
-          { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
-          { key: "unitId", label: "Unidade", value: unitId, placeholder: "ID da unidade", help: "Use o identificador interno da unidade quando precisar restringir a consulta.", helpHref: "#filtros-e-ids", onChange: setUnitId },
-          { key: "sectorId", label: "Setor", value: sectorId, placeholder: "ID do setor", help: "Use o identificador interno do setor quando o filtro por unidade não for suficiente.", helpHref: "#filtros-e-ids", onChange: setSectorId },
-          { key: "rtId", label: "RT responsável", value: rtId, placeholder: "ID do usuário RT", help: "Filtra profissionais vinculados a um RT específico.", helpHref: "#perfis-e-permissoes", onChange: setRtId },
-          { key: "licenseTypeId", label: "Tipo de licença", value: licenseTypeId, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", helpHref: "#licencas", onChange: setLicenseTypeId },
-          { key: "status", label: "Status", value: status, placeholder: "FAILED", help: "Use o status técnico quando precisar auditar uma situação específica.", helpHref: "#relatorios", onChange: setStatus },
-          { key: "channel", label: "Canal", value: channel, placeholder: "WHATSAPP", onChange: setChannel },
-          { key: "windowDays", label: "Janela em dias", value: windowDays, placeholder: "7, 15, 30, 60", onChange: setWindowDays },
-          { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
+          { key: "from", label: "Início", type: "date", value: from, onChange: setFrom },
+          { key: "to", label: "Fim", type: "date", value: to, onChange: setTo },
+          {
+            key: "unitId",
+            label: "Unidade",
+            type: "select",
+            value: unitId,
+            placeholder: "Todas as unidades",
+            options: organization?.units.map((unit) => ({ value: unit.id, label: unit.name })) ?? [],
+            help: "Restringe a consulta a uma unidade específica.",
+            helpHref: "#filtros-e-ids",
+            onChange: setUnitId
+          },
+          {
+            key: "sectorId",
+            label: "Setor",
+            type: "select",
+            value: sectorId,
+            placeholder: "Todos os setores",
+            options: sectors,
+            help: "Setor refinado dentro da estrutura operacional.",
+            helpHref: "#filtros-e-ids",
+            onChange: setSectorId
+          },
+          {
+            key: "rtId",
+            label: "RT responsável",
+            type: "select",
+            value: rtId,
+            placeholder: "Todos os RTs",
+            options: rtUsers.map((item) => ({ value: item.id, label: `${item.name} (${item.email})` })),
+            help: "Filtra profissionais vinculados a um RT específico.",
+            helpHref: "#perfis-e-permissoes",
+            onChange: setRtId
+          },
+          {
+            key: "licenseTypeId",
+            label: "Tipo de licença",
+            type: "select",
+            value: licenseTypeId,
+            placeholder: "Todos os tipos",
+            options: licenseTypes.filter((item) => item.active).map((item) => ({ value: item.id, label: item.name })),
+            help: "Filtra pelo tipo cadastrado em Licenças.",
+            helpHref: "#licencas",
+            onChange: setLicenseTypeId
+          },
+          {
+            key: "status",
+            label: "Status",
+            type: "select",
+            value: status,
+            placeholder: "Todos os status",
+            options: statusOptions,
+            help: "Use o status técnico adequado ao relatório selecionado.",
+            helpHref: "#relatorios",
+            onChange: setStatus
+          },
+          { key: "channel", label: "Canal", type: "select", value: channel, placeholder: "Todos os canais", options: notificationChannelFilterOptions, onChange: setChannel },
+          { key: "windowDays", label: "Janela em dias", type: "select", value: windowDays, placeholder: "Selecione", options: reportWindowFilterOptions, onChange: setWindowDays },
+          { key: "pageSize", label: "Por página", type: "select", value: pageSize, placeholder: "25", options: pageSizeFilterOptions, onChange: setPageSize }
         ]}
         onSubmit={() => void load(1)}
       />
@@ -1062,6 +1172,7 @@ function ReportsView() {
 function AuditView() {
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [users, setUsers] = useState<ManagedUserItem[]>([]);
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
   const [entityId, setEntityId] = useState("");
@@ -1097,7 +1208,17 @@ function AuditView() {
     }
   }
 
+  async function loadFilterData() {
+    try {
+      const usersResult = await api<{ users: ManagedUserItem[] }>("/v1/users");
+      setUsers(usersResult.users);
+    } catch {
+      // Keep audit usable even if supporting filter data is unavailable.
+    }
+  }
+
   useEffect(() => {
+    void loadFilterData();
     void load();
   }, []);
 
@@ -1106,12 +1227,32 @@ function AuditView() {
       <OperationalFilters
         fields={[
           { key: "action", label: "Ação", value: action, placeholder: "auth.login", help: "Nome do evento gravado na trilha de auditoria.", helpHref: "#auditoria", onChange: setAction },
-          { key: "entityType", label: "Entidade", value: entityType, placeholder: "User", help: "Tipo técnico do registro alterado.", helpHref: "#auditoria", onChange: setEntityType },
+          {
+            key: "entityType",
+            label: "Entidade",
+            type: "select",
+            value: entityType,
+            placeholder: "Todas as entidades",
+            options: auditEntityTypeOptions,
+            help: "Tipo técnico do registro alterado.",
+            helpHref: "#auditoria",
+            onChange: setEntityType
+          },
           { key: "entityId", label: "Registro", value: entityId, placeholder: "ID do registro", help: "Identificador interno da entidade auditada.", helpHref: "#auditoria", onChange: setEntityId },
-          { key: "actorId", label: "Usuário executor", value: actorId, placeholder: "ID do usuário", help: "Filtra ações feitas por um usuário específico.", helpHref: "#auditoria", onChange: setActorId },
-          { key: "from", label: "Início", value: from, placeholder: "2026-04-01", onChange: setFrom },
-          { key: "to", label: "Fim", value: to, placeholder: "2026-04-30", onChange: setTo },
-          { key: "pageSize", label: "Por página", value: pageSize, placeholder: "25", onChange: setPageSize }
+          {
+            key: "actorId",
+            label: "Usuário executor",
+            type: "select",
+            value: actorId,
+            placeholder: "Todos os usuários",
+            options: users.map((item) => ({ value: item.id, label: `${item.name} (${item.email})` })),
+            help: "Filtra ações feitas por um usuário específico.",
+            helpHref: "#auditoria",
+            onChange: setActorId
+          },
+          { key: "from", label: "Início", type: "date", value: from, onChange: setFrom },
+          { key: "to", label: "Fim", type: "date", value: to, onChange: setTo },
+          { key: "pageSize", label: "Por página", type: "select", value: pageSize, placeholder: "25", options: pageSizeFilterOptions, onChange: setPageSize }
         ]}
         onSubmit={() => void load(1)}
       />
@@ -1423,10 +1564,50 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Nome, CPF, email ou cargo", onChange: setQuery },
-          { key: "active", label: "Situação", value: activeFilter, placeholder: "true ou false", help: "Use true para ativos ou false para inativos.", helpHref: "#profissionais", onChange: setActiveFilter },
-          { key: "unit", label: "Unidade", value: unitFilter, placeholder: "ID da unidade", help: "Filtra pelo identificador interno da unidade.", helpHref: "#filtros-e-ids", onChange: setUnitFilter },
-          { key: "sector", label: "Setor", value: sectorFilter, placeholder: "ID do setor", help: "Filtra pelo identificador interno do setor.", helpHref: "#filtros-e-ids", onChange: setSectorFilter },
-          { key: "rt", label: "RT responsável", value: rtFilter, placeholder: "ID do RT", help: "Filtra pelo usuário RT responsável.", helpHref: "#perfis-e-permissoes", onChange: setRtFilter }
+          {
+            key: "active",
+            label: "Situação",
+            type: "select",
+            value: activeFilter,
+            placeholder: "Ativos e inativos",
+            options: activeFilterOptions,
+            help: "Filtra entre profissionais ativos e inativos.",
+            helpHref: "#profissionais",
+            onChange: setActiveFilter
+          },
+          {
+            key: "unit",
+            label: "Unidade",
+            type: "select",
+            value: unitFilter,
+            placeholder: "Todas as unidades",
+            options: organization?.units.map((unit) => ({ value: unit.id, label: unit.name })) ?? [],
+            help: "Filtra pela unidade operacional.",
+            helpHref: "#filtros-e-ids",
+            onChange: setUnitFilter
+          },
+          {
+            key: "sector",
+            label: "Setor",
+            type: "select",
+            value: sectorFilter,
+            placeholder: "Todos os setores",
+            options: sectors.map((sector) => ({ value: sector.id, label: `${sector.name} / ${sector.unitName}` })),
+            help: "Filtra pelo setor operacional.",
+            helpHref: "#filtros-e-ids",
+            onChange: setSectorFilter
+          },
+          {
+            key: "rt",
+            label: "RT responsável",
+            type: "select",
+            value: rtFilter,
+            placeholder: "Todos os RTs",
+            options: rtUsers.map((rt) => ({ value: rt.id, label: `${rt.name} (${rt.email})` })),
+            help: "Filtra pelo usuário RT responsável.",
+            helpHref: "#perfis-e-permissoes",
+            onChange: setRtFilter
+          }
         ]}
         onSubmit={load}
       />
@@ -2117,17 +2298,39 @@ function LicensesView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Profissional, CPF, tipo ou número", onChange: setQuery },
-          { key: "status", label: "Status", value: statusFilter, placeholder: "REGULAR, EXPIRED...", help: "Use o status técnico da licença quando necessário.", helpHref: "#licencas", onChange: setStatusFilter },
+          {
+            key: "status",
+            label: "Status",
+            type: "select",
+            value: statusFilter,
+            placeholder: "Todos os status",
+            options: licenseStatusFilterOptions,
+            help: "Use o status técnico da licença quando necessário.",
+            helpHref: "#licencas",
+            onChange: setStatusFilter
+          },
           {
             key: "professional",
             label: "Profissional",
+            type: "select",
             value: professionalFilter,
-            placeholder: "ID do profissional",
-            help: "Filtra pelo identificador interno do profissional.",
+            placeholder: "Todos os profissionais",
+            options: professionals.map((item) => ({ value: item.id, label: `${item.name}${item.cpf ? ` / ${item.cpf}` : ""}` })),
+            help: "Filtra por um profissional específico.",
             helpHref: "#filtros-e-ids",
             onChange: setProfessionalFilter
           },
-          { key: "type", label: "Tipo de licença", value: licenseTypeFilter, placeholder: "ID do tipo", help: "Filtra pelo tipo cadastrado em Licenças.", helpHref: "#licencas", onChange: setLicenseTypeFilter }
+          {
+            key: "type",
+            label: "Tipo de licença",
+            type: "select",
+            value: licenseTypeFilter,
+            placeholder: "Todos os tipos",
+            options: licenseTypes.map((item) => ({ value: item.id, label: item.name })),
+            help: "Filtra pelo tipo cadastrado em Licenças.",
+            helpHref: "#licencas",
+            onChange: setLicenseTypeFilter
+          }
         ]}
         onSubmit={load}
       />
