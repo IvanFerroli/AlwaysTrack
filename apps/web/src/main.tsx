@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BadgeCheck,
@@ -1384,28 +1384,6 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
 
-      <section className="panel action-panel">
-        <span className="label-row">
-          <strong>Exibir na tabela</strong>
-        </span>
-        <label className="checkbox-row compact-toggle">
-          <input checked={showProfessionalCpf} onChange={() => setShowProfessionalCpf((current) => !current)} type="checkbox" />
-          CPF
-        </label>
-        <label className="checkbox-row compact-toggle">
-          <input checked={showProfessionalPhone} onChange={() => setShowProfessionalPhone((current) => !current)} type="checkbox" />
-          Telefone
-        </label>
-        <label className="checkbox-row compact-toggle">
-          <input checked={showProfessionalEmail} onChange={() => setShowProfessionalEmail((current) => !current)} type="checkbox" />
-          Email
-        </label>
-        <label className="checkbox-row compact-toggle">
-          <input checked={showProfessionalPosition} onChange={() => setShowProfessionalPosition((current) => !current)} type="checkbox" />
-          Cargo
-        </label>
-      </section>
-
       {user.role === "ADMIN" && organization ? (
         <section className="panel form-panel">
           <h2>Importar CSV</h2>
@@ -1472,89 +1450,6 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               </div>
             </div>
           ) : null}
-        </section>
-      ) : null}
-
-      {user.role === "ADMIN" && organization && editingProfessionalId ? (
-        <section className="panel form-panel">
-          <form onSubmit={saveProfessionalEdit}>
-            <h2>Editar profissional</h2>
-            <div className="form-grid">
-              <label>
-                Nome
-                <input value={editProfessionalName} onChange={(event) => setEditProfessionalName(event.target.value)} />
-              </label>
-              <label>
-                Email
-                <input value={editProfessionalEmail} onChange={(event) => setEditProfessionalEmail(event.target.value)} type="email" />
-              </label>
-              <label>
-                Telefone
-                <input value={editProfessionalPhone} onChange={(event) => setEditProfessionalPhone(event.target.value)} />
-              </label>
-              <label>
-                Cargo
-                <input value={editProfessionalPosition} onChange={(event) => setEditProfessionalPosition(event.target.value)} />
-              </label>
-              <label>
-                Unidade
-                <select
-                  value={editProfessionalUnitId}
-                  onChange={(event) => {
-                    const nextUnitId = event.target.value;
-                    setEditProfessionalUnitId(nextUnitId);
-                    setEditProfessionalSectorId(organization.units.find((unit) => unit.id === nextUnitId)?.sectors[0]?.id ?? "");
-                  }}
-                >
-                  {organization.units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Setor
-                <select value={editProfessionalSectorId} onChange={(event) => setEditProfessionalSectorId(event.target.value)}>
-                  {editUnitSectors.map((sector) => (
-                    <option key={sector.id} value={sector.id}>
-                      {sector.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                RT responsável
-                <select value={editProfessionalRtId} onChange={(event) => setEditProfessionalRtId(event.target.value)}>
-                  <option value="">Sem RT</option>
-                  {rtUsers.map((rt) => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Usuário vinculado
-                <select value={editProfessionalUserId} onChange={(event) => setEditProfessionalUserId(event.target.value)}>
-                  <option value="">Sem usuário</option>
-                  {editableUsers.map((linkedUser) => (
-                    <option key={linkedUser.id} value={linkedUser.id}>
-                      {linkedUser.name} ({linkedUser.role})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="form-actions">
-              <button disabled={saving || !editProfessionalName.trim() || !editProfessionalUnitId || !editProfessionalSectorId}>
-                Salvar edição
-              </button>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelProfessionalEdit}>
-                Cancelar
-              </button>
-            </div>
-          </form>
         </section>
       ) : null}
 
@@ -1643,79 +1538,196 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       ) : null}
 
       <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <span className="label-row">
+            <strong>Exibir na tabela</strong>
+          </span>
+          <div className="table-panel-toggle-group">
+            <label className="checkbox-row compact-toggle">
+              <input checked={showProfessionalCpf} onChange={() => setShowProfessionalCpf((current) => !current)} type="checkbox" />
+              CPF
+            </label>
+            <label className="checkbox-row compact-toggle">
+              <input checked={showProfessionalPhone} onChange={() => setShowProfessionalPhone((current) => !current)} type="checkbox" />
+              Telefone
+            </label>
+            <label className="checkbox-row compact-toggle">
+              <input checked={showProfessionalEmail} onChange={() => setShowProfessionalEmail((current) => !current)} type="checkbox" />
+              Email
+            </label>
+            <label className="checkbox-row compact-toggle">
+              <input checked={showProfessionalPosition} onChange={() => setShowProfessionalPosition((current) => !current)} type="checkbox" />
+              Cargo
+            </label>
+          </div>
+        </div>
         {loading ? (
           <OperationalState state="loading" title="Carregando profissionais" />
         ) : items.length === 0 ? (
           <OperationalState state="empty" title="Nenhum profissional encontrado" />
         ) : (
           <>
-            <OperationalTable
-              items={items}
-              getRowKey={(item) => item.id}
-              columns={[
-                {
-                  key: "name",
-                  header: "Profissional",
-                  render: (item) => (
-                    <div className="table-identity">
-                      <strong>{item.name}</strong>
-                      <div className="table-identity-meta">
-                        {showProfessionalCpf && item.cpf ? <span>CPF: {item.cpf}</span> : null}
-                        {showProfessionalPhone && item.phone ? <span>Tel: {item.phone}</span> : null}
-                        {showProfessionalEmail && item.email ? <span>Email: {item.email}</span> : null}
-                        {showProfessionalPosition && item.position ? <span>Cargo: {item.position}</span> : null}
-                      </div>
-                    </div>
-                  )
-                },
-                { key: "unit", header: "Unidade", render: (item) => item.unit.name },
-                { key: "sector", header: "Setor", render: (item) => item.sector.name },
-                { key: "rt", header: "RT", render: (item) => item.responsibleRt?.name ?? "Sem RT" },
-                {
-                  key: "counts",
-                  header: "Histórico",
-                  render: (item) =>
-                    `${item._count.licenses} licenças / ${item._count.documents} docs / ${item._count.notificationJobs} avisos`
-                },
-                {
-                  key: "status",
-                  header: "Status",
-                  render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
-                },
-                {
-                  key: "actions",
-                  header: "Ações",
-                  render: (item) => (
-                    <div className="row-actions">
-                      <button className="secondary" type="button" onClick={() => void showDetail(item)}>
-                        Detalhe
-                      </button>
-                      {user.role === "ADMIN" ? (
-                        <>
-                          <button className="secondary" type="button" onClick={() => startProfessionalEdit(item)}>
-                            Editar
-                          </button>
-                          <ConfirmButton
-                            disabled={saving}
-                            confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
-                            onConfirm={() =>
-                              void run(async () => {
-                                await api(`/v1/professionals/${item.id}`, {
-                                  method: "PATCH",
-                                  body: JSON.stringify({ active: !item.active })
-                                });
-                              })
-                            }
-                          >
-                            {item.active ? "Desativar" : "Reativar"}
-                          </ConfirmButton>
-                        </>
-                      ) : null}
-                    </div>
-                  )
-                }
-              ]}
-            />
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Profissional</th>
+                    <th>Unidade</th>
+                    <th>Setor</th>
+                    <th>RT</th>
+                    <th>Histórico</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => {
+                    const isEditing = editingProfessionalId === item.id;
+                    return (
+                      <Fragment key={item.id}>
+                        <tr className={isEditing ? "table-row-editing" : undefined} key={item.id}>
+                          <td>
+                            <div className="table-identity">
+                              <strong>{item.name}</strong>
+                              <div className="table-identity-meta">
+                                {showProfessionalCpf && item.cpf ? <span>CPF: {item.cpf}</span> : null}
+                                {showProfessionalPhone && item.phone ? <span>Tel: {item.phone}</span> : null}
+                                {showProfessionalEmail && item.email ? <span>Email: {item.email}</span> : null}
+                                {showProfessionalPosition && item.position ? <span>Cargo: {item.position}</span> : null}
+                              </div>
+                            </div>
+                          </td>
+                          <td>{item.unit.name}</td>
+                          <td>{item.sector.name}</td>
+                          <td>{item.responsibleRt?.name ?? "Sem RT"}</td>
+                          <td>{`${item._count.licenses} licenças / ${item._count.documents} docs / ${item._count.notificationJobs} avisos`}</td>
+                          <td>
+                            <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} />
+                          </td>
+                          <td>
+                            <div className="row-actions">
+                              <button className="secondary" type="button" onClick={() => void showDetail(item)}>
+                                Detalhe
+                              </button>
+                              {user.role === "ADMIN" ? (
+                                <>
+                                  <button className="secondary" type="button" onClick={() => startProfessionalEdit(item)}>
+                                    {isEditing ? "Editando" : "Editar"}
+                                  </button>
+                                  <ConfirmButton
+                                    disabled={saving}
+                                    confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
+                                    onConfirm={() =>
+                                      void run(async () => {
+                                        await api(`/v1/professionals/${item.id}`, {
+                                          method: "PATCH",
+                                          body: JSON.stringify({ active: !item.active })
+                                        });
+                                      })
+                                    }
+                                  >
+                                    {item.active ? "Desativar" : "Reativar"}
+                                  </ConfirmButton>
+                                </>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                        {user.role === "ADMIN" && organization && isEditing ? (
+                          <tr className="inline-editor-row">
+                            <td colSpan={7}>
+                              <div className="inline-editor-shell">
+                                <form className="inline-editor-form" onSubmit={saveProfessionalEdit}>
+                                  <div className="inline-editor-header">
+                                    <h3>Editar profissional</h3>
+                                    <span className="muted">Ajuste os dados do cadastro sem sair da linha.</span>
+                                  </div>
+                                  <div className="form-grid">
+                                    <label>
+                                      Nome
+                                      <input value={editProfessionalName} onChange={(event) => setEditProfessionalName(event.target.value)} />
+                                    </label>
+                                    <label>
+                                      Email
+                                      <input value={editProfessionalEmail} onChange={(event) => setEditProfessionalEmail(event.target.value)} type="email" />
+                                    </label>
+                                    <label>
+                                      Telefone
+                                      <input value={editProfessionalPhone} onChange={(event) => setEditProfessionalPhone(event.target.value)} />
+                                    </label>
+                                    <label>
+                                      Cargo
+                                      <input value={editProfessionalPosition} onChange={(event) => setEditProfessionalPosition(event.target.value)} />
+                                    </label>
+                                    <label>
+                                      Unidade
+                                      <select
+                                        value={editProfessionalUnitId}
+                                        onChange={(event) => {
+                                          const nextUnitId = event.target.value;
+                                          setEditProfessionalUnitId(nextUnitId);
+                                          setEditProfessionalSectorId(organization.units.find((unit) => unit.id === nextUnitId)?.sectors[0]?.id ?? "");
+                                        }}
+                                      >
+                                        {organization.units.map((unit) => (
+                                          <option key={unit.id} value={unit.id}>
+                                            {unit.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <label>
+                                      Setor
+                                      <select value={editProfessionalSectorId} onChange={(event) => setEditProfessionalSectorId(event.target.value)}>
+                                        {editUnitSectors.map((sector) => (
+                                          <option key={sector.id} value={sector.id}>
+                                            {sector.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <label>
+                                      RT responsável
+                                      <select value={editProfessionalRtId} onChange={(event) => setEditProfessionalRtId(event.target.value)}>
+                                        <option value="">Sem RT</option>
+                                        {rtUsers.map((rt) => (
+                                          <option key={rt.id} value={rt.id}>
+                                            {rt.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <label>
+                                      Usuário vinculado
+                                      <select value={editProfessionalUserId} onChange={(event) => setEditProfessionalUserId(event.target.value)}>
+                                        <option value="">Sem usuário</option>
+                                        {editableUsers.map((linkedUser) => (
+                                          <option key={linkedUser.id} value={linkedUser.id}>
+                                            {linkedUser.name} ({linkedUser.role})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                  </div>
+                                  <div className="form-actions">
+                                    <button disabled={saving || !editProfessionalName.trim() || !editProfessionalUnitId || !editProfessionalSectorId}>
+                                      Salvar edição
+                                    </button>
+                                    <button className="secondary" disabled={saving} type="button" onClick={cancelProfessionalEdit}>
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </form>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <PaginationSummary page={1} pageSize={25} total={total} />
           </>
         )}
@@ -2081,48 +2093,6 @@ function LicensesView({ user }: { user: CurrentUser }) {
         </section>
       ) : null}
 
-      {user.role === "ADMIN" && editingLicenseId ? (
-        <section className="panel form-panel">
-          <form onSubmit={saveLicenseEdit}>
-            <h2>Editar licença</h2>
-            <div className="form-grid">
-              <label>
-                Número
-                <input value={editLicenseNumber} onChange={(event) => setEditLicenseNumber(event.target.value)} />
-              </label>
-              <label>
-                Emissor
-                <input value={editLicenseIssuer} onChange={(event) => setEditLicenseIssuer(event.target.value)} />
-              </label>
-              <label>
-                UF
-                <input value={editLicenseUf} onChange={(event) => setEditLicenseUf(event.target.value.toUpperCase())} maxLength={2} />
-              </label>
-              <label>
-                Vencimento
-                <input value={editLicenseExpiresAt} onChange={(event) => setEditLicenseExpiresAt(event.target.value)} type="date" />
-              </label>
-              <label>
-                Status
-                <select value={editLicenseStatus} onChange={(event) => setEditLicenseStatus(event.target.value as LicenseStatus)}>
-                  {licenseStatuses.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="form-actions">
-              <button disabled={saving}>Salvar edição</button>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelLicenseEdit}>
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
-
       {user.role === "ADMIN" ? (
         <div className="settings-grid">
           <section className="panel form-panel">
@@ -2220,67 +2190,127 @@ function LicensesView({ user }: { user: CurrentUser }) {
           <OperationalState state="empty" title="Nenhuma licença encontrada" />
         ) : (
           <>
-            <OperationalTable
-              items={licenses}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "type", header: "Tipo", render: (item) => item.licenseType.name },
-                { key: "number", header: "Número", render: (item) => item.number ?? "Sem número" },
-                { key: "issuer", header: "Emissor/UF", render: (item) => `${item.issuer ?? "Sem emissor"} / ${item.uf ?? "--"}` },
-                {
-                  key: "expires",
-                  header: "Vencimento",
-                  render: (item) => (item.expiresAt ? formatDateBr(item.expiresAt) : "Sem data")
-                },
-                { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
-                {
-                  key: "history",
-                  header: "Histórico",
-                  render: (item) => `${item._count.documents} docs / ${item._count.notificationJobs} avisos`
-                },
-                {
-                  key: "actions",
-                  header: "Ações",
-                  render: (item) =>
-                    user.role === "ADMIN" ? (
-                      <div className="row-actions">
-                        <button className="secondary" type="button" onClick={() => startLicenseEdit(item)}>
-                          Editar
-                        </button>
-                        <span className="label-row">
-                          <button className="secondary" type="button" onClick={() => void generateUploadLink(item)}>
-                            Gerar link
-                          </button>
-                          <InfoTip text="Gera link temporario para upload do documento desta licenca." href="#links-de-upload" />
-                        </span>
-                        <span className="label-row">
-                          <button className="secondary" disabled={saving} type="button" onClick={() => void notifyLicense(item)}>
-                            <Icon name="bell" /> Notificar
-                          </button>
-                          <InfoTip text="Cria e envia manualmente os avisos WhatsApp aplicaveis para esta licenca." href="#jobs-notificacao" />
-                        </span>
-                        <ConfirmButton
-                          disabled={saving}
-                          confirmLabel="Confirmar inativação"
-                          onConfirm={() =>
-                            void run(async () => {
-                              await api(`/v1/licenses/${item.id}`, {
-                                method: "PATCH",
-                                body: JSON.stringify({ status: "INACTIVE" })
-                              });
-                            })
-                          }
-                        >
-                          Inativar
-                        </ConfirmButton>
-                      </div>
-                    ) : (
-                      "Consulta"
-                    )
-                }
-              ]}
-            />
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Profissional</th>
+                    <th>Tipo</th>
+                    <th>Número</th>
+                    <th>Emissor/UF</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Histórico</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {licenses.map((item) => {
+                    const isEditing = editingLicenseId === item.id;
+                    return (
+                      <Fragment key={item.id}>
+                        <tr className={isEditing ? "table-row-editing" : undefined}>
+                          <td>{item.professional.name}</td>
+                          <td>{item.licenseType.name}</td>
+                          <td>{item.number ?? "Sem número"}</td>
+                          <td>{`${item.issuer ?? "Sem emissor"} / ${item.uf ?? "--"}`}</td>
+                          <td>{item.expiresAt ? formatDateBr(item.expiresAt) : "Sem data"}</td>
+                          <td><StatusBadge kind="license" value={item.status} /></td>
+                          <td>{`${item._count.documents} docs / ${item._count.notificationJobs} avisos`}</td>
+                          <td>
+                            {user.role === "ADMIN" ? (
+                              <div className="row-actions">
+                                <button className="secondary" type="button" onClick={() => startLicenseEdit(item)}>
+                                  {isEditing ? "Editando" : "Editar"}
+                                </button>
+                                <span className="label-row">
+                                  <button className="secondary" type="button" onClick={() => void generateUploadLink(item)}>
+                                    Gerar link
+                                  </button>
+                                  <InfoTip text="Gera link temporario para upload do documento desta licenca." href="#links-de-upload" />
+                                </span>
+                                <span className="label-row">
+                                  <button className="secondary" disabled={saving} type="button" onClick={() => void notifyLicense(item)}>
+                                    <Icon name="bell" /> Notificar
+                                  </button>
+                                  <InfoTip text="Cria e envia manualmente os avisos WhatsApp aplicaveis para esta licenca." href="#jobs-notificacao" />
+                                </span>
+                                <ConfirmButton
+                                  disabled={saving}
+                                  confirmLabel="Confirmar inativação"
+                                  onConfirm={() =>
+                                    void run(async () => {
+                                      await api(`/v1/licenses/${item.id}`, {
+                                        method: "PATCH",
+                                        body: JSON.stringify({ status: "INACTIVE" })
+                                      });
+                                    })
+                                  }
+                                >
+                                  Inativar
+                                </ConfirmButton>
+                              </div>
+                            ) : (
+                              "Consulta"
+                            )}
+                          </td>
+                        </tr>
+                        {user.role === "ADMIN" && isEditing ? (
+                          <tr className="inline-editor-row">
+                            <td colSpan={8}>
+                              <div className="inline-editor-shell">
+                                <form className="inline-editor-form" onSubmit={saveLicenseEdit}>
+                                  <div className="inline-editor-header">
+                                    <h3>Editar licença</h3>
+                                    <span className="muted">
+                                      Atualize os dados desta licença sem sair da tabela.
+                                    </span>
+                                  </div>
+                                  <div className="form-grid">
+                                    <label>
+                                      Número
+                                      <input value={editLicenseNumber} onChange={(event) => setEditLicenseNumber(event.target.value)} />
+                                    </label>
+                                    <label>
+                                      Emissor
+                                      <input value={editLicenseIssuer} onChange={(event) => setEditLicenseIssuer(event.target.value)} />
+                                    </label>
+                                    <label>
+                                      UF
+                                      <input value={editLicenseUf} onChange={(event) => setEditLicenseUf(event.target.value.toUpperCase())} maxLength={2} />
+                                    </label>
+                                    <label>
+                                      Vencimento
+                                      <input value={editLicenseExpiresAt} onChange={(event) => setEditLicenseExpiresAt(event.target.value)} type="date" />
+                                    </label>
+                                    <label>
+                                      Status
+                                      <select value={editLicenseStatus} onChange={(event) => setEditLicenseStatus(event.target.value as LicenseStatus)}>
+                                        {licenseStatuses.map((statusItem) => (
+                                          <option key={statusItem} value={statusItem}>
+                                            {statusItem}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                  </div>
+                                  <div className="form-actions">
+                                    <button disabled={saving}>Salvar edição</button>
+                                    <button className="secondary" disabled={saving} type="button" onClick={cancelLicenseEdit}>
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </form>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <PaginationSummary page={1} pageSize={25} total={total} />
           </>
         )}
