@@ -102,6 +102,43 @@ function formatAuditMetadados(value: unknown) {
   return JSON.stringify(redact(parsed), null, 2);
 }
 
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatCpfInput(value: string) {
+  const digits = digitsOnly(value).slice(0, 11);
+  if (!digits) return "";
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function formatBrazilPhoneCore(value: string) {
+  const digits = digitsOnly(value).slice(0, 11);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+
+  const areaCode = digits.slice(0, 2);
+  const local = digits.slice(2);
+
+  if (local.length <= 4) return `(${areaCode}) ${local}`;
+  if (local.length <= 8) return `(${areaCode}) ${local.slice(0, 4)}-${local.slice(4)}`;
+  return `(${areaCode}) ${local.slice(0, 5)}-${local.slice(5, 9)}`;
+}
+
+function formatPhoneInput(value: string) {
+  const digits = digitsOnly(value).slice(0, 13);
+  if (!digits) return "";
+  if (digits.startsWith("55")) {
+    const local = digits.slice(2);
+    return local ? `+55 ${formatBrazilPhoneCore(local)}` : "+55";
+  }
+  if (digits.length <= 11) return formatBrazilPhoneCore(digits);
+  return `+${digits}`;
+}
+
 interface SectorItem {
   id: string;
   unitId: string;
@@ -1264,7 +1301,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     setEditingProfessionalId(professional.id);
     setEditProfessionalName(professional.name);
     setEditProfessionalEmail(professional.email ?? "");
-    setEditProfessionalPhone(professional.phone ?? "");
+    setEditProfessionalPhone(formatPhoneInput(professional.phone ?? ""));
     setEditProfessionalPosition(professional.position ?? "");
     setEditProfessionalUnitId(professional.unitId);
     setEditProfessionalSectorId(professional.sectorId);
@@ -1489,7 +1526,13 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               </label>
               <label>
                 <span className="label-row">CPF <InfoTip text="Use o CPF para evitar duplicidade de profissional." href="#cadastro-profissional" /></span>
-                <input value={cpf} onChange={(event) => setCpf(event.target.value)} />
+                <input
+                  inputMode="numeric"
+                  maxLength={14}
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(event) => setCpf(formatCpfInput(event.target.value))}
+                />
               </label>
               <label>
                 <span className="label-row">Email <InfoTip text="Use email correto quando a pessoa tambem precisar acessar ou receber contato." href="#cadastro-profissional" /></span>
@@ -1497,7 +1540,13 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
               </label>
               <label>
                 <span className="label-row">Telefone <InfoTip text="Informe telefone de contato operacional; notificacoes reais dependem de configuracao." href="#notificacoes" /></span>
-                <input value={phone} onChange={(event) => setPhone(event.target.value)} />
+                <input
+                  inputMode="tel"
+                  maxLength={19}
+                  placeholder="+55 (83) 90000-0000"
+                  value={phone}
+                  onChange={(event) => setPhone(formatPhoneInput(event.target.value))}
+                />
               </label>
               <label>
                 Cargo
@@ -1678,7 +1727,13 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
                                     </label>
                                     <label>
                                       Telefone
-                                      <input value={editProfessionalPhone} onChange={(event) => setEditProfessionalPhone(event.target.value)} />
+                                      <input
+                                        inputMode="tel"
+                                        maxLength={19}
+                                        placeholder="+55 (83) 90000-0000"
+                                        value={editProfessionalPhone}
+                                        onChange={(event) => setEditProfessionalPhone(formatPhoneInput(event.target.value))}
+                                      />
                                     </label>
                                     <label>
                                       Cargo
@@ -2925,7 +2980,7 @@ function SettingsView() {
     setEditingUserId(user.id);
     setEditingUserName(user.name);
     setEditingUserEmail(user.email);
-    setEditingUserPhone(user.phone ?? "");
+    setEditingUserPhone(formatPhoneInput(user.phone ?? ""));
     setEditingUserRole(user.role);
     setEditingUserUnitScopeIds(user.unitScopeIds);
     setEditingUserSectorScopeIds(user.sectorScopeIds);
@@ -3095,7 +3150,13 @@ function SettingsView() {
             </label>
             <label>
               <span className="label-row">WhatsApp <InfoTip text="Use DDI e DDD. O telefone do RT/responsavel e usado nos avisos por WhatsApp." href="#configuracao-usuarios" /></span>
-              <input value={userPhone} onChange={(event) => setUserPhone(event.target.value)} placeholder="+55 83 9 0000-0000" />
+              <input
+                inputMode="tel"
+                maxLength={19}
+                value={userPhone}
+                onChange={(event) => setUserPhone(formatPhoneInput(event.target.value))}
+                placeholder="+55 (83) 90000-0000"
+              />
             </label>
             <label>
               <span className="label-row">Senha inicial <InfoTip text="Use ao menos 8 caracteres e compartilhe por canal seguro." href="#configuracao-usuarios" /></span>
@@ -3229,7 +3290,13 @@ function SettingsView() {
                                   </label>
                                   <label>
                                     WhatsApp
-                                    <input value={editingUserPhone} onChange={(event) => setEditingUserPhone(event.target.value)} />
+                                    <input
+                                      inputMode="tel"
+                                      maxLength={19}
+                                      placeholder="+55 (83) 90000-0000"
+                                      value={editingUserPhone}
+                                      onChange={(event) => setEditingUserPhone(formatPhoneInput(event.target.value))}
+                                    />
                                   </label>
                                   <label>
                                     Perfil
