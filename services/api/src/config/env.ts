@@ -20,6 +20,11 @@ export interface ApiEnv {
   documentAiModel: string;
   openAiApiKey?: string;
   geminiApiKey?: string;
+  googleServiceAccountEmail?: string;
+  googlePrivateKey?: string;
+  googleSheetsTemplateShareEmail?: string;
+  googleSheetsTemplateShareRole?: "reader" | "commenter" | "writer";
+  googleApplicationCredentials?: string;
 }
 
 let dotEnvLoaded = false;
@@ -66,6 +71,16 @@ export function loadEnv(source = process.env): ApiEnv {
     documentAiProvider: source.DOCUMENT_AI_PROVIDER === "openai" ? "openai" : source.DOCUMENT_AI_PROVIDER === "gemini" ? "gemini" : "fake",
     documentAiModel: source.DOCUMENT_AI_MODEL ?? "gemini-2.5-flash",
     openAiApiKey: source.OPENAI_API_KEY,
-    geminiApiKey: source.GEMINI_API_KEY
+    geminiApiKey: source.GEMINI_API_KEY,
+    googleServiceAccountEmail: source.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    googlePrivateKey: source.GOOGLE_PRIVATE_KEY,
+    googleSheetsTemplateShareEmail: source.GOOGLE_SHEETS_TEMPLATE_SHARE_EMAIL,
+    googleSheetsTemplateShareRole:
+      source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE === "reader" ||
+      source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE === "commenter" ||
+      source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE === "writer"
+        ? source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE
+        : "writer",
+    googleApplicationCredentials: source.GOOGLE_APPLICATION_CREDENTIALS
   };
 }

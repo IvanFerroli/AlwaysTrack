@@ -6,12 +6,12 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "../licenses/status.js";
 
 export class ImportError extends Error {
-  constructor(public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "HAS_ERRORS") {
+  constructor(public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "HAS_ERRORS" | "NOT_CONFIGURED") {
     super(code);
   }
 }
 
-const headers = [
+export const professionalsLicensesImportHeaders = [
   "professional_name",
   "cpf",
   "email",
@@ -30,7 +30,7 @@ const headers = [
   "notes"
 ] as const;
 
-type Header = (typeof headers)[number];
+type Header = (typeof professionalsLicensesImportHeaders)[number];
 
 interface ImportRow {
   line: number;
@@ -60,7 +60,7 @@ export interface ImportValidationResult {
   rows: ImportRowResult[];
 }
 
-export const professionalsLicensesCsvTemplate = `${headers.join(",")}\n`;
+export const professionalsLicensesCsvTemplate = `${professionalsLicensesImportHeaders.join(",")}\n`;
 
 const importTemplateStatuses = ["", ...licenseStatuses];
 
@@ -125,13 +125,44 @@ function parseCsv(csv: string): ImportRow[] {
   const lines = normalized.split("\n").filter((line) => line.trim().length > 0);
   const delimiter = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ";" : ",";
   const headerCells = parseCsvLine(lines[0], delimiter).map((item) => item.trim());
-  if (headerCells.join(",") !== headers.join(",")) throw new ImportError("INVALID_INPUT");
+  if (headerCells.join(",") !== professionalsLicensesImportHeaders.join(",")) throw new ImportError("INVALID_INPUT");
 
   return lines.slice(1).map((line, index) => {
     const cells = parseCsvLine(line, delimiter);
-    const values = Object.fromEntries(headers.map((header, cellIndex) => [header, clean(cells[cellIndex])])) as Record<Header, string>;
+    const values = Object.fromEntries(professionalsLicensesImportHeaders.map((header, cellIndex) => [header, clean(cells[cellIndex])])) as Record<Header, string>;
     return { line: index + 2, values };
   });
+}
+
+export interface ImportTemplateLists {
+  units: Array<{ id: string; name: string }>;
+  sectors: Array<{ id: string; name: string; unitId: string; unitName: string }>;
+  rtUsers: Array<{ id: string; name: string; email: string }>;
+  licenseTypes: Array<{ id: string; name: string }>;
+  statuses: string[];
+}
+
+export async function loadProfessionalsLicensesTemplateLists(prisma: PrismaClient, actor: CurrentUser): Promise<ImportTemplateLists> {
+  ensureAdmin(actor);
+
+  const [units, sectors, users, licenseTypes] = await Promise.all([
+    prisma.unit.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } }),
+    prisma.sector.findMany({
+      where: { unit: { organizationId: actor.organizationId }, active: true },
+      include: { unit: true },
+      orderBy: [{ unit: { name: "asc" } }, { name: "asc" }]
+    }),
+    prisma.user.findMany({ where: { organizationId: actor.organizationId, role: "RT", active: true }, orderBy: { email: "asc" } }),
+    prisma.licenseType.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } })
+  ]);
+
+  return {
+    units: units.map((item) => ({ id: item.id, name: item.name })),
+    sectors: sectors.map((item) => ({ id: item.id, name: item.name, unitId: item.unitId, unitName: item.unit.name })),
+    rtUsers: users.map((item) => ({ id: item.id, name: item.name, email: item.email })),
+    licenseTypes: licenseTypes.map((item) => ({ id: item.id, name: item.name })),
+    statuses: importTemplateStatuses
+  };
 }
 
 async function validateRows(prisma: PrismaClient, actor: CurrentUser, rows: ImportRow[]) {
@@ -255,18 +286,7 @@ function seedValidationColumn(worksheet: ExcelJS.Worksheet, column: string, valu
 }
 
 export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, actor: CurrentUser) {
-  ensureAdmin(actor);
-
-  const [units, sectors, users, licenseTypes] = await Promise.all([
-    prisma.unit.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } }),
-    prisma.sector.findMany({
-      where: { unit: { organizationId: actor.organizationId }, active: true },
-      include: { unit: true },
-      orderBy: [{ unit: { name: "asc" } }, { name: "asc" }]
-    }),
-    prisma.user.findMany({ where: { organizationId: actor.organizationId, role: "RT", active: true }, orderBy: { email: "asc" } }),
-    prisma.licenseType.findMany({ where: { organizationId: actor.organizationId, active: true }, orderBy: { name: "asc" } })
-  ]);
+  const { units, sectors, rtUsers, licenseTypes, statuses } = await loadProfessionalsLicensesTemplateLists(prisma, actor);
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SyLembra";
@@ -276,12 +296,12 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
   const listsSheet = workbook.addWorksheet("Listas", { state: "veryHidden" });
   const instructionsSheet = workbook.addWorksheet("Instrucoes");
 
-  importSheet.addRow(headers);
+  importSheet.addRow(professionalsLicensesImportHeaders);
   importSheet.views = [{ state: "frozen", ySplit: 1 }];
   importSheet.getRow(1).font = { bold: true };
 
   const columnWidths = [24, 16, 28, 18, 24, 30, 30, 28, 18, 18, 18, 10, 14, 14, 14, 28];
-  headers.forEach((header, index) => {
+  professionalsLicensesImportHeaders.forEach((header, index) => {
     importSheet.getColumn(index + 1).width = columnWidths[index];
     importSheet.getCell(1, index + 1).note = header;
   });
@@ -291,9 +311,9 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
 
   seedValidationColumn(listsSheet, "A", units.map((item) => item.name));
   seedValidationColumn(listsSheet, "B", sectors.map((item) => item.name));
-  seedValidationColumn(listsSheet, "C", users.map((item) => item.email));
+  seedValidationColumn(listsSheet, "C", rtUsers.map((item) => item.email));
   seedValidationColumn(listsSheet, "D", licenseTypes.map((item) => item.name));
-  seedValidationColumn(listsSheet, "E", importTemplateStatuses);
+  seedValidationColumn(listsSheet, "E", statuses);
 
   const maxRows = 500;
   for (let row = 2; row <= maxRows + 1; row += 1) {
@@ -310,7 +330,7 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
     importSheet.getCell(`H${row}`).dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [toValidationFormula("Listas", "C", users.length)]
+      formulae: [toValidationFormula("Listas", "C", rtUsers.length)]
     };
     importSheet.getCell(`I${row}`).dataValidation = {
       type: "list",
@@ -320,7 +340,7 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
     importSheet.getCell(`O${row}`).dataValidation = {
       type: "list",
       allowBlank: true,
-      formulae: [toValidationFormula("Listas", "E", importTemplateStatuses.length)]
+      formulae: [toValidationFormula("Listas", "E", statuses.length)]
     };
   }
 

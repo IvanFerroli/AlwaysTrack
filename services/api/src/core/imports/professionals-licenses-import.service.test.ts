@@ -29,12 +29,12 @@ function basePrisma() {
       findFirst: vi.fn().mockResolvedValue({ id: "unit-1", name: "RH-GERAL" })
     },
     sector: {
-      findMany: vi.fn().mockResolvedValue([{ id: "sector-1", unitId: "unit-1", name: "GOVERNANCA", active: true }]),
+      findMany: vi.fn().mockResolvedValue([{ id: "sector-1", unitId: "unit-1", name: "GOVERNANCA", active: true, unit: { name: "RH-GERAL" } }]),
       findFirst: vi.fn().mockResolvedValue({ id: "sector-1", unitId: "unit-1", name: "GOVERNANCA" })
     },
     user: {
-      findMany: vi.fn().mockResolvedValue([{ id: "rt-1", email: "rt@example.com", role: "RT", active: true }]),
-      findFirst: vi.fn().mockResolvedValue({ id: "rt-1", email: "rt@example.com", role: "RT" })
+      findMany: vi.fn().mockResolvedValue([{ id: "rt-1", name: "RT Demo", email: "rt@example.com", role: "RT", active: true }]),
+      findFirst: vi.fn().mockResolvedValue({ id: "rt-1", name: "RT Demo", email: "rt@example.com", role: "RT" })
     },
     licenseType: {
       findMany: vi.fn().mockResolvedValue([

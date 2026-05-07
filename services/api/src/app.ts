@@ -91,6 +91,7 @@ import {
 } from "./core/reports/reports.handlers.js";
 import {
   commitProfessionalsLicensesCsvHandler,
+  professionalsLicensesGoogleSheetTemplateHandler,
   professionalsLicensesTemplateHandler,
   professionalsLicensesWorkbookHandler,
   validateProfessionalsLicensesCsvHandler
@@ -174,6 +175,12 @@ export function createApp() {
     requireAuth,
     requireRole(["ADMIN"]),
     professionalsLicensesWorkbookHandler
+  );
+  app.get(
+    "/v1/imports/professionals-licenses/template/google-sheet",
+    requireAuth,
+    requireRole(["ADMIN"]),
+    professionalsLicensesGoogleSheetTemplateHandler
   );
   app.post(
     "/v1/imports/professionals-licenses/validate",

@@ -1514,6 +1514,13 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     URL.revokeObjectURL(url);
   }
 
+  async function createGoogleSheetTemplate() {
+    const result = await api<{ spreadsheetId: string; spreadsheetUrl: string; sharedWith: string | null }>(
+      "/v1/imports/professionals-licenses/template/google-sheet"
+    );
+    window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
+  }
+
   async function validateImport() {
     setImporting(true);
     setImportError(null);
@@ -1643,6 +1650,9 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
             </label>
           </div>
           <div className="form-actions">
+            <button className="secondary" disabled={importing} type="button" onClick={() => void createGoogleSheetTemplate()}>
+              Gerar Google Sheet
+            </button>
             <button className="secondary" disabled={importing} type="button" onClick={() => void downloadImportWorkbook()}>
               Baixar planilha guiada (.xlsx)
             </button>
