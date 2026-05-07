@@ -1529,7 +1529,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
         setImportError("A planilha foi criada, mas o navegador bloqueou a nova aba. Use o link abaixo.");
       }
     } catch (caught) {
-      setImportError(caught instanceof Error ? caught.message : "Falha ao gerar Google Sheet.");
+      setImportError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível gerar a planilha Google. Verifique credenciais e permissões do Google Sheets."
+      );
     } finally {
       setImporting(false);
     }

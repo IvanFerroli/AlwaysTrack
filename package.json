@@ -22,6 +22,7 @@
     "db:flush:demo": "node scripts/flush-local-demo.js",
     "job:notifications": "npm run job:notifications --workspace @sylembra/api",
     "smoke:whatsapp": "npm run smoke:whatsapp --workspace @sylembra/api",
+    "smoke:google-sheets": "npm run smoke:google-sheets --workspace @sylembra/api",
     "prisma:generate": "prisma generate --schema services/api/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema services/api/prisma/schema.prisma",
     "prisma:seed": "npm run seed --workspace @sylembra/api"

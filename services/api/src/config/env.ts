@@ -25,6 +25,7 @@ export interface ApiEnv {
   googleSheetsTemplateShareEmail?: string;
   googleSheetsTemplateShareRole?: "reader" | "commenter" | "writer";
   googleApplicationCredentials?: string;
+  googleSheetsTemplateFolderId?: string;
 }
 
 let dotEnvLoaded = false;
@@ -81,6 +82,7 @@ export function loadEnv(source = process.env): ApiEnv {
       source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE === "writer"
         ? source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE
         : "writer",
-    googleApplicationCredentials: source.GOOGLE_APPLICATION_CREDENTIALS
+    googleApplicationCredentials: source.GOOGLE_APPLICATION_CREDENTIALS,
+    googleSheetsTemplateFolderId: source.GOOGLE_SHEETS_TEMPLATE_FOLDER_ID
   };
 }

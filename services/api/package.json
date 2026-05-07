@@ -12,6 +12,7 @@
     "test": "vitest run",
     "job:notifications": "tsx src/jobs/notifications.ts",
     "smoke:whatsapp": "tsx src/scripts/smoke-whatsapp.ts",
+    "smoke:google-sheets": "tsx src/scripts/smoke-google-sheets.ts",
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

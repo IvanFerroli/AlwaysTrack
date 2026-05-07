@@ -7,7 +7,15 @@ import { calculateLicenseStatus } from "../licenses/status.js";
 
 export class ImportError extends Error {
   constructor(
-    public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "HAS_ERRORS" | "NOT_CONFIGURED",
+    public readonly code:
+      | "FORBIDDEN"
+      | "INVALID_INPUT"
+      | "HAS_ERRORS"
+      | "NOT_CONFIGURED"
+      | "GOOGLE_SHEETS_PERMISSION_DENIED"
+      | "GOOGLE_SHEETS_API_NOT_ENABLED"
+      | "GOOGLE_SHEETS_CREDENTIALS_MISSING"
+      | "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED",
     public readonly detail?: string
   ) {
     super(detail ?? code);

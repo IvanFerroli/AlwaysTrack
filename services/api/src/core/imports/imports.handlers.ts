@@ -25,6 +25,28 @@ function csvFrom(request: Request) {
 function sendImportError(response: Response, error: unknown) {
   if (error instanceof ImportError) {
     if (error.code === "FORBIDDEN") return sendError(response, 403, "FORBIDDEN", "Access denied.");
+    if (error.code === "GOOGLE_SHEETS_CREDENTIALS_MISSING") {
+      return sendError(response, 503, "GOOGLE_SHEETS_CREDENTIALS_MISSING", error.detail ?? "Google Sheets credentials are missing.");
+    }
+    if (error.code === "GOOGLE_SHEETS_API_NOT_ENABLED") {
+      return sendError(response, 503, "GOOGLE_SHEETS_API_NOT_ENABLED", error.detail ?? "Google Sheets or Google Drive API is not enabled for this project.");
+    }
+    if (error.code === "GOOGLE_SHEETS_PERMISSION_DENIED") {
+      return sendError(
+        response,
+        403,
+        "GOOGLE_SHEETS_PERMISSION_DENIED",
+        error.detail ?? "Could not generate Google Sheet. Check Google Sheets credentials and permissions."
+      );
+    }
+    if (error.code === "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED") {
+      return sendError(
+        response,
+        403,
+        "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED",
+        error.detail ?? "Could not create Google Sheet in the configured Drive folder. Check folder sharing permissions."
+      );
+    }
     if (error.code === "NOT_CONFIGURED") {
       return sendError(
         response,

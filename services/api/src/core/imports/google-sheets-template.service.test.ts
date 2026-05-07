@@ -2,6 +2,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@sylembra/shared";
 import { createProfessionalsLicensesGoogleSheetTemplate } from "./google-sheets-template.service.js";
+import { ImportError } from "./professionals-licenses-import.service.js";
 
 const admin: CurrentUser = {
   id: "admin-1",
@@ -95,5 +96,160 @@ describe("google sheets template import helper", () => {
     expect(String(fetcher.mock.calls[5]?.[0])).toContain("/permissions");
     expect(String(fetcher.mock.calls[4]?.[1]?.body)).toContain("admin@example.com");
     expect(String(fetcher.mock.calls[5]?.[1]?.body)).toContain("ops@example.com");
+  });
+
+  it("can create the spreadsheet inside a configured Drive folder", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { format: "pem", type: "pkcs8" },
+      publicKeyEncoding: { format: "pem", type: "spki" }
+    });
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "token-123" }), { status: 200, headers: { "content-type": "application/json" } })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "sheet-drive-1", webViewLink: "https://docs.google.com/spreadsheets/d/sheet-drive-1/edit" }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            spreadsheetId: "sheet-drive-1",
+            spreadsheetUrl: "https://docs.google.com/spreadsheets/d/sheet-drive-1/edit",
+            sheets: [
+              { properties: { sheetId: 11, title: "Modelo" } },
+              { properties: { sheetId: 22, title: "Listas" } }
+            ]
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ totalUpdatedRows: 2 }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ replies: [] }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "perm-user" }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
+      fetcher: fetcher as never,
+      env: {
+        databaseUrl: "file:./dev.db",
+        sessionSecret: "secret",
+        port: 3333,
+        storageProvider: "local",
+        storageLocalDir: ".storage/private",
+        documentMaxBytes: 1024,
+        notificationProvider: "fake",
+        notificationJobLimit: 25,
+        documentAiProvider: "fake",
+        documentAiModel: "fake",
+        googleServiceAccountEmail: "service@example.com",
+        googlePrivateKey: privateKey,
+        googleSheetsTemplateFolderId: "folder-123"
+      }
+    });
+
+    expect(result.spreadsheetId).toBe("sheet-drive-1");
+    expect(String(fetcher.mock.calls[1]?.[0])).toContain("/drive/v3/files");
+    expect(String(fetcher.mock.calls[1]?.[1]?.body)).toContain("folder-123");
+  });
+
+  it("maps sheets permission errors to a specific Google error", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { format: "pem", type: "pkcs8" },
+      publicKeyEncoding: { format: "pem", type: "spki" }
+    });
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "token-123" }), { status: 200, headers: { "content-type": "application/json" } })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 403,
+              message: "The caller does not have permission",
+              status: "PERMISSION_DENIED"
+            }
+          }),
+          { status: 403, headers: { "content-type": "application/json" } }
+        )
+      );
+
+    await expect(
+      createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
+        fetcher: fetcher as never,
+        env: {
+          databaseUrl: "file:./dev.db",
+          sessionSecret: "secret",
+          port: 3333,
+          storageProvider: "local",
+          storageLocalDir: ".storage/private",
+          documentMaxBytes: 1024,
+          notificationProvider: "fake",
+          notificationJobLimit: 25,
+          documentAiProvider: "fake",
+          documentAiModel: "fake",
+          googleServiceAccountEmail: "service@example.com",
+          googlePrivateKey: privateKey
+        }
+      })
+    ).rejects.toMatchObject({
+      code: "GOOGLE_SHEETS_PERMISSION_DENIED",
+      detail: "Could not generate Google Sheet. Check Google Sheets credentials, APIs, and permissions."
+    });
+  });
+
+  it("maps drive folder quota errors to a folder-specific Google error", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { format: "pem", type: "pkcs8" },
+      publicKeyEncoding: { format: "pem", type: "spki" }
+    });
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: "token-123" }), { status: 200, headers: { "content-type": "application/json" } })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 403,
+              message: "The user's Drive storage quota has been exceeded.",
+              errors: [{ reason: "storageQuotaExceeded", message: "The user's Drive storage quota has been exceeded." }]
+            }
+          }),
+          { status: 403, headers: { "content-type": "application/json" } }
+        )
+      );
+
+    await expect(
+      createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
+        fetcher: fetcher as never,
+        env: {
+          databaseUrl: "file:./dev.db",
+          sessionSecret: "secret",
+          port: 3333,
+          storageProvider: "local",
+          storageLocalDir: ".storage/private",
+          documentMaxBytes: 1024,
+          notificationProvider: "fake",
+          notificationJobLimit: 25,
+          documentAiProvider: "fake",
+          documentAiModel: "fake",
+          googleServiceAccountEmail: "service@example.com",
+          googlePrivateKey: privateKey,
+          googleSheetsTemplateFolderId: "folder-123"
+        }
+      })
+    ).rejects.toMatchObject({
+      code: "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED",
+      detail: "Could not create Google Sheet in the configured Drive folder because the Drive storage quota is exceeded."
+    });
   });
 });

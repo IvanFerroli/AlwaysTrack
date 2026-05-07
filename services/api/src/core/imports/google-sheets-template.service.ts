@@ -32,42 +32,61 @@ interface SpreadsheetCreateResponse {
   sheets?: Array<{ properties?: { sheetId?: number; title?: string } }>;
 }
 
+interface DriveFileCreateResponse {
+  id: string;
+  webViewLink?: string;
+}
+
 interface GoogleSheetTemplateResult {
   spreadsheetId: string;
   spreadsheetUrl: string;
   sharedWith: string[];
 }
 
+interface GoogleApiErrorPayload {
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+    errors?: Array<{ reason?: string; message?: string; domain?: string }>;
+    details?: unknown[];
+  };
+}
+
+interface CreateTemplateOptions {
+  fetcher?: Fetcher;
+  env?: ApiEnv;
+  shareWithEmail?: string;
+  extraShareEmails?: string[];
+  shareRole?: "reader" | "writer";
+}
+
 export async function createProfessionalsLicensesGoogleSheetTemplate(
   prisma: PrismaClient,
   actor: CurrentUser,
-  options?: {
-    fetcher?: Fetcher;
-    env?: ApiEnv;
-    shareWithEmail?: string;
-    extraShareEmails?: string[];
-    shareRole?: "reader" | "writer";
-  }
+  options?: CreateTemplateOptions
 ): Promise<GoogleSheetTemplateResult> {
   if (actor.role !== "ADMIN") throw new ImportError("FORBIDDEN");
 
   const env = options?.env ?? loadEnv();
+  const fetcher = options?.fetcher ?? fetch;
   const credentials = resolveCredentials(env);
   const lists = await loadProfessionalsLicensesTemplateLists(prisma, actor);
-  const accessToken = await requestAccessToken(credentials, options?.fetcher ?? fetch);
+  const accessToken = await requestAccessToken(credentials, fetcher);
 
   const title = `modelo-profissionais-licencas-${new Date().toISOString().slice(0, 10)}`;
-  const spreadsheet = await createSpreadsheet(accessToken, title, options?.fetcher ?? fetch);
+  const spreadsheet = env.googleSheetsTemplateFolderId
+    ? await createSpreadsheetInDriveFolder(accessToken, title, env.googleSheetsTemplateFolderId, fetcher)
+    : await createSpreadsheet(accessToken, title, fetcher);
 
   const modelSheetId = spreadsheet.sheets?.find((item) => item.properties?.title === "Modelo")?.properties?.sheetId;
   const listsSheetId = spreadsheet.sheets?.find((item) => item.properties?.title === "Listas")?.properties?.sheetId;
-
   if (modelSheetId === undefined || listsSheetId === undefined) {
-    throw new ImportError("INVALID_INPUT");
+    throw new ImportError("INVALID_INPUT", "Google Sheets response did not include Modelo/Listas sheet ids.");
   }
 
-  await writeSheetValues(spreadsheet.spreadsheetId, accessToken, lists, options?.fetcher ?? fetch);
-  await applySheetFormatting(spreadsheet.spreadsheetId, accessToken, modelSheetId, listsSheetId, lists, options?.fetcher ?? fetch);
+  await writeSheetValues(spreadsheet.spreadsheetId, accessToken, lists, fetcher);
+  await applySheetFormatting(spreadsheet.spreadsheetId, accessToken, modelSheetId, listsSheetId, lists, fetcher);
 
   const primaryShareEmail = normalizeEmail(options?.shareWithEmail ?? actor.email);
   if (!primaryShareEmail) {
@@ -83,27 +102,14 @@ export async function createProfessionalsLicensesGoogleSheetTemplate(
     )
   ];
 
-  try {
+  await shareSpreadsheet(spreadsheet.spreadsheetId, accessToken, primaryShareEmail, options?.shareRole ?? "writer", fetcher);
+  for (const email of extraShareEmails) {
     await shareSpreadsheet(
       spreadsheet.spreadsheetId,
       accessToken,
-      primaryShareEmail,
-      options?.shareRole ?? "writer",
-      options?.fetcher ?? fetch
-    );
-    for (const email of extraShareEmails) {
-      await shareSpreadsheet(
-        spreadsheet.spreadsheetId,
-        accessToken,
-        email,
-        env.googleSheetsTemplateShareRole ?? "writer",
-        options?.fetcher ?? fetch
-      );
-    }
-  } catch {
-    throw new ImportError(
-      "INVALID_INPUT",
-      "Google Sheet was created, but it could not be shared with the authenticated user email."
+      email,
+      env.googleSheetsTemplateShareRole ?? "writer",
+      fetcher
     );
   }
 
@@ -135,7 +141,7 @@ function resolveCredentials(env: ApiEnv): GoogleServiceAccountCredentials {
     }
   }
 
-  throw new ImportError("NOT_CONFIGURED");
+  throw new ImportError("GOOGLE_SHEETS_CREDENTIALS_MISSING", "Google Sheets credentials are missing or unreadable.");
 }
 
 async function requestAccessToken(credentials: GoogleServiceAccountCredentials, fetcher: Fetcher) {
@@ -163,9 +169,14 @@ async function requestAccessToken(credentials: GoogleServiceAccountCredentials, 
     body
   });
 
-  if (!response.ok) throw new ImportError("INVALID_INPUT");
+  if (!response.ok) {
+    await throwGoogleApiError("token", response);
+  }
+
   const payload = (await response.json()) as TokenResponse;
-  if (!payload.access_token) throw new ImportError("INVALID_INPUT");
+  if (!payload.access_token) {
+    throw new ImportError("GOOGLE_SHEETS_CREDENTIALS_MISSING", "Google OAuth token response did not include access_token.");
+  }
   return payload.access_token;
 }
 
@@ -182,8 +193,50 @@ async function createSpreadsheet(accessToken: string, title: string, fetcher: Fe
     })
   });
 
-  if (!response.ok) throw new ImportError("INVALID_INPUT");
+  if (!response.ok) {
+    await throwGoogleApiError("createSpreadsheet", response);
+  }
+
   return (await response.json()) as SpreadsheetCreateResponse;
+}
+
+async function createSpreadsheetInDriveFolder(
+  accessToken: string,
+  title: string,
+  folderId: string,
+  fetcher: Fetcher
+) {
+  const createResponse = await fetcher(`${googleDriveBaseUrl}/files?supportsAllDrives=true&fields=id,webViewLink`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      name: title,
+      mimeType: "application/vnd.google-apps.spreadsheet",
+      parents: [folderId]
+    })
+  });
+
+  if (!createResponse.ok) {
+    await throwGoogleApiError("createSpreadsheetInFolder", createResponse, { folderId });
+  }
+
+  const driveFile = (await createResponse.json()) as DriveFileCreateResponse;
+  const metadataResponse = await fetcher(`${googleApiBaseUrl}/spreadsheets/${driveFile.id}`, {
+    headers: { authorization: `Bearer ${accessToken}` }
+  });
+  if (!metadataResponse.ok) {
+    await throwGoogleApiError("getSpreadsheetMetadata", metadataResponse);
+  }
+
+  const metadata = (await metadataResponse.json()) as SpreadsheetCreateResponse;
+  return {
+    spreadsheetId: metadata.spreadsheetId,
+    spreadsheetUrl: driveFile.webViewLink ?? metadata.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${driveFile.id}/edit`,
+    sheets: metadata.sheets
+  };
 }
 
 async function writeSheetValues(
@@ -214,7 +267,9 @@ async function writeSheetValues(
     })
   });
 
-  if (!response.ok) throw new ImportError("INVALID_INPUT");
+  if (!response.ok) {
+    await throwGoogleApiError("writeSheetValues", response);
+  }
 }
 
 async function applySheetFormatting(
@@ -262,7 +317,9 @@ async function applySheetFormatting(
     body: JSON.stringify({ requests })
   });
 
-  if (!response.ok) throw new ImportError("INVALID_INPUT");
+  if (!response.ok) {
+    await throwGoogleApiError("applySheetFormatting", response);
+  }
 }
 
 async function shareSpreadsheet(
@@ -272,7 +329,7 @@ async function shareSpreadsheet(
   role: "reader" | "commenter" | "writer",
   fetcher: Fetcher
 ) {
-  const response = await fetcher(`${googleDriveBaseUrl}/files/${spreadsheetId}/permissions?sendNotificationEmail=false`, {
+  const response = await fetcher(`${googleDriveBaseUrl}/files/${spreadsheetId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${accessToken}`,
@@ -285,13 +342,9 @@ async function shareSpreadsheet(
     })
   });
 
-  if (!response.ok) throw new ImportError("INVALID_INPUT");
-}
-
-function normalizeEmail(value: string | null | undefined) {
-  const text = value?.trim().toLowerCase() ?? "";
-  if (!text) return null;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : null;
+  if (!response.ok) {
+    await throwGoogleApiError("shareSpreadsheet", response, { email });
+  }
 }
 
 function buildListsMatrix(lists: Awaited<ReturnType<typeof loadProfessionalsLicensesTemplateLists>>) {
@@ -375,4 +428,62 @@ function columnLetter(index: number) {
     current = Math.floor((current - 1) / 26);
   }
   return result;
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  const text = value?.trim().toLowerCase() ?? "";
+  if (!text) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : null;
+}
+
+async function throwGoogleApiError(operation: string, response: Response, metadata?: Record<string, unknown>): Promise<never> {
+  const text = await response.text();
+  let payload: GoogleApiErrorPayload | null = null;
+  try {
+    payload = text ? (JSON.parse(text) as GoogleApiErrorPayload) : null;
+  } catch {
+    payload = null;
+  }
+
+  const googleError = payload?.error;
+  const message = googleError?.message ?? text ?? "Unknown Google API error";
+  const status = googleError?.status ?? null;
+  const reasons = (googleError?.errors ?? []).map((item) => item.reason).filter((value): value is string => Boolean(value));
+
+  console.error("GOOGLE_SHEETS_ERROR", {
+    operation,
+    httpStatus: response.status,
+    status,
+    message,
+    errors: googleError?.errors ?? null,
+    details: googleError?.details ?? null,
+    metadata: metadata ?? null
+  });
+
+  const lower = message.toLowerCase();
+  if (lower.includes("api has not been used") || lower.includes("api is not enabled") || lower.includes("access not configured")) {
+    throw new ImportError("GOOGLE_SHEETS_API_NOT_ENABLED", "Google Sheets or Google Drive API is not enabled for this project.");
+  }
+  if (response.status === 403 && operation === "createSpreadsheetInFolder") {
+    if (reasons.includes("storageQuotaExceeded") || lower.includes("storage quota")) {
+      throw new ImportError(
+        "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED",
+        "Could not create Google Sheet in the configured Drive folder because the Drive storage quota is exceeded."
+      );
+    }
+    throw new ImportError(
+      "GOOGLE_SHEETS_FOLDER_ACCESS_DENIED",
+      "Could not create Google Sheet in the configured Drive folder. Share the folder with the Service Account as editor."
+    );
+  }
+  if (response.status === 403) {
+    throw new ImportError(
+      "GOOGLE_SHEETS_PERMISSION_DENIED",
+      "Could not generate Google Sheet. Check Google Sheets credentials, APIs, and permissions."
+    );
+  }
+  if (response.status === 401) {
+    throw new ImportError("GOOGLE_SHEETS_CREDENTIALS_MISSING", "Google credentials were rejected while calling Google Sheets.");
+  }
+  throw new ImportError("INVALID_INPUT", `Google Sheets request failed during ${operation}.`);
 }
