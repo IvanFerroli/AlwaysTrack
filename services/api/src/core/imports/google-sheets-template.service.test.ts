@@ -59,6 +59,7 @@ describe("google sheets template import helper", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify({ totalUpdatedRows: 2 }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ replies: [] }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "perm-user" }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ id: "perm-1" }), { status: 200, headers: { "content-type": "application/json" } }));
 
     const result = await createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
@@ -84,12 +85,15 @@ describe("google sheets template import helper", () => {
     expect(result).toMatchObject({
       spreadsheetId: "sheet-123",
       spreadsheetUrl: "https://docs.google.com/spreadsheets/d/sheet-123/edit",
-      sharedWith: "ops@example.com"
+      sharedWith: ["admin@example.com", "ops@example.com"]
     });
-    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(fetcher).toHaveBeenCalledTimes(6);
     expect(String(fetcher.mock.calls[1]?.[0])).toContain("/spreadsheets");
     expect(String(fetcher.mock.calls[2]?.[0])).toContain("/values:batchUpdate");
     expect(String(fetcher.mock.calls[3]?.[0])).toContain(":batchUpdate");
     expect(String(fetcher.mock.calls[4]?.[0])).toContain("/permissions");
+    expect(String(fetcher.mock.calls[5]?.[0])).toContain("/permissions");
+    expect(String(fetcher.mock.calls[4]?.[1]?.body)).toContain("admin@example.com");
+    expect(String(fetcher.mock.calls[5]?.[1]?.body)).toContain("ops@example.com");
   });
 });

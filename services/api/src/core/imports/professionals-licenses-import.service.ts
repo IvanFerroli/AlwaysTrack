@@ -6,8 +6,11 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "../licenses/status.js";
 
 export class ImportError extends Error {
-  constructor(public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "HAS_ERRORS" | "NOT_CONFIGURED") {
-    super(code);
+  constructor(
+    public readonly code: "FORBIDDEN" | "INVALID_INPUT" | "HAS_ERRORS" | "NOT_CONFIGURED",
+    public readonly detail?: string
+  ) {
+    super(detail ?? code);
   }
 }
 

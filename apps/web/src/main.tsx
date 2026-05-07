@@ -1348,6 +1348,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   const [importCsv, setImportCsv] = useState("");
   const [importResult, setImportResult] = useState<CsvImportResult | null>(null);
   const [importing, setImporting] = useState(false);
+  const [googleSheetLink, setGoogleSheetLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1515,10 +1516,23 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   }
 
   async function createGoogleSheetTemplate() {
-    const result = await api<{ spreadsheetId: string; spreadsheetUrl: string; sharedWith: string | null }>(
-      "/v1/imports/professionals-licenses/template/google-sheet"
-    );
-    window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
+    setImporting(true);
+    setImportError(null);
+    setGoogleSheetLink(null);
+    try {
+      const result = await api<{ spreadsheetId: string; spreadsheetUrl: string; sharedWith: string[] }>(
+        "/v1/imports/professionals-licenses/template/google-sheet"
+      );
+      const popup = window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        setGoogleSheetLink(result.spreadsheetUrl);
+        setImportError("A planilha foi criada, mas o navegador bloqueou a nova aba. Use o link abaixo.");
+      }
+    } catch (caught) {
+      setImportError(caught instanceof Error ? caught.message : "Falha ao gerar Google Sheet.");
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function validateImport() {
@@ -1667,6 +1681,16 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
             </button>
           </div>
           {importError ? <OperationalState state="error" title="Falha na importação" detail={importError} /> : null}
+          {googleSheetLink ? (
+            <div className="import-preview">
+              <p>
+                Link da planilha:{" "}
+                <a href={googleSheetLink} rel="noreferrer noopener" target="_blank">
+                  Abrir Google Sheet
+                </a>
+              </p>
+            </div>
+          ) : null}
           {importResult ? (
             <div className="import-preview">
               <p>

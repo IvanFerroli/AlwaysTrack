@@ -35,13 +35,19 @@ interface SpreadsheetCreateResponse {
 interface GoogleSheetTemplateResult {
   spreadsheetId: string;
   spreadsheetUrl: string;
-  sharedWith: string | null;
+  sharedWith: string[];
 }
 
 export async function createProfessionalsLicensesGoogleSheetTemplate(
   prisma: PrismaClient,
   actor: CurrentUser,
-  options?: { fetcher?: Fetcher; env?: ApiEnv }
+  options?: {
+    fetcher?: Fetcher;
+    env?: ApiEnv;
+    shareWithEmail?: string;
+    extraShareEmails?: string[];
+    shareRole?: "reader" | "writer";
+  }
 ): Promise<GoogleSheetTemplateResult> {
   if (actor.role !== "ADMIN") throw new ImportError("FORBIDDEN");
 
@@ -63,21 +69,48 @@ export async function createProfessionalsLicensesGoogleSheetTemplate(
   await writeSheetValues(spreadsheet.spreadsheetId, accessToken, lists, options?.fetcher ?? fetch);
   await applySheetFormatting(spreadsheet.spreadsheetId, accessToken, modelSheetId, listsSheetId, lists, options?.fetcher ?? fetch);
 
-  const shareEmail = env.googleSheetsTemplateShareEmail?.trim();
-  if (shareEmail) {
+  const primaryShareEmail = normalizeEmail(options?.shareWithEmail ?? actor.email);
+  if (!primaryShareEmail) {
+    throw new ImportError("INVALID_INPUT", "Authenticated user does not have a valid email for Google Sheets sharing.");
+  }
+
+  const extraShareEmails = [
+    ...new Set(
+      [options?.extraShareEmails ?? [], env.googleSheetsTemplateShareEmail ? [env.googleSheetsTemplateShareEmail] : []]
+        .flat()
+        .map(normalizeEmail)
+        .filter((value): value is string => Boolean(value) && value !== primaryShareEmail)
+    )
+  ];
+
+  try {
     await shareSpreadsheet(
       spreadsheet.spreadsheetId,
       accessToken,
-      shareEmail,
-      env.googleSheetsTemplateShareRole ?? "writer",
+      primaryShareEmail,
+      options?.shareRole ?? "writer",
       options?.fetcher ?? fetch
+    );
+    for (const email of extraShareEmails) {
+      await shareSpreadsheet(
+        spreadsheet.spreadsheetId,
+        accessToken,
+        email,
+        env.googleSheetsTemplateShareRole ?? "writer",
+        options?.fetcher ?? fetch
+      );
+    }
+  } catch {
+    throw new ImportError(
+      "INVALID_INPUT",
+      "Google Sheet was created, but it could not be shared with the authenticated user email."
     );
   }
 
   return {
     spreadsheetId: spreadsheet.spreadsheetId,
     spreadsheetUrl: spreadsheet.spreadsheetUrl,
-    sharedWith: shareEmail ?? null
+    sharedWith: [primaryShareEmail, ...extraShareEmails]
   };
 }
 
@@ -253,6 +286,12 @@ async function shareSpreadsheet(
   });
 
   if (!response.ok) throw new ImportError("INVALID_INPUT");
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  const text = value?.trim().toLowerCase() ?? "";
+  if (!text) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : null;
 }
 
 function buildListsMatrix(lists: Awaited<ReturnType<typeof loadProfessionalsLicensesTemplateLists>>) {

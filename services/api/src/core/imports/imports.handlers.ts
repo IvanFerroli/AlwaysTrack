@@ -26,12 +26,17 @@ function sendImportError(response: Response, error: unknown) {
   if (error instanceof ImportError) {
     if (error.code === "FORBIDDEN") return sendError(response, 403, "FORBIDDEN", "Access denied.");
     if (error.code === "NOT_CONFIGURED") {
-      return sendError(response, 503, "GOOGLE_SHEETS_NOT_CONFIGURED", "Google Sheets template is not configured for this environment.");
+      return sendError(
+        response,
+        503,
+        "GOOGLE_SHEETS_NOT_CONFIGURED",
+        error.detail ?? "Google Sheets template is not configured for this environment."
+      );
     }
     if (error.code === "HAS_ERRORS") {
       return sendError(response, 409, "IMPORT_HAS_ERRORS", "CSV has blocking errors. Validate and fix before importing.");
     }
-    return sendError(response, 400, "INVALID_INPUT", "Invalid CSV import payload.");
+    return sendError(response, 400, "INVALID_INPUT", error.detail ?? "Invalid CSV import payload.");
   }
 
   throw error;
@@ -59,7 +64,10 @@ export async function professionalsLicensesWorkbookHandler(request: Request, res
 
 export async function professionalsLicensesGoogleSheetTemplateHandler(request: Request, response: Response) {
   try {
-    const result = await createProfessionalsLicensesGoogleSheetTemplate(prisma, actorFrom(request));
+    const actor = actorFrom(request);
+    const result = await createProfessionalsLicensesGoogleSheetTemplate(prisma, actor, {
+      shareWithEmail: actor.email
+    });
     return sendOk(response, result);
   } catch (error) {
     return sendImportError(response, error);
