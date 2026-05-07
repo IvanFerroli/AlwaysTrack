@@ -1534,7 +1534,19 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     URL.revokeObjectURL(url);
   }
 
-  async function requestGoogleSheetTemplate() {
+  function openPreparedWindow(name: string, features?: string) {
+    return window.open("", name, features);
+  }
+
+  function navigateWindow(targetWindow: Window | null, url: string) {
+    if (targetWindow && !targetWindow.closed) {
+      targetWindow.location.href = url;
+      return true;
+    }
+    return false;
+  }
+
+  async function requestGoogleSheetTemplate(targetWindow?: Window | null) {
     setImporting(true);
     setImportError(null);
     setGoogleSheetLink(null);
@@ -1542,12 +1554,19 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       const result = await api<{ spreadsheetId: string; spreadsheetUrl: string; sharedWith: string[] }>(
         "/v1/imports/professionals-licenses/template/google-sheet"
       );
-      const popup = window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
-      if (!popup) {
+      const opened = navigateWindow(targetWindow ?? null, result.spreadsheetUrl);
+      if (!opened) {
+        const popup = window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
+        if (popup) {
+          return;
+        }
         setGoogleSheetLink(result.spreadsheetUrl);
         setImportError("A planilha foi criada, mas o navegador bloqueou a nova aba. Use o link abaixo.");
       }
     } catch (caught) {
+      if (targetWindow && !targetWindow.closed) {
+        targetWindow.close();
+      }
       setImportError(
         caught instanceof Error
           ? caught.message
@@ -1558,21 +1577,18 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function connectGoogleAndGenerateSheet() {
+  async function connectGoogleAndGenerateSheet(preparedWindow?: Window | null) {
     setGoogleAuthBusy(true);
     setImportError(null);
     return new Promise<void>((resolve) => {
-      const popup = window.open(
-        `${apiBaseUrl}/v1/integrations/google/oauth/start`,
-        "sylembra-google-oauth",
-        "popup=yes,width=560,height=720"
-      );
+      const popup = preparedWindow ?? openPreparedWindow("sylembra-google-oauth", "popup=yes,width=560,height=720");
       if (!popup) {
+        window.location.assign(`${apiBaseUrl}/v1/integrations/google/oauth/start`);
         setGoogleAuthBusy(false);
-        setImportError("O navegador bloqueou a janela de conexão do Google.");
         resolve();
         return;
       }
+      navigateWindow(popup, `${apiBaseUrl}/v1/integrations/google/oauth/start`);
 
       const timer = window.setInterval(() => {
         if (popup.closed) {
@@ -1593,8 +1609,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
         cleanup();
         if (payload.status === "success") {
           await loadGoogleStatus();
-          await requestGoogleSheetTemplate();
+          await requestGoogleSheetTemplate(popup);
         } else {
+          if (popup && !popup.closed) {
+            popup.close();
+          }
           setImportError(payload.message || "Não foi possível concluir a conexão com o Google.");
         }
         setGoogleAuthBusy(false);
@@ -1620,10 +1639,12 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
 
   async function createGoogleSheetTemplate() {
     if (googleStatus?.oauthConfigured && !googleStatus.connected) {
-      await connectGoogleAndGenerateSheet();
+      const preparedWindow = openPreparedWindow("sylembra-google-oauth", "popup=yes,width=560,height=720");
+      await connectGoogleAndGenerateSheet(preparedWindow);
       return;
     }
-    await requestGoogleSheetTemplate();
+    const preparedWindow = openPreparedWindow("sylembra-google-sheet");
+    await requestGoogleSheetTemplate(preparedWindow);
   }
 
   async function validateImport() {
