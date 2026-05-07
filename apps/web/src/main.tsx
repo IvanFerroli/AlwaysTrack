@@ -267,6 +267,15 @@ interface CsvImportResult {
   rows: CsvImportRow[];
 }
 
+interface GoogleIntegrationStatus {
+  oauthConfigured: boolean;
+  connected: boolean;
+  fallbackAvailable: boolean;
+  preferredMode: "oauth" | "service-account" | "unavailable";
+  connectedAt: string | null;
+  lastUsedAt: string | null;
+}
+
 interface LicenseTypeItem {
   id: string;
   organizationId: string;
@@ -1348,9 +1357,17 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
   const [importCsv, setImportCsv] = useState("");
   const [importResult, setImportResult] = useState<CsvImportResult | null>(null);
   const [importing, setImporting] = useState(false);
+  const [googleAuthBusy, setGoogleAuthBusy] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState<GoogleIntegrationStatus | null>(null);
   const [googleSheetLink, setGoogleSheetLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  async function loadGoogleStatus() {
+    if (user.role !== "ADMIN") return;
+    const result = await api<GoogleIntegrationStatus>("/v1/integrations/google/status");
+    setGoogleStatus(result);
+  }
 
   async function load() {
     setLoading(true);
@@ -1363,10 +1380,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     if (rtFilter) search.set("responsibleRtId", rtFilter);
 
     try {
-      const [professionalsResult, organizationResult, usersResult] = await Promise.all([
+      const [professionalsResult, organizationResult, usersResult, googleStatusResult] = await Promise.all([
         api<{ items: ProfessionalSummary[]; total: number }>(`/v1/professionals?${search.toString()}`),
         user.role === "ADMIN" ? api<{ organization: OrganizationItem }>("/v1/organization") : Promise.resolve(null),
-        user.role === "ADMIN" ? api<{ users: ManagedUserItem[] }>("/v1/users") : Promise.resolve(null)
+        user.role === "ADMIN" ? api<{ users: ManagedUserItem[] }>("/v1/users") : Promise.resolve(null),
+        user.role === "ADMIN" ? api<GoogleIntegrationStatus>("/v1/integrations/google/status") : Promise.resolve(null)
       ]);
       setItems(professionalsResult.items);
       setTotal(professionalsResult.total);
@@ -1376,6 +1394,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
         setSectorId((current) => current || organizationResult.organization.units[0]?.sectors[0]?.id || "");
       }
       if (usersResult) setUsers(usersResult.users);
+      if (googleStatusResult) setGoogleStatus(googleStatusResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar profissionais.");
     } finally {
@@ -1515,7 +1534,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     URL.revokeObjectURL(url);
   }
 
-  async function createGoogleSheetTemplate() {
+  async function requestGoogleSheetTemplate() {
     setImporting(true);
     setImportError(null);
     setGoogleSheetLink(null);
@@ -1537,6 +1556,74 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     } finally {
       setImporting(false);
     }
+  }
+
+  async function connectGoogleAndGenerateSheet() {
+    setGoogleAuthBusy(true);
+    setImportError(null);
+    return new Promise<void>((resolve) => {
+      const popup = window.open(
+        `${apiBaseUrl}/v1/integrations/google/oauth/start`,
+        "sylembra-google-oauth",
+        "popup=yes,width=560,height=720"
+      );
+      if (!popup) {
+        setGoogleAuthBusy(false);
+        setImportError("O navegador bloqueou a janela de conexão do Google.");
+        resolve();
+        return;
+      }
+
+      const timer = window.setInterval(() => {
+        if (popup.closed) {
+          cleanup();
+          setGoogleAuthBusy(false);
+          resolve();
+        }
+      }, 500);
+
+      function cleanup() {
+        window.clearInterval(timer);
+        window.removeEventListener("message", handleMessage);
+      }
+
+      async function handleMessage(event: MessageEvent) {
+        const payload = event.data as { type?: string; status?: string; message?: string } | null;
+        if (!payload || payload.type !== "sylembra-google-oauth") return;
+        cleanup();
+        if (payload.status === "success") {
+          await loadGoogleStatus();
+          await requestGoogleSheetTemplate();
+        } else {
+          setImportError(payload.message || "Não foi possível concluir a conexão com o Google.");
+        }
+        setGoogleAuthBusy(false);
+        resolve();
+      }
+
+      window.addEventListener("message", handleMessage);
+    });
+  }
+
+  async function disconnectGoogleIntegration() {
+    setGoogleAuthBusy(true);
+    setImportError(null);
+    try {
+      await api<{ disconnected: boolean }>("/v1/integrations/google", { method: "DELETE" });
+      await loadGoogleStatus();
+    } catch (caught) {
+      setImportError(caught instanceof Error ? caught.message : "Falha ao desconectar Google.");
+    } finally {
+      setGoogleAuthBusy(false);
+    }
+  }
+
+  async function createGoogleSheetTemplate() {
+    if (googleStatus?.oauthConfigured && !googleStatus.connected) {
+      await connectGoogleAndGenerateSheet();
+      return;
+    }
+    await requestGoogleSheetTemplate();
   }
 
   async function validateImport() {
@@ -1668,8 +1755,12 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
             </label>
           </div>
           <div className="form-actions">
-            <button className="secondary" disabled={importing} type="button" onClick={() => void createGoogleSheetTemplate()}>
-              Gerar Google Sheet
+            <button className="secondary" disabled={importing || googleAuthBusy} type="button" onClick={() => void createGoogleSheetTemplate()}>
+              {googleAuthBusy
+                ? "Conectando..."
+                : googleStatus?.oauthConfigured && !googleStatus.connected
+                  ? "Conectar Google e gerar planilha"
+                  : "Gerar Google Sheet"}
             </button>
             <button className="secondary" disabled={importing} type="button" onClick={() => void downloadImportWorkbook()}>
               Baixar planilha guiada (.xlsx)
@@ -1685,6 +1776,32 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
             </button>
           </div>
           {importError ? <OperationalState state="error" title="Falha na importação" detail={importError} /> : null}
+          {googleStatus ? (
+            <div className="import-preview">
+              <p>
+                Google:{" "}
+                {googleStatus.connected
+                  ? "conectado para criar planilhas no Drive da sua conta."
+                  : googleStatus.oauthConfigured
+                    ? "não conectado; o primeiro clique abrirá a autorização do Google."
+                    : googleStatus.fallbackAvailable
+                      ? "sem OAuth por usuário; será usado o fallback configurado no backend."
+                      : "não configurado."}
+              </p>
+              {googleStatus.connected ? (
+                <div className="form-actions">
+                  <button
+                    className="secondary"
+                    disabled={googleAuthBusy || importing}
+                    type="button"
+                    onClick={() => void disconnectGoogleIntegration()}
+                  >
+                    Desconectar Google
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {googleSheetLink ? (
             <div className="import-preview">
               <p>

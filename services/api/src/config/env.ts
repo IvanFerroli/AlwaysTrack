@@ -26,6 +26,10 @@ export interface ApiEnv {
   googleSheetsTemplateShareRole?: "reader" | "commenter" | "writer";
   googleApplicationCredentials?: string;
   googleSheetsTemplateFolderId?: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRedirectUri?: string;
+  googleTokenEncryptionKey?: string;
 }
 
 let dotEnvLoaded = false;
@@ -83,6 +87,10 @@ export function loadEnv(source = process.env): ApiEnv {
         ? source.GOOGLE_SHEETS_TEMPLATE_SHARE_ROLE
         : "writer",
     googleApplicationCredentials: source.GOOGLE_APPLICATION_CREDENTIALS,
-    googleSheetsTemplateFolderId: source.GOOGLE_SHEETS_TEMPLATE_FOLDER_ID
+    googleSheetsTemplateFolderId: source.GOOGLE_SHEETS_TEMPLATE_FOLDER_ID,
+    googleClientId: source.GOOGLE_CLIENT_ID,
+    googleClientSecret: source.GOOGLE_CLIENT_SECRET,
+    googleRedirectUri: source.GOOGLE_REDIRECT_URI,
+    googleTokenEncryptionKey: source.GOOGLE_TOKEN_ENCRYPTION_KEY
   };
 }

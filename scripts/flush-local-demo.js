@@ -143,7 +143,9 @@ async function seedSingleAdmin() {
       documents: await prisma.document.count(),
       notificationJobs: await prisma.notificationJob.count(),
       faqItems: await prisma.faqItem.count(),
-      documentAiExtractions: await prisma.documentAiExtraction.count()
+      documentAiExtractions: await prisma.documentAiExtraction.count(),
+      googleConnections: await prisma.googleConnection.count(),
+      googleOauthStates: await prisma.googleOauthState.count()
     };
 
     console.log("[SyLembra Flush] Estado final:");

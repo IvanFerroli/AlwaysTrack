@@ -25,6 +25,8 @@ model Organization {
   professionals         Professional[]
   auditLogs             AuditLog[]
   documentAiExtractions DocumentAiExtraction[]
+  googleConnections     GoogleConnection[]
+  googleOauthStates     GoogleOauthState[]
 }
 
 model Unit {
@@ -82,6 +84,8 @@ model User {
   uploadedDocuments   Document[]     @relation("DocumentUploadedByUser")
   validatedDocuments  Document[]     @relation("DocumentValidatedBy")
   appliedExtractions  DocumentAiExtraction[] @relation("DocumentAiExtractionAppliedBy")
+  googleConnection    GoogleConnection?
+  googleOauthStates   GoogleOauthState[]
 
   @@index([organizationId])
   @@index([role])
@@ -372,6 +376,48 @@ model FaqItem {
   @@index([organizationId])
   @@index([category])
   @@index([active])
+}
+
+model GoogleConnection {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  userId                String   @unique
+  provider              String
+  refreshTokenEncrypted String
+  scopesJson            String
+  connectedAt           DateTime @default(now())
+  lastUsedAt            DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId, provider])
+  @@index([organizationId])
+  @@index([provider])
+  @@index([revokedAt])
+}
+
+model GoogleOauthState {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  provider       String
+  stateHash      String   @unique
+  codeVerifier   String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([provider])
+  @@index([expiresAt])
 }
 
 model AuditLog {

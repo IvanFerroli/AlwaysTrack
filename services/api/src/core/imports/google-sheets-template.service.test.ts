@@ -16,6 +16,10 @@ const admin: CurrentUser = {
 
 function basePrisma() {
   return {
+    googleConnection: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn()
+    },
     unit: {
       findMany: vi.fn().mockResolvedValue([{ id: "unit-1", name: "RH-GERAL", organizationId: "org-1", active: true }])
     },

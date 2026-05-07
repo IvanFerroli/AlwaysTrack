@@ -96,6 +96,12 @@ import {
   professionalsLicensesWorkbookHandler,
   validateProfessionalsLicensesCsvHandler
 } from "./core/imports/imports.handlers.js";
+import {
+  googleIntegrationDisconnectHandler,
+  googleIntegrationStatusHandler,
+  googleOauthCallbackHandler,
+  googleOauthStartHandler
+} from "./core/integrations/google/google.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -106,7 +112,7 @@ export function createApp() {
       response.header("access-control-allow-origin", env.corsOrigin);
       response.header("access-control-allow-credentials", "true");
       response.header("access-control-allow-headers", "content-type");
-      response.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+      response.header("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
     }
     if (request.method === "OPTIONS") {
       return response.sendStatus(204);
@@ -131,6 +137,7 @@ export function createApp() {
   app.post("/v1/auth/login", loginHandler);
   app.post("/v1/auth/logout", requireAuth, logoutHandler);
   app.get("/v1/auth/me", requireAuth, meHandler);
+  app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
   app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
@@ -160,6 +167,9 @@ export function createApp() {
   app.post("/v1/users", requireAuth, requireRole(["ADMIN"]), createUserHandler);
   app.patch("/v1/users/:userId", requireAuth, requireRole(["ADMIN"]), updateUserHandler);
   app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(["ADMIN"]), resetUserPasswordHandler);
+  app.get("/v1/integrations/google/status", requireAuth, requireRole(["ADMIN"]), googleIntegrationStatusHandler);
+  app.get("/v1/integrations/google/oauth/start", requireAuth, requireRole(["ADMIN"]), googleOauthStartHandler);
+  app.delete("/v1/integrations/google", requireAuth, requireRole(["ADMIN"]), googleIntegrationDisconnectHandler);
   app.get("/v1/professionals", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listProfessionalsHandler);
   app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
   app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);

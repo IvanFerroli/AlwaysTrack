@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@sylembra/shared";
 import { loadEnv, type ApiEnv } from "../../config/env.js";
+import { resolveGoogleTemplateAccess } from "../integrations/google/google-oauth.service.js";
 import {
   ImportError,
   loadProfessionalsLicensesTemplateLists,
@@ -70,14 +71,14 @@ export async function createProfessionalsLicensesGoogleSheetTemplate(
 
   const env = options?.env ?? loadEnv();
   const fetcher = options?.fetcher ?? fetch;
-  const credentials = resolveCredentials(env);
   const lists = await loadProfessionalsLicensesTemplateLists(prisma, actor);
-  const accessToken = await requestAccessToken(credentials, fetcher);
+  const access = await resolveGoogleTemplateAccess(prisma, actor, env, fetcher);
 
   const title = `modelo-profissionais-licencas-${new Date().toISOString().slice(0, 10)}`;
-  const spreadsheet = env.googleSheetsTemplateFolderId
-    ? await createSpreadsheetInDriveFolder(accessToken, title, env.googleSheetsTemplateFolderId, fetcher)
-    : await createSpreadsheet(accessToken, title, fetcher);
+  const spreadsheet =
+    access.shouldCreateInFolder && env.googleSheetsTemplateFolderId
+      ? await createSpreadsheetInDriveFolder(access.accessToken, title, env.googleSheetsTemplateFolderId, fetcher)
+      : await createSpreadsheet(access.accessToken, title, fetcher);
 
   const modelSheetId = spreadsheet.sheets?.find((item) => item.properties?.title === "Modelo")?.properties?.sheetId;
   const listsSheetId = spreadsheet.sheets?.find((item) => item.properties?.title === "Listas")?.properties?.sheetId;
@@ -85,8 +86,8 @@ export async function createProfessionalsLicensesGoogleSheetTemplate(
     throw new ImportError("INVALID_INPUT", "Google Sheets response did not include Modelo/Listas sheet ids.");
   }
 
-  await writeSheetValues(spreadsheet.spreadsheetId, accessToken, lists, fetcher);
-  await applySheetFormatting(spreadsheet.spreadsheetId, accessToken, modelSheetId, listsSheetId, lists, fetcher);
+  await writeSheetValues(spreadsheet.spreadsheetId, access.accessToken, lists, fetcher);
+  await applySheetFormatting(spreadsheet.spreadsheetId, access.accessToken, modelSheetId, listsSheetId, lists, fetcher);
 
   const primaryShareEmail = normalizeEmail(options?.shareWithEmail ?? actor.email);
   if (!primaryShareEmail) {
@@ -102,11 +103,19 @@ export async function createProfessionalsLicensesGoogleSheetTemplate(
     )
   ];
 
-  await shareSpreadsheet(spreadsheet.spreadsheetId, accessToken, primaryShareEmail, options?.shareRole ?? "writer", fetcher);
+  if (access.shouldShareWithActor) {
+    await shareSpreadsheet(
+      spreadsheet.spreadsheetId,
+      access.accessToken,
+      primaryShareEmail,
+      options?.shareRole ?? "writer",
+      fetcher
+    );
+  }
   for (const email of extraShareEmails) {
     await shareSpreadsheet(
       spreadsheet.spreadsheetId,
-      accessToken,
+      access.accessToken,
       email,
       env.googleSheetsTemplateShareRole ?? "writer",
       fetcher
@@ -144,7 +153,8 @@ function resolveCredentials(env: ApiEnv): GoogleServiceAccountCredentials {
   throw new ImportError("GOOGLE_SHEETS_CREDENTIALS_MISSING", "Google Sheets credentials are missing or unreadable.");
 }
 
-async function requestAccessToken(credentials: GoogleServiceAccountCredentials, fetcher: Fetcher) {
+export async function requestServiceAccountAccessToken(env: ApiEnv, fetcher: Fetcher = fetch) {
+  const credentials = resolveCredentials(env);
   const now = Math.floor(Date.now() / 1000);
   const assertion = signJwt(
     { alg: "RS256", typ: "JWT" },

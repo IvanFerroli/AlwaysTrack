@@ -64,10 +64,11 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 50. `TASK-UX-009` icones SVG intuitivos na navegacao.
 51. `TASK-IMP-001` importacao CSV de profissionais e licencas.
 52. `TASK-IMP-002` modelo Google Sheets nativo com dropdowns baseados no banco.
-53. `TASK-NOT-006` escalonamento para RT/superior nos ultimos avisos.
-54. `TASK-PAT-001` patches MVP: telefone em usuarios, datas BR, logo e envio manual de notificacoes. Status: completed.
-55. `TASK-AI-001` analise automatica de documentos por OCR/IA. Status: completed-mvp.
-56. `TASK-UX-010` edicao por formularios operacionais. Status: completed.
+53. `TASK-IMP-003` OAuth Google por usuario para geracao de planilhas de importacao.
+54. `TASK-NOT-006` escalonamento para RT/superior nos ultimos avisos.
+55. `TASK-PAT-001` patches MVP: telefone em usuarios, datas BR, logo e envio manual de notificacoes. Status: completed.
+56. `TASK-AI-001` analise automatica de documentos por OCR/IA. Status: completed-mvp.
+57. `TASK-UX-010` edicao por formularios operacionais. Status: completed.
 
 ## Gate final
 A V1 so fecha quando os 14 criterios de sucesso do documento central estiverem demonstraveis em ambiente de demo ou producao.
