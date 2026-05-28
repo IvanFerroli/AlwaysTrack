@@ -19,13 +19,14 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 3 | Definir fronteira do template | completed (ADR-002 em 1d6fa57) |
 | 4 | Escolher contrato de producao banco/storage | completed (ADR-003, ADR-004 em EXEC-TMP-003) |
 | 5 | Parametrizar marca, seed, tenant publico, templates | in-progress (EXEC-TMP-004: FAQ sem fallback demo-org; APP_NAME por env pendente) |
-| 6 | Validar em clone limpo | pending |
+| 6 | Validar em clone limpo | gate-passed (114 testes, exit 0 — EXEC-TMP-005) |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-004 (2026-05-28): FAQ publica sem fallback demo-org + ROADMAP item 5 in-progress
+- EXEC-TMP-005 (2026-05-28): gate npm run check — 114 testes, exit 0. Ciclo de transicao template encerrado.
 
 ## Proximo ciclo a rotar
-- EXEC-TMP-005: ROADMAP item 6 — validar em clone limpo (npm install, npm run setup, npm run check)
+- Decisao de produto: parametrizacao de APP_NAME/cookie por env (task propria) vs avanco direto para beta externo.
+- Clone limpo real antes de qualquer convite externo ao repositorio.
 
 ## Blockers conhecidos
 - Nenhum blocker tecnico critico. Decisions externas pendentes: banco/storage de producao, nivel de genericidade do template.
