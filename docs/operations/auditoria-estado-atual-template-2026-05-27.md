@@ -493,11 +493,11 @@ Pelo codigo existente, a extracao de menor custo e maior fidelidade e o **starte
 
 | Prioridade | Item | Razao |
 | --- | --- | --- |
-| P0 | Remover credencial pessoal hardcoded e rotacionar acesso | Seguranca. |
-| P0 | Redigir identificadores Meta reais nos docs distribuiveis | Seguranca/privacidade da instancia. |
-| P0 | Redigir resposta de autenticacao no smoke Google | Evitar vazamento de token em logs. |
-| P0 | Remover virtualenv temporario do Git | Higiene basica do template. |
-| P1 | Sincronizar tasks/roadmap/intake com codigo atual | Documento deve espelhar realidade. |
+| P0 | Remover credencial pessoal hardcoded e rotacionar acesso | Feito em `b74975c`. |
+| P0 | Redigir identificadores Meta reais nos docs distribuiveis | Feito em `b74975c`. |
+| P0 | Redigir resposta de autenticacao no smoke Google | Feito em `b74975c`. |
+| P0 | Remover virtualenv temporario do Git | Feito em `8fb6957`. |
+| P1 | Sincronizar tasks/roadmap/intake com codigo atual | Em andamento: intake/runbooks atualizados em 2026-05-28. |
 | P1 | Definir categoria de template e fronteira do dominio | Evita refatoracao sem alvo. |
 | P1 | Corrigir assinatura webhook usando raw body | Integracao Meta real. |
 | P1 | Escolher banco/storage de producao | Contrato arquitetural verdadeiro. |

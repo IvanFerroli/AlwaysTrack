@@ -1,13 +1,24 @@
 # Task Roadmap
 
 ## Metadata
-- status: proposed
+- status: active-transition
 - owner: task-planner
-- last-updated: 2026-04-30
+- last-updated: 2026-05-28
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
-Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apresentavel completa.
+Preservar o historico da V1 SyLembra ja entregue e orientar a transicao do repositorio AlwaysTrack para uma base limpa de template/beta.
+
+## Trilha atual - transicao para template
+1. Resolver P0 de higiene e seguranca apontados em `docs/operations/auditoria-estado-atual-template-2026-05-27.md`. Status: completed em `b74975c` e `8fb6957`.
+2. Sincronizar intake, runbooks e roadmap com o runtime real. Status: in-progress.
+3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado.
+4. Escolher contrato de producao para banco e storage antes de prometer beta fora de ambiente controlado.
+5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira.
+6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`.
+
+## Historico SyLembra preservado
+A lista abaixo documenta a ordem original de construcao do MVP. Ela nao deve ser usada como plano futuro sem cruzar com a trilha de transicao acima.
 
 ## Ordem recomendada
 1. `TASK-DOC-001` intake e baseline de escopo.

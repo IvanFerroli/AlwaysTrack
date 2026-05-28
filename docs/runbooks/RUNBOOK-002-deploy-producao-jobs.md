@@ -3,11 +3,11 @@
 ## Metadata
 - status: active
 - owner: ops-builder
-- last-updated: 2026-04-30
+- last-updated: 2026-05-28
 - source-of-truth: docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md
 
 ## Objetivo
-Publicar web, API, storage local persistente, webhook Meta e job de notificacoes com custo baixo.
+Publicar web, API, banco/storage persistentes, webhook Meta e job de notificacoes com custo baixo.
 
 ## Pre-condicoes
 - Host ou provider com Docker/Compose.
@@ -15,10 +15,17 @@ Publicar web, API, storage local persistente, webhook Meta e job de notificacoes
 - Secrets definidos fora do repositorio em `.env.production` ou painel do provider.
 
 ## Envs principais
-- API: `DATABASE_URL`, `SESSION_SECRET`, `API_PORT`, `CORS_ORIGIN`, `STORAGE_LOCAL_DIR`, `DOCUMENT_MAX_BYTES`.
+- API: `DATABASE_URL`, `SESSION_SECRET`, `API_PORT`, `CORS_ORIGIN`, `STORAGE_PROVIDER`, `STORAGE_LOCAL_DIR`, `DOCUMENT_MAX_BYTES`.
 - Web: `VITE_API_BASE_URL` apontando para a URL publica da API.
 - Meta: `NOTIFICATION_PROVIDER=meta`, `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`, `META_WEBHOOK_VERIFY_TOKEN`, `META_APP_SECRET`.
 - Job: `NOTIFICATION_JOB_LIMIT`.
+
+## Decisao de persistencia
+O template ainda usa Prisma com SQLite por padrao. Em producao, ha duas rotas aceitas ate nova decisao arquitetural:
+- manter `DATABASE_URL=file:./dev.db` com volume persistente e backup operacional;
+- migrar para outro banco somente com alteracao explicita de schema, migracoes e runbook.
+
+`STORAGE_PROVIDER=local` tambem exige volume persistente e rotina de backup. Storage externo ainda nao e contrato implementado.
 
 ## Deploy com Docker Compose
 1. Copiar `.env.example` para `.env.production` no host e preencher secrets reais.
