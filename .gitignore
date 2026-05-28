@@ -4,5 +4,7 @@ dist/
 .env.local
 .env.production
 *.log
+.openclaw/
+.tmp-venv-parse/
 services/api/prisma/dev.db
 services/api/.storage/
