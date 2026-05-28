@@ -47,7 +47,7 @@ function resolveCredentials() {
 async function getAccessToken(clientEmail: string, privateKey: string) {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
+  const jwtPayload = {
     iss: clientEmail,
     scope: `${sheetsScope} ${driveScope}`,
     aud: googleTokenUrl,
@@ -55,10 +55,10 @@ async function getAccessToken(clientEmail: string, privateKey: string) {
     exp: now + 3600
   };
   const signer = createSign("RSA-SHA256");
-  signer.update(`${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}`);
+  signer.update(`${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(jwtPayload))}`);
   signer.end();
   const signature = signer.sign(privateKey);
-  const assertion = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(payload))}.${base64Url(signature)}`;
+  const assertion = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(jwtPayload))}.${base64Url(signature)}`;
 
   const response = await fetch(googleTokenUrl, {
     method: "POST",
@@ -69,9 +69,34 @@ async function getAccessToken(clientEmail: string, privateKey: string) {
     })
   });
   const text = await response.text();
-  console.log("TOKEN_RESPONSE", response.status, text);
+  const payload = JSON.parse(text || "{}") as {
+    access_token?: string;
+    token_type?: string;
+    expires_in?: number;
+    error?: string;
+    error_description?: string;
+  };
+  console.log(
+    "TOKEN_STATUS",
+    JSON.stringify(
+      {
+        ok: response.ok,
+        status: response.status,
+        hasAccessToken: Boolean(payload.access_token),
+        tokenType: payload.token_type ?? null,
+        expiresIn: payload.expires_in ?? null,
+        error: payload.error ?? null,
+        errorDescription: payload.error_description ?? null
+      },
+      null,
+      2
+    )
+  );
   if (!response.ok) process.exit(1);
-  return JSON.parse(text).access_token as string;
+  if (!payload.access_token) {
+    throw new Error("Google OAuth token response did not include access_token.");
+  }
+  return payload.access_token;
 }
 
 async function trySheetsCreate(accessToken: string) {

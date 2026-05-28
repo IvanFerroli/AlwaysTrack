@@ -25,8 +25,8 @@ Use `templates-licencas-prontos-meta.md` como documento principal para copiar os
 
 ## Contexto operacional
 - Envio real via backend ja foi validado com template de teste.
-- Phone Number ID real do SyLembra: `1091327844065291`.
-- `.env` local ja aponta `META_WHATSAPP_PHONE_NUMBER_ID` para o numero real.
+- Phone Number ID real removido do registro versionado; configurar apenas via ambiente privado.
+- `.env` local deve apontar `META_WHATSAPP_PHONE_NUMBER_ID` para o numero real sem versionar o valor.
 - `META_WHATSAPP_TOKEN` permanece privado e nao deve ser exposto em docs, logs ou commits.
 - Provider Meta ja envia variaveis de corpo via `components[].parameters`.
 - O backend extrai a ordem das variaveis a partir do `NotificationTemplate.bodyPreview`.
@@ -148,7 +148,7 @@ Olá {{1}}, o documento da licença {{2}} número {{3}} foi recusado. Motivo: {{
 
 ## Env e configuracoes
 - `.env`:
-  - `META_WHATSAPP_PHONE_NUMBER_ID=1091327844065291`
+  - `META_WHATSAPP_PHONE_NUMBER_ID=<preencher-no-ambiente-privado>`
   - `META_WHATSAPP_TOKEN`: manter privado.
   - `META_WHATSAPP_SMOKE_TEMPLATE`: manter `hello_world` ou outro template sem variaveis para smoke simples; nao usar templates com variaveis no smoke atual.
   - `META_WHATSAPP_SMOKE_TEMPLATE_LANGUAGE`: manter idioma correspondente ao template de smoke.

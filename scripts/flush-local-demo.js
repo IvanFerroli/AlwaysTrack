@@ -9,10 +9,10 @@ const schemaPath = resolve(rootDir, "services/api/prisma/schema.prisma");
 const storagePath = resolve(rootDir, ".storage/private");
 
 const adminConfig = {
-  organizationName: "SyLembra",
-  name: "Ivanilson Ferreira",
-  email: "ivanilson.ferreira.mec@gmail.com",
-  password: "sla-2026*"
+  organizationName: process.env.FLUSH_DEMO_ORGANIZATION_NAME?.trim() || "SyLembra Demo",
+  name: process.env.FLUSH_DEMO_ADMIN_NAME?.trim() || "Admin Demo",
+  email: process.env.FLUSH_DEMO_ADMIN_EMAIL?.trim() || "admin@example.com",
+  password: process.env.FLUSH_DEMO_ADMIN_PASSWORD?.trim() || randomBytes(12).toString("base64url")
 };
 
 const notificationTemplates = [
@@ -160,6 +160,8 @@ async function main() {
   console.log("SYLEMBRA - FLUSH LOCAL DEMO");
   console.log("====================================================");
   console.log(`Admin preservado/recriado: ${adminConfig.email}`);
+  console.log(`Senha do admin desta execucao: ${adminConfig.password}`);
+  console.log("Defina FLUSH_DEMO_ADMIN_EMAIL e FLUSH_DEMO_ADMIN_PASSWORD para credenciais locais estaveis.");
 
   run("npx", ["prisma", "migrate", "reset", "--force", "--skip-seed", "--schema", schemaPath], "Resetando banco local");
   resetStorage();

@@ -370,7 +370,7 @@ O arquivo `docs/Dossie_Apresentacao_Sylembra.md` e util como visao de produto, m
 | --- | --- | --- | --- |
 | Credencial pessoal em claro em script versionado | `scripts/flush-local-demo.js` contem identidade e senha de bootstrap hardcoded | Exposicao de acesso e clonagem insegura | Remover do codigo, usar env/seed anonimo e rotacionar a credencial exposta. |
 | Identificador real de conta Meta em doc versionado | `docs/tasks/TASK-NOT-007-templates-oficiais-meta-whatsapp.md` | Vazamento de dado de integracao/instancia | Redigir/remover do template e revisar historico de publicacao. |
-| Log de resposta bruta de token Google | `services/api/src/scripts/smoke-google-sheets.ts` imprime `TOKEN_RESPONSE` completo | Token temporario pode parar em terminal, CI ou log compartilhado | Redigir resposta e imprimir apenas status/erros seguros antes de reutilizar o script. |
+| Log de resposta bruta de token Google | `services/api/src/scripts/smoke-google-sheets.ts` imprimia resposta completa de token | Token temporario podia parar em terminal, CI ou log compartilhado | Remediado em 2026-05-28: script imprime apenas status redigido da autenticacao. |
 | Virtualenv temporario versionado | `.tmp-venv-parse/`, 1.131 arquivos | Template inflado, ruido e supply-chain desnecessaria | Remover do tracking e adicionar ignore explicito. |
 
 ### 11.2 Altos: decidir ou corrigir antes de anunciar template de producao

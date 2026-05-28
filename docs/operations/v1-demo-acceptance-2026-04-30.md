@@ -2,11 +2,11 @@
 
 ## Ambiente de demo
 - Seed: `npm run prisma:seed`
-- Login admin: `admin@example.com` / `admin123`
-- Login RT: `rt@example.com` / `rt123456`
-- Login supervisor: `supervisor@example.com` / `supervisor123`
+- Login admin: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
+- Login RT: `rt@example.com` / valor impresso pelo seed ou `SEED_RT_PASSWORD`
+- Login supervisor: `supervisor@example.com` / valor impresso pelo seed ou `SEED_SUPERVISOR_PASSWORD`
 - Provider de notificacao: `fake` ate a chave Meta real ser preenchida.
-- Link magico de demo: `/upload/demo-upload-token`
+- Link magico de demo: `/upload/<token-impresso-pelo-seed>` ou `SEED_UPLOAD_TOKEN`
 
 ## Roteiro curto
 1. Entrar como admin e confirmar organizacao, unidade, setor e usuarios.
@@ -14,7 +14,7 @@
 3. Abrir dashboard e confirmar pendencias, vencidas, a vencer, documentos e falhas de notificacao.
 4. Abrir relatorios e exportar CSV de vencidas, a vencer, documentos, notificacoes e regularizacao.
 5. Abrir notificacoes e confirmar template, regra, job enviado fake e job com falha visivel.
-6. Abrir `/upload/demo-upload-token`, enviar um PDF/imagem pequeno e confirmar consumo do link.
+6. Abrir `/upload/<token-impresso-pelo-seed>`, enviar um PDF/imagem pequeno e confirmar consumo do link.
 7. Entrar como RT, validar ou recusar documento pendente.
 8. Abrir auditoria e confirmar eventos de seed, upload publico, aprovacao/recusa e alteracoes operacionais.
 9. Confirmar que a operacao usa banco/app como fonte principal, sem planilha manual.
@@ -25,7 +25,7 @@
 3. Admin/RT cadastra profissionais e licencas: demonstravel em profissionais/licencas e fluxo de RT escopado.
 4. Sistema calcula regular, a vencer ou vencido: demonstravel com licencas `REGULAR`, `EXPIRING`, `EXPIRED`.
 5. Profissional recebe WhatsApp oficial: contrato implementado com Meta provider; demo usa provider `fake` ate credenciais reais.
-6. Profissional envia documento por link magico: demonstravel em `/upload/demo-upload-token`.
+6. Profissional envia documento por link magico: demonstravel com o token impresso pelo seed.
 7. RT/Admin valida ou recusa documento: demonstravel com documento pendente seedado.
 8. Sistema mantem historico/auditoria: demonstravel na tela de auditoria e eventos seedados.
 9. Dashboard mostra situacao geral e pendencias: demonstravel com dados mistos no seed.

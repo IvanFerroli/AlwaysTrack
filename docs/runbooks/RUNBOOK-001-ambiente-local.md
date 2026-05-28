@@ -25,7 +25,7 @@ Subir SyLembra localmente sem secrets reais e com banco/storage de desenvolvimen
 ## Validacao
 - `npm run check`
 - `curl http://localhost:3333/health`
-- Login demo: `admin@example.com` / `admin123`
+- Login demo: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
 
 ## Secrets
 - Nunca commitar `.env`, `.env.local`, banco local, storage local ou logs.

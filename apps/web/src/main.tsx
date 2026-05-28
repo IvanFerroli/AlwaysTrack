@@ -564,7 +564,7 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 
 function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

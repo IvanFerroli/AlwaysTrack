@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { hashPassword } from "../src/core/auth/password.js";
 import { hashUploadToken } from "../src/core/documents/upload-tokens.service.js";
 
@@ -15,6 +16,10 @@ function addDays(days: number) {
 
 function daysAgo(days: number) {
   return addDays(-days);
+}
+
+function seedSecret(envKey: string) {
+  return process.env[envKey]?.trim() || randomBytes(12).toString("base64url");
 }
 
 async function ensureDocument(input: {
@@ -156,9 +161,13 @@ async function ensureAuditLog(input: {
 }
 
 async function main() {
-  const adminPasswordHash = await hashPassword("admin123");
-  const rtPasswordHash = await hashPassword("rt123456");
-  const supervisorPasswordHash = await hashPassword("supervisor123");
+  const adminPassword = seedSecret("SEED_ADMIN_PASSWORD");
+  const rtPassword = seedSecret("SEED_RT_PASSWORD");
+  const supervisorPassword = seedSecret("SEED_SUPERVISOR_PASSWORD");
+  const uploadToken = seedSecret("SEED_UPLOAD_TOKEN");
+  const adminPasswordHash = await hashPassword(adminPassword);
+  const rtPasswordHash = await hashPassword(rtPassword);
+  const supervisorPasswordHash = await hashPassword(supervisorPassword);
 
   const organization = await prisma.organization.upsert({
     where: { id: "demo-org" },
@@ -581,7 +590,7 @@ async function main() {
   });
 
   await prisma.uploadToken.upsert({
-    where: { tokenHash: hashUploadToken("demo-upload-token") },
+    where: { tokenHash: hashUploadToken(uploadToken) },
     update: {
       professionalId: expiringProfessional.id,
       licenseId: expiringLicense.id,
@@ -592,7 +601,7 @@ async function main() {
     create: {
       professionalId: expiringProfessional.id,
       licenseId: expiringLicense.id,
-      tokenHash: hashUploadToken("demo-upload-token"),
+      tokenHash: hashUploadToken(uploadToken),
       expiresAt: addDays(7),
       active: true
     }
@@ -693,10 +702,11 @@ async function main() {
   });
 
   console.log("Demo seed ready:");
-  console.log("- Admin: admin@example.com / admin123");
-  console.log("- RT: rt@example.com / rt123456");
-  console.log("- Supervisor: supervisor@example.com / supervisor123");
-  console.log("- Public upload token: demo-upload-token");
+  console.log(`- Admin: admin@example.com / ${adminPassword}`);
+  console.log(`- RT: rt@example.com / ${rtPassword}`);
+  console.log(`- Supervisor: supervisor@example.com / ${supervisorPassword}`);
+  console.log(`- Public upload token: ${uploadToken}`);
+  console.log("- Set SEED_ADMIN_PASSWORD, SEED_RT_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local demo credentials.");
   console.log("- Notifications use NOTIFICATION_PROVIDER=fake until Meta envs are configured.");
 }
 
