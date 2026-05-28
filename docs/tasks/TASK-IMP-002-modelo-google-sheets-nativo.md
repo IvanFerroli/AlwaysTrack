@@ -1,7 +1,7 @@
 # TASK-IMP-002 - Modelo Google Sheets nativo com dropdowns baseados no banco
 
 ## Metadata
-- status: completed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-05-28
 - source-of-truth: docs/tasks/TASK-IMP-002-modelo-google-sheets-nativo.md
@@ -202,7 +202,7 @@ Observacao:
 5. Nenhuma env real, migration, controller, service ou rota implementada.
 
 ## Execucao
-- Normalizada como concluida apos verificacao material em 2026-05-28.
+- Normalizada como `completed-mvp` apos verificacao material em 2026-05-28.
 - A implementacao existente cobre a geracao de Google Sheet nativo via `services/api/src/core/imports/google-sheets-template.service.ts`.
 - O endpoint `GET /v1/imports/professionals-licenses/template/google-sheet` esta registrado em `services/api/src/app.ts` e delegado por `services/api/src/core/imports/imports.handlers.ts`.
 - As listas de unidades, setores, RTs, tipos de licenca e status sao carregadas do contrato atual do importador.
@@ -222,6 +222,7 @@ Observacao:
 - Smoke real com Google Sheets/Drive depende de credenciais e APIs habilitadas fora do repositorio.
 - Service Account em Meu Drive pessoal segue fragil para alguns cenarios; OAuth por usuario e tratado em `TASK-IMP-003`.
 - Dropdown global de `sector_name` ainda depende da validacao backend final para bloquear combinacoes invalidas.
+- Fechamento `completed` final depende de smoke real com credenciais Google.
 
 ## Plano de teste manual
 - revisar a task com quem vai operar o fluxo

@@ -63,8 +63,8 @@ Sequenciar todas as tasks para que a ultima entrega deixe a V1 operacional apres
 49. `TASK-UX-008` ajuda contextual complementar e Como usar intuitivo.
 50. `TASK-UX-009` icones SVG intuitivos na navegacao.
 51. `TASK-IMP-001` importacao CSV de profissionais e licencas.
-52. `TASK-IMP-002` modelo Google Sheets nativo com dropdowns baseados no banco. Status: completed.
-53. `TASK-IMP-003` OAuth Google por usuario para geracao de planilhas de importacao. Status: completed.
+52. `TASK-IMP-002` modelo Google Sheets nativo com dropdowns baseados no banco. Status: completed-mvp.
+53. `TASK-IMP-003` OAuth Google por usuario para geracao de planilhas de importacao. Status: completed-mvp.
 54. `TASK-NOT-006` escalonamento para RT/superior nos ultimos avisos.
 55. `TASK-PAT-001` patches MVP: telefone em usuarios, datas BR, logo e envio manual de notificacoes. Status: completed.
 56. `TASK-AI-001` analise automatica de documentos por OCR/IA. Status: completed-mvp.

@@ -1,7 +1,7 @@
 # TASK-IMP-003 - OAuth Google por usuario para geracao de planilhas de importacao
 
 ## Metadata
-- status: completed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-05-28
 - source-of-truth: docs/tasks/TASK-IMP-003-oauth-google-usuario-planilhas-importacao.md
@@ -253,7 +253,7 @@ Observacao:
 6. Os proximos passos de implementacao ficaram claros.
 
 ## Execucao
-- Normalizada como concluida apos verificacao material em 2026-05-28.
+- Normalizada como `completed-mvp` apos verificacao material em 2026-05-28.
 - A implementacao existente cobre status, inicio OAuth, callback e desconexao em `services/api/src/core/integrations/google/google.handlers.ts`.
 - A logica de OAuth por usuario, PKCE/state, criptografia de refresh token, refresh de access token e fallback Service Account esta em `services/api/src/core/integrations/google/google-oauth.service.ts`.
 - A persistencia esta modelada em `GoogleConnection` e `GoogleOauthState`, com migration `20260507182901_google_oauth_user_connections`.
@@ -274,6 +274,9 @@ Observacao:
 - Smoke real do OAuth depende de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` e consent screen configurados.
 - O armazenamento de refresh token continua sendo superficie sensivel e depende da guarda correta de `GOOGLE_TOKEN_ENCRYPTION_KEY` ou `SESSION_SECRET`.
 - Popups/callbacks devem ser validados manualmente no navegador do ambiente alvo.
+- O listener de `postMessage` da UI ainda deve validar `event.origin` antes de fechamento final.
+- A desconexao local remove a conexao persistida, mas nao revoga o token diretamente no Google.
+- Em modo OAuth, a resposta pode listar o proprio usuario em `sharedWith` embora a planilha ja pertença a ele.
 
 ## Validacao
 - comandos/checks:
