@@ -23,12 +23,18 @@
 - O fluxo manual de upload/validacao permanece intacto.
 
 ## Configuracao operacional
-- Para extracao real, configurar sem commitar:
+- Providers suportados: `fake` (default, sem envio externo), `openai`, `gemini`.
+- Para extracao real com OpenAI:
   - `DOCUMENT_AI_PROVIDER=openai`
   - `OPENAI_API_KEY=...`
   - opcional: `DOCUMENT_AI_MODEL=gpt-4.1-mini`
+- Para extracao real com Gemini:
+  - `DOCUMENT_AI_PROVIDER=gemini`
+  - `GEMINI_API_KEY=...`
+  - opcional: `DOCUMENT_AI_MODEL=gemini-2.5-flash` (default)
 - Sem essas envs, o provider `fake` responde com aviso e nao envia documento a terceiros.
 - A imagem/PDF nao e logada em console nem gravada no resultado da extracao; o sistema armazena apenas JSON estruturado e `rawText` retornado pelo provider.
+- Provider Gemini adicionado em 2026-05-05; `.env.example` atualizado em EXEC-TMP-001 (2026-05-28).
 
 ## Objetivo unico
 Extrair automaticamente dados estruturados de imagens/PDFs de documentos profissionais enviados ao SyLembra, para pre-preencher cadastro de profissional/licenca e reduzir digitacao manual, mantendo revisao humana obrigatoria antes de salvar ou validar.

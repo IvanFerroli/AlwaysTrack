@@ -15,17 +15,16 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | Item | Descricao | Status |
 | --- | --- | --- |
 | 1 | Resolver P0 de higiene e seguranca | completed (b74975c, 8fb6957) |
-| 2 | Sincronizar docs com runtime real | in-progress (intake/runbooks: b89fa06; .env.example IA: EXEC-TMP-001; tasks drift: EXEC-TMP-002 pendente) |
+| 2 | Sincronizar docs com runtime real | completed (b89fa06, bca395c, EXEC-TMP-002) |
 | 3 | Definir fronteira do template | completed (ADR-002 em 1d6fa57) |
 | 4 | Escolher contrato de producao banco/storage | pending (EXEC-TMP-003 a rotar) |
 | 5 | Parametrizar marca, seed, tenant publico, templates | pending |
 | 6 | Validar em clone limpo | pending |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-001 (2026-05-28): .env.example + adendos docs pos-V1 (v1-demo-acceptance, lgpd-security-review, orchestrator-state)
+- EXEC-TMP-002 (2026-05-28): normalizacao de status tasks (done->completed em 5 tasks) + Gemini em TASK-AI-001 + ROADMAP item 2 fechado
 
 ## Proximo ciclo a rotar
-- EXEC-TMP-002: fechar drift de status em tasks identificadas pela auditoria (TASK-AI-001, TASK-NOT-006, TASK-NOT-007, TASK-IMP-001, TASK-UX-010, ROADMAP)
 - EXEC-TMP-003: ADR de banco e storage de producao (ROADMAP item 4)
 
 ## Blockers conhecidos

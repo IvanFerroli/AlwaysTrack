@@ -1,7 +1,7 @@
 # TASK-BRD-001 - Aplicar favicon e identidade web da marca
 
 ## Metadata
-- status: done
+- status: completed
 - owner: olympus_taskyfier
 - executor: olympus_orchestrator
 - last-updated: 2026-04-30

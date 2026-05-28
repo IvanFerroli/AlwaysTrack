@@ -1,7 +1,7 @@
 # TASK-IMP-001 - Importacao CSV de profissionais e licencas
 
 ## Metadata
-- status: done
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-IMP-001-importacao-csv-profissionais-licencas.md

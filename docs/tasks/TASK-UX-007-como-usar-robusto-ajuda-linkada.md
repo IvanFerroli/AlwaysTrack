@@ -1,7 +1,7 @@
 # TASK-UX-007 - Como usar robusto e ajuda contextual linkada
 
 ## Metadata
-- status: done
+- status: completed
 - owner: taskyfier
 - last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-UX-007-como-usar-robusto-ajuda-linkada.md

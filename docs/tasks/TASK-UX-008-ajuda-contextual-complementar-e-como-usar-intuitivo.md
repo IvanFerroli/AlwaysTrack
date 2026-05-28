@@ -1,7 +1,7 @@
 # TASK-UX-008 - Ajuda contextual complementar e Como usar intuitivo
 
 ## Metadata
-- status: done
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-04-30
 - source-of-truth: docs/tasks/TASK-UX-008-ajuda-contextual-complementar-e-como-usar-intuitivo.md
