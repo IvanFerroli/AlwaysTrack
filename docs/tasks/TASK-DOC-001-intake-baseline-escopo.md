@@ -18,7 +18,7 @@
 Consolidar o documento central em intake, nao objetivos, criterios de sucesso e trilhas de execucao.
 
 ## Inputs
-- `doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
+- `docs/archive/sylembra/doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
 - `docs/project/intake.md`
 - `docs/tasks/ROADMAP.md`
 

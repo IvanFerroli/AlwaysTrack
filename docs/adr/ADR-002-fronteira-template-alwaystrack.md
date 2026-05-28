@@ -20,7 +20,7 @@ O trabalho imediato deve focar em:
 - parametrizacao gradual de marca, seed, tenant demo, integracoes e templates;
 - validacao em clone limpo antes de beta.
 
-Rebrand completo de pacotes, cookie, textos de UI, assets e nomes internos so deve ocorrer depois que a parametrizacao minima estiver definida.
+Rebrand completo de dominio funcional e textos historicos so deve ocorrer depois que a parametrizacao minima estiver definida.
 
 ## Alternativas consideradas
 1. Template de pipeline agentico: manter apenas `docs/pipeline` e esqueletos documentais. Rejeitado porque descartaria o valor operacional ja implementado.
@@ -29,7 +29,7 @@ Rebrand completo de pacotes, cookie, textos de UI, assets e nomes internos so de
 
 ## Consequencias
 - positivas: reduz risco de quebrar o MVP funcional; cria caminho incremental para beta; mantem integracoes externas como modulos opcionais.
-- negativas: o repositorio ainda tera copy de dominio SyLembra ate a fase de parametrizacao.
+- negativas: o repositorio ainda tera copy de dominio de licencas/compliance ate a fase de parametrizacao.
 - trade-offs: velocidade de entrega e menor refatoracao agora em troca de uma etapa posterior de rebrand/extracao mais controlada.
 
 ## Impacto em artefatos

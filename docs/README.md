@@ -11,6 +11,7 @@
 - `docs/tasks/`: tasks pequenas, validaveis e com evidencia.
 - `docs/runbooks/`: procedimentos operacionais repetiveis.
 - `docs/operations/`: auditorias, estados de operacao e historico de ciclos.
+- `docs/archive/`: documentos historicos que nao sao contrato ativo do starter.
 
 ## Ordem de leitura recomendada
 1. `docs/project/README.md`

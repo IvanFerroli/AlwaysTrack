@@ -123,7 +123,7 @@ De 2026-04-23 a 2026-04-26, o historico registra um produto para busca e process
 Fontes principais:
 
 - commits ate `3ae975e` em 2026-04-26;
-- `RELATORIO-PROJETO-2026-04-27.md`.
+- `docs/archive/olympus/RELATORIO-PROJETO-2026-04-27.md`.
 
 ### 5.2 Troca para SyLembra
 
@@ -140,7 +140,7 @@ A partir desse ponto, os commits passam a entregar organizacao, profissionais, l
 
 | Residuo | Estado atual | Decisao para template |
 | --- | --- | --- |
-| `RELATORIO-PROJETO-2026-04-27.md` | Relatorio Olympus Climb ainda na raiz. | Mover para arquivo historico fora do starter ou remover da distribuicao. |
+| `docs/archive/olympus/RELATORIO-PROJETO-2026-04-27.md` | Relatorio Olympus Climb arquivado. | Manter fora da leitura ativa do starter. |
 | Historico Git pre-pivo | Contem implementacoes e documentos do produto anterior. | Manter apenas se o template nao for publicado com historico; em extracao limpa, iniciar novo repo. |
 | Nomes Olympus em agentes/pipeline | Relacionados ao processo, nao ao dominio ativo. | Decidir se o template inclui o kit agentico ou se ele vira pacote separado. |
 
@@ -239,7 +239,7 @@ Fluxo implementado:
 7. Webhook tenta registrar estados recebidos (`SENT`, `DELIVERED`, `READ`, `FAILED`).
 8. `ADMIN` tambem pode disparar notificacao manual por licenca.
 
-Limitacao decisiva: o job nao gera link de upload nem inclui botao dinamico Meta. Essa limitacao esta explicitamente registrada em `doc/meta-whatsapp-templates/`.
+Limitacao decisiva: o job nao gera link de upload nem inclui botao dinamico Meta. Essa limitacao esta explicitamente registrada em `docs/archive/sylembra/doc/meta-whatsapp-templates/`.
 
 ### 7.6 Document AI
 
@@ -360,7 +360,7 @@ Os pontos abaixo nao devem aparecer como capacidades prontas do template sem imp
 | Envio manual de arquivo pelo RH/RT na interface | API de upload autenticado existe; a SPA nao apresenta formulario administrativo equivalente. |
 | Sistema pronto para operacao oficial Meta | Adaptador existe; demo e aceite usam provider `fake`, e a aprovacao/execucao externa nao foi confirmada. |
 
-O arquivo `docs/Dossie_Apresentacao_Sylembra.md` e util como visao de produto, mas nao deve ser usado como manual tecnico sem revisao.
+O arquivo `docs/archive/sylembra/Dossie_Apresentacao_Sylembra.md` e util como visao de produto, mas nao deve ser usado como manual tecnico sem revisao.
 
 ## 11. Riscos reais antes de virar template
 
@@ -405,7 +405,7 @@ O arquivo `docs/Dossie_Apresentacao_Sylembra.md` e util como visao de produto, m
 | Credenciais e dados pessoais em `scripts/flush-local-demo.js` | Dado sensivel e acoplamento de instancia. |
 | Identificadores reais Meta em docs/tasks | Dado de integracao do cliente/instancia. |
 | Logging bruto em `services/api/src/scripts/smoke-google-sheets.ts` | Pode registrar resposta contendo token de acesso. |
-| `RELATORIO-PROJETO-2026-04-27.md` na raiz do starter | Historico de produto substituido, confunde a nova instancia. |
+| relatorio Olympus arquivado fora da raiz do starter | Historico de produto substituido, confunde a nova instancia. |
 | Prints/placeholders e dossie comercial nao auditado, caso o template seja tecnico | Promessas nao equivalem ao contrato do starter. |
 
 ### 12.2 Parametrizar
@@ -531,16 +531,16 @@ Pelo codigo existente, a extracao de menor custo e maior fidelidade e o **starte
 
 ### Documentacao e tasks
 
-- `doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
+- `docs/archive/sylembra/doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
 - `docs/project/intake.md`
 - `docs/tasks/ROADMAP.md`
 - tasks `TASK-DOC`, `TASK-DAT`, `TASK-AUT`, `TASK-LIC`, `TASK-FIL`, `TASK-NOT`, `TASK-RPT`, `TASK-REL`, `TASK-PAT`, `TASK-AI`, `TASK-IMP` e `TASK-UX`
 - `docs/operations/pipeline-audit-2026-04-29.md`
 - `docs/operations/lgpd-security-review-2026-04-30.md`
 - `docs/operations/v1-demo-acceptance-2026-04-30.md`
-- `docs/Dossie_Apresentacao_Sylembra.md`
-- `doc/meta-whatsapp-templates/`
-- `RELATORIO-PROJETO-2026-04-27.md`
+- `docs/archive/sylembra/Dossie_Apresentacao_Sylembra.md`
+- `docs/archive/sylembra/doc/meta-whatsapp-templates/`
+- `docs/archive/olympus/RELATORIO-PROJETO-2026-04-27.md`
 
 ### Historico Git
 

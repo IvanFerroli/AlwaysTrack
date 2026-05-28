@@ -8,16 +8,16 @@
 
 ## Fonte canonica
 - auditoria de transicao: `docs/operations/auditoria-estado-atual-template-2026-05-27.md`
-- documento original SyLembra: `doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
+- documento original SyLembra: `docs/archive/sylembra/doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
 
 ## Objetivo em uma frase
-Usar o MVP SyLembra como base limpa para um starter vertical de controle operacional, preparando o repositorio AlwaysTrack para evoluir sem secrets, dados pessoais ou artefatos locais da instancia original.
+Usar o antigo MVP SyLembra como base limpa para um starter vertical de controle operacional, preparando o repositorio AlwaysTrack para evoluir sem secrets, dados pessoais ou artefatos locais da instancia original.
 
 ## Restricoes explicitas
 - Nao fazer rebrand amplo enquanto a fronteira do template nao estiver definida.
 - Manter commits pequenos, auditaveis e sempre subidos para `origin/main`.
 - Remover secrets, identificadores reais, logs sensiveis e artefatos locais antes de qualquer beta.
-- Preservar o dominio SyLembra funcional ate existir decisao explicita de genericidade ou produto final.
+- Preservar o dominio funcional de licencas/compliance ate existir decisao explicita de genericidade ou produto final.
 - Integracoes externas devem continuar opcionais por env, com provider fake/local como padrao seguro.
 
 ## Realidade atual do runtime

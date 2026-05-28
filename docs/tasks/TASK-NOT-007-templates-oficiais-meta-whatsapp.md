@@ -17,9 +17,9 @@ Criar os templates oficiais da Meta WhatsApp Cloud API, em `pt_BR`, categoria `U
 - Templates de documento e botao `Enviar documento` ficaram explicitamente fora do MVP e documentados como backlog bloqueado por backend.
 
 ## Artefatos gerados em `/doc`
-- `doc/meta-whatsapp-templates/README.md`
-- `doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`
-- `doc/meta-whatsapp-templates/templates-documentos-e-botoes-bloqueados.md`
+- `docs/archive/sylembra/doc/meta-whatsapp-templates/README.md`
+- `docs/archive/sylembra/doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`
+- `docs/archive/sylembra/doc/meta-whatsapp-templates/templates-documentos-e-botoes-bloqueados.md`
 
 Use `templates-licencas-prontos-meta.md` como documento principal para copiar os campos na tela da Meta.
 
@@ -72,12 +72,12 @@ Menor ajuste necessario para liberar:
 
 Enquanto isso nao estiver pronto, os templates oficiais abaixo devem ser criados sem botoes.
 
-Referencia operacional detalhada: `doc/meta-whatsapp-templates/templates-documentos-e-botoes-bloqueados.md`.
+Referencia operacional detalhada: `docs/archive/sylembra/doc/meta-whatsapp-templates/templates-documentos-e-botoes-bloqueados.md`.
 
 ## Templates oficiais criados na Meta
 Detalhes completos, corpos finais, cabecalhos, exemplos e `bodyPreview` estao em:
 
-- `doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`
+- `docs/archive/sylembra/doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`
 
 Templates do MVP:
 - `license_expiration_notice`
@@ -169,7 +169,7 @@ Olá {{1}}, o documento da licença {{2}} número {{3}} foi recusado. Motivo: {{
 3. Categoria usada: `Utility`.
 4. Idioma usado: `Portuguese (BR)` / `pt_BR`.
 5. Nomes exatamente como listados neste documento.
-6. Corpos e exemplos preenchidos conforme `doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`.
+6. Corpos e exemplos preenchidos conforme `docs/archive/sylembra/doc/meta-whatsapp-templates/templates-licencas-prontos-meta.md`.
 7. Modelos enviados para analise da Meta.
 
 ## Validacao esperada apos aprovacao
