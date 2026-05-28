@@ -300,7 +300,7 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
   const { units, sectors, rtUsers, licenseTypes, statuses } = await loadProfessionalsLicensesTemplateLists(prisma, actor);
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "SyLembra";
+  workbook.creator = "AlwaysTrack";
   workbook.created = new Date();
 
   const importSheet = workbook.addWorksheet("Importacao");
@@ -369,7 +369,7 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
     "3. Datas devem ficar em YYYY-MM-DD.",
     "4. rt_email precisa existir como usuário RT ativo no sistema.",
     "5. unit_name, sector_name e license_type precisam existir antes da importação.",
-    "6. Depois de preencher, exporte a aba Importacao como CSV e envie no importador do SyLembra."
+    "6. Depois de preencher, exporte a aba Importacao como CSV e envie no importador do AlwaysTrack."
   ].forEach((line, index) => {
     instructionsSheet.getCell(`A${index + 3}`).value = line;
   });

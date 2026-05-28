@@ -1,6 +1,6 @@
 {
-  "name": "SyLembra",
-  "short_name": "SyLembra",
+  "name": "AlwaysTrack",
+  "short_name": "AlwaysTrack",
   "description": "Operacao de licencas, documentos e notificacoes.",
   "start_url": "/",
   "scope": "/",

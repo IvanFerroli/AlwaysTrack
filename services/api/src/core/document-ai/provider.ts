@@ -162,7 +162,7 @@ export class OpenAiDocumentAiProvider implements DocumentAiProvider {
         text: {
           format: {
             type: "json_schema",
-            name: "sylembra_document_extraction",
+            name: "alwaystrack_document_extraction",
             strict: true,
             schema: extractionSchema()
           }

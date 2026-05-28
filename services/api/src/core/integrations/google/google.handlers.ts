@@ -30,7 +30,7 @@ function callbackHtml(status: "success" | "error", message: string, targetOrigin
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <title>SyLembra - Google</title>
+    <title>AlwaysTrack - Google</title>
   </head>
   <body style="font-family: sans-serif; padding: 24px;">
     <p>${safeMessage}</p>
@@ -86,7 +86,7 @@ export async function googleOauthCallbackHandler(request: Request, response: Res
       env
     );
     response.header("content-type", "text/html; charset=utf-8");
-    return response.status(200).send(callbackHtml("success", "Conexão Google concluída. Pode voltar para o SyLembra.", env.corsOrigin));
+    return response.status(200).send(callbackHtml("success", "Conexão Google concluída. Pode voltar para o AlwaysTrack.", env.corsOrigin));
   } catch (error) {
     const message =
       error instanceof ImportError

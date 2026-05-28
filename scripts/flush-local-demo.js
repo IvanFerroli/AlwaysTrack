@@ -9,7 +9,7 @@ const schemaPath = resolve(rootDir, "services/api/prisma/schema.prisma");
 const storagePath = resolve(rootDir, ".storage/private");
 
 const adminConfig = {
-  organizationName: process.env.FLUSH_DEMO_ORGANIZATION_NAME?.trim() || "SyLembra Demo",
+  organizationName: process.env.FLUSH_DEMO_ORGANIZATION_NAME?.trim() || "AlwaysTrack Demo",
   name: process.env.FLUSH_DEMO_ADMIN_NAME?.trim() || "Admin Demo",
   email: process.env.FLUSH_DEMO_ADMIN_EMAIL?.trim() || "admin@example.com",
   password: process.env.FLUSH_DEMO_ADMIN_PASSWORD?.trim() || randomBytes(12).toString("base64url")
@@ -21,28 +21,28 @@ const notificationTemplates = [
     metaTemplateName: "license_expiration_notice",
     language: "pt_BR",
     bodyPreview:
-      "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+      "Este é um aviso automático do AlwaysTrack.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
   },
   {
     key: "responsible_license_expiration_notice",
     metaTemplateName: "responsible_license_expiration_notice",
     language: "pt_BR",
     bodyPreview:
-      "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
+      "Este é um aviso automático do AlwaysTrack.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
   },
   {
     key: "license_expired_notice",
     metaTemplateName: "license_expired_notice",
     language: "pt_BR",
     bodyPreview:
-      "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+      "Este é um aviso automático do AlwaysTrack.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
   },
   {
     key: "responsible_license_expired_notice",
     metaTemplateName: "responsible_license_expired_notice",
     language: "pt_BR",
     bodyPreview:
-      "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
+      "Este é um aviso automático do AlwaysTrack.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
   }
 ];
 
@@ -157,7 +157,7 @@ async function seedSingleAdmin() {
 
 async function main() {
   console.log("\n====================================================");
-  console.log("SYLEMBRA - FLUSH LOCAL DEMO");
+  console.log("ALWAYSTRACK - FLUSH LOCAL DEMO");
   console.log("====================================================");
   console.log(`Admin preservado/recriado: ${adminConfig.email}`);
   console.log(`Senha do admin desta execucao: ${adminConfig.password}`);

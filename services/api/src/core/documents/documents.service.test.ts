@@ -201,7 +201,7 @@ describe("documents service", () => {
   });
 
   it("reads back files from local private storage", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "sylembra-storage-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "alwaystrack-storage-"));
     tempDirs.push(root);
     const storage = new LocalStorageProvider(root);
 

@@ -537,7 +537,7 @@ function Icon({ name }: { name: IconName }) {
 }
 
 function BrandMark({ className = "" }: { className?: string }) {
-  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="SyLembra" />;
+  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="AlwaysTrack" />;
 }
 
 function InfoTip({ text, href }: { text: string; href?: string }) {
@@ -591,7 +591,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
         <div className="login-brand">
           <BrandMark className="login-brand-mark" />
           <div>
-            <p className="eyebrow">SyLembra</p>
+            <p className="eyebrow">AlwaysTrack</p>
             <h1>Entrar</h1>
           </div>
         </div>
@@ -4144,7 +4144,7 @@ function PublicUploadView({ token }: { token: string }) {
     <main className="auth-page">
       <section className="panel login-panel">
         <div>
-          <p className="eyebrow">SyLembra</p>
+          <p className="eyebrow">AlwaysTrack</p>
           <h1>Enviar documento</h1>
         </div>
         {loading ? <OperationalState state="loading" title="Carregando link" /> : null}
@@ -4180,7 +4180,7 @@ function PublicFaqView() {
   const params = new URLSearchParams(window.location.search);
   const organizationId = params.get("organizationId") || "demo-org";
   const [items, setItems] = useState<FaqItem[]>([]);
-  const [organizationName, setOrganizationName] = useState("SyLembra");
+  const [organizationName, setOrganizationName] = useState("AlwaysTrack");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [problemType, setProblemType] = useState("Duvida sobre envio");
@@ -4629,7 +4629,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         <div className="brand">
           <BrandMark />
           <div>
-            <strong>SyLembra</strong>
+            <strong>AlwaysTrack</strong>
             <small>Licenças e documentos</small>
           </div>
         </div>

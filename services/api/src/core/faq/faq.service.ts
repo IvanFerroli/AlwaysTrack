@@ -233,7 +233,7 @@ export async function buildPublicHelpLink(prisma: PrismaClient, input: PublicHel
 
   const license = professional?.licenses[0];
   const message = [
-    `Ajuda SyLembra - ${input.problemType}`,
+    `Ajuda AlwaysTrack - ${input.problemType}`,
     professional ? `Profissional: ${professional.name}` : `Organizacao: ${organization.name}`,
     license ? `Licenca: ${license.licenseType.name}${license.number ? ` / ${license.number}` : ""}` : null,
     `Mensagem: ${input.message}`

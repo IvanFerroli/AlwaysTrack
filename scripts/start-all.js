@@ -146,7 +146,7 @@ async function prepareDatabase() {
 
 async function main() {
   console.log("\n====================================================");
-  console.log("SYLEMBRA - STARTUP LOCAL");
+  console.log("ALWAYSTRACK - STARTUP LOCAL");
   console.log("====================================================\n");
 
   await run("fuser -k 3333/tcp 5173/tcp 5555/tcp 2>/dev/null || true", "Limpando portas locais do app");

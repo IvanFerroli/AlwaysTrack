@@ -171,10 +171,10 @@ async function main() {
 
   const organization = await prisma.organization.upsert({
     where: { id: "demo-org" },
-    update: { name: "SyLembra Demo", document: "00.000.000/0001-00", active: true },
+    update: { name: "AlwaysTrack Demo", document: "00.000.000/0001-00", active: true },
     create: {
       id: "demo-org",
-      name: "SyLembra Demo",
+      name: "AlwaysTrack Demo",
       document: "00.000.000/0001-00"
     }
   });
@@ -375,7 +375,7 @@ async function main() {
       }
     },
     update: {
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(180),
       expiresAt: addDays(365),
@@ -387,7 +387,7 @@ async function main() {
       professionalId: regularProfessional.id,
       licenseTypeId: licenseType.id,
       number: "DEMO-0001",
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(180),
       expiresAt: addDays(365),
@@ -406,7 +406,7 @@ async function main() {
       }
     },
     update: {
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(330),
       expiresAt: addDays(30),
@@ -416,7 +416,7 @@ async function main() {
       professionalId: expiringProfessional.id,
       licenseTypeId: licenseType.id,
       number: "DEMO-0002",
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(330),
       expiresAt: addDays(30),
@@ -433,7 +433,7 @@ async function main() {
       }
     },
     update: {
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(450),
       expiresAt: daysAgo(15),
@@ -443,7 +443,7 @@ async function main() {
       professionalId: expiredProfessional.id,
       licenseTypeId: licenseType.id,
       number: "DEMO-0003",
-      issuer: "COREN",
+      issuer: "CONSELHO",
       uf: "SP",
       issuedAt: daysAgo(450),
       expiresAt: daysAgo(15),
@@ -455,22 +455,22 @@ async function main() {
     {
       key: "license_expiration_notice",
       bodyPreview:
-        "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+        "Este é um aviso automático do AlwaysTrack.\nOlá, {{professionalName}}. Identificamos que a licença {{licenseTypeName}}, número {{licenseNumber}}, está com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
     },
     {
       key: "responsible_license_expiration_notice",
       bodyPreview:
-        "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
+        "Este é um aviso automático do AlwaysTrack.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, com vencimento programado para {{expiresAt}}. Faltam {{daysUntilExpiration}} dias para o vencimento. Verifique a pendência no sistema e acompanhe a regularização."
     },
     {
       key: "license_expired_notice",
       bodyPreview:
-        "Este é um aviso automático do SyLembra.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
+        "Este é um aviso automático do AlwaysTrack.\nOlá, {{professionalName}}. Identificamos que sua licença {{licenseTypeName}}, número {{licenseNumber}}, venceu em {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Em caso de dúvida, entre em contato com o responsável técnico {{responsibleRtName}} para receber orientações sobre a regularização."
     },
     {
       key: "responsible_license_expired_notice",
       bodyPreview:
-        "Este é um aviso automático do SyLembra.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
+        "Este é um aviso automático do AlwaysTrack.\nOlá, {{responsibleRtName}}. Identificamos que a profissional {{professionalName}} possui a licença {{licenseTypeName}}, número {{licenseNumber}}, vencida desde {{expiresAt}}. A licença está vencida há {{daysExpired}} dias. Verifique a pendência no sistema e acompanhe a regularização."
     }
   ];
 
