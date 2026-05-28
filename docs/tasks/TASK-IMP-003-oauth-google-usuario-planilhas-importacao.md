@@ -1,13 +1,13 @@
 # TASK-IMP-003 - OAuth Google por usuario para geracao de planilhas de importacao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-05-07
+- last-updated: 2026-05-28
 - source-of-truth: docs/tasks/TASK-IMP-003-oauth-google-usuario-planilhas-importacao.md
 
 ## Modo
-- mode: planning
+- mode: verification
 
 ## Objetivo unico
 Planejar a integracao Google Sheets baseada em OAuth 2.0 por usuario, para que a planilha de importacao seja criada no Drive do proprio usuario humano, preservando CSV como contrato final de importacao e mantendo o fluxo atual por Service Account apenas como modo opcional para ambientes Workspace/Shared Drive.
@@ -251,6 +251,29 @@ Observacao:
 4. Nenhuma dependencia instalada nesta rodada.
 5. Nenhuma credencial ou env real commitada nesta rodada.
 6. Os proximos passos de implementacao ficaram claros.
+
+## Execucao
+- Normalizada como concluida apos verificacao material em 2026-05-28.
+- A implementacao existente cobre status, inicio OAuth, callback e desconexao em `services/api/src/core/integrations/google/google.handlers.ts`.
+- A logica de OAuth por usuario, PKCE/state, criptografia de refresh token, refresh de access token e fallback Service Account esta em `services/api/src/core/integrations/google/google-oauth.service.ts`.
+- A persistencia esta modelada em `GoogleConnection` e `GoogleOauthState`, com migration `20260507182901_google_oauth_user_connections`.
+- A UI administrativa expõe conexao Google, desconexao e geracao do template em `apps/web/src/main.tsx`.
+- O endpoint de geracao de planilha prefere OAuth do usuario conectado e cai para Service Account quando aplicavel.
+
+## Evidencias
+- `services/api/src/core/integrations/google/google-oauth.service.ts`
+- `services/api/src/core/integrations/google/google-oauth.service.test.ts`
+- `services/api/src/core/integrations/google/google.handlers.ts`
+- `services/api/prisma/schema.prisma`
+- `services/api/prisma/migrations/20260507182901_google_oauth_user_connections/migration.sql`
+- `apps/web/src/main.tsx`
+- `npm run check`
+- `npm run build --workspace @sylembra/web`
+
+## Riscos residuais
+- Smoke real do OAuth depende de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` e consent screen configurados.
+- O armazenamento de refresh token continua sendo superficie sensivel e depende da guarda correta de `GOOGLE_TOKEN_ENCRYPTION_KEY` ou `SESSION_SECRET`.
+- Popups/callbacks devem ser validados manualmente no navegador do ambiente alvo.
 
 ## Validacao
 - comandos/checks:

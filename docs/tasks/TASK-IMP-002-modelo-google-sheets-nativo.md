@@ -1,13 +1,13 @@
 # TASK-IMP-002 - Modelo Google Sheets nativo com dropdowns baseados no banco
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-05-06
+- last-updated: 2026-05-28
 - source-of-truth: docs/tasks/TASK-IMP-002-modelo-google-sheets-nativo.md
 
 ## Modo
-- mode: planning
+- mode: verification
 
 ## Objetivo unico
 Adicionar um fluxo opcional de geracao de modelo nativo no Google Sheets, com dropdowns alimentados por dados reais do banco, para reduzir erro humano no preenchimento de profissionais/licencas antes da exportacao final para CSV.
@@ -200,6 +200,28 @@ Observacao:
 3. Nenhum arquivo de producao alterado.
 4. Nenhuma dependencia instalada nesta rodada.
 5. Nenhuma env real, migration, controller, service ou rota implementada.
+
+## Execucao
+- Normalizada como concluida apos verificacao material em 2026-05-28.
+- A implementacao existente cobre a geracao de Google Sheet nativo via `services/api/src/core/imports/google-sheets-template.service.ts`.
+- O endpoint `GET /v1/imports/professionals-licenses/template/google-sheet` esta registrado em `services/api/src/app.ts` e delegado por `services/api/src/core/imports/imports.handlers.ts`.
+- As listas de unidades, setores, RTs, tipos de licenca e status sao carregadas do contrato atual do importador.
+- A planilha gera abas `Modelo` e `Listas`, escreve headers, congela header, esconde `Listas` e aplica validacoes nativas por coluna.
+- O fluxo preserva CSV/XLSX como caminhos existentes e nao transforma Google Sheets em fonte canonica de importacao.
+
+## Evidencias
+- `services/api/src/core/imports/google-sheets-template.service.ts`
+- `services/api/src/core/imports/google-sheets-template.service.test.ts`
+- `services/api/src/core/imports/imports.handlers.ts`
+- `services/api/src/app.ts`
+- `services/api/src/config/env.ts`
+- `npm run check`
+- `npm run build --workspace @sylembra/web`
+
+## Riscos residuais
+- Smoke real com Google Sheets/Drive depende de credenciais e APIs habilitadas fora do repositorio.
+- Service Account em Meu Drive pessoal segue fragil para alguns cenarios; OAuth por usuario e tratado em `TASK-IMP-003`.
+- Dropdown global de `sector_name` ainda depende da validacao backend final para bloquear combinacoes invalidas.
 
 ## Plano de teste manual
 - revisar a task com quem vai operar o fluxo
