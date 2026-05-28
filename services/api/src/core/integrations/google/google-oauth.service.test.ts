@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@sylembra/shared";
 import {
   createGoogleOauthStartUrl,
+  disconnectGoogleOauthConnection,
   getGoogleConnectionStatus,
   handleGoogleOauthCallback,
   resolveGoogleTemplateAccess
@@ -187,5 +188,92 @@ describe("google oauth service", () => {
       connected: false,
       preferredMode: "oauth"
     });
+  });
+
+  it("revokes the stored refresh token when disconnecting", async () => {
+    const env = baseEnv();
+    const callbackPrisma = {
+      googleOauthState: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "state-1",
+          userId: admin.id,
+          organizationId: admin.organizationId,
+          codeVerifier: "verifier-123",
+          usedAt: null,
+          expiresAt: new Date(Date.now() + 60_000)
+        }),
+        update: vi.fn().mockResolvedValue({})
+      },
+      googleConnection: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+      $transaction: vi.fn()
+    };
+    callbackPrisma.$transaction.mockImplementation(
+      async (fn: (tx: typeof callbackPrisma) => Promise<unknown>) => fn(callbackPrisma)
+    );
+
+    await handleGoogleOauthCallback(
+      callbackPrisma as never,
+      { code: "code-123", state: "raw-state-123" },
+      env,
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ access_token: "access", refresh_token: "refresh-123" }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      ) as never
+    );
+
+    const refreshTokenEncrypted = String(
+      callbackPrisma.googleConnection.upsert.mock.calls[0]?.[0]?.create?.refreshTokenEncrypted ?? ""
+    );
+    const prisma = {
+      googleConnection: {
+        findUnique: vi.fn().mockResolvedValue({ userId: admin.id, refreshTokenEncrypted }),
+        delete: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+      $transaction: vi.fn()
+    };
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma));
+    const fetcher = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+
+    await expect(disconnectGoogleOauthConnection(prisma as never, admin, env, fetcher as never)).resolves.toEqual({
+      disconnected: true
+    });
+
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe("https://oauth2.googleapis.com/revoke");
+    expect(String(fetcher.mock.calls[0]?.[1]?.body)).toContain("refresh-123");
+    expect(prisma.googleConnection.delete).toHaveBeenCalledOnce();
+    expect(prisma.auditLog.create).toHaveBeenCalledOnce();
+    expect(String(prisma.auditLog.create.mock.calls[0]?.[0]?.data?.metadataJson)).toContain('"revokedRemotely":true');
+  });
+
+  it("keeps local disconnect resilient when Google revoke fails", async () => {
+    const prisma = {
+      googleConnection: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: admin.id,
+          refreshTokenEncrypted: "invalid-token-format"
+        }),
+        delete: vi.fn().mockResolvedValue({})
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+      $transaction: vi.fn()
+    };
+    prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) => fn(prisma));
+    const fetcher = vi.fn();
+
+    await expect(disconnectGoogleOauthConnection(prisma as never, admin, baseEnv(), fetcher as never)).resolves.toEqual({
+      disconnected: true
+    });
+
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(prisma.googleConnection.delete).toHaveBeenCalledOnce();
+    expect(String(prisma.auditLog.create.mock.calls[0]?.[0]?.data?.metadataJson)).toContain('"revokedRemotely":false');
   });
 });

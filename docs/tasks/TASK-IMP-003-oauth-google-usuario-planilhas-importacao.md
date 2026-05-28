@@ -270,12 +270,16 @@ Observacao:
 - `npm run check`
 - `npm run build --workspace @sylembra/web`
 
+## Ajustes de hardening
+- 2026-05-28: a UI passou a validar `event.origin` antes de aceitar `postMessage` do callback OAuth.
+- 2026-05-28: a desconexao passou a tentar revogar o refresh token no endpoint OAuth do Google antes de remover a conexao local.
+- 2026-05-28: a desconexao local permanece resiliente quando a revogacao remota falha ou o token armazenado esta ilegivel.
+- 2026-05-28: o audit log de desconexao registra `revokedRemotely`.
+
 ## Riscos residuais
 - Smoke real do OAuth depende de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` e consent screen configurados.
 - O armazenamento de refresh token continua sendo superficie sensivel e depende da guarda correta de `GOOGLE_TOKEN_ENCRYPTION_KEY` ou `SESSION_SECRET`.
 - Popups/callbacks devem ser validados manualmente no navegador do ambiente alvo.
-- O listener de `postMessage` da UI ainda deve validar `event.origin` antes de fechamento final.
-- A desconexao local remove a conexao persistida, mas nao revoga o token diretamente no Google.
 - Em modo OAuth, a resposta pode listar o proprio usuario em `sharedWith` embora a planilha ja pertença a ele.
 
 ## Validacao

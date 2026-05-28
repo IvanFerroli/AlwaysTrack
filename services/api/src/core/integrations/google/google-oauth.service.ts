@@ -11,6 +11,7 @@ import { ImportError } from "../../imports/professionals-licenses-import.service
 
 const googleOauthAuthorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleOauthTokenUrl = "https://oauth2.googleapis.com/token";
+const googleOauthRevokeUrl = "https://oauth2.googleapis.com/revoke";
 const googleOauthScopes = [
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file"
@@ -267,7 +268,9 @@ export async function handleGoogleOauthCallback(
 
 export async function disconnectGoogleOauthConnection(
   prisma: PrismaClient,
-  actor: CurrentUser
+  actor: CurrentUser,
+  env = loadEnv(),
+  fetcher: Fetcher = fetch
 ) {
   if (actor.role !== "ADMIN") throw new ImportError("FORBIDDEN");
 
@@ -275,6 +278,8 @@ export async function disconnectGoogleOauthConnection(
   if (!existing) {
     return { disconnected: false };
   }
+
+  const revokedRemotely = await revokeStoredGoogleRefreshToken(existing.refreshTokenEncrypted, env, fetcher);
 
   await prisma.$transaction(async (tx) => {
     await tx.googleConnection.delete({ where: { userId: actor.id } });
@@ -285,12 +290,36 @@ export async function disconnectGoogleOauthConnection(
         action: "integrations.google.disconnect",
         entityType: "GoogleConnection",
         entityId: actor.id,
-        metadataJson: JSON.stringify({ provider: "google" })
+        metadataJson: JSON.stringify({ provider: "google", revokedRemotely })
       }
     });
   });
 
   return { disconnected: true };
+}
+
+async function revokeStoredGoogleRefreshToken(
+  refreshTokenEncrypted: string,
+  env: ApiEnv,
+  fetcher: Fetcher
+) {
+  try {
+    const response = await fetcher(googleOauthRevokeUrl, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: decryptSecret(refreshTokenEncrypted, env) })
+    });
+    if (!response.ok) {
+      console.error("GOOGLE_OAUTH_REVOKE_ERROR", { httpStatus: response.status });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("GOOGLE_OAUTH_REVOKE_ERROR", {
+      message: error instanceof Error ? error.message : "Unknown revoke failure"
+    });
+    return false;
+  }
 }
 
 export async function resolveGoogleTemplateAccess(

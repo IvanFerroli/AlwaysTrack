@@ -1546,6 +1546,10 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     return false;
   }
 
+  function expectedGoogleOauthOrigin() {
+    return new URL(apiBaseUrl || window.location.origin, window.location.origin).origin;
+  }
+
   async function requestGoogleSheetTemplate(targetWindow?: Window | null) {
     setImporting(true);
     setImportError(null);
@@ -1604,6 +1608,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       }
 
       async function handleMessage(event: MessageEvent) {
+        if (event.origin !== expectedGoogleOauthOrigin()) return;
         const payload = event.data as { type?: string; status?: string; message?: string } | null;
         if (!payload || payload.type !== "sylembra-google-oauth") return;
         cleanup();
