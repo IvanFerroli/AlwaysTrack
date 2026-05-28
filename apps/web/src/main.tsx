@@ -4178,17 +4178,18 @@ function PublicUploadView({ token }: { token: string }) {
 
 function PublicFaqView() {
   const params = new URLSearchParams(window.location.search);
-  const organizationId = params.get("organizationId") || "demo-org";
+  const organizationId = params.get("organizationId") ?? null;
   const [items, setItems] = useState<FaqItem[]>([]);
   const [organizationName, setOrganizationName] = useState("AlwaysTrack");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [problemType, setProblemType] = useState("Duvida sobre envio");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(organizationId ? null : "Link de FAQ invalido: organizationId ausente.");
+  const [loading, setLoading] = useState(!!organizationId);
 
   async function load() {
+    if (!organizationId) return;
     setLoading(true);
     setError(null);
     const search = new URLSearchParams({ organizationId });

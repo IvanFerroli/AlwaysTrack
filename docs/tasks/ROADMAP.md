@@ -14,7 +14,7 @@ Preservar o historico da V1 SyLembra ja entregue e orientar a transicao do repos
 2. Sincronizar intake, runbooks e roadmap com o runtime real. Status: completed. Commits: `b89fa06` (intake/runbooks), `bca395c` (env.example IA + adendos pos-V1), `EXEC-TMP-002` (status tasks + provider Gemini).
 3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado. Status: accepted em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`.
 4. Escolher contrato de producao para banco e storage antes de prometer beta fora de ambiente controlado. Status: accepted em `docs/adr/ADR-003-contrato-banco-producao.md` e `docs/adr/ADR-004-contrato-storage-producao.md`.
-5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira.
+5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira. Status: in-progress. Seed e flush-local-demo ja usam env vars; FAQ publica sem fallback demo-org (EXEC-TMP-004); parametrizacao de APP_NAME/cookie por env pendente de task propria.
 6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`.
 
 ## Historico SyLembra preservado

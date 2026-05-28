@@ -18,14 +18,14 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 2 | Sincronizar docs com runtime real | completed (b89fa06, bca395c, EXEC-TMP-002) |
 | 3 | Definir fronteira do template | completed (ADR-002 em 1d6fa57) |
 | 4 | Escolher contrato de producao banco/storage | completed (ADR-003, ADR-004 em EXEC-TMP-003) |
-| 5 | Parametrizar marca, seed, tenant publico, templates | pending |
+| 5 | Parametrizar marca, seed, tenant publico, templates | in-progress (EXEC-TMP-004: FAQ sem fallback demo-org; APP_NAME por env pendente) |
 | 6 | Validar em clone limpo | pending |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-003 (2026-05-28): ADR-003 (banco SQLite/Postgres) + ADR-004 (storage local/externo) + ROADMAP item 4 fechado
+- EXEC-TMP-004 (2026-05-28): FAQ publica sem fallback demo-org + ROADMAP item 5 in-progress
 
 ## Proximo ciclo a rotar
-- EXEC-TMP-004: ROADMAP item 5 — parametrizar marca, seed, tenant publico e templates
+- EXEC-TMP-005: ROADMAP item 6 — validar em clone limpo (npm install, npm run setup, npm run check)
 
 ## Blockers conhecidos
 - Nenhum blocker tecnico critico. Decisions externas pendentes: banco/storage de producao, nivel de genericidade do template.
