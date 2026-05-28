@@ -17,15 +17,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 1 | Resolver P0 de higiene e seguranca | completed (b74975c, 8fb6957) |
 | 2 | Sincronizar docs com runtime real | completed (b89fa06, bca395c, EXEC-TMP-002) |
 | 3 | Definir fronteira do template | completed (ADR-002 em 1d6fa57) |
-| 4 | Escolher contrato de producao banco/storage | pending (EXEC-TMP-003 a rotar) |
+| 4 | Escolher contrato de producao banco/storage | completed (ADR-003, ADR-004 em EXEC-TMP-003) |
 | 5 | Parametrizar marca, seed, tenant publico, templates | pending |
 | 6 | Validar em clone limpo | pending |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-002 (2026-05-28): normalizacao de status tasks (done->completed em 5 tasks) + Gemini em TASK-AI-001 + ROADMAP item 2 fechado
+- EXEC-TMP-003 (2026-05-28): ADR-003 (banco SQLite/Postgres) + ADR-004 (storage local/externo) + ROADMAP item 4 fechado
 
 ## Proximo ciclo a rotar
-- EXEC-TMP-003: ADR de banco e storage de producao (ROADMAP item 4)
+- EXEC-TMP-004: ROADMAP item 5 — parametrizar marca, seed, tenant publico e templates
 
 ## Blockers conhecidos
 - Nenhum blocker tecnico critico. Decisions externas pendentes: banco/storage de producao, nivel de genericidade do template.
