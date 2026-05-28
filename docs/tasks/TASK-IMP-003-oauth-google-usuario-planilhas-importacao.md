@@ -268,7 +268,7 @@ Observacao:
 - `services/api/prisma/migrations/20260507182901_google_oauth_user_connections/migration.sql`
 - `apps/web/src/main.tsx`
 - `npm run check`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 
 ## Ajustes de hardening
 - 2026-05-28: a UI passou a validar `event.origin` antes de aceitar `postMessage` do callback OAuth.

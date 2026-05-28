@@ -12,4 +12,4 @@ COPY . .
 RUN npm run prisma:generate && npm run build --workspaces --if-present
 
 EXPOSE 3333
-CMD ["npm", "run", "start", "--workspace", "@sylembra/api"]
+CMD ["npm", "run", "start", "--workspace", "@alwaystrack/api"]

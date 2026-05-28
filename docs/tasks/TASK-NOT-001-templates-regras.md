@@ -56,5 +56,5 @@ Implementar NotificationTemplate e NotificationRule como configuracao, sem hardc
 ## Validacao realizada
 - `npm run check` passou com 73 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: criar template e regra por API.

@@ -127,7 +127,7 @@ O `Como usar` atual cobre apenas orientacao basica. Ele ainda deixa brechas para
 4. Revisao manual feita nas telas: dashboard, profissionais, licencas, documentos, relatorios, auditoria, configuracoes e Como usar.
 
 ## Validacao
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 - revisao manual desktop e mobile
 - teste manual de teclado nos icones `i`
@@ -164,4 +164,4 @@ O `Como usar` atual cobre apenas orientacao basica. Ele ainda deixa brechas para
 
 ## Evidencias 2026-04-30
 - Anchors implementadas: `#visao-geral`, `#primeiro-acesso`, `#dashboard`, `#profissionais`, `#licencas`, `#documentos`, `#upload-publico`, `#notificacoes`, `#relatorios`, `#auditoria`, `#configuracoes`, `#perfis-e-permissoes`, `#filtros-e-ids`, `#problemas-comuns`.
-- Validacao executada: `npm run build --workspace @sylembra/web` e `npm run check`.
+- Validacao executada: `npm run build --workspace @alwaystrack/web` e `npm run check`.

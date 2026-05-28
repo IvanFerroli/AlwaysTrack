@@ -96,7 +96,7 @@ Recomendacao central: extrair um template somente apos separar `pipeline reutili
 | Validacao | Resultado |
 | --- | --- |
 | `npm run check` | Passou: lint/typecheck e 111 testes em 22 arquivos de teste da API. |
-| `npm run build --workspace @sylembra/web` | Passou: build Vite de producao concluido. |
+| `npm run build --workspace @alwaystrack/web` | Passou: build Vite de producao concluido. |
 | `npx prisma validate --schema services/api/prisma/schema.prisma` | Passou: schema valido. |
 
 Nao foram executados:
@@ -166,7 +166,7 @@ O frontend e uma SPA React. As rotas publicas detectadas sao:
 - `/upload/:token`: envio publico de documento por link temporario;
 - `/faq`: FAQ publica e geracao de link `wa.me` para suporte.
 
-O restante exige sessao via cookie `sylembra_session`.
+O restante exige sessao via cookie `alwaystrack_session`.
 
 O backend autentica usuarios internos e aplica tres roles:
 
@@ -412,7 +412,7 @@ O arquivo `docs/archive/sylembra/Dossie_Apresentacao_Sylembra.md` e util como vi
 
 | Item atual | Parametro/abstracao desejada |
 | --- | --- |
-| Nome `SyLembra`, favicon, manifest, textos, cookie `sylembra_session` | Configuracao de marca/app gerada no bootstrap. |
+| Nome `SyLembra`, favicon, manifest, textos, cookie `alwaystrack_session` | Configuracao de marca/app gerada no bootstrap. |
 | Seed demo COREN/hospital/profissionais | Fixture anonima e opcional do exemplo vertical. |
 | `demo-org` na FAQ publica | Tenant obtido por slug/config ou exemplo explicitamente separado. |
 | Organizacao criada apenas por seed/estado existente | Comando de bootstrap neutro ou fluxo de onboarding definido pelo template. |

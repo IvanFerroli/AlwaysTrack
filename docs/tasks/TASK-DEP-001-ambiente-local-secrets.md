@@ -55,4 +55,4 @@ Documentar e automatizar ambiente local com banco, storage fake/real e secrets s
 - `npm run env:check` - passou em modo local.
 - `npm run setup` - passou.
 - `npm run check` - 88 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.

@@ -65,11 +65,11 @@ Hoje `NotificationRule` ja possui `notifyRt` e o scanner cria destinatarios `pro
 - Seed demo inclui regra inicial sem RT e regra final com RT.
 
 ## Validacao executada
-- `npm run test --workspace @sylembra/api -- notifications.service.test.ts`
-- `npm run typecheck --workspace @sylembra/api`
-- `npm run typecheck --workspace @sylembra/web`
+- `npm run test --workspace @alwaystrack/api -- notifications.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run typecheck --workspace @alwaystrack/web`
 - `npm run check`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npx prisma validate --schema services/api/prisma/schema.prisma`
 
 ## Acceptance Criteria
@@ -84,13 +84,13 @@ Hoje `NotificationRule` ja possui `notifyRt` e o scanner cria destinatarios `pro
 ## Definition of Done
 1. Testes unitarios cobrem regra sem RT, regra com RT, RT sem telefone e payload detalhado.
 2. `npm run check` passa.
-3. `npm run build --workspace @sylembra/web` passa se houver ajuste frontend.
+3. `npm run build --workspace @alwaystrack/web` passa se houver ajuste frontend.
 4. Como usar/ajuda contextual explica quando o superior recebe copia.
 
 ## Validacao
 - comandos/checks:
   - `npm run check`
-  - `npm run build --workspace @sylembra/web`
+  - `npm run build --workspace @alwaystrack/web`
 - revisao manual:
   - criar regra 60 dias sem RT e regra 30 dias com RT
   - rodar scanner dry-run

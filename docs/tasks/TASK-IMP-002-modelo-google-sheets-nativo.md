@@ -216,7 +216,7 @@ Observacao:
 - `services/api/src/app.ts`
 - `services/api/src/config/env.ts`
 - `npm run check`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 
 ## Riscos residuais
 - Smoke real com Google Sheets/Drive depende de credenciais e APIs habilitadas fora do repositorio.

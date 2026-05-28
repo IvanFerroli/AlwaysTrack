@@ -56,4 +56,4 @@ Auditar dados sensiveis, acesso, tokens, storage, logs e exports antes do aceite
 - `docs/operations/lgpd-security-review-2026-04-30.md`
 - `services/api/src/core/licenses/licenses.service.ts`
 - `services/api/src/core/quality/main-flow.e2e.test.ts`
-- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.
+- `npm run test --workspace @alwaystrack/api` - 18 arquivos, 90 testes passaram.

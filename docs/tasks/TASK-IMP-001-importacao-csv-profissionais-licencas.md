@@ -172,7 +172,7 @@ Implementar primeiro CSV unico, com dry-run obrigatorio e commit bloqueado enqua
 - Testes unitarios adicionados para validacao, permissao, erro por linha e commit.
 
 ## Validacao executada
-- `npm run build --workspace @sylembra/web`
-- `npm run typecheck --workspace @sylembra/api`
-- `npm run test --workspace @sylembra/api -- professionals-licenses-import.service.test.ts`
+- `npm run build --workspace @alwaystrack/web`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run test --workspace @alwaystrack/api -- professionals-licenses-import.service.test.ts`
 - `npm run check`

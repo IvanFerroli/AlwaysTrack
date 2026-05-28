@@ -58,7 +58,7 @@ Os prints e a descricao de UX indicam pontos de acabamento: acentuacao, labels, 
 3. Nao ha mudanca funcional alem de copy e apresentacao.
 
 ## Validacao
-- comandos/checks: `npm run build --workspace @sylembra/web`, `npm run check`
+- comandos/checks: `npm run build --workspace @alwaystrack/web`, `npm run check`
 - revisao manual: profissionais, licencas, documentos, relatorios, auditoria e configuracoes em desktop/mobile
 
 ## Evidencia esperada
@@ -78,7 +78,7 @@ Os prints e a descricao de UX indicam pontos de acabamento: acentuacao, labels, 
 - `apps/web/src/main.tsx`
 - `apps/web/src/components/operational.tsx`
 - `apps/web/src/styles.css`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Blockers possiveis

@@ -121,10 +121,10 @@ Durante a validacao do fluxo Meta WhatsApp e da UI operacional, foram identifica
 
 ## Validacao
 - comandos/checks:
-  - `npm run typecheck --workspace @sylembra/web`
-  - `npm run typecheck --workspace @sylembra/api`
+  - `npm run typecheck --workspace @alwaystrack/web`
+  - `npm run typecheck --workspace @alwaystrack/api`
   - testes focados de usuarios/notificacoes se houver backend novo
-  - `npm run build --workspace @sylembra/web`
+  - `npm run build --workspace @alwaystrack/web`
 - revisao manual:
   - criar usuario RT com telefone;
   - conferir telefone salvo;
@@ -157,6 +157,6 @@ Durante a validacao do fluxo Meta WhatsApp e da UI operacional, foram identifica
 - proximo passo recomendado
 
 ## Evidencia de validacao
-- `npm run typecheck --workspace @sylembra/api`
-- `npm run typecheck --workspace @sylembra/web`
-- `npm run test --workspace @sylembra/api -- notifications.service.test.ts documents.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run typecheck --workspace @alwaystrack/web`
+- `npm run test --workspace @alwaystrack/api -- notifications.service.test.ts documents.service.test.ts`

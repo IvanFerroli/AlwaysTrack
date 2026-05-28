@@ -59,5 +59,5 @@ Implementar fila de documentos pendentes e acao de aprovar/recusar com motivo.
 ## Validacao realizada
 - `npm run check` passou com 62 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: gerar token, upload publico PDF, consultar fila, aprovar documento, conferir licenca `REGULAR` e auditoria `document.approve`.

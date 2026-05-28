@@ -51,6 +51,6 @@ Cobrir regras criticas de dominio e integracoes internas antes do E2E final.
 - Mantida cobertura existente para status de licenca, tokens/upload, relatorios, roles, documentos, auth, auditoria e jobs.
 
 ## Evidencias
-- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.
+- `npm run test --workspace @alwaystrack/api` - 18 arquivos, 90 testes passaram.
 - `services/api/src/core/notifications/notifications.service.test.ts`
 - `services/api/src/core/quality/main-flow.e2e.test.ts`

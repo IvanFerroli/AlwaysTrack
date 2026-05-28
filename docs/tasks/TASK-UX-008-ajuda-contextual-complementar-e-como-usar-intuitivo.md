@@ -93,7 +93,7 @@ Adicionar ou expandir secoes com anchors estaveis:
 - Build/check continuam verdes.
 
 ## Validacao
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 - Revisao manual: Profissionais, Licencas, Documentos, Configuracoes, Upload publico, FAQ e Como usar.
 
@@ -109,5 +109,5 @@ Adicionar ou expandir secoes com anchors estaveis:
 - Nenhum `.env`, segredo Meta, token, provider ou job backend foi alterado.
 
 ## Validacao executada
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`

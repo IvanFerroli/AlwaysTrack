@@ -53,5 +53,5 @@ Adicionar listas acionaveis para o que precisa de atencao hoje.
 ## Validacao executada
 - `npm run check` - 83 testes passaram.
 - `npm run setup` - migrations/seed executados com sucesso.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - Smoke local em `/v1/dashboard` confirmou retorno das filas e agregacoes.

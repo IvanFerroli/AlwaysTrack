@@ -56,5 +56,5 @@ Padronizar tabelas, filtros, formularios e badges de status para evitar UI incon
 ## Evidencias
 - `apps/web/src/components/operational.tsx`
 - `apps/web/src/main.tsx`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`

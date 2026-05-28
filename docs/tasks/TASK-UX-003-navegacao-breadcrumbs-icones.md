@@ -60,7 +60,7 @@ Os prints atuais mostram uma UI funcional, mas ainda com pouca orientacao de loc
 4. Screenshot desktop e mobile anexado ou descrito na evidencia.
 
 ## Validacao
-- comandos/checks: `npm run build --workspace @sylembra/web`, `npm run check`
+- comandos/checks: `npm run build --workspace @alwaystrack/web`, `npm run check`
 - revisao manual: desktop e mobile nas telas principais
 
 ## Evidencia esperada
@@ -80,7 +80,7 @@ Os prints atuais mostram uma UI funcional, mas ainda com pouca orientacao de loc
 ## Evidencias
 - `apps/web/src/main.tsx`
 - `apps/web/src/styles.css`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Blockers possiveis

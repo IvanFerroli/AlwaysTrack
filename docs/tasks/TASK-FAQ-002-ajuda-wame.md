@@ -55,5 +55,5 @@ Criar fluxo "Estou tendo problemas" que monta mensagem e abre `wa.me` para respo
 ## Validacao realizada
 - `npm run check` passou com 81 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: gerar link `wa.me` publico usando fallback `SUPPORT_PHONE`.

@@ -51,5 +51,5 @@ Mostrar carga, risco e pendencias por responsavel e area.
 
 ## Validacao executada
 - `npm run check` - 87 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - Smoke local: endpoints de RT e area responderam `ok`.

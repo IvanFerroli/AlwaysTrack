@@ -58,5 +58,5 @@ Permitir que a profissional envie documento por link magico sem login.
 ## Validacao realizada
 - `npm run check` passou com 57 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: token valido, GET publico, upload publico PDF, segundo uso bloqueado e status da licenca em `PENDING_VALIDATION`.

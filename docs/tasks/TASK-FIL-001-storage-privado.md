@@ -57,5 +57,5 @@ Criar adaptador de storage externo privado para PDF/imagem sem salvar arquivo no
 ## Validacao realizada
 - `npm run check` passou com 49 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: health, login admin, upload PDF binario, download via backend com `cmp`, auditoria `document.upload`.

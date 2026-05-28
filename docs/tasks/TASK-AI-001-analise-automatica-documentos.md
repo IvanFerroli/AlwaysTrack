@@ -206,10 +206,10 @@ Observacao: no exemplo enviado, vencimento pode nao estar visivel. O sistema dev
 
 ## Validacao
 - comandos/checks:
-  - `npm run typecheck --workspace @sylembra/api`
-  - `npm run typecheck --workspace @sylembra/web`
+  - `npm run typecheck --workspace @alwaystrack/api`
+  - `npm run typecheck --workspace @alwaystrack/web`
   - testes focados do modulo `document-ai`
-  - `npm run build --workspace @sylembra/web`
+  - `npm run build --workspace @alwaystrack/web`
 - revisao manual:
   - upload de documento por token;
   - analisar documento;
@@ -247,9 +247,9 @@ Observacao: no exemplo enviado, vencimento pode nao estar visivel. O sistema dev
 ## Evidencia de validacao
 - `npx prisma validate --schema services/api/prisma/schema.prisma`
 - `npm run prisma:generate`
-- `npm run typecheck --workspace @sylembra/api`
-- `npm run typecheck --workspace @sylembra/web`
-- `npm run test --workspace @sylembra/api -- notifications.service.test.ts documents.service.test.ts document-ai.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run typecheck --workspace @alwaystrack/web`
+- `npm run test --workspace @alwaystrack/api -- notifications.service.test.ts documents.service.test.ts document-ai.service.test.ts`
 
 ## Ressalvas do MVP
 - Nao foi feita validacao real com documento via OpenAI nesta rodada porque nenhuma `OPENAI_API_KEY` foi configurada no ambiente pelo agente.

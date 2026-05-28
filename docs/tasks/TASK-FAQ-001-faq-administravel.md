@@ -57,5 +57,5 @@ Implementar FAQ com categorias, busca simples e itens ativos por organizacao.
 ## Validacao realizada
 - `npm run check` passou com 81 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: criar FAQ, buscar FAQ publica e consultar auditoria `faq.create`.

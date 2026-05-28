@@ -56,5 +56,5 @@ Gerar, validar, expirar e invalidar tokens de upload armazenados como hash.
 ## Validacao realizada
 - `npm run check` passou com 57 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: gerar token, consultar dados publicos, consumir token e confirmar bloqueio de segundo uso.

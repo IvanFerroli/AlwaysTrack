@@ -58,7 +58,7 @@ A V1 esta demonstravel, mas operadores novos ainda precisam encontrar uma pagina
 3. Nenhum token, secret ou dado real sensivel aparece na pagina.
 
 ## Validacao
-- comandos/checks: `npm run build --workspace @sylembra/web`, `npm run check`
+- comandos/checks: `npm run build --workspace @alwaystrack/web`, `npm run check`
 - revisao manual: acesso como Admin, RT e Supervisor
 
 ## Evidencia esperada
@@ -78,7 +78,7 @@ A V1 esta demonstravel, mas operadores novos ainda precisam encontrar uma pagina
 ## Evidencias
 - `apps/web/src/main.tsx`
 - `apps/web/src/styles.css`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Blockers possiveis

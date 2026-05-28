@@ -56,5 +56,5 @@ Implementar calculo de LicenseStatus sem misturar status de Document.
 ## Validacao realizada
 - `npm run check` passou com 44 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: health, login admin, `POST /v1/licenses/recalculate`, listagem de licencas e auditoria de recalc.

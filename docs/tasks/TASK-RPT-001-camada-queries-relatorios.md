@@ -52,5 +52,5 @@ Criar base de filtros, paginacao e DTOs para relatorios operacionais.
 
 ## Validacao executada
 - `npm run check` - 87 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - `npm run setup` - migrations/seed alinhados.

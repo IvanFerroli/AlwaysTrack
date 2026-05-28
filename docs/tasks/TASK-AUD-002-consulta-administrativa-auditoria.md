@@ -52,7 +52,7 @@ Permitir que Admin consulte trilhas de auditoria por periodo, ator, acao e entid
 - Endpoint exige login e role `ADMIN`.
 - Implementada tela web simples de consulta de auditoria em `apps/web/src/main.tsx`.
 - Smoke real: login admin seguido de consulta retornou evento `auth.login`.
-- Validacao executada: `npm run check` e `npm run build --workspace @sylembra/web`.
+- Validacao executada: `npm run check` e `npm run build --workspace @alwaystrack/web`.
 
 ## Ressalva
 - `TASK-AUT-002` e `TASK-UX-002` ainda nao existem como tasks completas; esta task entregou o minimo necessario de role ADMIN e UI propria para consulta.
@@ -62,4 +62,4 @@ Permitir que Admin consulte trilhas de auditoria por periodo, ator, acao e entid
 - Paginacao da tela agora envia `page` e `pageSize`, com controles de anterior/proxima.
 - Metadata passou a ser exibida em bloco limitado com mascaramento basico de chaves sensiveis.
 - Cobertura do service ampliada para filtros investigativos e limite de `pageSize`.
-- Validacao executada: `npm run check` (84 testes) e `npm run build --workspace @sylembra/web`.
+- Validacao executada: `npm run check` (84 testes) e `npm run build --workspace @alwaystrack/web`.

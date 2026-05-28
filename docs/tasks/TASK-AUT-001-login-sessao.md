@@ -55,4 +55,4 @@ Implementar login para usuarios superiores com senha hash e sessao segura.
 - Login registra `AuditLog`.
 - Implementada tela de login em `apps/web/src/main.tsx`.
 - Seed demo: `admin@example.com` com senha definida por `SEED_ADMIN_PASSWORD` ou impressa pelo seed.
-- Validacao executada: `npm run check`, `npm run build --workspace @sylembra/web`, smoke de login via `curl`.
+- Validacao executada: `npm run check`, `npm run build --workspace @alwaystrack/web`, smoke de login via `curl`.

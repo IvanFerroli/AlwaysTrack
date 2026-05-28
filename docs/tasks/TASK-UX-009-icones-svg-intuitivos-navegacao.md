@@ -46,7 +46,7 @@ A navegacao lateral e superior usava caracteres como `⌂`, `◎`, `◈`, `□`,
 - Build/check permanecem verdes.
 
 ## Validacao
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Riscos

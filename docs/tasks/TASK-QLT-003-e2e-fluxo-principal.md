@@ -54,4 +54,4 @@ Validar o caminho completo admin/RT/profissional/notificacao/relatorio.
 
 ## Evidencias
 - `services/api/src/core/quality/main-flow.e2e.test.ts`
-- `npm run test --workspace @sylembra/api` - 18 arquivos, 90 testes passaram.
+- `npm run test --workspace @alwaystrack/api` - 18 arquivos, 90 testes passaram.

@@ -59,7 +59,7 @@ Permitir criar, editar, ativar/desativar, definir role e resetar senha de usuari
 ## Evidencias de validacao
 - `npm run check`: passou com 22 testes.
 - `npm run setup`: passou.
-- `npm run build --workspace @sylembra/web`: passou.
+- `npm run build --workspace @alwaystrack/web`: passou.
 - Smoke local: `/health`, login admin, listar usuarios, criar usuario RT, editar para `SUPERVISOR`, resetar senha, desativar usuario e consultar auditoria de reset.
 
 ## Riscos remanescentes

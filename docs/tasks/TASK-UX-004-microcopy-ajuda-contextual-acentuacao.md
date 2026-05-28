@@ -57,7 +57,7 @@ Os prints mostram labels tecnicos como `Unidade ID`, `RT ID`, `Tipo ID`, `ACAO`,
 3. Estados e badges continuam visualmente consistentes.
 
 ## Validacao
-- comandos/checks: `npm run build --workspace @sylembra/web`, `npm run check`
+- comandos/checks: `npm run build --workspace @alwaystrack/web`, `npm run check`
 - revisao manual: login, dashboard, documentos, relatorios, auditoria, configuracoes
 
 ## Evidencia esperada
@@ -78,7 +78,7 @@ Os prints mostram labels tecnicos como `Unidade ID`, `RT ID`, `Tipo ID`, `ACAO`,
 - `apps/web/src/main.tsx`
 - `apps/web/src/components/operational.tsx`
 - `apps/web/src/styles.css`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Blockers possiveis

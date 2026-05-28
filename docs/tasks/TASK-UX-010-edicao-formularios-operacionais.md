@@ -21,7 +21,7 @@ Remover edicao de cadastros via `window.prompt` nas telas operacionais principai
 - Exibicao de link de upload continua simples.
 
 ## Validacao esperada
-- `npm run typecheck --workspace @sylembra/web`
+- `npm run typecheck --workspace @alwaystrack/web`
 - testar abrir e cancelar edicao em Profissionais, Licencas e Configuracoes
 - confirmar persistencia das alteracoes sem popup nativo
 

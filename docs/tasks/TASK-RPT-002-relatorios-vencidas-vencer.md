@@ -51,5 +51,5 @@ Implementar relatorios de licencas vencidas e licencas a vencer.
 
 ## Validacao executada
 - `npm run check` - 87 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - Smoke local: endpoints de vencidas e a vencer responderam `ok`.

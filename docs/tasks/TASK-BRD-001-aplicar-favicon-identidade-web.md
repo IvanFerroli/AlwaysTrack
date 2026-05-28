@@ -47,7 +47,7 @@ No WSL, a origem usada foi:
 - `site.webmanifest` criado com nome, cores e icones da marca.
 
 ## Validacao
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run check`
 
 ## Riscos

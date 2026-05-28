@@ -56,7 +56,7 @@ Implementar CRUD operacional de Organization, Unit e Sector com soft deactivatio
 ## Evidencias
 - `npm run check`
 - `npm run setup`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - Smoke local:
   - `GET /health`
   - `POST /v1/auth/login`

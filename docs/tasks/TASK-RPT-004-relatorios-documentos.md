@@ -51,5 +51,5 @@ Implementar relatorios de documentos aguardando validacao e recusados.
 
 ## Validacao executada
 - `npm run check` - 87 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - Smoke local: endpoints de documentos pendentes e recusados responderam `ok`.

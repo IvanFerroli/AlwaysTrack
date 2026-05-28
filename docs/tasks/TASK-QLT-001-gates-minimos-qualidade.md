@@ -48,5 +48,5 @@ Materializar typecheck, lint, test runner e scripts padrao antes das features.
 
 ## Evidencias
 - `npm run check`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`
 - `npm run setup`

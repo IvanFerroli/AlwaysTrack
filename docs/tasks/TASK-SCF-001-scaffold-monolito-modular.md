@@ -57,4 +57,4 @@ Criar a estrutura base React/Vite + Express/TypeScript + packages compartilhados
 ## Evidencias
 - `npm run check`
 - `npm run setup`
-- `npm run build --workspace @sylembra/web`
+- `npm run build --workspace @alwaystrack/web`

@@ -59,5 +59,5 @@ Implementar LicenseType e License com multiplas licencas por profissional.
 ## Validacao realizada
 - `npm run check` passou com 36 testes.
 - `npm run setup` passou.
-- `npm run build --workspace @sylembra/web` passou.
+- `npm run build --workspace @alwaystrack/web` passou.
 - Smoke local: health, login admin, listar/criar tipo, listar/criar licenca e consultar auditoria `license.create`.

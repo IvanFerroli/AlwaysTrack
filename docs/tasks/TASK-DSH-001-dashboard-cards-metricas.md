@@ -53,5 +53,5 @@ Implementar cards principais do dashboard com dados reais do banco.
 ## Validacao executada
 - `npm run check` - 83 testes passaram.
 - `npm run setup` - migrations/seed executados com sucesso.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - Smoke local em `/v1/dashboard` com seed retornou metricas reais.

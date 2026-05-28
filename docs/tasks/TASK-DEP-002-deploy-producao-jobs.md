@@ -58,7 +58,7 @@ Preparar deploy economico com web, API, banco, storage, cron/worker e webhook pu
 ## Validacao executada
 - `npm run job:notifications` - passou com provider fake e retornou JSON operacional.
 - `npm run check` - 88 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - `npm run setup` - migrations/seed alinhados.
 
 ## Ressalva

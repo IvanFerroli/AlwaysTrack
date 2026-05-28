@@ -52,6 +52,6 @@ Adicionar exportacao CSV para relatorios principais usando as mesmas queries val
 
 ## Validacao executada
 - `npm run check` - 88 testes passaram.
-- `npm run build --workspace @sylembra/web` - build passou.
+- `npm run build --workspace @alwaystrack/web` - build passou.
 - `npm run setup` - migrations/seed alinhados.
 - Smoke local: download de `/v1/reports/documents/rejected/csv` retornou `text/csv` e `content-disposition` de anexo.
