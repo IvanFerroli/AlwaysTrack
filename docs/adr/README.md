@@ -13,6 +13,10 @@ Registrar decisoes arquiteturais aceitas com contexto, alternativa e impacto ras
 - Arquivo por ADR: `ADR-###-<slug>.md`
 - Base inicial: `docs/adr/_template.md`
 
+## ADRs ativas
+- `ADR-001`: governanca documental operacional.
+- `ADR-002`: fronteira do template AlwaysTrack como starter vertical de licencas/compliance.
+
 ## Campos obrigatorios
 - `status`
 - `owner`

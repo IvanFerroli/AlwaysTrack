@@ -12,7 +12,7 @@ Preservar o historico da V1 SyLembra ja entregue e orientar a transicao do repos
 ## Trilha atual - transicao para template
 1. Resolver P0 de higiene e seguranca apontados em `docs/operations/auditoria-estado-atual-template-2026-05-27.md`. Status: completed em `b74975c` e `8fb6957`.
 2. Sincronizar intake, runbooks e roadmap com o runtime real. Status: in-progress.
-3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado.
+3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado. Status: accepted em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`.
 4. Escolher contrato de producao para banco e storage antes de prometer beta fora de ambiente controlado.
 5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira.
 6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`.

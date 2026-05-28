@@ -498,7 +498,7 @@ Pelo codigo existente, a extracao de menor custo e maior fidelidade e o **starte
 | P0 | Redigir resposta de autenticacao no smoke Google | Feito em `b74975c`. |
 | P0 | Remover virtualenv temporario do Git | Feito em `8fb6957`. |
 | P1 | Sincronizar tasks/roadmap/intake com codigo atual | Em andamento: intake/runbooks atualizados em 2026-05-28. |
-| P1 | Definir categoria de template e fronteira do dominio | Evita refatoracao sem alvo. |
+| P1 | Definir categoria de template e fronteira do dominio | Feito em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`. |
 | P1 | Corrigir assinatura webhook usando raw body | Feito em 2026-05-28; ver commit `fix(notifications): verify meta webhook raw body`. |
 | P1 | Escolher banco/storage de producao | Contrato arquitetural verdadeiro. |
 | P1 | Parametrizar marca, seed, tenant publico e templates | Reuso seguro. |
