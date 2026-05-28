@@ -40,6 +40,15 @@
 - Pendente externo: preencher credenciais Meta reais para smoke de envio oficial.
 - Pos-V1: E2E browser completo, logger estruturado com redacao e parecer juridico LGPD formal.
 
+## Adendo pos-aceite V1 (2026-05-28)
+As seguintes superficies externas foram adicionadas ao codigo apos o fechamento deste aceite:
+- Google Sheets nativo via Service Account e OAuth por usuario (`TASK-IMP-002`, `TASK-IMP-003`) — commits `8391266`, `6dca974`.
+- Provider Gemini para analise de documentos por IA (`TASK-AI-001`) — commit 2026-05-05.
+- Audit log de `revokedRemotely` no disconnect Google OAuth — commit `3f47743`.
+- Endurecimento do callback OAuth com validacao de `event.origin` e revogacao remota de refresh token.
+
+Essas superficies nao foram cobertas pelo roteiro original e devem ser incluidas em um roteiro de aceite atualizado antes de qualquer beta externo.
+
 ## Evidencias esperadas
 - `npm run check`
 - `npm run prisma:seed`

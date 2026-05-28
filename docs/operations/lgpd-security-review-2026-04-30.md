@@ -27,3 +27,9 @@ Auditoria operacional da V1 conforme secao 19.2 do documento central: dados pess
 - E2E atual e em nivel de dominio/API com mocks de Prisma/provider; nao ha Playwright/browser configurado neste repo.
 - Handler global ainda usa `console.error(error)` para erros inesperados; aceitavel para V1, mas producao deve usar logger estruturado com redacao de payloads.
 - Revisao LGPD nao substitui parecer juridico formal.
+
+## Adendo pos-revisao (2026-05-28)
+Superficies externas adicionadas ao codigo apos esta revisao:
+- Google OAuth por usuario: refresh token cifrado persistido em `GoogleConnection`; chave de cifra via `GOOGLE_TOKEN_ENCRYPTION_KEY`. Revogacao remota implementada e auditada. Risco: rotacao de chave de cifra invalida tokens existentes sem migracao.
+- Provider OpenAI e Gemini para analise de documentos: imagens e PDFs enviados externamente quando provider nao for `fake`. Risco: dados de documento pessoal trafegam para API externa sem consentimento explicito documentado.
+- Smoke script Google redige resposta de autenticacao desde commit `b74975c`; revisao de CI necessaria para garantir que logs nao capturem tokens temporarios em pipelines futuros.
