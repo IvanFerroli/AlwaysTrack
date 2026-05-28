@@ -1,5 +1,5 @@
 {
-  "name": "@sylembra/web",
+  "name": "@alwaystrack/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@sylembra/shared": "file:../../packages/shared",
+    "@alwaystrack/shared": "file:../../packages/shared",
     "@vitejs/plugin-react": "^5.0.4",
     "lucide-react": "^1.14.0",
     "react": "^19.2.0",

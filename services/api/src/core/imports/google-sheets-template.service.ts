@@ -1,7 +1,7 @@
 import { createSign } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv, type ApiEnv } from "../../config/env.js";
 import { resolveGoogleTemplateAccess } from "../integrations/google/google-oauth.service.js";
 import {

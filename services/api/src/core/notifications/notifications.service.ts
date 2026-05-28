@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { notificationChannels, notificationStatuses, type CurrentUser, type NotificationChannel } from "@sylembra/shared";
+import { notificationChannels, notificationStatuses, type CurrentUser, type NotificationChannel } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import type { NotificationProvider } from "./provider.js";

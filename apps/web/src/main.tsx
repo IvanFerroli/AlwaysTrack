@@ -26,7 +26,7 @@ import {
   type CurrentUser,
   type LicenseStatus,
   type UserRole
-} from "@sylembra/shared";
+} from "@alwaystrack/shared";
 import {
   ConfirmButton,
   HelpTip,
@@ -1585,7 +1585,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
     setGoogleAuthBusy(true);
     setImportError(null);
     return new Promise<void>((resolve) => {
-      const popup = preparedWindow ?? openPreparedWindow("sylembra-google-oauth", "popup=yes,width=560,height=720");
+      const popup = preparedWindow ?? openPreparedWindow("alwaystrack-google-oauth", "popup=yes,width=560,height=720");
       if (!popup) {
         window.location.assign(`${apiBaseUrl}/v1/integrations/google/oauth/start`);
         setGoogleAuthBusy(false);
@@ -1610,7 +1610,7 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
       async function handleMessage(event: MessageEvent) {
         if (event.origin !== expectedGoogleOauthOrigin()) return;
         const payload = event.data as { type?: string; status?: string; message?: string } | null;
-        if (!payload || payload.type !== "sylembra-google-oauth") return;
+        if (!payload || payload.type !== "alwaystrack-google-oauth") return;
         cleanup();
         if (payload.status === "success") {
           await loadGoogleStatus();
@@ -1644,11 +1644,11 @@ function ProfessionalsView({ user }: { user: CurrentUser }) {
 
   async function createGoogleSheetTemplate() {
     if (googleStatus?.oauthConfigured && !googleStatus.connected) {
-      const preparedWindow = openPreparedWindow("sylembra-google-oauth", "popup=yes,width=560,height=720");
+      const preparedWindow = openPreparedWindow("alwaystrack-google-oauth", "popup=yes,width=560,height=720");
       await connectGoogleAndGenerateSheet(preparedWindow);
       return;
     }
-    const preparedWindow = openPreparedWindow("sylembra-google-sheet");
+    const preparedWindow = openPreparedWindow("alwaystrack-google-sheet");
     await requestGoogleSheetTemplate(preparedWindow);
   }
 
@@ -4601,8 +4601,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
       openHelpHash(hash);
     }
 
-    window.addEventListener("sylembra:open-help", openHelp);
-    return () => window.removeEventListener("sylembra:open-help", openHelp);
+    window.addEventListener("alwaystrack:open-help", openHelp);
+    return () => window.removeEventListener("alwaystrack:open-help", openHelp);
   }, []);
 
   useEffect(() => {

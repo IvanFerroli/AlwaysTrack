@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
-import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@sylembra/shared";
+import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "../licenses/status.js";
 

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import {
   DocumentError,
   listDocuments,

@@ -107,7 +107,7 @@ async function trySheetsCreate(accessToken: string) {
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      properties: { title: `smoke-sylembra-${Date.now()}` },
+      properties: { title: `smoke-alwaystrack-${Date.now()}` },
       sheets: [{ properties: { title: "Modelo" } }, { properties: { title: "Listas" } }]
     })
   });
@@ -123,7 +123,7 @@ async function tryDriveCreate(accessToken: string, folderId: string) {
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      name: `smoke-sylembra-folder-${Date.now()}`,
+      name: `smoke-alwaystrack-folder-${Date.now()}`,
       mimeType: "application/vnd.google-apps.spreadsheet",
       parents: [folderId]
     })

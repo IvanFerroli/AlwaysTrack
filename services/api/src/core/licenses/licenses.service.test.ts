@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import {
   createLicense,
   createLicenseType,

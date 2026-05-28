@@ -65,24 +65,24 @@ function hashPassword(password) {
 }
 
 function run(command, args, description) {
-  console.log(`\n[SyLembra Flush] ${description}...`);
+  console.log(`\n[AlwaysTrack Flush] ${description}...`);
   execFileSync(command, args, {
     cwd: rootDir,
     env: process.env,
     stdio: "inherit"
   });
-  console.log(`[SyLembra Flush] OK: ${description}`);
+  console.log(`[AlwaysTrack Flush] OK: ${description}`);
 }
 
 function resetStorage() {
-  console.log("\n[SyLembra Flush] Limpando storage privado local...");
+  console.log("\n[AlwaysTrack Flush] Limpando storage privado local...");
   rmSync(storagePath, { recursive: true, force: true });
   mkdirSync(storagePath, { recursive: true });
-  console.log("[SyLembra Flush] OK: storage privado limpo");
+  console.log("[AlwaysTrack Flush] OK: storage privado limpo");
 }
 
 async function seedSingleAdmin() {
-  console.log("\n[SyLembra Flush] Recriando organizacao minima, admin, templates e regras...");
+  console.log("\n[AlwaysTrack Flush] Recriando organizacao minima, admin, templates e regras...");
   const prisma = new PrismaClient();
 
   try {
@@ -148,7 +148,7 @@ async function seedSingleAdmin() {
       googleOauthStates: await prisma.googleOauthState.count()
     };
 
-    console.log("[SyLembra Flush] Estado final:");
+    console.log("[AlwaysTrack Flush] Estado final:");
     console.log(JSON.stringify(counts, null, 2));
   } finally {
     await prisma.$disconnect();
@@ -168,10 +168,10 @@ async function main() {
   run("npx", ["prisma", "generate", "--schema", schemaPath], "Gerando Prisma Client");
   await seedSingleAdmin();
 
-  console.log("\n[SyLembra Flush] Concluido. O ambiente local ficou limpo e com um unico admin.");
+  console.log("\n[AlwaysTrack Flush] Concluido. O ambiente local ficou limpo e com um unico admin.");
 }
 
 main().catch((error) => {
-  console.error("\n[SyLembra Flush] Erro:", error instanceof Error ? error.message : String(error));
+  console.error("\n[AlwaysTrack Flush] Erro:", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

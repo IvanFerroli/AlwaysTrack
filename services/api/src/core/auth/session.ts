@@ -1,7 +1,7 @@
-import type { UserRole } from "@sylembra/shared";
+import type { UserRole } from "@alwaystrack/shared";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export const sessionCookieName = "sylembra_session";
+export const sessionCookieName = "alwaystrack_session";
 
 export interface SessionPayload {
   userId: string;

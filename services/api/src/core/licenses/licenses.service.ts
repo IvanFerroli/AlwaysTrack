@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@sylembra/shared";
+import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "./status.js";
 

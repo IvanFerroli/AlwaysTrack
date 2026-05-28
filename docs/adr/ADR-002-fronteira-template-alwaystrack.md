@@ -29,7 +29,7 @@ Rebrand completo de pacotes, cookie, textos de UI, assets e nomes internos so de
 
 ## Consequencias
 - positivas: reduz risco de quebrar o MVP funcional; cria caminho incremental para beta; mantem integracoes externas como modulos opcionais.
-- negativas: o repositorio ainda tera nomes `@sylembra/*` e copy de dominio ate a fase de parametrizacao.
+- negativas: o repositorio ainda tera copy de dominio SyLembra ate a fase de parametrizacao.
 - trade-offs: velocidade de entrega e menor refatoracao agora em troca de uma etapa posterior de rebrand/extracao mais controlada.
 
 ## Impacto em artefatos

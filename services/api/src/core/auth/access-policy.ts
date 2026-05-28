@@ -1,4 +1,4 @@
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 
 export interface ResourceScope {
   organizationId: string;

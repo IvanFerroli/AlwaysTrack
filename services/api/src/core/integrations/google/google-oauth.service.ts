@@ -5,7 +5,7 @@ import {
   randomBytes
 } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv, type ApiEnv } from "../../../config/env.js";
 import { ImportError } from "../../imports/professionals-licenses-import.service.js";
 

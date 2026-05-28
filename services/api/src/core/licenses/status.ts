@@ -1,4 +1,4 @@
-import type { LicenseStatus } from "@sylembra/shared";
+import type { LicenseStatus } from "@alwaystrack/shared";
 
 export interface LicenseStatusDocument {
   status: string;

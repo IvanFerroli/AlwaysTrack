@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 
 export class ProfessionalError extends Error {

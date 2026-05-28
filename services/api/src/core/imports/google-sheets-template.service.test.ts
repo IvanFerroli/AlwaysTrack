@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { createProfessionalsLicensesGoogleSheetTemplate } from "./google-sheets-template.service.js";
 import { ImportError } from "./professionals-licenses-import.service.js";
 

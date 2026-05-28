@@ -33,7 +33,7 @@ services:
       dockerfile: Dockerfile.api
     env_file:
       - ../.env.production
-    command: ["npm", "run", "job:notifications", "--workspace", "@sylembra/api"]
+    command: ["npm", "run", "job:notifications", "--workspace", "@alwaystrack/api"]
     profiles:
       - jobs
     volumes:

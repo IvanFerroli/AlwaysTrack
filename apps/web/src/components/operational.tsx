@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { DocumentStatus, LicenseStatus, NotificationStatus } from "@sylembra/shared";
+import type { DocumentStatus, LicenseStatus, NotificationStatus } from "@alwaystrack/shared";
 
 type StatusKind = "license" | "document" | "notification" | "active";
 
@@ -62,7 +62,7 @@ export function HelpTip({ text, href }: HelpTipProps) {
 
   function openHelp() {
     if (!href) return;
-    window.dispatchEvent(new CustomEvent("sylembra:open-help", { detail: { hash: href } }));
+    window.dispatchEvent(new CustomEvent("alwaystrack:open-help", { detail: { hash: href } }));
   }
 
   function updatePosition() {

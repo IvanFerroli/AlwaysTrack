@@ -19,7 +19,7 @@ function actorFrom(request: Request) {
 
 function callbackHtml(status: "success" | "error", message: string, targetOrigin?: string) {
   const payload = JSON.stringify({
-    type: "sylembra-google-oauth",
+    type: "alwaystrack-google-oauth",
     status,
     message
   });

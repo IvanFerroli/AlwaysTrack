@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 
 export class ReportError extends Error {
   constructor(public readonly code: "FORBIDDEN" | "INVALID_REPORT") {

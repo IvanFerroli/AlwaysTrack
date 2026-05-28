@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CurrentUser } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { canAccessScopedResource, scopedOrganizationWhere } from "./access-policy.js";
 
 function user(overrides: Partial<CurrentUser>): CurrentUser {

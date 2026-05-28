@@ -1,4 +1,4 @@
-import { userRoles, type CurrentUser, type UserRole } from "@sylembra/shared";
+import { userRoles, type CurrentUser, type UserRole } from "@alwaystrack/shared";
 import type { NextFunction, Request, Response } from "express";
 import { parse } from "cookie";
 import { loadEnv } from "../../config/env.js";

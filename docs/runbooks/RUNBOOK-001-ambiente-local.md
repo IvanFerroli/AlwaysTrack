@@ -28,7 +28,7 @@ Subir a base local do AlwaysTrack/SyLembra sem secrets reais e com banco/storage
 - Prisma Studio: porta `5555` quando iniciado pelo script.
 - Banco: SQLite em `services/api/prisma/dev.db`.
 - Storage: arquivos privados em `services/api/.storage/`.
-- Workspaces npm ainda usam o namespace `@sylembra/*` ate a decisao de rebrand.
+- Workspaces npm usam o namespace `@alwaystrack/*`.
 
 ## Validacao
 - `npm run check`

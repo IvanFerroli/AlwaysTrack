@@ -1,5 +1,5 @@
-import type { CurrentUser } from "@sylembra/shared";
-import { userRoles, type UserRole } from "@sylembra/shared";
+import type { CurrentUser } from "@alwaystrack/shared";
+import { userRoles, type UserRole } from "@alwaystrack/shared";
 import type { PrismaClient } from "@prisma/client";
 import { verifyPassword } from "./password.js";
 import { createSessionToken } from "./session.js";

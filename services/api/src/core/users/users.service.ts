@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { userRoles, type UserRole } from "@sylembra/shared";
+import { userRoles, type UserRole } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { hashPassword } from "../auth/password.js";
 import { parseScopeIds } from "../auth/scope.js";

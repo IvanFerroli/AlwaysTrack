@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = "services/api/prisma/schema.prisma";
 const devDatabasePath = "services/api/prisma/dev.db";
-const fullSchemaSqlPath = ".tmp-sylembra-dev-schema.sql";
-const incrementalSchemaSqlPath = ".tmp-sylembra-dev-migration.sql";
+const fullSchemaSqlPath = ".tmp-alwaystrack-dev-schema.sql";
+const incrementalSchemaSqlPath = ".tmp-alwaystrack-dev-migration.sql";
 const setupOnly = process.argv.includes("--setup-only");
 const noStudio = process.argv.includes("--no-studio");
 const defaultDatabaseUrl = "file:./dev.db";
@@ -54,7 +54,7 @@ function removeIfExists(filePath) {
 
 function run(command, description) {
   return new Promise((resolvePromise, reject) => {
-    console.log(`\n[SyLembra Setup] ${description}...`);
+    console.log(`\n[AlwaysTrack Setup] ${description}...`);
     exec(command, { cwd: rootDir, env }, (error, stdout, stderr) => {
       if (stdout.trim()) {
         console.log(stdout.trim());
@@ -68,7 +68,7 @@ function run(command, description) {
         return;
       }
 
-      console.log(`[SyLembra Setup] OK: ${description}`);
+      console.log(`[AlwaysTrack Setup] OK: ${description}`);
       resolvePromise(stdout);
     });
   });
@@ -135,7 +135,7 @@ async function prepareDatabase() {
         "Aplicando migrations pendentes"
       );
     } else {
-      console.log("\n[SyLembra Setup] Banco SQLite local ja esta alinhado ao schema atual.");
+      console.log("\n[AlwaysTrack Setup] Banco SQLite local ja esta alinhado ao schema atual.");
     }
 
     removeIfExists(incrementalSchemaSqlPath);
@@ -153,11 +153,11 @@ async function main() {
   await prepareDatabase();
 
   if (setupOnly) {
-    console.log("\n[SyLembra Setup] Setup finalizado. Use `npm run up` para subir API, Web e Prisma Studio.");
+    console.log("\n[AlwaysTrack Setup] Setup finalizado. Use `npm run up` para subir API, Web e Prisma Studio.");
     return;
   }
 
-  console.log("\n[SyLembra Setup] Iniciando servicos...");
+  console.log("\n[AlwaysTrack Setup] Iniciando servicos...");
   const processes = [
     spawnService("api", "npm", ["run", "dev:api"], "34"),
     spawnService("web", "npm", ["run", "dev:web"], "32")
@@ -170,7 +170,7 @@ async function main() {
   }
 
   setTimeout(() => {
-    console.log("\n[SyLembra Setup] URLs:");
+    console.log("\n[AlwaysTrack Setup] URLs:");
     console.log("- Web: http://localhost:5173");
     console.log("- API: http://localhost:3333/health");
     if (!noStudio) {
@@ -186,7 +186,7 @@ async function main() {
   }, 2500);
 
   process.on("SIGINT", () => {
-    console.log("\n[SyLembra Setup] Encerrando servicos...");
+    console.log("\n[AlwaysTrack Setup] Encerrando servicos...");
     for (const child of processes) {
       child.kill("SIGINT");
     }
@@ -195,6 +195,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("\n[SyLembra Setup] Erro:", error.message);
+  console.error("\n[AlwaysTrack Setup] Erro:", error.message);
   process.exit(1);
 });

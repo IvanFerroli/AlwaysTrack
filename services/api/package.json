@@ -1,5 +1,5 @@
 {
-  "name": "@sylembra/api",
+  "name": "@alwaystrack/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "@sylembra/shared": "file:../../packages/shared",
+    "@alwaystrack/shared": "file:../../packages/shared",
     "cookie": "^1.0.2",
     "exceljs": "^4.4.0",
     "express": "^5.1.0"
