@@ -499,7 +499,7 @@ Pelo codigo existente, a extracao de menor custo e maior fidelidade e o **starte
 | P0 | Remover virtualenv temporario do Git | Feito em `8fb6957`. |
 | P1 | Sincronizar tasks/roadmap/intake com codigo atual | Em andamento: intake/runbooks atualizados em 2026-05-28. |
 | P1 | Definir categoria de template e fronteira do dominio | Evita refatoracao sem alvo. |
-| P1 | Corrigir assinatura webhook usando raw body | Integracao Meta real. |
+| P1 | Corrigir assinatura webhook usando raw body | Feito em 2026-05-28; ver commit `fix(notifications): verify meta webhook raw body`. |
 | P1 | Escolher banco/storage de producao | Contrato arquitetural verdadeiro. |
 | P1 | Parametrizar marca, seed, tenant publico e templates | Reuso seguro. |
 | P1 | Definir bootstrap/onboarding de nova organizacao | Starter precisa iniciar sem dados da instancia original. |

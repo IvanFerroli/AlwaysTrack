@@ -137,7 +137,16 @@ export function verifyMetaWebhookHandler(request: Request, response: Response) {
 
 export async function metaWebhookHandler(request: Request, response: Response) {
   try {
-    return sendOk(response, await handleMetaWebhook(prisma, request.body, request.header("x-hub-signature-256")));
+    const rawBody = Buffer.isBuffer(request.body) ? request.body.toString("utf8") : JSON.stringify(request.body ?? {});
+    let body: unknown = request.body;
+    if (Buffer.isBuffer(request.body)) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        throw new NotificationError("WEBHOOK_INVALID");
+      }
+    }
+    return sendOk(response, await handleMetaWebhook(prisma, body, request.header("x-hub-signature-256"), rawBody));
   } catch (error) {
     return sendNotificationError(response, error);
   }

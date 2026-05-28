@@ -119,12 +119,13 @@ export function createApp() {
     }
     return next();
   });
+  app.get("/health", (_request, response) => sendOk(response, { status: "ok" }));
+  app.get("/v1/webhooks/meta-whatsapp", verifyMetaWebhookHandler);
+  app.post("/v1/webhooks/meta-whatsapp", express.raw({ limit: "1mb", type: ["application/json", "application/*+json"] }), metaWebhookHandler);
+
   app.use(express.json({ limit: "1mb" }));
   app.use(attachRequestContext);
 
-  app.get("/health", (_request, response) => sendOk(response, { status: "ok" }));
-  app.get("/v1/webhooks/meta-whatsapp", verifyMetaWebhookHandler);
-  app.post("/v1/webhooks/meta-whatsapp", metaWebhookHandler);
   app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
   app.get("/v1/public-faq", listPublicFaqItemsHandler);
   app.post("/v1/public-help/wa-link", buildPublicHelpLinkHandler);

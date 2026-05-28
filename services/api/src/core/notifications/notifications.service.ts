@@ -696,8 +696,7 @@ export function verifyWebhookChallenge(query: Record<string, unknown>) {
   throw new NotificationError("WEBHOOK_INVALID");
 }
 
-export async function handleMetaWebhook(prisma: PrismaClient, body: unknown, signature: string | undefined) {
-  const rawBody = JSON.stringify(body);
+export async function handleMetaWebhook(prisma: PrismaClient, body: unknown, signature: string | undefined, rawBody = JSON.stringify(body)) {
   const env = loadEnv();
   if (env.metaAppSecret && !verifyMetaSignature(rawBody, signature, env.metaAppSecret)) {
     throw new NotificationError("WEBHOOK_INVALID");

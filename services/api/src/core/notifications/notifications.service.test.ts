@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { createHmac } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@sylembra/shared";
 import {
   createNotificationRule,
@@ -24,6 +25,10 @@ const admin: CurrentUser = {
 };
 
 describe("notifications service", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("parses templates and rules without unsupported fields", () => {
     expect(parseNotificationTemplateInput({ key: " venc ", channel: "WHATSAPP", language: "pt_BR", active: false })).toEqual({
       key: "venc",
@@ -360,6 +365,27 @@ describe("notifications service", () => {
     expect(result.updated).toHaveLength(1);
     expect(prisma.notificationJob.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "DELIVERED", deliveredAt: expect.any(Date) }) })
+    );
+  });
+
+  it("uses raw webhook body when validating Meta signatures", async () => {
+    vi.stubEnv("META_APP_SECRET", "secret");
+    const prisma = {
+      notificationJob: {
+        findFirst: vi.fn().mockResolvedValue({ id: "job-1", provider: "meta-whatsapp" }),
+        update: vi.fn().mockResolvedValue({ id: "job-1", status: "READ" })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+    const body = { entry: [{ changes: [{ value: { statuses: [{ id: "wamid.1", status: "read" }] } }] }] };
+    const rawBody = JSON.stringify(body, null, 2);
+    const signature = `sha256=${createHmac("sha256", "secret").update(rawBody).digest("hex")}`;
+
+    const result = await handleMetaWebhook(prisma as never, body, signature, rawBody);
+
+    expect(result.updated).toHaveLength(1);
+    expect(prisma.notificationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ rawPayload: rawBody, status: "READ" }) })
     );
   });
 
