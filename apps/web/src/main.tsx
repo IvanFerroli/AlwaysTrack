@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   BarChart3,
   Bell,
+  BookOpen,
   Check,
   CircleHelp,
   Download,
@@ -38,13 +39,14 @@ import {
 } from "./components/operational";
 import "./styles.css";
 
-type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "audit" | "settings" | "help";
+type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "wiki" | "audit" | "settings" | "help";
 type IconName =
   | "home"
   | "users"
   | "badge"
   | "file"
   | "chart"
+  | "wiki"
   | "audit"
   | "settings"
   | "help"
@@ -67,6 +69,52 @@ interface AuditLogItem {
     email: string;
     role: string;
   };
+}
+
+interface WikiUserRef {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface WikiPageSummary {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  version: number;
+  active: boolean;
+  publishedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: WikiUserRef;
+  editRequests: Array<{ id: string; authorId: string; createdAt: string }>;
+}
+
+interface WikiEditRequestItem {
+  id: string;
+  pageId: string;
+  authorId: string;
+  reviewerId: string | null;
+  baseVersion: number;
+  title: string;
+  content: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  decisionNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  page: { id: string; slug: string; title: string; version: number };
+  author: WikiUserRef;
+  reviewer: WikiUserRef | null;
+}
+
+interface WikiPageDetail extends WikiPageSummary {
+  readReceipts: Array<{ id: string; lastReadAt: string; user: WikiUserRef }>;
+  presences: Array<{ id: string; mode: "READING" | "EDITING"; lastSeenAt: string; user: WikiUserRef }>;
+  revisions: Array<{ id: string; version: number; title: string; createdAt: string; author: WikiUserRef }>;
+  editRequests: WikiEditRequestItem[];
 }
 
 function formatAuditMetadados(value: unknown) {
@@ -484,6 +532,7 @@ const navItems: NavItem[] = [
   { key: "licenses", label: "Licenças", description: "Vencimentos e status", icon: "badge", roles: ["ADMIN", "RT", "SUPERVISOR"] },
   { key: "documents", label: "Documentos", description: "Uploads e validações", icon: "file", roles: ["ADMIN", "RT", "SUPERVISOR"] },
   { key: "reports", label: "Relatórios", description: "Consultas operacionais", icon: "chart", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "wiki", label: "Wiki", description: "Procedimentos e revisões", icon: "wiki", roles: ["ADMIN", "RT", "SUPERVISOR"] },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
   { key: "settings", label: "Configurações", description: "Usuários e organização", icon: "settings", roles: ["ADMIN"] },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: ["ADMIN", "RT", "SUPERVISOR"] }
@@ -521,6 +570,7 @@ const iconComponents: Record<IconName, LucideIcon> = {
   badge: BadgeCheck,
   file: FileText,
   chart: BarChart3,
+  wiki: BookOpen,
   audit: ScrollText,
   settings: Settings,
   help: CircleHelp,
@@ -4324,6 +4374,298 @@ function PublicFaqView() {
   );
 }
 
+function WikiView({ user }: { user: CurrentUser }) {
+  const [pages, setPages] = useState<WikiPageSummary[]>([]);
+  const [requests, setRequests] = useState<WikiEditRequestItem[]>([]);
+  const [selected, setSelected] = useState<WikiPageDetail | null>(null);
+  const [query, setQuery] = useState("");
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [content, setContent] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [decisionNote, setDecisionNote] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadPages(nextSelectedId = selected?.id) {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams();
+    if (query) search.set("query", query);
+    try {
+      const result = await api<{ items: WikiPageSummary[]; total: number }>(`/v1/wiki/pages?${search.toString()}`);
+      setPages(result.items);
+      const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
+      if (nextId) {
+        await openPage(nextId, false);
+      } else {
+        setSelected(null);
+      }
+      if (user.role === "ADMIN") {
+        const queue = await api<{ items: WikiEditRequestItem[]; total: number }>("/v1/wiki/edit-requests?status=PENDING");
+        setRequests(queue.items);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar wiki.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openPage(pageId: string, markRead = true) {
+    const result = await api<{ page: WikiPageDetail }>(`/v1/wiki/pages/${pageId}`);
+    setSelected(result.page);
+    setEditTitle(result.page.title);
+    setEditContent(result.page.content);
+    if (markRead) {
+      await api(`/v1/wiki/pages/${pageId}/read`, { method: "POST", body: JSON.stringify({}) });
+      await api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) });
+    }
+  }
+
+  useEffect(() => {
+    void loadPages();
+  }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    const pageId = selected.id;
+    const timer = window.setInterval(() => {
+      void api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) }).catch(() => null);
+    }, 45_000);
+    return () => window.clearInterval(timer);
+  }, [selected?.id]);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar wiki.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createPage(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      const result = await api<{ page: WikiPageSummary }>("/v1/wiki/pages", {
+        method: "POST",
+        body: JSON.stringify({ title, slug: slug || undefined, content })
+      });
+      setTitle("");
+      setSlug("");
+      setContent("");
+      await loadPages(result.page.id);
+    });
+  }
+
+  async function publishEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!selected) return;
+    await run(async () => {
+      await api(`/v1/wiki/pages/${selected.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: editTitle, content: editContent, baseVersion: selected.version })
+      });
+      await loadPages(selected.id);
+    });
+  }
+
+  async function requestEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!selected) return;
+    await run(async () => {
+      await api("/v1/wiki/edit-requests", {
+        method: "POST",
+        body: JSON.stringify({ pageId: selected.id, title: editTitle, content: editContent, baseVersion: selected.version })
+      });
+      await openPage(selected.id);
+    });
+  }
+
+  async function decideRequest(requestId: string, decision: "approve" | "reject") {
+    await run(async () => {
+      await api(`/v1/wiki/edit-requests/${requestId}/${decision}`, {
+        method: "POST",
+        body: JSON.stringify({ decisionNote: decisionNote || null })
+      });
+      setDecisionNote("");
+      await loadPages(selected?.id);
+    });
+  }
+
+  const pendingForSelected = selected?.editRequests.filter((request) => request.status === "PENDING") ?? [];
+
+  return (
+    <div className="content-stack">
+      <OperationalFilters
+        fields={[
+          {
+            key: "query",
+            label: "Busca",
+            value: query,
+            placeholder: "Titulo, slug ou conteudo",
+            onChange: setQuery
+          }
+        ]}
+        onSubmit={() => void loadPages()}
+      />
+
+      {error ? <OperationalState state="error" title="Falha na wiki" detail={error} /> : null}
+
+      {user.role === "ADMIN" ? (
+        <section className="panel form-panel">
+          <h2>Nova pagina</h2>
+          <form onSubmit={createPage}>
+            <div className="form-grid">
+              <label>
+                Titulo
+                <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              </label>
+              <label>
+                Slug opcional
+                <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="primeiros-passos" />
+              </label>
+              <label className="full-span">
+                Conteudo
+                <textarea rows={5} value={content} onChange={(event) => setContent(event.target.value)} />
+              </label>
+            </div>
+            <div className="form-actions">
+              <button disabled={saving || !title.trim() || !content.trim()}>Publicar</button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      <div className="wiki-layout">
+        <section className="panel table-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Wiki</p>
+              <h2>Paginas</h2>
+            </div>
+          </div>
+          {loading ? (
+            <OperationalState state="loading" title="Carregando wiki" />
+          ) : pages.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma pagina publicada" />
+          ) : (
+            <div className="wiki-page-list">
+              {pages.map((page) => (
+                <button
+                  className={selected?.id === page.id ? "wiki-page-button active" : "wiki-page-button"}
+                  key={page.id}
+                  type="button"
+                  onClick={() => void openPage(page.id)}
+                >
+                  <strong>{page.title}</strong>
+                  <span>v{page.version} / {formatDateBr(page.updatedAt)}</span>
+                  {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="panel wiki-reader-panel">
+          {selected ? (
+            <>
+              <div className="detail-header">
+                <div>
+                  <p className="eyebrow">/{selected.slug}</p>
+                  <h2>{selected.title}</h2>
+                  <p className="muted">Versao {selected.version} publicada em {formatDateBr(selected.publishedAt)}</p>
+                </div>
+              </div>
+              <article className="wiki-content">{selected.content}</article>
+              <div className="wiki-meta-grid">
+                <div>
+                  <strong>Lendo agora</strong>
+                  <p>{selected.presences.length ? selected.presences.map((item) => `${item.user.name} (${item.mode})`).join(", ") : "Ninguem agora"}</p>
+                </div>
+                <div>
+                  <strong>Leitores recentes</strong>
+                  <p>{selected.readReceipts.length ? selected.readReceipts.map((item) => item.user.name).join(", ") : "Sem leitura registrada"}</p>
+                </div>
+                <div>
+                  <strong>Revisoes</strong>
+                  <p>{selected.revisions.map((item) => `v${item.version} ${item.author.name}`).join(", ") || "Sem historico"}</p>
+                </div>
+              </div>
+              {pendingForSelected.length ? (
+                <OperationalState state="success" title={`${pendingForSelected.length} requisicao(oes) pendente(s) nesta pagina`} />
+              ) : null}
+              <form className="wiki-edit-form" onSubmit={user.role === "ADMIN" ? publishEdit : requestEdit}>
+                <h3>{user.role === "ADMIN" ? "Editar e publicar" : "Sugerir alteracao"}</h3>
+                <label>
+                  Titulo
+                  <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+                </label>
+                <label>
+                  Conteudo
+                  <textarea rows={10} value={editContent} onChange={(event) => setEditContent(event.target.value)} />
+                </label>
+                <div className="form-actions">
+                  <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
+                    {user.role === "ADMIN" ? "Publicar versao" : "Enviar para aprovacao"}
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <OperationalState state="empty" title="Selecione uma pagina" />
+          )}
+        </section>
+      </div>
+
+      {user.role === "ADMIN" ? (
+        <section className="panel table-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Moderacao</p>
+              <h2>Requisicoes pendentes</h2>
+            </div>
+            <label className="decision-note-field">
+              Nota da decisao
+              <input value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} />
+            </label>
+          </div>
+          {requests.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma requisicao pendente" />
+          ) : (
+            <OperationalTable
+              items={requests}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "page", header: "Pagina", render: (item) => item.page.title },
+                { key: "author", header: "Autor", render: (item) => item.author.name },
+                { key: "base", header: "Base", render: (item) => `v${item.baseVersion}` },
+                { key: "created", header: "Criada", render: (item) => formatDateTimeBr(item.createdAt) },
+                {
+                  key: "actions",
+                  header: "Acoes",
+                  render: (item) => (
+                    <span className="row-actions">
+                      <button type="button" onClick={() => void decideRequest(item.id, "approve")}>Aprovar</button>
+                      <button className="secondary" type="button" onClick={() => void decideRequest(item.id, "reject")}>Reprovar</button>
+                    </span>
+                  )
+                }
+              ]}
+            />
+          )}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
 function HelpView({ user }: { user: CurrentUser }) {
   const sections = [
     {
@@ -4606,7 +4948,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const initialHelpId = window.location.hash.replace("#", "");
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
-  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : visibleNav[0]?.key ?? "dashboard");
+  const startsInWiki = window.location.pathname === "/wiki" && visibleNav.some((item) => item.key === "wiki");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings");
@@ -4632,6 +4975,11 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
     }
     setPendingHelpHash(null);
     clearHelpHash();
+    if (key === "wiki") {
+      window.history.replaceState(null, "", "/wiki");
+    } else if (window.location.pathname === "/wiki") {
+      window.history.replaceState(null, "", "/");
+    }
     setActiveView(key);
   }
 
@@ -4737,6 +5085,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <DocumentsView user={user} />
         ) : activeItem.key === "reports" ? (
           <ReportsView />
+        ) : activeItem.key === "wiki" ? (
+          <WikiView user={user} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (

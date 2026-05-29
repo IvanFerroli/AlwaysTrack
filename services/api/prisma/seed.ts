@@ -199,6 +199,46 @@ async function main() {
     }
   });
 
+  const wikiPage = await prisma.wikiPage.upsert({
+    where: {
+      organizationId_slug: {
+        organizationId: organization.id,
+        slug: "primeiros-passos"
+      }
+    },
+    update: {
+      title: "Primeiros passos",
+      content:
+        "Use esta wiki para registrar procedimentos operacionais do AlwaysTrack.\n\nAdmins publicam mudancas diretamente. RTs e supervisores podem sugerir alteracoes para aprovacao administrativa.",
+      updatedById: admin.id,
+      active: true
+    },
+    create: {
+      organizationId: organization.id,
+      slug: "primeiros-passos",
+      title: "Primeiros passos",
+      content:
+        "Use esta wiki para registrar procedimentos operacionais do AlwaysTrack.\n\nAdmins publicam mudancas diretamente. RTs e supervisores podem sugerir alteracoes para aprovacao administrativa.",
+      createdById: admin.id,
+      updatedById: admin.id
+    }
+  });
+  const existingWikiRevision = await prisma.wikiRevision.findFirst({
+    where: { pageId: wikiPage.id, version: wikiPage.version }
+  });
+  if (!existingWikiRevision) {
+    await prisma.wikiRevision.create({
+      data: {
+        organizationId: organization.id,
+        pageId: wikiPage.id,
+        authorId: admin.id,
+        version: wikiPage.version,
+        title: wikiPage.title,
+        content: wikiPage.content
+      }
+    });
+  }
+
   const rt = await prisma.user.upsert({
     where: { email: "rt@example.com" },
     update: {

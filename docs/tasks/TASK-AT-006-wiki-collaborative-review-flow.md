@@ -1,13 +1,13 @@
 # TASK-AT-006 - Collaborative wiki review flow
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: product-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-006-wiki-collaborative-review-flow.md
 
 ## Modo
-- mode: planning
+- mode: implementation
 
 ## Objetivo unico
 Criar uma wiki em `/wiki` editavel por usuarios autenticados, com moderacao administrativa para edicoes feitas por nao-admins e indicadores de leitura/presenca.
@@ -23,8 +23,8 @@ O AlwaysTrack precisa de uma base operacional viva para procedimentos, orientaco
 - `services/api/src/core/audit/*`
 
 ## Dependencias
-- satisfeitas: auth, roles, auditoria e app shell existentes
-- em aberto: desenho final de modelo de dados e UX de revisao
+- satisfeitas: auth, roles, auditoria, app shell e schema wiki MVP
+- em aberto: editor rico, permissoes granulares e UX avancada de revisao
 
 ## Alvos explicitos
 1. Rota/tela `/wiki` com lista, leitura e busca inicial.
@@ -56,7 +56,7 @@ O AlwaysTrack precisa de uma base operacional viva para procedimentos, orientaco
 - Conteudo de wiki pode conter dado sensivel; manter isolamento por organizacao desde o primeiro desenho.
 
 ## Checklist
-1. Definir schema e politicas de permissao.
-2. Implementar APIs de pagina, proposta, aprovacao e presenca.
-3. Implementar tela `/wiki`.
-4. Cobrir fluxo com testes de permissao e organizacao.
+1. Definir schema e politicas de permissao. Status: completed.
+2. Implementar APIs de pagina, proposta, aprovacao e presenca. Status: completed.
+3. Implementar tela `/wiki`. Status: completed.
+4. Cobrir fluxo com testes de permissao e organizacao. Status: completed em service tests.

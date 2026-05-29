@@ -22,6 +22,11 @@ model Organization {
   notificationRules     NotificationRule[]
   notificationJobs      NotificationJob[]
   faqItems              FaqItem[]
+  wikiPages             WikiPage[]
+  wikiEditRequests      WikiEditRequest[]
+  wikiReadReceipts      WikiReadReceipt[]
+  wikiPresences         WikiPresence[]
+  wikiRevisions         WikiRevision[]
   professionals         Professional[]
   auditLogs             AuditLog[]
   documentAiExtractions DocumentAiExtraction[]
@@ -86,6 +91,13 @@ model User {
   appliedExtractions  DocumentAiExtraction[] @relation("DocumentAiExtractionAppliedBy")
   googleConnection    GoogleConnection?
   googleOauthStates   GoogleOauthState[]
+  wikiPagesCreated    WikiPage[] @relation("WikiPageCreatedBy")
+  wikiPagesUpdated    WikiPage[] @relation("WikiPageUpdatedBy")
+  wikiEditRequestsAuthored WikiEditRequest[] @relation("WikiEditRequestAuthor")
+  wikiEditRequestsReviewed WikiEditRequest[] @relation("WikiEditRequestReviewer")
+  wikiReadReceipts    WikiReadReceipt[] @relation("WikiReadReceiptUser")
+  wikiPresences       WikiPresence[] @relation("WikiPresenceUser")
+  wikiRevisions       WikiRevision[] @relation("WikiRevisionAuthor")
 
   @@index([organizationId])
   @@index([role])
@@ -376,6 +388,126 @@ model FaqItem {
   @@index([organizationId])
   @@index([category])
   @@index([active])
+}
+
+model WikiPage {
+  id             String   @id @default(cuid())
+  organizationId String
+  slug           String
+  title          String
+  content        String
+  version        Int      @default(1)
+  active         Boolean  @default(true)
+  createdById    String
+  updatedById    String
+  publishedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    User         @relation("WikiPageCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("WikiPageUpdatedBy", fields: [updatedById], references: [id])
+  editRequests WikiEditRequest[]
+  readReceipts WikiReadReceipt[]
+  presences    WikiPresence[]
+  revisions    WikiRevision[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([active])
+  @@index([updatedAt])
+}
+
+model WikiRevision {
+  id             String   @id @default(cuid())
+  organizationId String
+  pageId         String
+  authorId       String
+  requestId      String?
+  version        Int
+  title          String
+  content        String
+  createdAt      DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  page         WikiPage         @relation(fields: [pageId], references: [id])
+  author       User             @relation("WikiRevisionAuthor", fields: [authorId], references: [id])
+  request      WikiEditRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([organizationId])
+  @@index([pageId])
+  @@index([authorId])
+  @@index([requestId])
+  @@unique([pageId, version])
+}
+
+model WikiEditRequest {
+  id             String    @id @default(cuid())
+  organizationId String
+  pageId         String
+  authorId       String
+  reviewerId     String?
+  baseVersion    Int
+  title          String
+  content        String
+  status         String    @default("PENDING")
+  decisionNote   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  page         WikiPage       @relation(fields: [pageId], references: [id])
+  author       User           @relation("WikiEditRequestAuthor", fields: [authorId], references: [id])
+  reviewer     User?          @relation("WikiEditRequestReviewer", fields: [reviewerId], references: [id])
+  revisions    WikiRevision[]
+
+  @@index([organizationId])
+  @@index([pageId])
+  @@index([authorId])
+  @@index([reviewerId])
+  @@index([status])
+}
+
+model WikiReadReceipt {
+  id             String   @id @default(cuid())
+  organizationId String
+  pageId         String
+  userId         String
+  lastReadAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  page         WikiPage     @relation(fields: [pageId], references: [id])
+  user         User         @relation("WikiReadReceiptUser", fields: [userId], references: [id])
+
+  @@unique([pageId, userId])
+  @@index([organizationId])
+  @@index([pageId])
+  @@index([userId])
+  @@index([lastReadAt])
+}
+
+model WikiPresence {
+  id             String   @id @default(cuid())
+  organizationId String
+  pageId         String
+  userId         String
+  mode           String
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  page         WikiPage     @relation(fields: [pageId], references: [id])
+  user         User         @relation("WikiPresenceUser", fields: [userId], references: [id])
+
+  @@unique([pageId, userId])
+  @@index([organizationId])
+  @@index([pageId])
+  @@index([userId])
+  @@index([lastSeenAt])
 }
 
 model GoogleConnection {

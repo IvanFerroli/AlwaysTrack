@@ -102,6 +102,18 @@ import {
   googleOauthCallbackHandler,
   googleOauthStartHandler
 } from "./core/integrations/google/google.handlers.js";
+import {
+  approveWikiEditRequestHandler,
+  createWikiEditRequestHandler,
+  createWikiPageHandler,
+  getWikiPageHandler,
+  heartbeatWikiPresenceHandler,
+  listWikiEditRequestsHandler,
+  listWikiPagesHandler,
+  markWikiReadHandler,
+  rejectWikiEditRequestHandler,
+  updateWikiPageHandler
+} from "./core/wiki/wiki.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -250,6 +262,16 @@ export function createApp() {
   app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
   app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
   app.post("/v1/notifications/manual-license", requireAuth, requireRole(["ADMIN"]), manualLicenseNotificationHandler);
+  app.get("/v1/wiki/pages", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listWikiPagesHandler);
+  app.post("/v1/wiki/pages", requireAuth, requireRole(["ADMIN"]), createWikiPageHandler);
+  app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getWikiPageHandler);
+  app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN"]), updateWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), markWikiReadHandler);
+  app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), heartbeatWikiPresenceHandler);
+  app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listWikiEditRequestsHandler);
+  app.post("/v1/wiki/edit-requests", requireAuth, requireRole(["RT", "SUPERVISOR"]), createWikiEditRequestHandler);
+  app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(["ADMIN"]), approveWikiEditRequestHandler);
+  app.post("/v1/wiki/edit-requests/:requestId/reject", requireAuth, requireRole(["ADMIN"]), rejectWikiEditRequestHandler);
   app.get("/v1/faq", requireAuth, requireRole(["ADMIN"]), listFaqItemsHandler);
   app.post("/v1/faq", requireAuth, requireRole(["ADMIN"]), createFaqItemHandler);
   app.patch("/v1/faq/:faqItemId", requireAuth, requireRole(["ADMIN"]), updateFaqItemHandler);

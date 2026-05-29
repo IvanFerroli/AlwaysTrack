@@ -1,7 +1,7 @@
 # TASK-AT-005 - Beta readiness gate
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: ops-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-005-beta-readiness-gate.md
@@ -23,7 +23,7 @@ O AlwaysTrack ainda usa defaults local-first e integracoes fake/local por segura
 
 ## Dependencias
 - satisfeitas: `TASK-AT-001`
-- em aberto: decisao de ambiente beta
+- em aberto: provisionamento real do ambiente beta
 
 ## Alvos explicitos
 1. Checklist de env e secrets.
@@ -37,7 +37,7 @@ O AlwaysTrack ainda usa defaults local-first e integracoes fake/local por segura
 - Prometer disponibilidade de producao.
 
 ## Checklist
-1. Escrever gate de beta.
-2. Conferir `env:check --production`.
-3. Conferir `npm run check`.
-4. Registrar residuos e decisao final.
+1. Escrever gate de beta. Status: completed.
+2. Conferir `env:check --production`. Status: completed com envs sinteticas publicas.
+3. Conferir `npm run check`. Status: completed.
+4. Registrar residuos e decisao final. Status: completed em `docs/operations/beta-readiness-gate-2026-05-29.md`.
