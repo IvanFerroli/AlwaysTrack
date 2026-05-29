@@ -1,15 +1,15 @@
 # Task Roadmap
 
 ## Metadata
-- status: active-transition
-- owner: task-planner
+- status: active-product
+- owner: product-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
 Manter somente o plano ativo do AlwaysTrack. Material de produto anterior fica arquivado e nao deve ser lido como backlog atual.
 
-## Trilha atual - transicao para template
+## Trilha concluida - transicao para template
 1. Resolver P0 de higiene e seguranca apontados em `docs/operations/auditoria-estado-atual-template-2026-05-27.md`. Status: completed em `b74975c` e `8fb6957`.
 2. Sincronizar intake, runbooks e roadmap com o runtime real. Status: completed. Commits: `b89fa06` (intake/runbooks), `bca395c` (env.example IA + adendos pos-V1), `EXEC-TMP-002` (status tasks + provider Gemini).
 3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado. Status: accepted em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`.
@@ -17,11 +17,15 @@ Manter somente o plano ativo do AlwaysTrack. Material de produto anterior fica a
 5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira. Status: completed para a fronteira atual. Seed e flush-local-demo ja usam env vars; FAQ publica sem fallback demo-org (EXEC-TMP-004); SESSION_COOKIE_NAME parametrizado na API (EXEC-TMP-006); APP_NAME/VITE_APP_NAME parametrizam API, UI, titulo e manifest web (EXEC-TMP-007).
 6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`. Status: completed em EXEC-TMP-008: clone limpo real passou com 116 testes.
 
+## Trilha atual - produto AlwaysTrack
+1. `TASK-AT-001-product-baseline-alwaystrack.md`: declarar baseline de produto, vocabulario canonico e nao-escopo. Status: completed em `EXEC-AT-001`.
+2. `TASK-AT-002-runtime-copy-seed-cleanup.md`: remover ruido publico V1/demo herdado em UI, seed local e docs operacionais. Status: completed em `EXEC-AT-001`.
+3. `TASK-AT-003-local-seed-contract.md`: consolidar seed local como contrato explicito, com alias/comandos e compatibilidade. Status: proposed.
+4. `TASK-AT-004-first-operator-flow.md`: consolidar fluxo organizacao -> profissional -> licenca -> documento -> notificacao/relatorio. Status: proposed.
+5. `TASK-AT-005-beta-readiness-gate.md`: checklist e validacao para beta externo controlado. Status: proposed.
+
 ## Estado atual
-A trilha de transicao esta concluida para a fronteira aceita em ADR-002. O proximo passo nao e continuar a lista antiga da SyLembra; e uma decisao de produto:
-- avancar para beta externo;
-- abrir novo ciclo de produto AlwaysTrack;
-- extrair outro starter com escopo diferente.
+A trilha de produto AlwaysTrack foi aberta sobre a fronteira aceita em ADR-002. O trabalho ativo agora deve construir o starter vertical de licencas/compliance, sem reabrir backlog SyLembra.
 
 ## Arquivo historico
 As tasks `TASK-*` da V1 SyLembra foram movidas para `docs/archive/sylembra/tasks/`.

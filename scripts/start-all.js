@@ -141,7 +141,7 @@ async function prepareDatabase() {
     removeIfExists(incrementalSchemaSqlPath);
   }
 
-  await run("npm run prisma:seed", "Aplicando seed demo");
+  await run("npm run prisma:seed", "Aplicando seed local");
 }
 
 async function main() {

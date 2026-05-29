@@ -4288,11 +4288,11 @@ function HelpView({ user }: { user: CurrentUser }) {
       id: "visao-geral",
       title: "Visão geral",
       who: "Todos os perfis",
-      text: "Use a V1 para acompanhar profissionais, licenças, documentos, notificações e evidências de auditoria em uma rotina única.",
+      text: "Use o AlwaysTrack para acompanhar profissionais, licenças, documentos, notificações e evidências de auditoria em uma rotina única.",
       steps: ["Entre no sistema.", "Confira o Dashboard.", "Aja primeiro sobre vencimentos, documentos pendentes e falhas."],
       check: "Confirme unidade, setor, RT responsável e período antes de confiar no resultado filtrado.",
       common: "Se algo não aparecer, limpe filtros por ID e tente uma busca por nome ou CPF.",
-      support: "Procure suporte se dados do seed demo sumirem ou se uma tela falhar mesmo sem filtros."
+      support: "Procure suporte se dados locais sumirem ou se uma tela falhar mesmo sem filtros."
     },
     {
       id: "primeiro-acesso",
@@ -4526,7 +4526,7 @@ function HelpView({ user }: { user: CurrentUser }) {
     <div className="content-stack">
       <section className="panel help-hero">
         <p className="eyebrow">Ajuda operacional</p>
-        <h2>Como usar a V1 sem treinamento técnico</h2>
+        <h2>Como usar o AlwaysTrack sem treinamento técnico</h2>
         <p className="muted">
           Você está como {user.role}. Use o sumário para ir direto ao fluxo, ou clique nos ícones i dos campos para abrir a seção certa.
         </p>

@@ -22,6 +22,10 @@ function seedSecret(envKey: string) {
   return process.env[envKey]?.trim() || randomBytes(12).toString("base64url");
 }
 
+function seedText(envKey: string, fallback: string) {
+  return process.env[envKey]?.trim() || fallback;
+}
+
 async function ensureDocument(input: {
   professionalId: string;
   licenseId: string;
@@ -161,6 +165,10 @@ async function ensureAuditLog(input: {
 }
 
 async function main() {
+  const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
+  const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
+  const licenseTypeName = "Registro profissional padrão";
+  const licenseTypeDescription = "Registro profissional usado no seed local do AlwaysTrack.";
   const adminPassword = seedSecret("SEED_ADMIN_PASSWORD");
   const rtPassword = seedSecret("SEED_RT_PASSWORD");
   const supervisorPassword = seedSecret("SEED_SUPERVISOR_PASSWORD");
@@ -170,11 +178,11 @@ async function main() {
   const supervisorPasswordHash = await hashPassword(supervisorPassword);
 
   const organization = await prisma.organization.upsert({
-    where: { id: "demo-org" },
-    update: { name: "AlwaysTrack Demo", document: "00.000.000/0001-00", active: true },
+    where: { id: organizationId },
+    update: { name: organizationName, document: "00.000.000/0001-00", active: true },
     create: {
-      id: "demo-org",
-      name: "AlwaysTrack Demo",
+      id: organizationId,
+      name: organizationName,
       document: "00.000.000/0001-00"
     }
   });
@@ -267,14 +275,14 @@ async function main() {
     where: {
       organizationId_name: {
         organizationId: organization.id,
-        name: "Registro profissional demo"
+        name: licenseTypeName
       }
     },
-    update: { description: "Registro profissional usado na demonstracao V1.", defaultWarningDays: "90,60,30", active: true },
+    update: { description: licenseTypeDescription, defaultWarningDays: "90,60,30", active: true },
     create: {
       organizationId: organization.id,
-      name: "Registro profissional demo",
-      description: "Registro profissional usado na demonstracao V1.",
+      name: licenseTypeName,
+      description: licenseTypeDescription,
       defaultWarningDays: "90,60,30"
     }
   });
@@ -565,8 +573,8 @@ async function main() {
   const approvedDocument = await ensureDocument({
     professionalId: regularProfessional.id,
     licenseId: regularLicense.id,
-    fileKey: `${organization.id}/${regularProfessional.id}/${regularLicense.id}/demo-approved.pdf`,
-    fileName: "registro-aprovado-demo.pdf",
+    fileKey: `${organization.id}/${regularProfessional.id}/${regularLicense.id}/sample-approved.pdf`,
+    fileName: "registro-aprovado-exemplo.pdf",
     status: "APPROVED",
     validatedById: rt.id,
     validatedAt: daysAgo(2)
@@ -574,19 +582,19 @@ async function main() {
   const pendingDocument = await ensureDocument({
     professionalId: expiringProfessional.id,
     licenseId: expiringLicense.id,
-    fileKey: `${organization.id}/${expiringProfessional.id}/${expiringLicense.id}/demo-pending.pdf`,
-    fileName: "registro-pendente-demo.pdf",
+    fileKey: `${organization.id}/${expiringProfessional.id}/${expiringLicense.id}/sample-pending.pdf`,
+    fileName: "registro-pendente-exemplo.pdf",
     status: "UPLOADED"
   });
   const rejectedDocument = await ensureDocument({
     professionalId: expiredProfessional.id,
     licenseId: expiredLicense.id,
-    fileKey: `${organization.id}/${expiredProfessional.id}/${expiredLicense.id}/demo-rejected.pdf`,
-    fileName: "registro-recusado-demo.pdf",
+    fileKey: `${organization.id}/${expiredProfessional.id}/${expiredLicense.id}/sample-rejected.pdf`,
+    fileName: "registro-recusado-exemplo.pdf",
     status: "REJECTED",
     validatedById: rt.id,
     validatedAt: daysAgo(1),
-    rejectionReason: "Documento ilegivel na demonstracao."
+    rejectionReason: "Documento ilegivel no exemplo local."
   });
 
   await prisma.uploadToken.upsert({
@@ -613,7 +621,7 @@ async function main() {
     licenseId: expiringLicense.id,
     notificationRuleId: notificationRule.id,
     periodKey: `before:30:${now.toISOString().slice(0, 10)}`,
-    dedupeKey: `${expiringLicense.id}:${notificationRule.id}:demo-sent:professional`,
+    dedupeKey: `${expiringLicense.id}:${notificationRule.id}:seed-sent:professional`,
     recipientPhone: expiringProfessional.phone,
     recipientEmail: expiringProfessional.email,
     templateKey: "license_expiration_notice",
@@ -635,15 +643,15 @@ async function main() {
     status: "SENT",
     scheduledFor: daysAgo(1),
     sentAt: daysAgo(1),
-    providerMessageId: "fake_demo_sent"
+    providerMessageId: "fake_seed_sent"
   });
   await ensureNotificationJob({
     organizationId: organization.id,
     professionalId: expiredProfessional.id,
     licenseId: expiredLicense.id,
     notificationRuleId: expiredNotificationRule.id,
-    periodKey: `expired:demo:${now.toISOString().slice(0, 10)}`,
-    dedupeKey: `${expiredLicense.id}:${notificationRule.id}:demo-failed:professional`,
+    periodKey: `expired:seed:${now.toISOString().slice(0, 10)}`,
+    dedupeKey: `${expiredLicense.id}:${notificationRule.id}:seed-failed:professional`,
     recipientPhone: expiredProfessional.phone,
     recipientEmail: expiredProfessional.email,
     templateKey: "license_expired_notice",
@@ -671,10 +679,10 @@ async function main() {
   await ensureAuditLog({
     organizationId: organization.id,
     actorId: admin.id,
-    action: "demo.seed",
+    action: "seed.local",
     entityType: "Organization",
     entityId: organization.id,
-    metadata: { task: "TASK-REL-001", profiles: 3, provider: "fake" }
+    metadata: { source: "local-seed", profiles: 3, provider: "fake" }
   });
   await ensureAuditLog({
     organizationId: organization.id,
@@ -682,7 +690,7 @@ async function main() {
     action: "document.approve",
     entityType: "Document",
     entityId: approvedDocument.id,
-    metadata: { source: "demo-seed", licenseId: regularLicense.id }
+    metadata: { source: "local-seed", licenseId: regularLicense.id }
   });
   await ensureAuditLog({
     organizationId: organization.id,
@@ -690,7 +698,7 @@ async function main() {
     action: "document.reject",
     entityType: "Document",
     entityId: rejectedDocument.id,
-    metadata: { source: "demo-seed", licenseId: expiredLicense.id }
+    metadata: { source: "local-seed", licenseId: expiredLicense.id }
   });
   await ensureAuditLog({
     organizationId: organization.id,
@@ -698,15 +706,16 @@ async function main() {
     action: "document.public_upload",
     entityType: "Document",
     entityId: pendingDocument.id,
-    metadata: { source: "demo-seed", licenseId: expiringLicense.id }
+    metadata: { source: "local-seed", licenseId: expiringLicense.id }
   });
 
-  console.log("Demo seed ready:");
+  console.log("Local seed ready:");
+  console.log(`- Organization: ${organization.id} / ${organization.name}`);
   console.log(`- Admin: admin@example.com / ${adminPassword}`);
   console.log(`- RT: rt@example.com / ${rtPassword}`);
   console.log(`- Supervisor: supervisor@example.com / ${supervisorPassword}`);
   console.log(`- Public upload token: ${uploadToken}`);
-  console.log("- Set SEED_ADMIN_PASSWORD, SEED_RT_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local demo credentials.");
+  console.log("- Set SEED_ORGANIZATION_ID, SEED_ORGANIZATION_NAME, SEED_ADMIN_PASSWORD, SEED_RT_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local seed data.");
   console.log("- Notifications use NOTIFICATION_PROVIDER=fake until Meta envs are configured.");
 }
 

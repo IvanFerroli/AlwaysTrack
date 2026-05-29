@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: ops-builder
-- last-updated: 2026-05-28
+- last-updated: 2026-05-29
 - source-of-truth: docs/runbooks/RUNBOOK-001-ambiente-local.md
 
 ## Objetivo
@@ -33,7 +33,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 ## Validacao
 - `npm run check`
 - `curl http://localhost:3333/health`
-- Login demo: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
+- Login local: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
 
 ## Secrets
 - Nunca commitar `.env`, `.env.local`, banco local, storage local ou logs.
@@ -42,6 +42,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `APP_NAME` afeta mensagens geradas pela API; `VITE_APP_NAME` afeta titulo, manifest e marca visivel da web.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
+- `SEED_ORGANIZATION_ID` e `SEED_ORGANIZATION_NAME` definem a organizacao local criada pelo seed.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.

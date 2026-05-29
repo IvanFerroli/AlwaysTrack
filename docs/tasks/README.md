@@ -18,13 +18,16 @@ Tracks sao definidos por projeto. Nao herdar tracks de outro projeto sem necessi
 ## Tasks ativas
 Este diretorio guarda apenas:
 - `ROADMAP.md`: plano ativo e proxima decisao;
-- `EXEC-*`: evidencias de execucao da transicao;
+- `TASK-AT-*`: backlog ativo do produto AlwaysTrack;
+- `EXEC-*`: evidencias de execucao da transicao e dos ciclos de produto;
 - `_template.md`: modelo para novas tasks.
 
 As tasks historicas `TASK-*` da V1 SyLembra ficam em `docs/archive/sylembra/tasks/` e nao sao backlog atual.
 
 ## Tracks
 Novas tracks devem nascer do escopo AlwaysTrack atual. Se uma track historica for reutilizada, declare explicitamente por que ela ainda se aplica.
+
+- `AT`: trilha ativa do produto AlwaysTrack.
 
 ## Sequencia
 Ver `docs/tasks/ROADMAP.md`. Se precisar consultar a sequencia antiga da SyLembra, use `docs/archive/sylembra/tasks/` como historico, nao como plano.

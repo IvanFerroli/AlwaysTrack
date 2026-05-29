@@ -1,24 +1,25 @@
-# Project Intake - Base SyLembra para template AlwaysTrack
+# Project Intake - AlwaysTrack
 
 ## Metadata
 - status: accepted
-- owner: pipeline
-- last-updated: 2026-05-28
+- owner: product-builder
+- last-updated: 2026-05-29
 - source-of-truth: docs/project/intake.md
 
 ## Fonte canonica
+- baseline de produto: `docs/specs/SPEC-AT-001-product-baseline.md`
 - auditoria de transicao: `docs/operations/auditoria-estado-atual-template-2026-05-27.md`
-- documento original SyLembra: `docs/archive/sylembra/doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
+- origem historica arquivada: `docs/archive/sylembra/`
 
 ## Objetivo em uma frase
-Usar o antigo MVP SyLembra como base limpa para um starter vertical de controle operacional, preparando o repositorio AlwaysTrack para evoluir sem secrets, dados pessoais ou artefatos locais da instancia original.
+Evoluir o AlwaysTrack como starter vertical de licencas/compliance, com operacao local segura, dados seedados anonimos e caminho incremental para beta controlado.
 
 ## Restricoes explicitas
-- Nao fazer rebrand amplo enquanto a fronteira do template nao estiver definida.
 - Manter commits pequenos, auditaveis e sempre subidos para `origin/main`.
 - Remover secrets, identificadores reais, logs sensiveis e artefatos locais antes de qualquer beta.
-- Preservar o dominio funcional de licencas/compliance ate existir decisao explicita de genericidade ou produto final.
+- Preservar o dominio funcional de licencas/compliance ate existir decisao explicita de genericidade.
 - Integracoes externas devem continuar opcionais por env, com provider fake/local como padrao seguro.
+- Nao reabrir tasks SyLembra arquivadas como backlog ativo.
 
 ## Realidade atual do runtime
 - Frontend: React 19, TypeScript, Vite e CSS proprio em `apps/web`.
@@ -29,10 +30,9 @@ Usar o antigo MVP SyLembra como base limpa para um starter vertical de controle 
 - Modulos implementados: auth, organizacoes, usuarios, licencas, documentos, importacao CSV/XLSX/Google Sheets, notificacoes WhatsApp, relatorios, auditoria, FAQ e dashboard.
 
 ## Incertezas
-- Categoria final do template: starter de licencas/compliance, base operacional generica ou AlwaysTrack ja rebrandado.
-- Banco e storage de producao: assumir SQLite/local com volumes ou migrar contrato para Postgres/storage externo.
-- Nivel de parametrizacao de marca, seed, tenant publico e templates.
 - Escopo beta: quais integracoes reais ficam habilitadas e quais permanecem fake/local.
+- Nivel de polimento necessario no fluxo operacional principal antes de beta externo.
+- Se e quando extrair uma base SaaS generica a partir deste starter vertical.
 
 ## Proxima fatia recomendada
-Fechar a limpeza de template em ordem: manter P0 da auditoria resolvidos, sincronizar runbooks/roadmap com o runtime real, decidir fronteira do template e so entao iniciar rebrand ou extracao estrutural.
+Executar a trilha `TASK-AT-*`: baseline de produto, limpeza de copy/seed, contrato explicito de seed local, fluxo operacional principal e gate de beta.
