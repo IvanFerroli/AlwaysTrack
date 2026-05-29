@@ -41,6 +41,35 @@ const optional = [
 const missing = required.filter((key) => !process.env[key] || process.env[key] === "change-me-in-production");
 const provider = process.env.NOTIFICATION_PROVIDER ?? "fake";
 
+function isLoopbackHost(hostname) {
+  return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname) || hostname.endsWith(".localhost");
+}
+
+function validatePublicUrl(key) {
+  const value = process.env[key];
+  if (!value) return;
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || isLoopbackHost(url.hostname)) {
+      missing.push(key);
+    }
+  } catch {
+    missing.push(key);
+  }
+}
+
+if (mode === "production") {
+  const sessionSecret = process.env.SESSION_SECRET ?? "";
+  if (
+    sessionSecret.length < 32 ||
+    ["dev-only-session-secret", "dev-session-secret", "change-me-in-production"].includes(sessionSecret)
+  ) {
+    missing.push("SESSION_SECRET");
+  }
+  validatePublicUrl("CORS_ORIGIN");
+  validatePublicUrl("VITE_API_BASE_URL");
+}
+
 if (provider === "meta") {
   for (const key of ["META_WHATSAPP_TOKEN", "META_WHATSAPP_PHONE_NUMBER_ID", "META_WEBHOOK_VERIFY_TOKEN", "META_APP_SECRET"]) {
     if (!process.env[key]) missing.push(key);

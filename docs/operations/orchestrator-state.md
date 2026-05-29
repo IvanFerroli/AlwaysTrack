@@ -22,11 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-008 (2026-05-29): clone limpo real validado, build arg `VITE_APP_NAME` adicionado ao deploy web e lockfile audit reduzido sem force.
+- EXEC-TMP-009 (2026-05-29): `env:check --production` endurecido, CI minimo versionado e residual `exceljs`/`uuid` investigado sem override inseguro.
 
 ## Proximo ciclo a rotar
 - Decisao de produto: avanco para beta externo ou novo ciclo de produto fora da trilha de transicao.
-- Se houver beta externo, revisar residual `npm audit` moderado em `exceljs`/`uuid` sem usar downgrade forçado.
+- Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 
 ## Blockers conhecidos
 - Nenhum blocker tecnico critico. Decisions externas pendentes: banco/storage de producao, nivel de genericidade do template. Residual conhecido: `npm audit --omit=dev` reporta 2 moderadas em `uuid` via `exceljs`; fix automatico exige `--force` com downgrade major.
@@ -37,6 +37,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |
+| npm run check | passou — 116 testes | 2026-05-29 (EXEC-TMP-009) |
 | clone limpo: git clone + npm install + npm run setup + npm run check | passou — 116 testes | 2026-05-29 |
 | npm run build --workspace @alwaystrack/web | passou | 2026-05-28 |
 | APP_NAME=OpsCore VITE_APP_NAME=OpsCore npm run build --workspace @alwaystrack/web | passou | 2026-05-29 |
@@ -44,6 +45,9 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-29 |
 | npm run test --workspace @alwaystrack/api | passou — 115 testes | 2026-05-29 |
 | npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-05-29 |
+| env:check --production com URLs publicas e secret forte | passou | 2026-05-29 |
+| env:check --production com secret curto / localhost / loopback | falhou como esperado | 2026-05-29 |
+| GitHub Actions check.yml | versionado — npm ci + setup + check | 2026-05-29 |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 
