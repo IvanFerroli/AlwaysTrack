@@ -8,10 +8,12 @@
 - `docs/project/`: estado, decisoes e proximas fatias do projeto atual.
 - `docs/adr/`: decisoes arquiteturais aceitas.
 - `docs/specs/`: especificacoes executaveis por capacidade.
-- `docs/tasks/`: tasks pequenas, validaveis e com evidencia.
+- `docs/tasks/`: plano ativo, execucoes recentes e template para novas tasks.
 - `docs/runbooks/`: procedimentos operacionais repetiveis.
-- `docs/operations/`: auditorias, estados de operacao e historico de ciclos.
+- `docs/operations/`: estado operacional ativo e auditorias da transicao atual.
 - `docs/archive/`: documentos historicos que nao sao contrato ativo do starter.
+
+Tasks historicas da V1 SyLembra ficam em `docs/archive/sylembra/tasks/`. Elas nao sao backlog ativo.
 
 ## Ordem de leitura recomendada
 1. `docs/project/README.md`

@@ -12,7 +12,7 @@
 
 ## Sequencia operacional aplicada
 1. Identificado drift: .env.example nao documenta DOCUMENT_AI_PROVIDER, DOCUMENT_AI_MODEL, OPENAI_API_KEY, GEMINI_API_KEY.
-2. Identificado drift: docs/operations/v1-demo-acceptance-2026-04-30.md e lgpd-security-review-2026-04-30.md foram fechados antes de Google/OAuth/Gemini entrar no codigo.
+2. Identificado drift: docs/archive/sylembra/operations/v1-demo-acceptance-2026-04-30.md e docs/archive/sylembra/operations/lgpd-security-review-2026-04-30.md foram fechados antes de Google/OAuth/Gemini entrar no codigo.
 3. Adicionadas vars de IA ao .env.example com defaults seguros e comentarios de onboarding.
 4. Atualizado v1-demo-acceptance com nota de adendo pos V1 (Google/OAuth/Gemini/audit log revokedRemotely).
 5. Atualizado lgpd-security-review com nota de riscos adicionais pós Google OAuth e IA provider.
@@ -20,8 +20,8 @@
 
 ## Artefatos materiais
 1. .env.example — bloco de IA adicionado
-2. docs/operations/v1-demo-acceptance-2026-04-30.md — adendo pos V1
-3. docs/operations/lgpd-security-review-2026-04-30.md — riscos adicionais
+2. docs/archive/sylembra/operations/v1-demo-acceptance-2026-04-30.md — adendo pos V1
+3. docs/archive/sylembra/operations/lgpd-security-review-2026-04-30.md — riscos adicionais
 4. docs/operations/orchestrator-state.md — criado
 
 ## Evidencias observaveis

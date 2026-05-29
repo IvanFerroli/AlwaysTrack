@@ -348,7 +348,7 @@ Os pontos abaixo nao devem aparecer como capacidades prontas do template sem imp
 | `docs/project/intake.md` | Tailwind, PostgreSQL, storage externo | Runtime versionado usa CSS proprio, SQLite e storage local | Atualizar para `planejado` versus `implementado`. |
 | `TASK-AI-001` | Entrega menciona fake/OpenAI | Codigo tambem possui Gemini, sustentado por commits de 2026-05-05 | Sincronizar provider real disponivel. |
 | `.env.example` | Inclui Meta e Google, mas nao lista configuracao de IA | `env.ts` consome `DOCUMENT_AI_PROVIDER`, `DOCUMENT_AI_MODEL`, `OPENAI_API_KEY` e `GEMINI_API_KEY`. | Completar onboarding das integracoes opcionais. |
-| `docs/operations/v1-demo-acceptance-2026-04-30.md` e `lgpd-security-review-2026-04-30.md` | Fechados antes de Google/OAuth/Gemini | O codigo ganhou novas superficies externas entre 2026-05-05 e 2026-05-07. | Atualizar aceite e revisao de dados/seguranca. |
+| `docs/archive/sylembra/operations/v1-demo-acceptance-2026-04-30.md` e `docs/archive/sylembra/operations/lgpd-security-review-2026-04-30.md` | Fechados antes de Google/OAuth/Gemini | O codigo ganhou novas superficies externas entre 2026-05-05 e 2026-05-07. | Manter como historico; criar aceite novo se houver beta AlwaysTrack. |
 
 ### 10.2 Claims de apresentacao que nao representam comportamento fim a fim
 
@@ -369,7 +369,7 @@ O arquivo `docs/archive/sylembra/Dossie_Apresentacao_Sylembra.md` e util como vi
 | Risco | Evidencia | Consequencia | Acao recomendada |
 | --- | --- | --- | --- |
 | Credencial pessoal em claro em script versionado | `scripts/flush-local-demo.js` contem identidade e senha de bootstrap hardcoded | Exposicao de acesso e clonagem insegura | Remover do codigo, usar env/seed anonimo e rotacionar a credencial exposta. |
-| Identificador real de conta Meta em doc versionado | `docs/tasks/TASK-NOT-007-templates-oficiais-meta-whatsapp.md` | Vazamento de dado de integracao/instancia | Redigir/remover do template e revisar historico de publicacao. |
+| Identificador real de conta Meta em doc versionado | `docs/archive/sylembra/tasks/TASK-NOT-007-templates-oficiais-meta-whatsapp.md` | Vazamento de dado de integracao/instancia | Redigir/remover do arquivo historico e revisar historico de publicacao. |
 | Log de resposta bruta de token Google | `services/api/src/scripts/smoke-google-sheets.ts` imprimia resposta completa de token | Token temporario podia parar em terminal, CI ou log compartilhado | Remediado em 2026-05-28: script imprime apenas status redigido da autenticacao. |
 | Virtualenv temporario versionado | `.tmp-venv-parse/`, 1.131 arquivos | Template inflado, ruido e supply-chain desnecessaria | Remover do tracking e adicionar ignore explicito. |
 
@@ -534,10 +534,10 @@ Pelo codigo existente, a extracao de menor custo e maior fidelidade e o **starte
 - `docs/archive/sylembra/doc/Projeto-—-Sistema-Modular-de-Controle-de-Licenças-COREN-com-Notificações-WhatsAp.txt`
 - `docs/project/intake.md`
 - `docs/tasks/ROADMAP.md`
-- tasks `TASK-DOC`, `TASK-DAT`, `TASK-AUT`, `TASK-LIC`, `TASK-FIL`, `TASK-NOT`, `TASK-RPT`, `TASK-REL`, `TASK-PAT`, `TASK-AI`, `TASK-IMP` e `TASK-UX`
+- `docs/archive/sylembra/tasks/`
 - `docs/operations/pipeline-audit-2026-04-29.md`
-- `docs/operations/lgpd-security-review-2026-04-30.md`
-- `docs/operations/v1-demo-acceptance-2026-04-30.md`
+- `docs/archive/sylembra/operations/lgpd-security-review-2026-04-30.md`
+- `docs/archive/sylembra/operations/v1-demo-acceptance-2026-04-30.md`
 - `docs/archive/sylembra/Dossie_Apresentacao_Sylembra.md`
 - `docs/archive/sylembra/doc/meta-whatsapp-templates/`
 - `docs/archive/olympus/RELATORIO-PROJETO-2026-04-27.md`

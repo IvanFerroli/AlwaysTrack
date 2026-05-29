@@ -5,6 +5,8 @@ Esta pasta guarda documentos de produtos e instancias anteriores que ainda podem
 
 ## Pastas
 - `sylembra/`: documentos do MVP vertical que originou esta copia.
+- `sylembra/operations/`: aceite V1 e revisoes operacionais historicas.
+- `sylembra/tasks/`: task manifests historicos da V1 SyLembra, preservados fora do backlog ativo.
 - `olympus/`: relatorios residuais do produto anterior ao SyLembra.
 
 ## Regra

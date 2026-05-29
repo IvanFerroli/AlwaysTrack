@@ -22,14 +22,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-TMP-009 (2026-05-29): `env:check --production` endurecido, CI minimo versionado e residual `exceljs`/`uuid` investigado sem override inseguro.
+- EXEC-TMP-010 (2026-05-29): ruido documental SyLembra isolado em `docs/archive/sylembra/`; backlog ativo em `docs/tasks/` reduzido a roadmap, template e relatorios de execucao.
 
 ## Proximo ciclo a rotar
 - Decisao de produto: avanco para beta externo ou novo ciclo de produto fora da trilha de transicao.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
+- Evitar reabrir tasks historicas da SyLembra como backlog; elas foram isoladas em `docs/archive/sylembra/tasks/`.
 
 ## Blockers conhecidos
-- Nenhum blocker tecnico critico. Decisions externas pendentes: banco/storage de producao, nivel de genericidade do template. Residual conhecido: `npm audit --omit=dev` reporta 2 moderadas em `uuid` via `exceljs`; fix automatico exige `--force` com downgrade major.
+- Nenhum blocker tecnico critico. Decisao externa pendente: proximo ciclo de produto/beta AlwaysTrack. Residual conhecido: `npm audit --omit=dev` reporta 2 moderadas em `uuid` via `exceljs`; fix automatico exige `--force` com downgrade major.
 
 ## Estado dos gates
 | Gate | Resultado | Data |
@@ -48,6 +49,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | env:check --production com URLs publicas e secret forte | passou | 2026-05-29 |
 | env:check --production com secret curto / localhost / loopback | falhou como esperado | 2026-05-29 |
 | GitHub Actions check.yml | versionado — npm ci + setup + check | 2026-05-29 |
+| docs/tasks sem manifests historicos TASK-* | passou — 58 tasks arquivadas em docs/archive/sylembra/tasks/ | 2026-05-29 |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

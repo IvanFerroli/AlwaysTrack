@@ -1,7 +1,7 @@
 # Tasks
 
 ## Objetivo
-Registrar entregas pequenas, executaveis, rastreaveis e validaveis.
+Registrar entregas pequenas, executaveis, rastreaveis e validaveis do AlwaysTrack atual.
 
 ## Quando usar
 - quebrar uma spec aceita em uma entrega pequena;
@@ -13,31 +13,21 @@ Registrar entregas pequenas, executaveis, rastreaveis e validaveis.
 - Arquivo: `TASK-<TRACK>-###-<slug>.md`
 - Template: `docs/tasks/_template.md`
 
-Tracks sao definidos por projeto. Evite herdar tracks de outro projeto sem necessidade.
+Tracks sao definidos por projeto. Nao herdar tracks de outro projeto sem necessidade.
 
-## Tracks deste projeto
-- `DOC`: intake, decisoes e planejamento.
-- `SCF`: scaffold e base do monolito modular.
-- `QLT`: qualidade, testes e gates.
-- `DAT`: modelo de dados e migrations.
-- `AUD`: auditoria.
-- `AUT`: autenticacao, roles e acesso.
-- `ORG`: organizacoes, unidades e setores.
-- `USR`: usuarios administrativos.
-- `PRO`: profissionais.
-- `LIC`: licencas e status.
-- `FIL`: documentos, storage e upload.
-- `NOT`: notificacoes, jobs, Meta e webhooks.
-- `FAQ`: FAQ e suporte via `wa.me`.
-- `UX`: app shell e telas base.
-- `DSH`: dashboard operacional.
-- `RPT`: relatorios e exportacao.
-- `IMP`: importacao em massa e carga inicial.
-- `DEP`: ambiente, deploy e operacao.
-- `REL`: fechamento de V1 e apresentacao.
+## Tasks ativas
+Este diretorio guarda apenas:
+- `ROADMAP.md`: plano ativo e proxima decisao;
+- `EXEC-*`: evidencias de execucao da transicao;
+- `_template.md`: modelo para novas tasks.
+
+As tasks historicas `TASK-*` da V1 SyLembra ficam em `docs/archive/sylembra/tasks/` e nao sao backlog atual.
+
+## Tracks
+Novas tracks devem nascer do escopo AlwaysTrack atual. Se uma track historica for reutilizada, declare explicitamente por que ela ainda se aplica.
 
 ## Sequencia
-Ver `docs/tasks/ROADMAP.md`.
+Ver `docs/tasks/ROADMAP.md`. Se precisar consultar a sequencia antiga da SyLembra, use `docs/archive/sylembra/tasks/` como historico, nao como plano.
 
 ## Campos obrigatorios
 - `status`
