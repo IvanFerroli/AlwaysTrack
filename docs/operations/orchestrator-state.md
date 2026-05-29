@@ -22,11 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-001 (2026-05-29): trilha `TASK-AT-*` aberta, baseline de produto criado e ruido publico V1/seed historico removido do runtime.
+- EXEC-AT-002 (2026-05-29): contrato de seed/flush local consolidado e task de wiki colaborativa `/wiki` adicionada ao backlog.
 
 ## Proximo ciclo a rotar
-- `TASK-AT-003-local-seed-contract.md`: consolidar seed local, aliases de comandos e compatibilidade operacional.
 - `TASK-AT-004-first-operator-flow.md`: fortalecer o fluxo principal organizacao -> profissional -> licenca -> documento -> notificacao/relatorio.
+- `TASK-AT-006-wiki-collaborative-review-flow.md`: desenhar e implementar wiki colaborativa com revisao admin.
 - Decisao de produto: criterio de beta externo controlado.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 - Evitar reabrir tasks historicas da SyLembra como backlog; elas foram isoladas em `docs/archive/sylembra/tasks/`.
@@ -42,6 +42,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run check | passou — 116 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 (EXEC-TMP-009) |
 | npm run check | passou — 116 testes | 2026-05-29 (EXEC-AT-001) |
+| npm run check | passou — 116 testes | 2026-05-29 (EXEC-AT-002) |
 | clone limpo: git clone + npm install + npm run setup + npm run check | passou — 116 testes | 2026-05-29 |
 | npm run build --workspace @alwaystrack/web | passou | 2026-05-28 |
 | APP_NAME=OpsCore VITE_APP_NAME=OpsCore npm run build --workspace @alwaystrack/web | passou | 2026-05-29 |
@@ -52,9 +53,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | env:check --production com URLs publicas e secret forte | passou | 2026-05-29 |
 | env:check --production com secret curto / localhost / loopback | falhou como esperado | 2026-05-29 |
 | npm run env:check | passou | 2026-05-29 (EXEC-AT-001) |
+| npm run env:check | passou | 2026-05-29 (EXEC-AT-002) |
+| npm run setup | passou — seed local aplicado | 2026-05-29 (EXEC-AT-002) |
 | GitHub Actions check.yml | versionado — npm ci + setup + check | 2026-05-29 |
 | docs/tasks sem manifests historicos TASK-* | passou — 58 tasks arquivadas em docs/archive/sylembra/tasks/ | 2026-05-29 |
 | trilha TASK-AT inicial | criada — baseline + runtime copy/seed cleanup | 2026-05-29 |
+| contrato seed local | alias db:flush:local + fallback legado FLUSH_DEMO_* | 2026-05-29 |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

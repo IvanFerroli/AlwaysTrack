@@ -35,6 +35,14 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `curl http://localhost:3333/health`
 - Login local: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
 
+## Seed local
+- `npm run setup` alinha o banco local e aplica o seed idempotente.
+- `SEED_ORGANIZATION_ID` e `SEED_ORGANIZATION_NAME` definem a organizacao criada pelo seed idempotente.
+- `SEED_ADMIN_PASSWORD`, `SEED_RT_PASSWORD`, `SEED_SUPERVISOR_PASSWORD` e `SEED_UPLOAD_TOKEN` fixam credenciais locais; se vazios, o seed imprime valores temporarios.
+- `npm run db:flush:local` reseta o banco local, limpa o storage privado e recria uma organizacao minima com um admin.
+- `db:flush:demo` continua como alias legado para compatibilidade operacional.
+- `FLUSH_LOCAL_*` controla o flush local; `FLUSH_DEMO_*` ainda e aceito como fallback legado.
+
 ## Secrets
 - Nunca commitar `.env`, `.env.local`, banco local, storage local ou logs.
 - Nunca commitar diretorios temporarios como `.tmp-*`, `.openclaw/` ou virtualenvs.
@@ -42,7 +50,6 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `APP_NAME` afeta mensagens geradas pela API; `VITE_APP_NAME` afeta titulo, manifest e marca visivel da web.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
-- `SEED_ORGANIZATION_ID` e `SEED_ORGANIZATION_NAME` definem a organizacao local criada pelo seed.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.

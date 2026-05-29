@@ -8,11 +8,15 @@ const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = resolve(rootDir, "services/api/prisma/schema.prisma");
 const storagePath = resolve(rootDir, ".storage/private");
 
+function configText(localKey, legacyKey, fallback) {
+  return process.env[localKey]?.trim() || process.env[legacyKey]?.trim() || fallback;
+}
+
 const adminConfig = {
-  organizationName: process.env.FLUSH_DEMO_ORGANIZATION_NAME?.trim() || "AlwaysTrack Demo",
-  name: process.env.FLUSH_DEMO_ADMIN_NAME?.trim() || "Admin Demo",
-  email: process.env.FLUSH_DEMO_ADMIN_EMAIL?.trim() || "admin@example.com",
-  password: process.env.FLUSH_DEMO_ADMIN_PASSWORD?.trim() || randomBytes(12).toString("base64url")
+  organizationName: configText("FLUSH_LOCAL_ORGANIZATION_NAME", "FLUSH_DEMO_ORGANIZATION_NAME", "AlwaysTrack Local"),
+  name: configText("FLUSH_LOCAL_ADMIN_NAME", "FLUSH_DEMO_ADMIN_NAME", "Admin Local"),
+  email: configText("FLUSH_LOCAL_ADMIN_EMAIL", "FLUSH_DEMO_ADMIN_EMAIL", "admin@example.com"),
+  password: configText("FLUSH_LOCAL_ADMIN_PASSWORD", "FLUSH_DEMO_ADMIN_PASSWORD", randomBytes(12).toString("base64url"))
 };
 
 const notificationTemplates = [
@@ -157,11 +161,12 @@ async function seedSingleAdmin() {
 
 async function main() {
   console.log("\n====================================================");
-  console.log("ALWAYSTRACK - FLUSH LOCAL DEMO");
+  console.log("ALWAYSTRACK - FLUSH LOCAL SEED");
   console.log("====================================================");
   console.log(`Admin preservado/recriado: ${adminConfig.email}`);
   console.log(`Senha do admin desta execucao: ${adminConfig.password}`);
-  console.log("Defina FLUSH_DEMO_ADMIN_EMAIL e FLUSH_DEMO_ADMIN_PASSWORD para credenciais locais estaveis.");
+  console.log("Defina FLUSH_LOCAL_ADMIN_EMAIL e FLUSH_LOCAL_ADMIN_PASSWORD para credenciais locais estaveis.");
+  console.log("As variaveis FLUSH_DEMO_* antigas continuam aceitas como compatibilidade.");
 
   run("npx", ["prisma", "migrate", "reset", "--force", "--skip-seed", "--schema", schemaPath], "Resetando banco local");
   resetStorage();

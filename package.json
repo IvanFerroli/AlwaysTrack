@@ -19,6 +19,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "env:check": "node scripts/check-env.js",
+    "db:flush:local": "node scripts/flush-local-demo.js",
     "db:flush:demo": "node scripts/flush-local-demo.js",
     "job:notifications": "npm run job:notifications --workspace @alwaystrack/api",
     "smoke:whatsapp": "npm run smoke:whatsapp --workspace @alwaystrack/api",

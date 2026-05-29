@@ -20,9 +20,10 @@ Manter somente o plano ativo do AlwaysTrack. Material de produto anterior fica a
 ## Trilha atual - produto AlwaysTrack
 1. `TASK-AT-001-product-baseline-alwaystrack.md`: declarar baseline de produto, vocabulario canonico e nao-escopo. Status: completed em `EXEC-AT-001`.
 2. `TASK-AT-002-runtime-copy-seed-cleanup.md`: remover ruido publico V1/demo herdado em UI, seed local e docs operacionais. Status: completed em `EXEC-AT-001`.
-3. `TASK-AT-003-local-seed-contract.md`: consolidar seed local como contrato explicito, com alias/comandos e compatibilidade. Status: proposed.
+3. `TASK-AT-003-local-seed-contract.md`: consolidar seed local como contrato explicito, com alias/comandos e compatibilidade. Status: completed em `EXEC-AT-002`.
 4. `TASK-AT-004-first-operator-flow.md`: consolidar fluxo organizacao -> profissional -> licenca -> documento -> notificacao/relatorio. Status: proposed.
 5. `TASK-AT-005-beta-readiness-gate.md`: checklist e validacao para beta externo controlado. Status: proposed.
+6. `TASK-AT-006-wiki-collaborative-review-flow.md`: wiki em `/wiki`, edicoes com moderacao admin e indicadores de leitura/presenca. Status: proposed.
 
 ## Estado atual
 A trilha de produto AlwaysTrack foi aberta sobre a fronteira aceita em ADR-002. O trabalho ativo agora deve construir o starter vertical de licencas/compliance, sem reabrir backlog SyLembra.

@@ -1,7 +1,7 @@
 # TASK-AT-003 - Local seed contract
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: scaffolding-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-003-local-seed-contract.md
@@ -24,7 +24,7 @@ Consolidar o seed local como contrato explicito de desenvolvimento e demonstraca
 
 ## Dependencias
 - satisfeitas: `TASK-AT-001`, `TASK-AT-002`
-- em aberto: decisao sobre manter alias `demo` indefinidamente
+- em aberto: n/a
 
 ## Alvos explicitos
 1. Alias de comando local para flush/reset.
@@ -37,7 +37,7 @@ Consolidar o seed local como contrato explicito de desenvolvimento e demonstraca
 - Remocao brusca de comandos existentes.
 
 ## Checklist
-1. Adicionar alias compatível se necessario.
-2. Documentar contrato de seed local.
-3. Validar `npm run setup`.
-4. Validar `npm run check`.
+1. Adicionar alias compatível se necessario. Status: completed.
+2. Documentar contrato de seed local. Status: completed.
+3. Validar `npm run setup`. Status: completed.
+4. Validar `npm run check`. Status: completed.
