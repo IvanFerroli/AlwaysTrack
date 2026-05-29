@@ -22,6 +22,7 @@ function baseEnv() {
   return {
     databaseUrl: "file:./dev.db",
     sessionSecret: "secret",
+    sessionCookieName: "alwaystrack_session",
     port: 3333,
     storageProvider: "local" as const,
     storageLocalDir: ".storage/private",

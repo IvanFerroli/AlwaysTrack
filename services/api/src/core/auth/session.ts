@@ -1,7 +1,12 @@
 import type { UserRole } from "@alwaystrack/shared";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { loadEnv, type ApiEnv } from "../../config/env.js";
 
 export const sessionCookieName = "alwaystrack_session";
+
+export function getSessionCookieName(env: ApiEnv = loadEnv()) {
+  return env.sessionCookieName;
+}
 
 export interface SessionPayload {
   userId: string;

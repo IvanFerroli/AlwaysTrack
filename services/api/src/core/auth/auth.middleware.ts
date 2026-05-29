@@ -4,7 +4,7 @@ import { parse } from "cookie";
 import { loadEnv } from "../../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { sendError } from "../http/responses.js";
-import { parseSessionToken, sessionCookieName } from "./session.js";
+import { getSessionCookieName, parseSessionToken } from "./session.js";
 import { parseScopeIds } from "./scope.js";
 
 declare global {
@@ -16,8 +16,9 @@ declare global {
 }
 
 export async function requireAuth(request: Request, response: Response, next: NextFunction) {
+  const env = loadEnv();
   const cookies = parse(request.header("cookie") ?? "");
-  const session = parseSessionToken(cookies[sessionCookieName], loadEnv().sessionSecret);
+  const session = parseSessionToken(cookies[getSessionCookieName(env)], env.sessionSecret);
   if (!session) {
     return sendError(response, 401, "UNAUTHENTICATED", "Login required.");
   }

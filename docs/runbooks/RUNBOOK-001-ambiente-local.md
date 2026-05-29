@@ -40,6 +40,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - Nunca commitar diretorios temporarios como `.tmp-*`, `.openclaw/` ou virtualenvs.
 - Para Meta real, preencher apenas no ambiente local privado ou no painel do provider.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
+- `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.

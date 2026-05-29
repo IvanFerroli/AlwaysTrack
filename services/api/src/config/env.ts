@@ -4,6 +4,7 @@ import path from "node:path";
 export interface ApiEnv {
   databaseUrl: string;
   sessionSecret: string;
+  sessionCookieName: string;
   port: number;
   corsOrigin?: string;
   storageProvider: "local";
@@ -61,6 +62,7 @@ export function loadEnv(source = process.env): ApiEnv {
   return {
     databaseUrl: source.DATABASE_URL ?? "file:./dev.db",
     sessionSecret: source.SESSION_SECRET ?? "dev-only-session-secret",
+    sessionCookieName: source.SESSION_COOKIE_NAME ?? "alwaystrack_session",
     port: Number(source.API_PORT ?? "3333"),
     corsOrigin: source.CORS_ORIGIN,
     storageProvider: "local",

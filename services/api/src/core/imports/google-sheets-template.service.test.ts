@@ -72,6 +72,7 @@ describe("google sheets template import helper", () => {
       env: {
         databaseUrl: "file:./dev.db",
         sessionSecret: "secret",
+        sessionCookieName: "alwaystrack_session",
         port: 3333,
         storageProvider: "local",
         storageLocalDir: ".storage/private",
@@ -141,6 +142,7 @@ describe("google sheets template import helper", () => {
       env: {
         databaseUrl: "file:./dev.db",
         sessionSecret: "secret",
+        sessionCookieName: "alwaystrack_session",
         port: 3333,
         storageProvider: "local",
         storageLocalDir: ".storage/private",
@@ -190,6 +192,7 @@ describe("google sheets template import helper", () => {
         env: {
           databaseUrl: "file:./dev.db",
           sessionSecret: "secret",
+          sessionCookieName: "alwaystrack_session",
           port: 3333,
           storageProvider: "local",
           storageLocalDir: ".storage/private",
@@ -238,6 +241,7 @@ describe("google sheets template import helper", () => {
         env: {
           databaseUrl: "file:./dev.db",
           sessionSecret: "secret",
+          sessionCookieName: "alwaystrack_session",
           port: 3333,
           storageProvider: "local",
           storageLocalDir: ".storage/private",

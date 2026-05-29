@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-transition
 - owner: task-planner
-- last-updated: 2026-05-28
+- last-updated: 2026-05-29
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -14,8 +14,8 @@ Preservar o historico da V1 SyLembra ja entregue e orientar a transicao do repos
 2. Sincronizar intake, runbooks e roadmap com o runtime real. Status: completed. Commits: `b89fa06` (intake/runbooks), `bca395c` (env.example IA + adendos pos-V1), `EXEC-TMP-002` (status tasks + provider Gemini).
 3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado. Status: accepted em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`.
 4. Escolher contrato de producao para banco e storage antes de prometer beta fora de ambiente controlado. Status: accepted em `docs/adr/ADR-003-contrato-banco-producao.md` e `docs/adr/ADR-004-contrato-storage-producao.md`.
-5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira. Status: in-progress. Seed e flush-local-demo ja usam env vars; FAQ publica sem fallback demo-org (EXEC-TMP-004); parametrizacao de APP_NAME/cookie por env pendente de task propria.
-6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`. Status: gate-passed (114 testes, exit 0 em EXEC-TMP-005). Clone limpo real pendente antes do beta externo.
+5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira. Status: in-progress. Seed e flush-local-demo ja usam env vars; FAQ publica sem fallback demo-org (EXEC-TMP-004); SESSION_COOKIE_NAME parametrizado na API (EXEC-TMP-006); APP_NAME por env segue pendente de task propria.
+6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`. Status: gate-passed (115 testes, exit 0 em EXEC-TMP-006). Clone limpo real pendente antes do beta externo.
 
 ## Historico SyLembra preservado
 A lista abaixo documenta a ordem original de construcao do MVP. Ela nao deve ser usada como plano futuro sem cruzar com a trilha de transicao acima.

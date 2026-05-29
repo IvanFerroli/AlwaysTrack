@@ -20,6 +20,7 @@ const required = mode === "production"
 
 const optional = [
   "API_PORT",
+  "SESSION_COOKIE_NAME",
   "VITE_API_BASE_URL",
   "STORAGE_LOCAL_DIR",
   "DOCUMENT_MAX_BYTES",

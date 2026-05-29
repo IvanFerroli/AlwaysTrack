@@ -5,7 +5,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import { AuthError, loginUser } from "./auth.service.js";
-import { sessionCookieName } from "./session.js";
+import { getSessionCookieName } from "./session.js";
 
 export async function loginHandler(request: Request, response: Response) {
   const body = request.body as Partial<{ email: string; password: string }>;
@@ -14,10 +14,11 @@ export async function loginHandler(request: Request, response: Response) {
   }
 
   try {
-    const result = await loginUser(prisma, { email: body.email, password: body.password }, loadEnv().sessionSecret);
+    const env = loadEnv();
+    const result = await loginUser(prisma, { email: body.email, password: body.password }, env.sessionSecret);
     response.setHeader(
       "set-cookie",
-      serialize(sessionCookieName, result.token, {
+      serialize(getSessionCookieName(env), result.token, {
         httpOnly: true,
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
@@ -48,7 +49,7 @@ export async function logoutHandler(request: Request, response: Response) {
 
   response.setHeader(
     "set-cookie",
-    serialize(sessionCookieName, "", {
+    serialize(getSessionCookieName(), "", {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
