@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
 import { licenseStatuses, type CurrentUser, type LicenseStatus } from "@alwaystrack/shared";
+import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { calculateLicenseStatus } from "../licenses/status.js";
 
@@ -298,9 +299,10 @@ function seedValidationColumn(worksheet: ExcelJS.Worksheet, column: string, valu
 
 export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, actor: CurrentUser) {
   const { units, sectors, rtUsers, licenseTypes, statuses } = await loadProfessionalsLicensesTemplateLists(prisma, actor);
+  const appName = loadEnv().appName;
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "AlwaysTrack";
+  workbook.creator = appName;
   workbook.created = new Date();
 
   const importSheet = workbook.addWorksheet("Importacao");
@@ -369,7 +371,7 @@ export async function buildProfessionalsLicensesWorkbook(prisma: PrismaClient, a
     "3. Datas devem ficar em YYYY-MM-DD.",
     "4. rt_email precisa existir como usuário RT ativo no sistema.",
     "5. unit_name, sector_name e license_type precisam existir antes da importação.",
-    "6. Depois de preencher, exporte a aba Importacao como CSV e envie no importador do AlwaysTrack."
+    `6. Depois de preencher, exporte a aba Importacao como CSV e envie no importador do ${appName}.`
   ].forEach((line, index) => {
     instructionsSheet.getCell(`A${index + 3}`).value = line;
   });

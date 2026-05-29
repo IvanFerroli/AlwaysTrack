@@ -20,6 +20,7 @@ const admin: CurrentUser = {
 
 function baseEnv() {
   return {
+    appName: "AlwaysTrack",
     databaseUrl: "file:./dev.db",
     sessionSecret: "secret",
     sessionCookieName: "alwaystrack_session",

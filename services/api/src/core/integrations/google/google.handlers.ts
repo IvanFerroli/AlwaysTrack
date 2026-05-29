@@ -17,20 +17,25 @@ function actorFrom(request: Request) {
   return request.user;
 }
 
-function callbackHtml(status: "success" | "error", message: string, targetOrigin?: string) {
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function callbackHtml(status: "success" | "error", message: string, targetOrigin?: string, appName = "AlwaysTrack") {
   const payload = JSON.stringify({
     type: "alwaystrack-google-oauth",
     status,
     message
   });
   const origin = JSON.stringify(targetOrigin || "*");
-  const safeMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const safeMessage = escapeHtml(message);
+  const safeAppName = escapeHtml(appName);
 
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <title>AlwaysTrack - Google</title>
+    <title>${safeAppName} - Google</title>
   </head>
   <body style="font-family: sans-serif; padding: 24px;">
     <p>${safeMessage}</p>
@@ -86,14 +91,16 @@ export async function googleOauthCallbackHandler(request: Request, response: Res
       env
     );
     response.header("content-type", "text/html; charset=utf-8");
-    return response.status(200).send(callbackHtml("success", "Conexão Google concluída. Pode voltar para o AlwaysTrack.", env.corsOrigin));
+    return response
+      .status(200)
+      .send(callbackHtml("success", `Conexão Google concluída. Pode voltar para o ${env.appName}.`, env.corsOrigin, env.appName));
   } catch (error) {
     const message =
       error instanceof ImportError
         ? error.detail ?? error.message
         : "Não foi possível concluir a conexão com o Google.";
     response.header("content-type", "text/html; charset=utf-8");
-    return response.status(200).send(callbackHtml("error", message, env.corsOrigin));
+    return response.status(200).send(callbackHtml("error", message, env.corsOrigin, env.appName));
   }
 }
 
@@ -109,4 +116,3 @@ export async function googleIntegrationDisconnectHandler(request: Request, respo
     throw error;
   }
 }
-

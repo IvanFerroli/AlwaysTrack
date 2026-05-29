@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export interface ApiEnv {
+  appName: string;
   databaseUrl: string;
   sessionSecret: string;
   sessionCookieName: string;
@@ -60,6 +61,7 @@ function loadDotEnv() {
 export function loadEnv(source = process.env): ApiEnv {
   loadDotEnv();
   return {
+    appName: source.APP_NAME?.trim() || "AlwaysTrack",
     databaseUrl: source.DATABASE_URL ?? "file:./dev.db",
     sessionSecret: source.SESSION_SECRET ?? "dev-only-session-secret",
     sessionCookieName: source.SESSION_COOKIE_NAME ?? "alwaystrack_session",

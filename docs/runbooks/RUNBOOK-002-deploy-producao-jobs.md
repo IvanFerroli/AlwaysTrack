@@ -15,8 +15,8 @@ Publicar web, API, banco/storage persistentes, webhook Meta e job de notificacoe
 - Secrets definidos fora do repositorio em `.env.production` ou painel do provider.
 
 ## Envs principais
-- API: `DATABASE_URL`, `SESSION_SECRET`, `SESSION_COOKIE_NAME`, `API_PORT`, `CORS_ORIGIN`, `STORAGE_PROVIDER`, `STORAGE_LOCAL_DIR`, `DOCUMENT_MAX_BYTES`.
-- Web: `VITE_API_BASE_URL` apontando para a URL publica da API.
+- API: `APP_NAME`, `DATABASE_URL`, `SESSION_SECRET`, `SESSION_COOKIE_NAME`, `API_PORT`, `CORS_ORIGIN`, `STORAGE_PROVIDER`, `STORAGE_LOCAL_DIR`, `DOCUMENT_MAX_BYTES`.
+- Web: `VITE_API_BASE_URL` apontando para a URL publica da API; `VITE_APP_NAME` alinhado ao `APP_NAME` usado pela API.
 - Meta: `NOTIFICATION_PROVIDER=meta`, `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`, `META_WEBHOOK_VERIFY_TOKEN`, `META_APP_SECRET`.
 - Job: `NOTIFICATION_JOB_LIMIT`.
 

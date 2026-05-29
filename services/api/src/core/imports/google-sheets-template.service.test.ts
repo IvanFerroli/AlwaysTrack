@@ -70,6 +70,7 @@ describe("google sheets template import helper", () => {
     const result = await createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
       fetcher: fetcher as never,
       env: {
+        appName: "AlwaysTrack",
         databaseUrl: "file:./dev.db",
         sessionSecret: "secret",
         sessionCookieName: "alwaystrack_session",
@@ -140,6 +141,7 @@ describe("google sheets template import helper", () => {
     const result = await createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
       fetcher: fetcher as never,
       env: {
+        appName: "AlwaysTrack",
         databaseUrl: "file:./dev.db",
         sessionSecret: "secret",
         sessionCookieName: "alwaystrack_session",
@@ -190,6 +192,7 @@ describe("google sheets template import helper", () => {
       createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
         fetcher: fetcher as never,
         env: {
+          appName: "AlwaysTrack",
           databaseUrl: "file:./dev.db",
           sessionSecret: "secret",
           sessionCookieName: "alwaystrack_session",
@@ -239,6 +242,7 @@ describe("google sheets template import helper", () => {
       createProfessionalsLicensesGoogleSheetTemplate(basePrisma() as never, admin, {
         fetcher: fetcher as never,
         env: {
+          appName: "AlwaysTrack",
           databaseUrl: "file:./dev.db",
           sessionSecret: "secret",
           sessionCookieName: "alwaystrack_session",

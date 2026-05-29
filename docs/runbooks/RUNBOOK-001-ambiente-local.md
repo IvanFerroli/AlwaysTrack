@@ -39,6 +39,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - Nunca commitar `.env`, `.env.local`, banco local, storage local ou logs.
 - Nunca commitar diretorios temporarios como `.tmp-*`, `.openclaw/` ou virtualenvs.
 - Para Meta real, preencher apenas no ambiente local privado ou no painel do provider.
+- `APP_NAME` afeta mensagens geradas pela API; `VITE_APP_NAME` afeta titulo, manifest e marca visivel da web.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
 

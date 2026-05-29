@@ -38,6 +38,7 @@ describe("signed sessions", () => {
   it("resolves the configured cookie name", () => {
     expect(
       getSessionCookieName({
+        appName: "AlwaysTrack",
         databaseUrl: "file:./dev.db",
         sessionSecret: "secret",
         sessionCookieName: "custom_session",

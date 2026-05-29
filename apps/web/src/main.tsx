@@ -536,15 +536,17 @@ function Icon({ name }: { name: IconName }) {
   return <IconComponent className="icon" aria-hidden="true" strokeWidth={2.25} />;
 }
 
-function BrandMark({ className = "" }: { className?: string }) {
-  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt="AlwaysTrack" />;
-}
-
 function InfoTip({ text, href }: { text: string; href?: string }) {
   return <HelpTip text={text} href={href} />;
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+const appName = import.meta.env.VITE_APP_NAME?.trim() || "AlwaysTrack";
+document.title = appName;
+
+function BrandMark({ className = "" }: { className?: string }) {
+  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt={appName} />;
+}
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -591,7 +593,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
         <div className="login-brand">
           <BrandMark className="login-brand-mark" />
           <div>
-            <p className="eyebrow">AlwaysTrack</p>
+            <p className="eyebrow">{appName}</p>
             <h1>Entrar</h1>
           </div>
         </div>
@@ -4144,7 +4146,7 @@ function PublicUploadView({ token }: { token: string }) {
     <main className="auth-page">
       <section className="panel login-panel">
         <div>
-          <p className="eyebrow">AlwaysTrack</p>
+          <p className="eyebrow">{appName}</p>
           <h1>Enviar documento</h1>
         </div>
         {loading ? <OperationalState state="loading" title="Carregando link" /> : null}
@@ -4180,7 +4182,7 @@ function PublicFaqView() {
   const params = new URLSearchParams(window.location.search);
   const organizationId = params.get("organizationId") ?? null;
   const [items, setItems] = useState<FaqItem[]>([]);
-  const [organizationName, setOrganizationName] = useState("AlwaysTrack");
+  const [organizationName, setOrganizationName] = useState(appName);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [problemType, setProblemType] = useState("Duvida sobre envio");
@@ -4630,7 +4632,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         <div className="brand">
           <BrandMark />
           <div>
-            <strong>AlwaysTrack</strong>
+            <strong>{appName}</strong>
             <small>Licenças e documentos</small>
           </div>
         </div>

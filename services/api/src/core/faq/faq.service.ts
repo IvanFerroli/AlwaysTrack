@@ -227,13 +227,14 @@ export async function buildPublicHelpLink(prisma: PrismaClient, input: PublicHel
     orderBy: { name: "asc" }
   });
   const adminPhone = digitsOnly(admin?.phone);
-  const fallbackPhone = digitsOnly(loadEnv().supportPhone);
+  const env = loadEnv();
+  const fallbackPhone = digitsOnly(env.supportPhone);
   const phone = rtPhone ?? supervisorPhone ?? adminPhone ?? fallbackPhone;
   if (!phone) throw new FaqError("NOT_FOUND");
 
   const license = professional?.licenses[0];
   const message = [
-    `Ajuda AlwaysTrack - ${input.problemType}`,
+    `Ajuda ${env.appName} - ${input.problemType}`,
     professional ? `Profissional: ${professional.name}` : `Organizacao: ${organization.name}`,
     license ? `Licenca: ${license.licenseType.name}${license.number ? ` / ${license.number}` : ""}` : null,
     `Mensagem: ${input.message}`
