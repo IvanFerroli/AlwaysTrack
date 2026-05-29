@@ -15,7 +15,7 @@ Preservar o historico da V1 SyLembra ja entregue e orientar a transicao do repos
 3. Definir fronteira do template: starter de licencas/compliance, base operacional generica ou produto AlwaysTrack ja rebrandado. Status: accepted em `docs/adr/ADR-002-fronteira-template-alwaystrack.md`.
 4. Escolher contrato de producao para banco e storage antes de prometer beta fora de ambiente controlado. Status: accepted em `docs/adr/ADR-003-contrato-banco-producao.md` e `docs/adr/ADR-004-contrato-storage-producao.md`.
 5. Parametrizar marca, seed, tenant publico e templates apos a decisao de fronteira. Status: completed para a fronteira atual. Seed e flush-local-demo ja usam env vars; FAQ publica sem fallback demo-org (EXEC-TMP-004); SESSION_COOKIE_NAME parametrizado na API (EXEC-TMP-006); APP_NAME/VITE_APP_NAME parametrizam API, UI, titulo e manifest web (EXEC-TMP-007).
-6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`. Status: gate-passed (116 testes, exit 0 em EXEC-TMP-007). Clone limpo real pendente antes do beta externo.
+6. Validar em clone limpo com `npm install`, `npm run setup` e `npm run check`. Status: completed em EXEC-TMP-008: clone limpo real passou com 116 testes.
 
 ## Historico SyLembra preservado
 A lista abaixo documenta a ordem original de construcao do MVP. Ela nao deve ser usada como plano futuro sem cruzar com a trilha de transicao acima.

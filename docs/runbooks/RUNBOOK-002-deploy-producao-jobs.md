@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: ops-builder
-- last-updated: 2026-05-28
+- last-updated: 2026-05-29
 - source-of-truth: docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md
 
 ## Objetivo
@@ -30,8 +30,8 @@ O template ainda usa Prisma com SQLite por padrao. Em producao, ha duas rotas ac
 ## Deploy com Docker Compose
 1. Copiar `.env.example` para `.env.production` no host e preencher secrets reais.
 2. Rodar `npm run env:check -- --production` com as envs carregadas.
-3. Buildar e subir: `docker compose -f deploy/docker-compose.example.yml up -d --build api web`.
-4. Aplicar schema/seed inicial se necessario: `docker compose -f deploy/docker-compose.example.yml exec api npm run setup`.
+3. Buildar e subir: `docker compose --env-file .env.production -f deploy/docker-compose.example.yml up -d --build api web`.
+4. Aplicar schema/seed inicial se necessario: `docker compose --env-file .env.production -f deploy/docker-compose.example.yml exec api npm run setup`.
 5. Configurar cron do host com `deploy/cron.example`.
 
 ## Webhook Meta
@@ -43,16 +43,16 @@ O template ainda usa Prisma com SQLite por padrao. Em producao, ha duas rotas ac
 
 ## Jobs
 - O comando previsivel é `npm run job:notifications --workspace @alwaystrack/api`.
-- Em Compose: `docker compose -f deploy/docker-compose.example.yml --profile jobs run --rm notification-job`.
+- Em Compose: `docker compose --env-file .env.production -f deploy/docker-compose.example.yml --profile jobs run --rm notification-job`.
 - Frequencia recomendada inicial: a cada 10 minutos.
 
 ## Validacao
 - `curl https://<api-host>/health`
 - Login no web usando admin real.
-- `docker compose logs api --tail=100`
+- `docker compose --env-file .env.production -f deploy/docker-compose.example.yml logs api --tail=100`
 - Executar job manual e verificar JSON com `scanned`, `skipped` e `processed`.
 
 ## Rollback/contingencia
-1. Voltar imagem anterior do provider ou `docker compose down && docker compose up -d` com tag anterior.
+1. Voltar imagem anterior do provider ou `docker compose --env-file .env.production -f deploy/docker-compose.example.yml down && docker compose --env-file .env.production -f deploy/docker-compose.example.yml up -d` com tag anterior.
 2. Desabilitar cron se houver envio indevido.
 3. Trocar `NOTIFICATION_PROVIDER=fake` para pausar envio real mantendo scanner seguro.

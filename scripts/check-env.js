@@ -15,7 +15,7 @@ const mode = process.argv.includes("--production") ? "production" : "local";
 loadDotEnv(mode === "production" ? ".env.production" : ".env");
 
 const required = mode === "production"
-  ? ["DATABASE_URL", "SESSION_SECRET", "CORS_ORIGIN"]
+  ? ["DATABASE_URL", "SESSION_SECRET", "CORS_ORIGIN", "VITE_API_BASE_URL"]
   : [];
 
 const optional = [
@@ -48,7 +48,7 @@ if (provider === "meta") {
 }
 
 console.log(`[env:check] mode=${mode}`);
-for (const key of [...required, ...optional]) {
+for (const key of [...new Set([...required, ...optional])]) {
   if (process.env[key]) console.log(`[env:check] ${key}=set`);
 }
 
