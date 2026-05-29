@@ -309,7 +309,16 @@ export async function listWikiEditRequests(prisma: PrismaClient, actor: CurrentU
   const where: Prisma.WikiEditRequestWhereInput = {
     organizationId: actor.organizationId,
     status: filters.status,
-    authorId: actor.role === "ADMIN" ? undefined : actor.id
+    authorId: actor.role === "ADMIN" ? undefined : actor.id,
+    OR: filters.query
+      ? [
+          { title: { contains: filters.query } },
+          { content: { contains: filters.query } },
+          { page: { title: { contains: filters.query } } },
+          { page: { slug: { contains: filters.query } } },
+          { author: { name: { contains: filters.query } } }
+        ]
+      : undefined
   };
   const [items, total] = await Promise.all([
     prisma.wikiEditRequest.findMany({

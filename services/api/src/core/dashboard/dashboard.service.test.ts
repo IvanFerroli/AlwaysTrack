@@ -68,6 +68,19 @@ describe("dashboard service", () => {
       notificationJob: {
         count: vi.fn().mockResolvedValueOnce(4).mockResolvedValueOnce(5).mockResolvedValueOnce(1),
         findMany: vi.fn().mockResolvedValue([{ id: "job-1", professional: { unit: {}, sector: {} }, license: { licenseType: {} } }])
+      },
+      wikiEditRequest: {
+        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "wiki-req-1",
+            title: "Procedimento atualizado",
+            baseVersion: 1,
+            createdAt: new Date("2026-04-29T00:00:00.000Z"),
+            page: { id: "page-1", slug: "primeiros-passos", title: "Primeiros passos", version: 1 },
+            author: { id: "rt-1", name: "RT A", email: "rt@example.com", role: "RT" }
+          }
+        ])
       }
     };
 
@@ -75,6 +88,8 @@ describe("dashboard service", () => {
 
     expect(result.metrics.totalProfessionals).toBe(3);
     expect(result.metrics.licenses).toEqual({ regular: 2, expiring: 1, expired: 1 });
+    expect(result.metrics.wiki.pendingRequests).toBe(1);
+    expect(result.queues.pendingWikiRequests).toHaveLength(1);
     expect(result.queues.expiredBySector).toEqual([{ label: "Setor A", total: 1 }]);
     expect(prisma.professional.count).toHaveBeenCalledWith({ where: { organizationId: "org-1" } });
   });
@@ -84,7 +99,8 @@ describe("dashboard service", () => {
       professional: { count: vi.fn().mockResolvedValue(0) },
       license: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
       document: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
-      notificationJob: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) }
+      notificationJob: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
+      wikiEditRequest: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) }
     };
 
     await getDashboard(prisma as never, supervisor);

@@ -5,6 +5,7 @@ import {
   createWikiEditRequest,
   createWikiPage,
   heartbeatWikiPresence,
+  listWikiEditRequests,
   listWikiPages,
   markWikiRead,
   parseWikiEditRequestInput,
@@ -111,6 +112,24 @@ describe("wiki service", () => {
     expect(prisma.wikiEditRequest.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ organizationId: "org-1", authorId: "rt-1", baseVersion: 2, status: "PENDING" })
+      })
+    );
+  });
+
+  it("filters edit requests by page, author, and content query", async () => {
+    const prisma = {
+      wikiEditRequest: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
+    };
+
+    await listWikiEditRequests(prisma as never, admin, { status: "PENDING", query: "protocolo" });
+
+    expect(prisma.wikiEditRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          status: "PENDING",
+          OR: expect.arrayContaining([{ title: { contains: "protocolo" } }])
+        })
       })
     );
   });

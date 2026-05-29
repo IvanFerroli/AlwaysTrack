@@ -113,7 +113,7 @@ interface WikiEditRequestItem {
 interface WikiPageDetail extends WikiPageSummary {
   readReceipts: Array<{ id: string; lastReadAt: string; user: WikiUserRef }>;
   presences: Array<{ id: string; mode: "READING" | "EDITING"; lastSeenAt: string; user: WikiUserRef }>;
-  revisions: Array<{ id: string; version: number; title: string; createdAt: string; author: WikiUserRef }>;
+  revisions: Array<{ id: string; version: number; title: string; content: string; createdAt: string; author: WikiUserRef }>;
   editRequests: WikiEditRequestItem[];
 }
 
@@ -488,6 +488,7 @@ interface DashboardData {
     licenses: { regular: number; expiring: number; expired: number };
     documents: { pendingValidation: number };
     notifications: { pending: number; sent: number; failed: number };
+    wiki: { pendingRequests: number };
   };
   queues: {
     expiringLicenses: LicenseItem[];
@@ -498,6 +499,7 @@ interface DashboardData {
     expiredBySector: Array<{ label: string; total: number }>;
     pendingDocumentsByRt: Array<{ label: string; total: number }>;
     pendingDocumentsByUnit: Array<{ label: string; total: number }>;
+    pendingWikiRequests: WikiEditRequestItem[];
   };
 }
 
@@ -689,6 +691,19 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function wikiChangeSummary(before: string, after: string) {
+  const beforeLines = before.split(/\r?\n/);
+  const afterLines = after.split(/\r?\n/);
+  const max = Math.max(beforeLines.length, afterLines.length);
+  let changed = 0;
+  for (let index = 0; index < max; index += 1) {
+    if ((beforeLines[index] ?? "") !== (afterLines[index] ?? "")) changed += 1;
+  }
+  const delta = after.length - before.length;
+  const deltaLabel = delta === 0 ? "mesmo tamanho" : delta > 0 ? `+${delta} caracteres` : `${delta} caracteres`;
+  return `${changed} linha(s) alterada(s), ${deltaLabel}`;
+}
+
 function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -725,6 +740,34 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
         <MetricCard label="Notificações pendentes" value={dashboard.metrics.notifications.pending} />
         <MetricCard label="Notificações enviadas" value={dashboard.metrics.notifications.sent} />
         <MetricCard label="Notificações com falha" value={dashboard.metrics.notifications.failed} />
+        <MetricCard label="Wiki pendente" value={dashboard.metrics.wiki.pendingRequests} />
+      </section>
+
+      <section className="panel action-center-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Central de ações</p>
+            <h2>Prioridades do dia</h2>
+          </div>
+        </div>
+        <div className="action-center-grid">
+          <button type="button" onClick={() => onOpen("licenses")}>
+            <strong>{dashboard.metrics.licenses.expired}</strong>
+            <span>licença(s) vencida(s)</span>
+          </button>
+          <button type="button" onClick={() => onOpen("documents")}>
+            <strong>{dashboard.metrics.documents.pendingValidation}</strong>
+            <span>documento(s) para validar</span>
+          </button>
+          <button type="button" onClick={() => onOpen("reports")}>
+            <strong>{dashboard.metrics.notifications.failed}</strong>
+            <span>notificação(ões) com falha</span>
+          </button>
+          <button type="button" onClick={() => onOpen("wiki")}>
+            <strong>{dashboard.metrics.wiki.pendingRequests}</strong>
+            <span>revisão(ões) de wiki</span>
+          </button>
+        </div>
       </section>
 
       <section className="dashboard-grid">
@@ -866,7 +909,25 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
                 { key: "professional", header: "Profissional", render: (item) => item.professional.name },
                 { key: "template", header: "Template", render: (item) => item.templateKey },
                 { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("settings")}>Ajustar</button> }
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("reports")}>Ver relatório</button> }
+              ]}
+            />
+          )}
+        </div>
+
+        <div className="panel table-panel">
+          <h2>Wiki pendente</h2>
+          {dashboard.queues.pendingWikiRequests.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma revisão pendente" />
+          ) : (
+            <OperationalTable
+              items={dashboard.queues.pendingWikiRequests}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "page", header: "Página", render: (item) => item.page.title },
+                { key: "author", header: "Autor", render: (item) => item.author.name },
+                { key: "base", header: "Base", render: (item) => `v${item.baseVersion}` },
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("wiki")}>Revisar</button> }
               ]}
             />
           )}
@@ -4385,9 +4446,16 @@ function WikiView({ user }: { user: CurrentUser }) {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
+  const [selectedRevisionVersion, setSelectedRevisionVersion] = useState<number | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function draftKey(pageId: string) {
+    return `alwaystrack:wiki-draft:${user.id}:${pageId}`;
+  }
 
   async function loadPages(nextSelectedId = selected?.id) {
     setLoading(true);
@@ -4419,6 +4487,8 @@ function WikiView({ user }: { user: CurrentUser }) {
     setSelected(result.page);
     setEditTitle(result.page.title);
     setEditContent(result.page.content);
+    setSelectedRevisionVersion(null);
+    setDraftMessage(null);
     if (markRead) {
       await api(`/v1/wiki/pages/${pageId}/read`, { method: "POST", body: JSON.stringify({}) });
       await api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) });
@@ -4437,6 +4507,24 @@ function WikiView({ user }: { user: CurrentUser }) {
     }, 45_000);
     return () => window.clearInterval(timer);
   }, [selected?.id]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const rawDraft = window.localStorage.getItem(draftKey(selected.id));
+    if (!rawDraft) return;
+    try {
+      const draft = JSON.parse(rawDraft) as { title?: string; content?: string; baseVersion?: number; savedAt?: string };
+      if (draft.baseVersion === selected.version && typeof draft.title === "string" && typeof draft.content === "string") {
+        setEditTitle(draft.title);
+        setEditContent(draft.content);
+        setDraftMessage(`Rascunho local recuperado de ${formatDateTimeBr(draft.savedAt ?? null)}.`);
+      } else {
+        setDraftMessage("Existe um rascunho local baseado em versão anterior; revise antes de reaproveitar.");
+      }
+    } catch {
+      setDraftMessage("Rascunho local inválido ignorado.");
+    }
+  }, [selected?.id, selected?.version]);
 
   async function run(action: () => Promise<void>) {
     setSaving(true);
@@ -4472,6 +4560,8 @@ function WikiView({ user }: { user: CurrentUser }) {
         method: "PATCH",
         body: JSON.stringify({ title: editTitle, content: editContent, baseVersion: selected.version })
       });
+      window.localStorage.removeItem(draftKey(selected.id));
+      setDraftMessage(null);
       await loadPages(selected.id);
     });
   }
@@ -4484,8 +4574,27 @@ function WikiView({ user }: { user: CurrentUser }) {
         method: "POST",
         body: JSON.stringify({ pageId: selected.id, title: editTitle, content: editContent, baseVersion: selected.version })
       });
+      window.localStorage.removeItem(draftKey(selected.id));
+      setDraftMessage(null);
       await openPage(selected.id);
     });
+  }
+
+  function saveDraft() {
+    if (!selected) return;
+    window.localStorage.setItem(
+      draftKey(selected.id),
+      JSON.stringify({ title: editTitle, content: editContent, baseVersion: selected.version, savedAt: new Date().toISOString() })
+    );
+    setDraftMessage("Rascunho local salvo neste navegador.");
+  }
+
+  function discardDraft() {
+    if (!selected) return;
+    window.localStorage.removeItem(draftKey(selected.id));
+    setEditTitle(selected.title);
+    setEditContent(selected.content);
+    setDraftMessage("Rascunho descartado; editor voltou para a versão publicada.");
   }
 
   async function decideRequest(requestId: string, decision: "approve" | "reject") {
@@ -4500,6 +4609,15 @@ function WikiView({ user }: { user: CurrentUser }) {
   }
 
   const pendingForSelected = selected?.editRequests.filter((request) => request.status === "PENDING") ?? [];
+  const comparedRevision = selected
+    ? selected.revisions.find((revision) => revision.version === selectedRevisionVersion) ??
+      selected.revisions.find((revision) => revision.version !== selected.version) ??
+      selected.revisions[0] ??
+      null
+    : null;
+  const selectedRequest =
+    (selectedRequestId ? requests.find((request) => request.id === selectedRequestId) ?? selected?.editRequests.find((request) => request.id === selectedRequestId) : null) ??
+    null;
 
   return (
     <div className="content-stack">
@@ -4598,11 +4716,46 @@ function WikiView({ user }: { user: CurrentUser }) {
                   <p>{selected.revisions.map((item) => `v${item.version} ${item.author.name}`).join(", ") || "Sem historico"}</p>
                 </div>
               </div>
+              {comparedRevision ? (
+                <div className="wiki-compare-panel">
+                  <div className="table-panel-toolbar">
+                    <div>
+                      <p className="eyebrow">Historico</p>
+                      <h3>Comparar revisao</h3>
+                    </div>
+                    <label>
+                      Versao
+                      <select
+                        value={comparedRevision.version}
+                        onChange={(event) => setSelectedRevisionVersion(Number(event.target.value))}
+                      >
+                        {selected.revisions.map((revision) => (
+                          <option key={revision.id} value={revision.version}>
+                            v{revision.version} - {revision.author.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <p className="muted">{wikiChangeSummary(comparedRevision.content, selected.content)}</p>
+                  <div className="wiki-compare-grid">
+                    <div>
+                      <strong>v{comparedRevision.version}</strong>
+                      <pre>{comparedRevision.content}</pre>
+                    </div>
+                    <div>
+                      <strong>v{selected.version} publicada</strong>
+                      <pre>{selected.content}</pre>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               {pendingForSelected.length ? (
                 <OperationalState state="success" title={`${pendingForSelected.length} requisicao(oes) pendente(s) nesta pagina`} />
               ) : null}
               <form className="wiki-edit-form" onSubmit={user.role === "ADMIN" ? publishEdit : requestEdit}>
                 <h3>{user.role === "ADMIN" ? "Editar e publicar" : "Sugerir alteracao"}</h3>
+                {draftMessage ? <p className="muted">{draftMessage}</p> : null}
                 <label>
                   Titulo
                   <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
@@ -4614,6 +4767,12 @@ function WikiView({ user }: { user: CurrentUser }) {
                 <div className="form-actions">
                   <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
                     {user.role === "ADMIN" ? "Publicar versao" : "Enviar para aprovacao"}
+                  </button>
+                  <button className="secondary" type="button" disabled={!selected || saving} onClick={saveDraft}>
+                    Salvar rascunho
+                  </button>
+                  <button className="secondary" type="button" disabled={!selected || saving} onClick={discardDraft}>
+                    Descartar rascunho
                   </button>
                 </div>
               </form>
@@ -4639,26 +4798,53 @@ function WikiView({ user }: { user: CurrentUser }) {
           {requests.length === 0 ? (
             <OperationalState state="empty" title="Nenhuma requisicao pendente" />
           ) : (
-            <OperationalTable
-              items={requests}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "page", header: "Pagina", render: (item) => item.page.title },
-                { key: "author", header: "Autor", render: (item) => item.author.name },
-                { key: "base", header: "Base", render: (item) => `v${item.baseVersion}` },
-                { key: "created", header: "Criada", render: (item) => formatDateTimeBr(item.createdAt) },
-                {
-                  key: "actions",
-                  header: "Acoes",
-                  render: (item) => (
-                    <span className="row-actions">
-                      <button type="button" onClick={() => void decideRequest(item.id, "approve")}>Aprovar</button>
-                      <button className="secondary" type="button" onClick={() => void decideRequest(item.id, "reject")}>Reprovar</button>
-                    </span>
-                  )
-                }
-              ]}
-            />
+            <>
+              {selectedRequest ? (
+                <div className="wiki-request-preview">
+                  <div>
+                    <p className="eyebrow">Preview</p>
+                    <h3>{selectedRequest.title}</h3>
+                    <p className="muted">
+                      {selectedRequest.author.name} sugeriu sobre {selectedRequest.page.title} a partir da v{selectedRequest.baseVersion}.
+                    </p>
+                    {selected?.id === selectedRequest.pageId ? (
+                      <p className="muted">{wikiChangeSummary(selected.content, selectedRequest.content)}</p>
+                    ) : null}
+                  </div>
+                  <pre>{selectedRequest.content}</pre>
+                </div>
+              ) : null}
+              <OperationalTable
+                items={requests}
+                getRowKey={(item) => item.id}
+                columns={[
+                  { key: "page", header: "Pagina", render: (item) => item.page.title },
+                  { key: "author", header: "Autor", render: (item) => item.author.name },
+                  { key: "base", header: "Base", render: (item) => `v${item.baseVersion}` },
+                  { key: "created", header: "Criada", render: (item) => formatDateTimeBr(item.createdAt) },
+                  {
+                    key: "actions",
+                    header: "Acoes",
+                    render: (item) => (
+                      <span className="row-actions">
+                        <button
+                          className="secondary"
+                          type="button"
+                          onClick={() => {
+                            setSelectedRequestId(item.id);
+                            void openPage(item.pageId);
+                          }}
+                        >
+                          Preview
+                        </button>
+                        <button type="button" onClick={() => void decideRequest(item.id, "approve")}>Aprovar</button>
+                        <button className="secondary" type="button" onClick={() => void decideRequest(item.id, "reject")}>Reprovar</button>
+                      </span>
+                    )
+                  }
+                ]}
+              />
+            </>
           )}
         </section>
       ) : null}

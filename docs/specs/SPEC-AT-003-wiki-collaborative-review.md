@@ -32,6 +32,9 @@ Definir o MVP da wiki interna do AlwaysTrack em `/wiki`.
 - Editor simples com textarea.
 - Fila de moderacao para Admin.
 - Leitores recentes e presenca por polling HTTP.
+- Comparacao simples entre revisao publicada e revisoes recentes.
+- Rascunho local por usuario/pagina no navegador.
+- Preview de requisicao antes de aprovar ou reprovar.
 
 ## Fora de escopo
 - Editor rich text.

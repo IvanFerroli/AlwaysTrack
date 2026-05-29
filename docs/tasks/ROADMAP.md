@@ -24,9 +24,14 @@ Manter somente o plano ativo do AlwaysTrack. Material de produto anterior fica a
 4. `TASK-AT-004-first-operator-flow.md`: consolidar fluxo organizacao -> profissional -> licenca -> documento -> notificacao/relatorio. Status: completed em `EXEC-AT-003`.
 5. `TASK-AT-005-beta-readiness-gate.md`: checklist e validacao para beta externo controlado. Status: completed em `EXEC-AT-004`.
 6. `TASK-AT-006-wiki-collaborative-review-flow.md`: wiki em `/wiki`, edicoes com moderacao admin e indicadores de leitura/presenca. Status: completed-mvp em `EXEC-AT-004`.
+7. `TASK-AT-007-wiki-review-hardening.md`: comparacao de revisoes, rascunho local e preview de moderacao. Status: completed em `EXEC-AT-005`.
+8. `TASK-AT-008-dashboard-action-center.md`: dashboard como central de acoes com pendencias wiki. Status: completed em `EXEC-AT-005`.
+9. `TASK-AT-009-regularization-workflow.md`: acompanhamento de casos de regularizacao por licenca/documento. Status: proposed.
+10. `TASK-AT-010-compliance-dossier-export.md`: dossie de compliance exportavel por profissional/licenca. Status: proposed.
+11. `TASK-AT-011-beta-local-smoke.md`: smoke local automatizado para beta controlado. Status: completed em `EXEC-AT-005`.
 
 ## Estado atual
-A trilha de produto AlwaysTrack foi aberta sobre a fronteira aceita em ADR-002. O trabalho ativo agora deve construir o starter vertical de licencas/compliance, sem reabrir backlog SyLembra.
+A trilha de produto AlwaysTrack foi aberta sobre a fronteira aceita em ADR-002. O trabalho ativo agora deve construir o starter vertical de licencas/compliance, sem reabrir backlog SyLembra. Proximas paredes provaveis: workflow de regularizacao e dossie de compliance exportavel.
 
 ## Arquivo historico
 As tasks `TASK-*` da V1 SyLembra foram movidas para `docs/archive/sylembra/tasks/`.

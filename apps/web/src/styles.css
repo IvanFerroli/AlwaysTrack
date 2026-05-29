@@ -251,7 +251,7 @@ h1,
 h2,
 h3 {
   color: var(--color-heading);
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 h1 {
@@ -291,7 +291,7 @@ th {
   color: #667085;
   font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.045em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -481,7 +481,7 @@ tr:hover td {
   color: white;
   display: block;
   font-size: 19px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   line-height: 1.05;
   text-transform: uppercase;
 }
@@ -721,11 +721,50 @@ button .icon {
 .metric-card strong {
   color: var(--color-heading);
   font-size: 30px;
-  letter-spacing: -0.05em;
 }
 
 .dashboard-grid .table-panel h2 {
   padding: 18px 18px 0;
+}
+
+.action-center-panel {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.action-center-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 14px 16px;
+}
+
+.action-center-grid button {
+  align-items: start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  color: inherit;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  min-height: 82px;
+  text-align: left;
+}
+
+.action-center-grid button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.action-center-grid strong {
+  color: var(--color-heading);
+  font-size: 26px;
+}
+
+.action-center-grid span {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .operational-filters {
@@ -1077,6 +1116,40 @@ legend {
   gap: 12px;
 }
 
+.wiki-compare-panel,
+.wiki-request-preview {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.wiki-compare-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wiki-compare-grid div,
+.wiki-request-preview pre {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.wiki-compare-grid pre,
+.wiki-request-preview pre {
+  color: #475467;
+  font-family: inherit;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
 .decision-note-field {
   min-width: min(360px, 100%);
 }
@@ -1357,7 +1430,7 @@ legend {
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 900;
-  letter-spacing: 0.045em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -1422,6 +1495,7 @@ legend {
   }
 
   .dashboard-grid,
+  .action-center-grid,
   .settings-grid,
   .analysis-grid,
   .help-section-grid,
@@ -1429,6 +1503,7 @@ legend {
   .detail-grid,
   .upload-link-panel,
   .wiki-layout,
+  .wiki-compare-grid,
   .wiki-meta-grid {
     grid-template-columns: 1fr;
   }
@@ -1459,6 +1534,7 @@ legend {
   .operational-filters,
   .metrics-grid,
   .dashboard-grid,
+  .action-center-grid,
   .settings-grid,
   .help-section-grid,
   .help-grid,
@@ -1467,6 +1543,7 @@ legend {
   .detail-grid,
   .upload-link-panel,
   .wiki-layout,
+  .wiki-compare-grid,
   .wiki-meta-grid {
     grid-template-columns: 1fr;
   }

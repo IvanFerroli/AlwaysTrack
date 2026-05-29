@@ -55,6 +55,11 @@ export async function getDashboard(prisma: PrismaClient, actor: CurrentUser, tod
   const licenseScope: Prisma.LicenseWhereInput = { professional: professionalScope };
   const documentScope: Prisma.DocumentWhereInput = { professional: professionalScope };
   const notificationScope: Prisma.NotificationJobWhereInput = { professional: professionalScope };
+  const wikiRequestScope: Prisma.WikiEditRequestWhereInput = {
+    organizationId: actor.organizationId,
+    status: "PENDING",
+    authorId: actor.role === "ADMIN" ? undefined : actor.id
+  };
 
   const [
     totalProfessionals,
@@ -69,7 +74,9 @@ export async function getDashboard(prisma: PrismaClient, actor: CurrentUser, tod
     expiredQueue,
     pendingDocumentQueue,
     recentUploads,
-    failedNotificationQueue
+    failedNotificationQueue,
+    pendingWikiRequests,
+    pendingWikiRequestQueue
   ] = await Promise.all([
     prisma.professional.count({ where: professionalScope }),
     prisma.license.count({ where: { ...licenseScope, status: "REGULAR" } }),
@@ -125,6 +132,16 @@ export async function getDashboard(prisma: PrismaClient, actor: CurrentUser, tod
       },
       orderBy: { updatedAt: "desc" },
       take: 10
+    }),
+    prisma.wikiEditRequest.count({ where: wikiRequestScope }),
+    prisma.wikiEditRequest.findMany({
+      where: wikiRequestScope,
+      include: {
+        page: { select: { id: true, slug: true, title: true, version: true } },
+        author: { select: { id: true, name: true, email: true, role: true } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10
     })
   ]);
 
@@ -143,6 +160,9 @@ export async function getDashboard(prisma: PrismaClient, actor: CurrentUser, tod
         pending: pendingNotifications,
         sent: sentNotifications,
         failed: failedNotifications
+      },
+      wiki: {
+        pendingRequests: pendingWikiRequests
       }
     },
     queues: {
@@ -153,7 +173,8 @@ export async function getDashboard(prisma: PrismaClient, actor: CurrentUser, tod
       failedNotifications: failedNotificationQueue,
       expiredBySector: countBy(expiredQueue, (item) => item.professional.sector.name),
       pendingDocumentsByRt: countBy(pendingDocumentQueue, (item) => item.professional.responsibleRt?.name ?? "Sem RT"),
-      pendingDocumentsByUnit: countBy(pendingDocumentQueue, (item) => item.professional.unit.name)
+      pendingDocumentsByUnit: countBy(pendingDocumentQueue, (item) => item.professional.unit.name),
+      pendingWikiRequests: pendingWikiRequestQueue
     }
   };
 }
