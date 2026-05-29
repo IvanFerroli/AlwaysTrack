@@ -1,7 +1,7 @@
 # TASK-AT-004 - First operator flow
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: runtime-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-004-first-operator-flow.md
@@ -36,7 +36,7 @@ O runtime ja possui organizacoes, profissionais, licencas, documentos, notificac
 - Refatoracao ampla da SPA monolitica.
 
 ## Checklist
-1. Mapear fluxo atual.
-2. Corrigir friccoes de menor risco.
-3. Ampliar teste e2e de qualidade se houver lacuna.
-4. Validar `npm run check`.
+1. Mapear fluxo atual. Status: completed.
+2. Corrigir friccoes de menor risco. Status: completed sem mudanca de UX/runtime.
+3. Ampliar teste e2e de qualidade se houver lacuna. Status: completed.
+4. Validar `npm run check`. Status: completed.

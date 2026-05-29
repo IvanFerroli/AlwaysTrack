@@ -209,9 +209,48 @@ describe("main operational flow", () => {
     expect(process.processed[0]).toEqual(expect.objectContaining({ status: "SENT" }));
     expect(document.id).toBe("doc-1");
     expect(validation.status).toBe("APPROVED");
+    expect(storage.put).toHaveBeenCalledWith({
+      fileKey: "org-1/pro-1/lic-1/tok-1.pdf",
+      body: Buffer.from("file"),
+      mimeType: "application/pdf"
+    });
     expect(prisma.license.update).toHaveBeenLastCalledWith({ where: { id: "lic-1" }, data: { status: "EXPIRING" } });
+    expect(prisma.notificationLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ notificationJobId: "job-1", provider: "fake", status: "SENT" }) })
+    );
+    expect(prisma.auditLog.create.mock.calls.map(([entry]) => entry.data.action)).toEqual([
+      "license.create",
+      "upload_token.use",
+      "document.public_upload",
+      "document.approve",
+      "license.status_recalculate"
+    ]);
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ action: "document.approve" }) })
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "license.create",
+          entityType: "License",
+          metadataJson: expect.stringContaining('"status":"EXPIRING"')
+        })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "document.approve",
+          entityType: "Document",
+          metadataJson: expect.stringContaining('"previousStatus":"UPLOADED"')
+        })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "license.status_recalculate",
+          entityType: "License",
+          metadataJson: expect.stringContaining('"previousStatus":"PENDING_VALIDATION"')
+        })
+      })
     );
   });
 });

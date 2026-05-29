@@ -22,11 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-002 (2026-05-29): contrato de seed/flush local consolidado e task de wiki colaborativa `/wiki` adicionada ao backlog.
+- EXEC-AT-003 (2026-05-29): fluxo operacional principal fixado em spec e e2e ampliado para validar evidencias de auditoria, upload e notificacao.
 
 ## Proximo ciclo a rotar
-- `TASK-AT-004-first-operator-flow.md`: fortalecer o fluxo principal organizacao -> profissional -> licenca -> documento -> notificacao/relatorio.
 - `TASK-AT-006-wiki-collaborative-review-flow.md`: desenhar e implementar wiki colaborativa com revisao admin.
+- `TASK-AT-005-beta-readiness-gate.md`: fechar gate de beta externo controlado.
 - Decisao de produto: criterio de beta externo controlado.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 - Evitar reabrir tasks historicas da SyLembra como backlog; elas foram isoladas em `docs/archive/sylembra/tasks/`.
@@ -43,8 +43,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run check | passou — 116 testes | 2026-05-29 (EXEC-TMP-009) |
 | npm run check | passou — 116 testes | 2026-05-29 (EXEC-AT-001) |
 | npm run check | passou — 116 testes | 2026-05-29 (EXEC-AT-002) |
+| npm run check | passou — 116 testes | 2026-05-29 (EXEC-AT-003) |
+| main operational flow e2e | ampliado — evidencia auditoria/upload/notificacao | 2026-05-29 (EXEC-AT-003) |
 | clone limpo: git clone + npm install + npm run setup + npm run check | passou — 116 testes | 2026-05-29 |
 | npm run build --workspace @alwaystrack/web | passou | 2026-05-28 |
+| npm run build --workspace @alwaystrack/web | passou | 2026-05-29 (EXEC-AT-003) |
 | APP_NAME=OpsCore VITE_APP_NAME=OpsCore npm run build --workspace @alwaystrack/web | passou | 2026-05-29 |
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-28 |
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-29 |
@@ -54,6 +57,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | env:check --production com secret curto / localhost / loopback | falhou como esperado | 2026-05-29 |
 | npm run env:check | passou | 2026-05-29 (EXEC-AT-001) |
 | npm run env:check | passou | 2026-05-29 (EXEC-AT-002) |
+| npm run env:check | passou | 2026-05-29 (EXEC-AT-003) |
 | npm run setup | passou — seed local aplicado | 2026-05-29 (EXEC-AT-002) |
 | GitHub Actions check.yml | versionado — npm ci + setup + check | 2026-05-29 |
 | docs/tasks sem manifests historicos TASK-* | passou — 58 tasks arquivadas em docs/archive/sylembra/tasks/ | 2026-05-29 |

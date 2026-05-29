@@ -2272,6 +2272,7 @@ function LicensesView({ user }: { user: CurrentUser }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastUploadLink, setLastUploadLink] = useState<{ link: string; label: string; expiresAt: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -2441,6 +2442,11 @@ function LicensesView({ user }: { user: CurrentUser }) {
         body: JSON.stringify({ professionalId: license.professionalId, licenseId: license.id })
       });
       const link = `${window.location.origin}/upload/${result.token}`;
+      setLastUploadLink({
+        link,
+        label: `${license.professional.name} / ${license.licenseType.name}${license.number ? ` ${license.number}` : ""}`,
+        expiresAt: result.uploadToken.expiresAt
+      });
       try {
         await navigator.clipboard?.writeText(link);
       } catch {
@@ -2448,6 +2454,15 @@ function LicensesView({ user }: { user: CurrentUser }) {
       }
       window.prompt("Link de upload", link);
     });
+  }
+
+  async function copyLastUploadLink() {
+    if (!lastUploadLink) return;
+    try {
+      await navigator.clipboard?.writeText(lastUploadLink.link);
+    } catch {
+      window.prompt("Link de upload", lastUploadLink.link);
+    }
   }
 
   async function notifyLicense(license: LicenseItem) {
@@ -2519,6 +2534,23 @@ function LicensesView({ user }: { user: CurrentUser }) {
       />
 
       {error ? <OperationalState state="error" title="Falha operacional" detail={error} /> : null}
+
+      {lastUploadLink ? (
+        <section className="panel upload-link-panel" aria-label="Último link de upload gerado">
+          <div>
+            <p className="eyebrow">Último link de upload</p>
+            <strong>{lastUploadLink.label}</strong>
+            <p className="muted">Expira em {formatDateBr(lastUploadLink.expiresAt)}</p>
+          </div>
+          <label>
+            Link
+            <input readOnly value={lastUploadLink.link} onFocus={(event) => event.currentTarget.select()} />
+          </label>
+          <button className="secondary" type="button" onClick={() => void copyLastUploadLink()}>
+            Copiar
+          </button>
+        </section>
+      ) : null}
 
       {user.role === "ADMIN" ? (
         <section className="panel action-panel">
@@ -2960,7 +2992,17 @@ function DocumentsView({ user }: { user: CurrentUser }) {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "status", label: "Status", value: statusFilter, placeholder: "UPLOADED, APPROVED...", help: "UPLOADED indica documentos aguardando validação.", helpHref: "#documentos", onChange: setStatusFilter },
+          {
+            key: "status",
+            label: "Status",
+            type: "select",
+            value: statusFilter,
+            placeholder: "Todos os status",
+            options: documentStatusFilterOptions,
+            help: "UPLOADED indica documentos aguardando validação.",
+            helpHref: "#documentos",
+            onChange: setStatusFilter
+          },
           {
             key: "professional",
             label: "Profissional",
