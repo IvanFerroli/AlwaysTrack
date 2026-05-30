@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
+import { extractDanfeFromText } from "./danfe-deterministic.js";
 import {
   analyzeSalesDocumentWithAi,
   getSalesDashboard,
@@ -32,6 +33,41 @@ const seller: CurrentUser = {
 };
 
 describe("sales documents service", () => {
+  it("extracts searchable DANFE text without AI", () => {
+    const text = `
+RECEBEMOS DE ALWAYS FIT SUPLEMENTOS ALIMENTICIOS LTDA OS PRODUTOS CONSTANTES DA NOTA FISCAL
+NF-e
+Nº 703.444
+Série 2
+IDENTIFICAÇÃO DO EMITENTE
+ALWAYS FIT SUPLEMENTOS ALIMENTICIOS LTDA
+DANFE
+CHAVE DE ACESSO
+3126 0530 4170 9400 0240 5500 2000 7034 4414 0219 9743
+DESTINATÁRIO / REMETENTE
+NOME / RAZÃO SOCIAL
+ADRIANA GORETE LOHN
+DATA DA EMISSÃO
+05/05/2026
+VALOR TOTAL DA NOTA
+174,53
+DADOS DOS PRODUTOS / SERVIÇOS
+CÓDIGO PRODUTO DESCRIÇÃO DO PRODUTO / SERVIÇO NCM/SH O/CST CFOP UN QUANT VALOR UNIT VALOR TOTAL B.CÁLC
+HAIR1 FitHair - POTE 21069030 000 6108 1 UNID 3 44,91 134,73 131,58 15,79 12,00
+ALW-G-B6B9B12-0 Metil-B9B12 21069030 000 6108 1 UNID 2 29,95 59,90 42,95 5,15 12,00
+DADOS ADICIONAIS
+INFORMAÇÕES COMPLEMENTARES
+`.repeat(3);
+
+    const extraction = extractDanfeFromText(text);
+
+    expect(extraction?.provider).toBe("deterministic-pdf-text");
+    expect(extraction?.invoices[0].fields.accessKey.value).toBe("31260530417094000240550020007034441402199743");
+    expect(extraction?.invoices[0].fields.invoiceNumber.value).toBe("703.444");
+    expect(extraction?.invoices[0].fields.totalAmountCents.value).toBe(17453);
+    expect(extraction?.invoices[0].items).toHaveLength(2);
+  });
+
   it("parses binary DANFE upload input", () => {
     expect(
       parseSalesDocumentUploadInput({

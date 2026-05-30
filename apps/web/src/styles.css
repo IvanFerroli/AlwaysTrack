@@ -164,6 +164,55 @@ button.small {
   text-decoration: none;
 }
 
+.extracted-data-panel {
+  overflow: hidden;
+}
+
+.extracted-data-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.extracted-data-card {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: white;
+  overflow: hidden;
+}
+
+.extracted-data-card summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  padding: 12px 14px;
+}
+
+.extracted-data-card[open] summary {
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.extracted-data-grid {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  padding: 14px;
+}
+
+.extracted-data-grid span {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.extracted-data-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 input,
 select,
 textarea {

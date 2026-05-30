@@ -22,7 +22,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-007 (2026-05-30): extracao estruturada de DANFE, revisao MVP, ranking/campanhas read-only e extratos JSON/CSV.
+- EXEC-AT-008 (2026-05-30): pivot deterministico-first de DANFE PDF textual, upload ja persistindo dados no Prisma, visibilidade de dados extraidos e reprocessamento IA sob demanda.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
@@ -89,6 +89,13 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | dashboard action center | metricas/filas wiki e atalhos operacionais | 2026-05-29 (EXEC-AT-005) |
 | pivot comercial | roles + schema vendas + upload DANFE + UI ativa comercial | 2026-05-29 (EXEC-AT-006) |
 | DANFE comercial | extracao IA + revisao MVP + ranking/campanhas read-only + extratos | 2026-05-30 (EXEC-AT-007) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-30 (EXEC-AT-008) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-008) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 10 testes | 2026-05-30 (EXEC-AT-008) |
+| npm run check | passou — 135 testes | 2026-05-30 (EXEC-AT-008) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-008) |
+| npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-008) |
+| PDF real DANFE textual | passou — 28 DANFEs completas via deterministic-pdf-text, sem IA | 2026-05-30 (EXEC-AT-008) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

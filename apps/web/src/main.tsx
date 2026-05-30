@@ -512,7 +512,7 @@ interface SalesDocumentItem {
   createdAt: string;
   sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
   items: Array<{ id: string; sku?: string | null; description: string; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
-  extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string }>;
+  extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string; extractedJson?: string | null }>;
 }
 
 interface SalesDashboardData {
@@ -762,6 +762,10 @@ function formatMoneyFromCents(value: number | null | undefined) {
   return ((value ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatPercent(value: number | null | undefined) {
+  return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
+}
+
 function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
   const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -931,11 +935,12 @@ function NotesView({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function analyze(document: SalesDocumentItem) {
+  async function analyze(document: SalesDocumentItem, options: { forceAi?: boolean } = {}) {
     setActingId(document.id);
     setError(null);
     try {
-      await api<{ document: SalesDocumentItem; warnings: string[] }>(`/v1/sales/documents/${document.id}/analyze`, { method: "POST" });
+      const query = options.forceAi ? "?forceAi=1" : "";
+      await api<{ document: SalesDocumentItem; warnings: string[] }>(`/v1/sales/documents/${document.id}/analyze${query}`, { method: "POST" });
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao extrair dados da DANFE.");
@@ -1017,13 +1022,16 @@ function NotesView({ user }: { user: CurrentUser }) {
                 header: "Ações",
                 render: (item) => (
                   <div className="inline-actions">
-                    {["UPLOADED", "PENDING_REVIEW", "DUPLICATE"].includes(item.status) ? (
+                    {item.status === "UPLOADED" ? (
                       <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item)}>
                         {actingId === item.id ? "Extraindo..." : "Extrair"}
                       </button>
                     ) : null}
                     {canReview && item.status === "PENDING_REVIEW" ? (
                       <>
+                        <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item, { forceAi: true })}>
+                          {actingId === item.id ? "Reprocessando..." : "Reprocessar IA"}
+                        </button>
                         <button className="ghost-button small" disabled={actingId === item.id || item.items.length === 0} onClick={() => review(item, "APPROVED")}>
                           Aprovar
                         </button>
@@ -1039,6 +1047,60 @@ function NotesView({ user }: { user: CurrentUser }) {
           />
         )}
       </section>
+      {items.some((item) => item.accessKey || item.items.length > 0 || item.extractions?.length) ? (
+        <section className="panel extracted-data-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Dados extraídos</p>
+              <h2>Base operacional no Prisma</h2>
+            </div>
+          </div>
+          <div className="extracted-data-list">
+            {items
+              .filter((item) => item.accessKey || item.items.length > 0 || item.extractions?.length)
+              .map((item) => (
+                <details key={item.id} className="extracted-data-card">
+                  <summary>
+                    <strong>{item.invoiceNumber ? `NF ${item.invoiceNumber}` : item.fileName}</strong>
+                    <span>{item.status}</span>
+                    <span>{formatMoneyFromCents(item.totalAmountCents)}</span>
+                  </summary>
+                  <div className="extracted-data-grid">
+                    <span>Chave</span>
+                    <strong>{item.accessKey ?? "-"}</strong>
+                    <span>Série</span>
+                    <strong>{item.series ?? "-"}</strong>
+                    <span>Emissão</span>
+                    <strong>{formatDateBr(item.issuedAt)}</strong>
+                    <span>Emitente</span>
+                    <strong>{item.issuerName ?? "-"}</strong>
+                    <span>Comprador</span>
+                    <strong>{item.buyerName ?? "-"}</strong>
+                    <span>Origem</span>
+                    <strong>{item.extractions?.[0]?.provider ?? "-"}</strong>
+                    <span>Confiança</span>
+                    <strong>{formatPercent(item.extractionConfidence ?? item.extractions?.[0]?.confidence)}</strong>
+                  </div>
+                  {item.items.length > 0 ? (
+                    <OperationalTable
+                      items={item.items}
+                      getRowKey={(row) => row.id}
+                      columns={[
+                        { key: "sku", header: "SKU", render: (row) => row.sku ?? "-" },
+                        { key: "description", header: "Produto", render: (row) => row.description },
+                        { key: "quantity", header: "Qtd", render: (row) => row.quantity },
+                        { key: "unit", header: "Unit.", render: (row) => formatMoneyFromCents(row.unitAmountCents) },
+                        { key: "total", header: "Total", render: (row) => formatMoneyFromCents(row.totalAmountCents) }
+                      ]}
+                    />
+                  ) : (
+                    <p className="muted">Nenhum item estruturado salvo para esta nota.</p>
+                  )}
+                </details>
+              ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

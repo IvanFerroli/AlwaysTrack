@@ -7,6 +7,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { logEvent } from "../diagnostics/logger.js";
 import type { StorageProvider } from "../documents/storage.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
+import { extractDanfeDeterministic } from "./danfe-deterministic.js";
 
 export class SalesDocumentError extends Error {
   constructor(
@@ -132,6 +133,19 @@ function isMissingStoredFile(error: unknown) {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "ENOENT");
 }
 
+function hasOperationalMinimum(result: SalesDocumentAiResult) {
+  return Boolean(result.fields.accessKey.value && result.fields.invoiceNumber.value && result.fields.totalAmountCents.value && result.items.length > 0);
+}
+
+async function tryDeterministicExtraction(input: { body: Buffer; mimeType: string }) {
+  try {
+    return await extractDanfeDeterministic(input);
+  } catch (error) {
+    logEvent("warn", "sales_document.extract.deterministic_failed", { mimeType: input.mimeType, size: input.body.length, error });
+    return null;
+  }
+}
+
 function normalizeSalesExtraction(result: SalesDocumentAiResult): SalesDocumentAiResult {
   return {
     ...result,
@@ -156,6 +170,103 @@ function normalizeSalesExtraction(result: SalesDocumentAiResult): SalesDocumentA
       .filter((item) => item.description && item.quantity && item.totalAmountCents),
     warnings: result.warnings ?? []
   };
+}
+
+type SalesDocumentForExtraction = Prisma.SalesDocumentGetPayload<{
+  include: {
+    sellerProfile: { include: { salesGroup: true; user: { select: { id: true; name: true; email: true; role: true } } } };
+    uploadedBy: { select: { id: true; name: true; email: true; role: true } };
+    reviewedBy: { select: { id: true; name: true; email: true; role: true } };
+    items: true;
+    extractions: true;
+  };
+}>;
+
+async function applySalesDocumentExtraction(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  document: SalesDocumentForExtraction,
+  source: { provider: string; model?: string },
+  rawResult: SalesDocumentAiResult
+) {
+  const result = normalizeSalesExtraction(rawResult);
+  const accessKey = result.fields.accessKey.value;
+  const duplicate = accessKey
+    ? await prisma.salesDocument.findFirst({
+        where: { organizationId: actor.organizationId, accessKey, id: { not: document.id } },
+        select: { id: true }
+      })
+    : null;
+
+  const extractionConfidence = confidenceFrom(result);
+  const data: Prisma.SalesDocumentUpdateInput = {
+    status: duplicate ? "DUPLICATE" : hasOperationalMinimum(result) ? "PENDING_REVIEW" : "UPLOADED",
+    accessKey: duplicate ? null : accessKey,
+    invoiceNumber: result.fields.invoiceNumber.value,
+    series: result.fields.series.value,
+    issuedAt: dateFromIso(result.fields.issuedAt.value),
+    issuerName: result.fields.issuerName.value,
+    buyerName: result.fields.buyerName.value,
+    totalAmountCents: result.fields.totalAmountCents.value,
+    extractionConfidence,
+    rejectionReason: duplicate ? "Chave de acesso duplicada." : null
+  };
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.salesDocumentExtraction.create({
+      data: {
+        salesDocumentId: document.id,
+        provider: source.provider,
+        rawText: result.rawText,
+        extractedJson: JSON.stringify(result),
+        confidence: extractionConfidence
+      }
+    });
+    await tx.salesItem.deleteMany({ where: { salesDocumentId: document.id } });
+    if (!duplicate && result.items.length > 0) {
+      await tx.salesItem.createMany({
+        data: result.items.map((item) => ({
+          salesDocumentId: document.id,
+          sellerProfileId: document.sellerProfileId,
+          sku: item.sku,
+          description: item.description ?? "Item sem descricao",
+          category: item.category,
+          quantity: item.quantity ?? 0,
+          unitAmountCents: item.unitAmountCents,
+          totalAmountCents: item.totalAmountCents ?? 0
+        }))
+      });
+    }
+    return tx.salesDocument.update({
+      where: { id: document.id },
+      data,
+      include: {
+        sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
+        uploadedBy: { select: { id: true, name: true, email: true, role: true } },
+        reviewedBy: { select: { id: true, name: true, email: true, role: true } },
+        items: true,
+        extractions: { orderBy: { createdAt: "desc" }, take: 1 }
+      }
+    });
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: duplicate ? "sales_document.extract_duplicate" : "sales_document.extract",
+    entityType: "SalesDocument",
+    entityId: document.id,
+    metadata: {
+      provider: source.provider,
+      model: source.model,
+      status: updated.status,
+      accessKey: maskedAccessKey(accessKey),
+      itemCount: updated.items.length,
+      warningCount: result.warnings.length
+    }
+  });
+
+  return { document: updated, result, duplicate: Boolean(duplicate), accessKey };
 }
 
 function assertCommercialRole(actor: CurrentUser) {
@@ -325,7 +436,8 @@ export async function analyzeSalesDocumentWithAi(
   storage: StorageProvider,
   provider: DocumentAiProvider,
   actor: CurrentUser,
-  documentId: string
+  documentId: string,
+  options: { forceAi?: boolean } = {}
 ) {
   assertCommercialRole(actor);
   if (!provider.analyzeSalesDocument) throw new SalesDocumentError("PROVIDER_ERROR");
@@ -342,6 +454,7 @@ export async function analyzeSalesDocumentWithAi(
     status: document.status,
     provider: provider.provider,
     model: provider.model,
+    forceAi: Boolean(options.forceAi),
     mimeType: document.mimeType,
     size: document.size
   });
@@ -350,95 +463,27 @@ export async function analyzeSalesDocumentWithAi(
 
   try {
     const stored = await storage.get(document.fileKey);
-    const result = normalizeSalesExtraction(
-      await provider.analyzeSalesDocument({
+    const deterministic = options.forceAi ? null : await tryDeterministicExtraction({ body: stored.body, mimeType: document.mimeType });
+    const deterministicResult = deterministic?.invoices.find(hasOperationalMinimum);
+    const deterministicSource = deterministic && deterministicResult ? { provider: deterministic.provider, model: deterministic.model } : null;
+    const rawResult =
+      deterministicResult ??
+      (await provider.analyzeSalesDocument({
         body: stored.body,
         mimeType: document.mimeType,
         fileName: document.fileName
-      })
-    );
+      }));
+    const source = deterministicSource ?? { provider: provider.provider, model: provider.model };
+    const { document: updated, result, duplicate, accessKey } = await applySalesDocumentExtraction(prisma, actor, document, source, rawResult);
 
-    const accessKey = result.fields.accessKey.value;
-    const duplicate = accessKey
-      ? await prisma.salesDocument.findFirst({
-          where: { organizationId: actor.organizationId, accessKey, id: { not: document.id } },
-          select: { id: true }
-        })
-      : null;
-
-    const extractionConfidence = confidenceFrom(result);
-    const data: Prisma.SalesDocumentUpdateInput = {
-      status: duplicate ? "DUPLICATE" : "PENDING_REVIEW",
-      accessKey: duplicate ? null : accessKey,
-      invoiceNumber: result.fields.invoiceNumber.value,
-      series: result.fields.series.value,
-      issuedAt: dateFromIso(result.fields.issuedAt.value),
-      issuerName: result.fields.issuerName.value,
-      buyerName: result.fields.buyerName.value,
-      totalAmountCents: result.fields.totalAmountCents.value,
-      extractionConfidence,
-      rejectionReason: duplicate ? "Chave de acesso duplicada." : null
-    };
-
-    const updated = await prisma.$transaction(async (tx) => {
-      await tx.salesDocumentExtraction.create({
-        data: {
-          salesDocumentId: document.id,
-          provider: provider.provider,
-          rawText: result.rawText,
-          extractedJson: JSON.stringify(result),
-          confidence: extractionConfidence
-        }
-      });
-      await tx.salesItem.deleteMany({ where: { salesDocumentId: document.id } });
-      if (!duplicate && result.items.length > 0) {
-        await tx.salesItem.createMany({
-          data: result.items.map((item) => ({
-            salesDocumentId: document.id,
-            sellerProfileId: document.sellerProfileId,
-            sku: item.sku,
-            description: item.description ?? "Item sem descricao",
-            category: item.category,
-            quantity: item.quantity ?? 0,
-            unitAmountCents: item.unitAmountCents,
-            totalAmountCents: item.totalAmountCents ?? 0
-          }))
-        });
-      }
-      return tx.salesDocument.update({
-        where: { id: document.id },
-        data,
-        include: {
-          sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
-          uploadedBy: { select: { id: true, name: true, email: true, role: true } },
-          reviewedBy: { select: { id: true, name: true, email: true, role: true } },
-          items: true,
-          extractions: { orderBy: { createdAt: "desc" }, take: 1 }
-        }
-      });
-    });
-
-    await recordAuditLog(prisma, {
-      organizationId: actor.organizationId,
-      actorId: actor.id,
-      action: duplicate ? "sales_document.extract_duplicate" : "sales_document.extract",
-      entityType: "SalesDocument",
-      entityId: document.id,
-      metadata: {
-        provider: provider.provider,
-        model: provider.model,
-        status: updated.status,
-        accessKey: maskedAccessKey(accessKey),
-        itemCount: updated.items.length
-      }
-    });
-
-    logEvent("info", duplicate ? "sales_document.extract.duplicate" : "sales_document.extract.complete", {
+    logEvent("info", deterministicResult ? "sales_document.extract.deterministic_complete" : duplicate ? "sales_document.extract.duplicate" : "sales_document.extract.complete", {
       documentId: document.id,
       sellerProfileId: document.sellerProfileId,
       actorId: actor.id,
-      provider: provider.provider,
-      model: provider.model,
+      provider: source.provider,
+      model: source.model,
+      usedAi: !deterministicResult,
+      forceAi: Boolean(options.forceAi),
       status: updated.status,
       accessKey: maskedAccessKey(accessKey),
       itemCount: updated.items.length,
@@ -496,6 +541,76 @@ export async function uploadSalesDocument(
 
   await storage.put({ fileKey, body: input.body, mimeType: input.mimeType });
 
+  const include = {
+    sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
+    uploadedBy: { select: { id: true, name: true, email: true, role: true } },
+    reviewedBy: { select: { id: true, name: true, email: true, role: true } },
+    items: true,
+    extractions: { orderBy: { createdAt: "desc" as const }, take: 1 }
+  };
+
+  const deterministic = await tryDeterministicExtraction({ body: input.body, mimeType: input.mimeType });
+  const deterministicInvoices = deterministic?.invoices.filter(hasOperationalMinimum) ?? [];
+  const documents = [];
+
+  if (deterministic && deterministicInvoices.length > 0) {
+    logEvent("info", "sales_document.upload.deterministic_detected", {
+      actorId: actor.id,
+      sellerProfileId: seller.id,
+      provider: deterministic.provider,
+      model: deterministic.model,
+      invoiceCount: deterministicInvoices.length,
+      textLength: deterministic.textLength,
+      usedAi: false
+    });
+
+    for (const [index, invoice] of deterministicInvoices.entries()) {
+      const created = await prisma.salesDocument.create({
+        data: {
+          organizationId: actor.organizationId,
+          sellerProfileId: seller.id,
+          uploadedById: actor.id,
+          fileKey,
+          fileName,
+          mimeType: input.mimeType,
+          size: input.body.length,
+          status: "EXTRACTING"
+        },
+        include
+      });
+      const applied = await applySalesDocumentExtraction(
+        prisma,
+        actor,
+        created,
+        { provider: deterministic.provider, model: deterministic.model },
+        invoice
+      );
+      await recordAuditLog(prisma, {
+        organizationId: actor.organizationId,
+        actorId: actor.id,
+        action: "sales_document.upload",
+        entityType: "SalesDocument",
+        entityId: applied.document.id,
+        metadata: { sellerProfileId: seller.id, fileName, mimeType: input.mimeType, size: input.body.length, invoiceIndex: index + 1 }
+      });
+      documents.push(applied.document);
+    }
+
+    logEvent("info", "sales_document.upload.complete", {
+      documentId: documents[0]?.id,
+      actorId: actor.id,
+      sellerProfileId: seller.id,
+      fileName,
+      mimeType: input.mimeType,
+      size: input.body.length,
+      status: documents[0]?.status,
+      createdDocuments: documents.length,
+      extractionMethod: deterministic.provider
+    });
+
+    return Object.assign(documents[0], { documents });
+  }
+
   const document = await prisma.salesDocument.create({
     data: {
       organizationId: actor.organizationId,
@@ -507,13 +622,7 @@ export async function uploadSalesDocument(
       size: input.body.length,
       status: "UPLOADED"
     },
-    include: {
-      sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
-      uploadedBy: { select: { id: true, name: true, email: true, role: true } },
-      reviewedBy: { select: { id: true, name: true, email: true, role: true } },
-      items: true,
-      extractions: { orderBy: { createdAt: "desc" }, take: 1 }
-    }
+    include
   });
 
   await recordAuditLog(prisma, {
@@ -532,7 +641,8 @@ export async function uploadSalesDocument(
     fileName,
     mimeType: input.mimeType,
     size: input.body.length,
-    status: document.status
+    status: document.status,
+    extractionMethod: deterministic ? "deterministic_insufficient" : "none"
   });
 
   return document;

@@ -16,11 +16,12 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "6.19.3",
     "@alwaystrack/shared": "file:../../packages/shared",
+    "@prisma/client": "6.19.3",
     "cookie": "^1.0.2",
     "exceljs": "^4.4.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",

@@ -167,9 +167,10 @@ export async function uploadSalesDocumentHandler(request: Request, response: Res
 
 export async function analyzeSalesDocumentHandler(request: Request, response: Response) {
   try {
+    const forceAi = request.query.forceAi === "1" || request.query.forceAi === "true";
     return sendOk(
       response,
-      await analyzeSalesDocumentWithAi(prisma, getStorageProvider(), getDocumentAiProvider(), actorFrom(request), String(request.params.documentId))
+      await analyzeSalesDocumentWithAi(prisma, getStorageProvider(), getDocumentAiProvider(), actorFrom(request), String(request.params.documentId), { forceAi })
     );
   } catch (error) {
     logHandlerError(request, "sales_document.extract.handler_failed", error);

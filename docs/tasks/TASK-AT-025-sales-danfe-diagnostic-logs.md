@@ -18,6 +18,8 @@ Adicionar logs estruturados e seguros para diagnosticar o fluxo comercial de DAN
 - Correcao do bug de UI que usava `event.currentTarget.reset()` apos `await`.
 - Erro de arquivo local ausente agora volta como `STORED_FILE_MISSING`, com mensagem para reenviar a DANFE.
 - Investigacao do incidente local: uma linha `UPLOADED` apontava para arquivo ausente no storage; a linha `PENDING_REVIEW` com arquivo existente extraia normalmente, e nova tentativa sobre nota repetida vira `DUPLICATE`.
+- Reprocessamento forcado por IA registra `forceAi=true`.
+- Extracao deterministica registra `warningCount`, incluindo divergencia entre soma dos itens e total da nota quando detectada.
 
 ## Aceite
 - Upload e extracao emitem eventos operacionais com `documentId`, `sellerProfileId`, status, provider/model e duracao.
