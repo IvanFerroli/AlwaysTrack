@@ -11,6 +11,7 @@ Reduzir custo e dependencia de IA na extracao de DANFE, usando parser determinis
 
 ## Entregue
 - Parser `deterministic-pdf-text` baseado em texto de PDF e regex.
+- Parser `deterministic-nfe-xml` baseado em XML NF-e estruturado.
 - Extracao de chave de acesso, numero, serie, data de emissao, emitente, comprador, total e itens.
 - Upload passa a tentar extracao deterministica imediatamente e gravar os dados no Prisma.
 - PDFs com multiplas DANFEs podem gerar multiplas linhas comerciais a partir do mesmo arquivo.
@@ -21,7 +22,7 @@ Reduzir custo e dependencia de IA na extracao de DANFE, usando parser determinis
 - Parser registra warning quando a soma dos itens diverge do total da nota, preservando desconto/frete como caso revisavel.
 
 ## Aceite
-- DANFE PDF textual popula `SalesDocument`, `SalesDocumentExtraction` e `SalesItem` sem chamada externa.
+- DANFE PDF textual e XML NF-e populam `SalesDocument`, `SalesDocumentExtraction` e `SalesItem` sem chamada externa.
 - Ranking, dashboard e extratos continuam dependentes apenas de dados aprovados no banco.
 - Revisor consegue ver dados extraidos sem depender do arquivo original existir.
 - Logs indicam `provider=deterministic-pdf-text` quando o caminho barato foi usado.
@@ -29,6 +30,6 @@ Reduzir custo e dependencia de IA na extracao de DANFE, usando parser determinis
 
 ## Residual
 - PDF escaneado/imagem ainda exige fallback IA ou revisao manual.
-- Parser pode variar conforme layout de DANFE; XML NF-e deve ser o proximo caminho deterministico robusto.
+- Parser PDF pode variar conforme layout de DANFE; XML NF-e e mais robusto, mas ainda nao cobre ZIP/lote.
 - Editor granular de campos/itens continua em `AT-018B`.
 - Upload multi-DANFE ainda retorna o primeiro documento como contrato principal da API; o front recarrega a lista como fonte de verdade.

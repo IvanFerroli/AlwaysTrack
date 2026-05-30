@@ -956,9 +956,10 @@ function NotesView({ user }: { user: CurrentUser }) {
     setSaving(true);
     setError(null);
     try {
+      const mimeType = file.type || (file.name.toLowerCase().endsWith(".xml") ? "application/xml" : "application/pdf");
       await api<{ document: SalesDocumentItem }>(`/v1/sales/documents?fileName=${encodeURIComponent(file.name)}`, {
         method: "POST",
-        headers: { "content-type": file.type || "application/pdf" },
+        headers: { "content-type": mimeType },
         body: await file.arrayBuffer()
       });
       form.reset();
@@ -1019,7 +1020,7 @@ function NotesView({ user }: { user: CurrentUser }) {
           <form onSubmit={upload}>
             <label>
               PDF ou imagem da nota
-              <input name="danfe" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+              <input name="danfe" type="file" accept="application/pdf,application/xml,text/xml,.xml,image/jpeg,image/png,image/webp" />
             </label>
             <div className="form-actions">
               <button disabled={saving}>{saving ? "Enviando..." : "Enviar nota"}</button>

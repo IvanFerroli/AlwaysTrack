@@ -31,13 +31,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 12. `TASK-AT-025-sales-danfe-diagnostic-logs.md`: logs diagnosticos do fluxo DANFE. Status: completed-mvp.
 13. `TASK-AT-028-danfe-deterministic-extraction.md`: extracao deterministica de DANFE PDF textual antes da IA. Status: completed-mvp.
 14. `EXEC-AT-009`: filtros visuais de ranking/extratos e CSV filtrado. Status: completed.
+15. `EXEC-AT-010`: extracao deterministica de XML NF-e. Status: completed.
 
 ## Proximas tasks recomendadas
 1. `AT-014`: Google login como entrada principal.
-2. `AT-017C`: importacao XML NF-e como caminho deterministico preferencial.
-3. `AT-018B`: editor visual de campos/itens antes da aprovacao.
-4. `AT-019B`: CRUD de campanhas e snapshots.
-5. `AT-021B`: extratos consolidados por vendedor/grupo.
+2. `AT-018B`: editor visual de campos/itens antes da aprovacao.
+3. `AT-019B`: CRUD de campanhas e snapshots.
+4. `AT-021B`: extratos consolidados por vendedor/grupo.
+5. `AT-026`: smoke/e2e do fluxo comercial com upload XML/PDF.
 6. `AT-022`: wiki com editor rico e imagens.
-7. `AT-026`: smoke/e2e do fluxo comercial.
-8. `AT-027`: remover/descontinuar legado SyLembra em fases.
+7. `AT-027`: remover/descontinuar legado SyLembra em fases.

@@ -11,6 +11,7 @@ Extrair dados estruturados de DANFE/nota fiscal enviada pelo vendedor com caminh
 
 ## Entregue
 - Parser deterministico inicial para DANFE PDF textual (`TASK-AT-028`).
+- Parser deterministico para XML NF-e (`deterministic-nfe-xml`, `xml-v1`).
 - Upload agora tenta extracao e persistencia imediata no Prisma antes de depender de IA.
 - Provider de IA reaproveitado para schema comercial de DANFE.
 - Suporte a OpenAI, Gemini e fake/local sem expor chaves.
@@ -23,13 +24,13 @@ Extrair dados estruturados de DANFE/nota fiscal enviada pelo vendedor com caminh
 - Secao colapsavel de dados extraidos direto da base operacional.
 
 ## Aceite
-- PDF textual de DANFE pode ser enviado e estruturado sem chamada externa.
+- PDF textual de DANFE e XML NF-e podem ser enviados e estruturados sem chamada externa.
 - PDF/imagem sem texto ainda pode seguir para fallback de extracao.
 - Resultado altera nota para `PENDING_REVIEW` quando extraido.
 - Falha externa nao quebra upload; nota volta ao status anterior.
 - Auditoria registra sucesso, duplicidade ou falha.
 
 ## Residual
-- XML NF-e deve virar caminho deterministico preferencial para reduzir variacao de layout.
 - Acuracia de PDF escaneado/imagem ainda depende do provider ou revisao manual.
 - Ainda nao ha editor granular de campos/itens; revisao MVP aprova/reprova com os dados atuais.
+- Nao ha suporte a ZIP/lote de XMLs.

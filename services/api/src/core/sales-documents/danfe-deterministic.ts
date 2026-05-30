@@ -2,8 +2,8 @@ import { PDFParse } from "pdf-parse";
 import type { SalesDocumentAiResult, SalesDocumentAiItem } from "../document-ai/provider.js";
 
 export interface DeterministicDanfeExtraction {
-  provider: "deterministic-pdf-text";
-  model: "regex-v1";
+  provider: "deterministic-pdf-text" | "deterministic-nfe-xml";
+  model: "regex-v1" | "xml-v1";
   textLength: number;
   invoices: SalesDocumentAiResult[];
 }
@@ -25,13 +25,33 @@ function centsFromBr(value: string | null | undefined) {
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
 }
 
+function centsFromDecimal(value: string | null | undefined) {
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
+}
+
 function dateFromBr(value: string | null | undefined) {
   const match = value?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
 }
 
+function dateFromIso(value: string | null | undefined) {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
 function field<T = string>(value: T | null, confidence: number, evidence: string | null) {
   return { value, confidence: value === null ? null : confidence, evidence };
+}
+
+function xmlValue(text: string, tag: string) {
+  return clean(text.match(new RegExp(`<(?:\\w+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:\\w+:)?${tag}>`, "i"))?.[1]?.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"));
+}
+
+function xmlBlocks(text: string, tag: string) {
+  return [...text.matchAll(new RegExp(`<(?:\\w+:)?${tag}(?:\\s[^>]*)?>[\\s\\S]*?<\\/(?:\\w+:)?${tag}>`, "gi"))].map((match) => match[0]);
 }
 
 function valueAfter(label: string, text: string) {
@@ -168,7 +188,56 @@ export function extractDanfeFromText(text: string): DeterministicDanfeExtraction
   return invoices.length > 0 ? { provider: "deterministic-pdf-text", model: "regex-v1", textLength: text.length, invoices } : null;
 }
 
+export function extractNfeFromXml(xml: string): DeterministicDanfeExtraction | null {
+  if (!/<(?:\w+:)?NFe[\s>]/i.test(xml) && !/<(?:\w+:)?nfeProc[\s>]/i.test(xml)) return null;
+
+  const infNFe = xml.match(/<(?:\w+:)?infNFe\b[^>]*Id=["']NFe(\d{44})["'][^>]*>([\s\S]*?)<\/(?:\w+:)?infNFe>/i);
+  const body = infNFe?.[2] ?? xml;
+  const emit = body.match(/<(?:\w+:)?emit\b[^>]*>([\s\S]*?)<\/(?:\w+:)?emit>/i)?.[1] ?? "";
+  const dest = body.match(/<(?:\w+:)?dest\b[^>]*>([\s\S]*?)<\/(?:\w+:)?dest>/i)?.[1] ?? "";
+  const total = body.match(/<(?:\w+:)?ICMSTot\b[^>]*>([\s\S]*?)<\/(?:\w+:)?ICMSTot>/i)?.[1] ?? "";
+  const items = xmlBlocks(body, "det")
+    .map((det): SalesDocumentAiItem => {
+      const prod = det.match(/<(?:\w+:)?prod\b[^>]*>([\s\S]*?)<\/(?:\w+:)?prod>/i)?.[1] ?? "";
+      return {
+        sku: xmlValue(prod, "cProd"),
+        description: xmlValue(prod, "xProd"),
+        category: xmlValue(prod, "NCM"),
+        quantity: Number(xmlValue(prod, "qCom")),
+        unitAmountCents: centsFromDecimal(xmlValue(prod, "vUnCom")),
+        totalAmountCents: centsFromDecimal(xmlValue(prod, "vProd"))
+      };
+    })
+    .filter((item) => item.description && item.quantity && item.totalAmountCents);
+
+  const result: SalesDocumentAiResult = {
+    documentKind: "NF-e XML",
+    rawText: xml.slice(0, 4000),
+    fields: {
+      accessKey: field(infNFe?.[1] ?? xmlValue(body, "chNFe"), 0.99, "infNFe Id"),
+      invoiceNumber: field(xmlValue(body, "nNF"), 0.99, "ide/nNF"),
+      series: field(xmlValue(body, "serie"), 0.99, "ide/serie"),
+      issuedAt: field(dateFromIso(xmlValue(body, "dhEmi") ?? xmlValue(body, "dEmi")), 0.99, "ide/dhEmi"),
+      issuerName: field(xmlValue(emit, "xNome"), 0.99, "emit/xNome"),
+      buyerName: field(xmlValue(dest, "xNome"), 0.99, "dest/xNome"),
+      totalAmountCents: field(centsFromDecimal(xmlValue(total, "vNF")), 0.99, "total/ICMSTot/vNF")
+    },
+    items,
+    warnings: []
+  };
+
+  if (!result.fields.accessKey.value && !result.fields.invoiceNumber.value && items.length === 0) return null;
+  if (items.length === 0) result.warnings.push("Itens nao extraidos do XML NF-e.");
+  const varianceWarning = totalVarianceWarning(result);
+  if (varianceWarning) result.warnings.push(varianceWarning);
+  return { provider: "deterministic-nfe-xml", model: "xml-v1", textLength: xml.length, invoices: [result] };
+}
+
 export async function extractDanfeDeterministic(input: { body: Buffer; mimeType: string }): Promise<DeterministicDanfeExtraction | null> {
+  const textPreview = input.body.subarray(0, 512).toString("utf8");
+  if (input.mimeType === "application/xml" || input.mimeType === "text/xml" || /^\s*<\?xml|^\s*<(?:\w+:)?nfeProc|^\s*<(?:\w+:)?NFe/i.test(textPreview)) {
+    return extractNfeFromXml(input.body.toString("utf8"));
+  }
   if (input.mimeType !== "application/pdf") return null;
   if (input.body.length < 1024 || input.body.subarray(0, 4).toString("utf8") !== "%PDF") return null;
   return extractDanfeFromText(await extractPdfText(input.body));

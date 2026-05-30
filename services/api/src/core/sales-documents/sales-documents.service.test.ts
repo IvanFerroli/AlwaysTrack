@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
-import { extractDanfeFromText } from "./danfe-deterministic.js";
+import { extractDanfeFromText, extractNfeFromXml } from "./danfe-deterministic.js";
 import {
   analyzeSalesDocumentWithAi,
   getSalesDashboard,
@@ -68,17 +68,66 @@ INFORMAÇÕES COMPLEMENTARES
     expect(extraction?.invoices[0].items).toHaveLength(2);
   });
 
+  it("extracts NF-e XML without AI", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe31260530417094000240550020007034441402199743" versao="4.00">
+      <ide>
+        <serie>2</serie>
+        <nNF>703444</nNF>
+        <dhEmi>2026-05-05T09:40:33-03:00</dhEmi>
+      </ide>
+      <emit><xNome>ALWAYS FIT SUPLEMENTOS ALIMENTICIOS LTDA</xNome></emit>
+      <dest><xNome>ADRIANA GORETE LOHN</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>HAIR1</cProd>
+          <xProd>FitHair - POTE</xProd>
+          <NCM>21069030</NCM>
+          <qCom>3.0000</qCom>
+          <vUnCom>44.91</vUnCom>
+          <vProd>134.73</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>ALW-G-B6B9B12-0</cProd>
+          <xProd>Metil-B9B12</xProd>
+          <NCM>21069030</NCM>
+          <qCom>2.0000</qCom>
+          <vUnCom>29.90</vUnCom>
+          <vProd>59.80</vProd>
+        </prod>
+      </det>
+      <total><ICMSTot><vNF>194.53</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+</nfeProc>`;
+
+    const extraction = extractNfeFromXml(xml);
+
+    expect(extraction?.provider).toBe("deterministic-nfe-xml");
+    expect(extraction?.model).toBe("xml-v1");
+    expect(extraction?.invoices[0].fields.accessKey.value).toBe("31260530417094000240550020007034441402199743");
+    expect(extraction?.invoices[0].fields.invoiceNumber.value).toBe("703444");
+    expect(extraction?.invoices[0].fields.issuedAt.value).toBe("2026-05-05");
+    expect(extraction?.invoices[0].fields.totalAmountCents.value).toBe(19453);
+    expect(extraction?.invoices[0].items).toHaveLength(2);
+    expect(extraction?.invoices[0].items[0]).toMatchObject({ sku: "HAIR1", description: "FitHair - POTE", quantity: 3, totalAmountCents: 13473 });
+  });
+
   it("parses binary DANFE upload input", () => {
     expect(
       parseSalesDocumentUploadInput({
         query: { sellerProfileId: " seller-1 ", fileName: "danfe.pdf" },
-        headers: { "content-type": "application/pdf; charset=utf-8" },
+        headers: { "content-type": "application/xml; charset=utf-8" },
         body: Buffer.from("pdf")
       })
     ).toEqual({
       sellerProfileId: "seller-1",
       fileName: "danfe.pdf",
-      mimeType: "application/pdf",
+      mimeType: "application/xml",
       body: Buffer.from("pdf")
     });
   });

@@ -64,7 +64,7 @@ export interface SalesDocumentReviewInput {
   }>;
 }
 
-const allowedMimeTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const allowedMimeTypes = new Set(["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"]);
 
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
@@ -78,6 +78,7 @@ function safeFileName(fileName: string) {
 
 function extensionFor(mimeType: string) {
   if (mimeType === "application/pdf") return ".pdf";
+  if (mimeType === "application/xml" || mimeType === "text/xml") return ".xml";
   if (mimeType === "image/jpeg") return ".jpg";
   if (mimeType === "image/png") return ".png";
   if (mimeType === "image/webp") return ".webp";
@@ -608,7 +609,7 @@ export async function uploadSalesDocument(
       extractionMethod: deterministic.provider
     });
 
-    return Object.assign(documents[0], { documents });
+    return documents[0];
   }
 
   const document = await prisma.salesDocument.create({

@@ -175,7 +175,7 @@ export function createApp() {
     "/v1/sales/documents",
     requireAuth,
     requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
-    express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
+    express.raw({ limit: "11mb", type: ["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
   app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), analyzeSalesDocumentHandler);
