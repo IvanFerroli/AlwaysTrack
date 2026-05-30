@@ -5,9 +5,19 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import type { StorageProvider } from "../documents/storage.js";
+import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 
 export class SalesDocumentError extends Error {
-  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "UNSUPPORTED_TYPE" | "FILE_TOO_LARGE") {
+  constructor(
+    public readonly code:
+      | "NOT_FOUND"
+      | "INVALID_INPUT"
+      | "FORBIDDEN"
+      | "UNSUPPORTED_TYPE"
+      | "FILE_TOO_LARGE"
+      | "PROVIDER_ERROR"
+      | "DUPLICATE"
+  ) {
     super(code);
   }
 }
@@ -23,6 +33,32 @@ export interface SalesDocumentFilters {
   status?: string;
   sellerProfileId?: string;
   salesGroupId?: string;
+}
+
+export interface SalesPeriodFilters extends SalesDocumentFilters {
+  campaignId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface SalesDocumentReviewInput {
+  status?: string;
+  accessKey?: string | null;
+  invoiceNumber?: string | null;
+  series?: string | null;
+  issuedAt?: string | null;
+  issuerName?: string | null;
+  buyerName?: string | null;
+  totalAmountCents?: number | null;
+  rejectionReason?: string | null;
+  items?: Array<{
+    sku?: string | null;
+    description?: string | null;
+    category?: string | null;
+    quantity?: number | null;
+    unitAmountCents?: number | null;
+    totalAmountCents?: number | null;
+  }>;
 }
 
 const allowedMimeTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
@@ -45,8 +81,80 @@ function extensionFor(mimeType: string) {
   return "";
 }
 
+function digitsOnly(value: string | number | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.length > 0 ? digits : null;
+}
+
+function cleanString(value: string | number | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeDate(value: string | null | undefined) {
+  const cleaned = cleanString(value);
+  if (!cleaned) return null;
+  const iso = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = cleaned.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return null;
+}
+
+function dateFromIso(value: string | null) {
+  if (!value) return undefined;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function centsFrom(value: number | string | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  const normalized = cleanString(value)?.replace(/\./g, "").replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
+}
+
+function confidenceFrom(result: SalesDocumentAiResult) {
+  const values = Object.values(result.fields)
+    .map((field) => field.confidence)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function normalizeSalesExtraction(result: SalesDocumentAiResult): SalesDocumentAiResult {
+  return {
+    ...result,
+    fields: {
+      accessKey: { ...result.fields.accessKey, value: digitsOnly(result.fields.accessKey.value) },
+      invoiceNumber: { ...result.fields.invoiceNumber, value: cleanString(result.fields.invoiceNumber.value) },
+      series: { ...result.fields.series, value: cleanString(result.fields.series.value) },
+      issuedAt: { ...result.fields.issuedAt, value: normalizeDate(result.fields.issuedAt.value) },
+      issuerName: { ...result.fields.issuerName, value: cleanString(result.fields.issuerName.value) },
+      buyerName: { ...result.fields.buyerName, value: cleanString(result.fields.buyerName.value) },
+      totalAmountCents: { ...result.fields.totalAmountCents, value: centsFrom(result.fields.totalAmountCents.value) }
+    },
+    items: (result.items ?? [])
+      .map((item) => ({
+        sku: cleanString(item.sku),
+        description: cleanString(item.description),
+        category: cleanString(item.category),
+        quantity: typeof item.quantity === "number" && Number.isFinite(item.quantity) ? item.quantity : null,
+        unitAmountCents: centsFrom(item.unitAmountCents),
+        totalAmountCents: centsFrom(item.totalAmountCents)
+      }))
+      .filter((item) => item.description && item.quantity && item.totalAmountCents),
+    warnings: result.warnings ?? []
+  };
+}
+
 function assertCommercialRole(actor: CurrentUser) {
   if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"].includes(actor.role)) return;
+  throw new SalesDocumentError("FORBIDDEN");
+}
+
+function assertCommercialReviewer(actor: CurrentUser) {
+  if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(actor.role)) return;
   throw new SalesDocumentError("FORBIDDEN");
 }
 
@@ -69,6 +177,46 @@ export function parseSalesDocumentFilters(query: Record<string, unknown>): Sales
     status: cleanText(query.status),
     sellerProfileId: cleanText(query.sellerProfileId),
     salesGroupId: cleanText(query.salesGroupId)
+  };
+}
+
+export function parseSalesPeriodFilters(query: Record<string, unknown>): SalesPeriodFilters {
+  return {
+    ...parseSalesDocumentFilters(query),
+    campaignId: cleanText(query.campaignId),
+    from: cleanText(query.from),
+    to: cleanText(query.to)
+  };
+}
+
+export function parseSalesDocumentReviewInput(body: unknown): SalesDocumentReviewInput {
+  if (!body || typeof body !== "object") return {};
+  const input = body as Record<string, unknown>;
+  const items = Array.isArray(input.items)
+    ? input.items.map((item) => {
+        const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+        return {
+          sku: cleanText(row.sku) ?? null,
+          description: cleanText(row.description) ?? null,
+          category: cleanText(row.category) ?? null,
+          quantity: typeof row.quantity === "number" ? row.quantity : row.quantity ? Number(row.quantity) : null,
+          unitAmountCents: typeof row.unitAmountCents === "number" ? row.unitAmountCents : row.unitAmountCents ? Number(row.unitAmountCents) : null,
+          totalAmountCents: typeof row.totalAmountCents === "number" ? row.totalAmountCents : row.totalAmountCents ? Number(row.totalAmountCents) : null
+        };
+      })
+    : undefined;
+
+  return {
+    status: cleanText(input.status),
+    accessKey: cleanText(input.accessKey) ?? null,
+    invoiceNumber: cleanText(input.invoiceNumber) ?? null,
+    series: cleanText(input.series) ?? null,
+    issuedAt: cleanText(input.issuedAt) ?? null,
+    issuerName: cleanText(input.issuerName) ?? null,
+    buyerName: cleanText(input.buyerName) ?? null,
+    totalAmountCents: typeof input.totalAmountCents === "number" ? input.totalAmountCents : input.totalAmountCents ? Number(input.totalAmountCents) : null,
+    rejectionReason: cleanText(input.rejectionReason) ?? null,
+    items
   };
 }
 
@@ -100,6 +248,31 @@ function salesDocumentWhere(actor: CurrentUser, filters: SalesDocumentFilters = 
   };
 }
 
+function periodDocumentWhere(actor: CurrentUser, filters: SalesPeriodFilters = {}): Prisma.SalesDocumentWhereInput {
+  const from = dateFromIso(normalizeDate(filters.from));
+  const to = dateFromIso(normalizeDate(filters.to));
+  return {
+    ...salesDocumentWhere(actor, filters),
+    status: "APPROVED",
+    issuedAt: from || to ? { gte: from, lte: to } : undefined
+  };
+}
+
+async function getScopedSalesDocument(prisma: PrismaClient, actor: CurrentUser, documentId: string) {
+  const document = await prisma.salesDocument.findFirst({
+    where: { id: documentId, ...salesDocumentWhere(actor) },
+    include: {
+      sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
+      uploadedBy: { select: { id: true, name: true, email: true, role: true } },
+      reviewedBy: { select: { id: true, name: true, email: true, role: true } },
+      items: true,
+      extractions: { orderBy: { createdAt: "desc" }, take: 3 }
+    }
+  });
+  if (!document) throw new SalesDocumentError("NOT_FOUND");
+  return document;
+}
+
 async function resolveSellerProfile(prisma: PrismaClient, actor: CurrentUser, sellerProfileId?: string) {
   assertCommercialRole(actor);
   const where: Prisma.SellerProfileWhereInput =
@@ -127,13 +300,129 @@ export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUse
         sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
         uploadedBy: { select: { id: true, name: true, email: true, role: true } },
         reviewedBy: { select: { id: true, name: true, email: true, role: true } },
-        items: true
+        items: true,
+        extractions: { orderBy: { createdAt: "desc" }, take: 1 }
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }]
     }),
     prisma.salesDocument.count({ where })
   ]);
   return { items, total };
+}
+
+export async function analyzeSalesDocumentWithAi(
+  prisma: PrismaClient,
+  storage: StorageProvider,
+  provider: DocumentAiProvider,
+  actor: CurrentUser,
+  documentId: string
+) {
+  assertCommercialRole(actor);
+  if (!provider.analyzeSalesDocument) throw new SalesDocumentError("PROVIDER_ERROR");
+
+  const document = await getScopedSalesDocument(prisma, actor, documentId);
+  if (document.status === "APPROVED" || document.status === "REJECTED") throw new SalesDocumentError("INVALID_INPUT");
+
+  await prisma.salesDocument.update({ where: { id: document.id }, data: { status: "EXTRACTING" } });
+
+  try {
+    const stored = await storage.get(document.fileKey);
+    const result = normalizeSalesExtraction(
+      await provider.analyzeSalesDocument({
+        body: stored.body,
+        mimeType: document.mimeType,
+        fileName: document.fileName
+      })
+    );
+
+    const accessKey = result.fields.accessKey.value;
+    const duplicate = accessKey
+      ? await prisma.salesDocument.findFirst({
+          where: { organizationId: actor.organizationId, accessKey, id: { not: document.id } },
+          select: { id: true }
+        })
+      : null;
+
+    const extractionConfidence = confidenceFrom(result);
+    const data: Prisma.SalesDocumentUpdateInput = {
+      status: duplicate ? "DUPLICATE" : "PENDING_REVIEW",
+      accessKey: duplicate ? null : accessKey,
+      invoiceNumber: result.fields.invoiceNumber.value,
+      series: result.fields.series.value,
+      issuedAt: dateFromIso(result.fields.issuedAt.value),
+      issuerName: result.fields.issuerName.value,
+      buyerName: result.fields.buyerName.value,
+      totalAmountCents: result.fields.totalAmountCents.value,
+      extractionConfidence,
+      rejectionReason: duplicate ? "Chave de acesso duplicada." : null
+    };
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.salesDocumentExtraction.create({
+        data: {
+          salesDocumentId: document.id,
+          provider: provider.provider,
+          rawText: result.rawText,
+          extractedJson: JSON.stringify(result),
+          confidence: extractionConfidence
+        }
+      });
+      await tx.salesItem.deleteMany({ where: { salesDocumentId: document.id } });
+      if (!duplicate && result.items.length > 0) {
+        await tx.salesItem.createMany({
+          data: result.items.map((item) => ({
+            salesDocumentId: document.id,
+            sellerProfileId: document.sellerProfileId,
+            sku: item.sku,
+            description: item.description ?? "Item sem descricao",
+            category: item.category,
+            quantity: item.quantity ?? 0,
+            unitAmountCents: item.unitAmountCents,
+            totalAmountCents: item.totalAmountCents ?? 0
+          }))
+        });
+      }
+      return tx.salesDocument.update({
+        where: { id: document.id },
+        data,
+        include: {
+          sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
+          uploadedBy: { select: { id: true, name: true, email: true, role: true } },
+          reviewedBy: { select: { id: true, name: true, email: true, role: true } },
+          items: true,
+          extractions: { orderBy: { createdAt: "desc" }, take: 1 }
+        }
+      });
+    });
+
+    await recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      action: duplicate ? "sales_document.extract_duplicate" : "sales_document.extract",
+      entityType: "SalesDocument",
+      entityId: document.id,
+      metadata: {
+        provider: provider.provider,
+        model: provider.model,
+        status: updated.status,
+        accessKey: accessKey ? `${accessKey.slice(0, 6)}...${accessKey.slice(-6)}` : null,
+        itemCount: updated.items.length
+      }
+    });
+
+    return { document: updated, duplicate: Boolean(duplicate), warnings: result.warnings };
+  } catch (error) {
+    await prisma.salesDocument.update({ where: { id: document.id }, data: { status: document.status } });
+    await recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      action: "sales_document.extract_failed",
+      entityType: "SalesDocument",
+      entityId: document.id,
+      metadata: { provider: provider.provider, model: provider.model, error: error instanceof Error ? error.message.slice(0, 300) : "PROVIDER_ERROR" }
+    });
+    throw new SalesDocumentError("PROVIDER_ERROR");
+  }
 }
 
 export async function uploadSalesDocument(
@@ -167,7 +456,8 @@ export async function uploadSalesDocument(
       sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
       uploadedBy: { select: { id: true, name: true, email: true, role: true } },
       reviewedBy: { select: { id: true, name: true, email: true, role: true } },
-      items: true
+      items: true,
+      extractions: { orderBy: { createdAt: "desc" }, take: 1 }
     }
   });
 
@@ -181,6 +471,190 @@ export async function uploadSalesDocument(
   });
 
   return document;
+}
+
+export async function reviewSalesDocument(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  documentId: string,
+  input: SalesDocumentReviewInput
+) {
+  assertCommercialReviewer(actor);
+  const status = input.status === "APPROVED" || input.status === "REJECTED" || input.status === "DUPLICATE" ? input.status : undefined;
+  if (!status) throw new SalesDocumentError("INVALID_INPUT");
+
+  const document = await getScopedSalesDocument(prisma, actor, documentId);
+  const accessKey = digitsOnly(input.accessKey);
+  if (accessKey && status === "APPROVED") {
+    const duplicate = await prisma.salesDocument.findFirst({
+      where: { organizationId: actor.organizationId, accessKey, id: { not: document.id } },
+      select: { id: true }
+    });
+    if (duplicate) throw new SalesDocumentError("DUPLICATE");
+  }
+
+  const items = (input.items ?? [])
+    .map((item) => ({
+      sku: cleanString(item.sku),
+      description: cleanString(item.description),
+      category: cleanString(item.category),
+      quantity: typeof item.quantity === "number" && Number.isFinite(item.quantity) ? item.quantity : null,
+      unitAmountCents: centsFrom(item.unitAmountCents),
+      totalAmountCents: centsFrom(item.totalAmountCents)
+    }))
+    .filter((item) => item.description && item.quantity !== null && item.totalAmountCents !== null);
+
+  if (status === "APPROVED" && items.length === 0) throw new SalesDocumentError("INVALID_INPUT");
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.salesItem.deleteMany({ where: { salesDocumentId: document.id } });
+    if (status === "APPROVED") {
+      await tx.salesItem.createMany({
+        data: items.map((item) => ({
+          salesDocumentId: document.id,
+          sellerProfileId: document.sellerProfileId,
+          sku: item.sku,
+          description: item.description ?? "Item sem descricao",
+          category: item.category,
+          quantity: item.quantity ?? 0,
+          unitAmountCents: item.unitAmountCents,
+          totalAmountCents: item.totalAmountCents ?? 0
+        }))
+      });
+    }
+    return tx.salesDocument.update({
+      where: { id: document.id },
+      data: {
+        status,
+        accessKey,
+        invoiceNumber: cleanString(input.invoiceNumber),
+        series: cleanString(input.series),
+        issuedAt: dateFromIso(normalizeDate(input.issuedAt)),
+        issuerName: cleanString(input.issuerName),
+        buyerName: cleanString(input.buyerName),
+        totalAmountCents: centsFrom(input.totalAmountCents),
+        rejectionReason: status === "APPROVED" ? null : cleanString(input.rejectionReason),
+        reviewedById: actor.id,
+        reviewedAt: new Date()
+      },
+      include: {
+        sellerProfile: { include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } } },
+        uploadedBy: { select: { id: true, name: true, email: true, role: true } },
+        reviewedBy: { select: { id: true, name: true, email: true, role: true } },
+        items: true,
+        extractions: { orderBy: { createdAt: "desc" }, take: 1 }
+      }
+    });
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: status === "APPROVED" ? "sales_document.approve" : "sales_document.reject",
+    entityType: "SalesDocument",
+    entityId: document.id,
+    metadata: { status, itemCount: updated.items.length }
+  });
+
+  return { document: updated };
+}
+
+export async function listSalesCampaigns(prisma: PrismaClient, actor: CurrentUser) {
+  assertCommercialRole(actor);
+  const campaigns = await prisma.salesCampaign.findMany({
+    where: {
+      organizationId: actor.organizationId,
+      salesGroup: actor.role === "SUPERVISOR" ? { supervisorId: actor.id } : undefined
+    },
+    include: { salesGroup: true },
+    orderBy: [{ status: "asc" }, { startsAt: "desc" }]
+  });
+  return { items: campaigns, total: campaigns.length };
+}
+
+export async function getSalesRanking(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
+  assertCommercialRole(actor);
+  const campaign = filters.campaignId
+    ? await prisma.salesCampaign.findFirst({ where: { id: filters.campaignId, organizationId: actor.organizationId } })
+    : null;
+  const periodFilters = {
+    ...filters,
+    from: filters.from ?? campaign?.startsAt.toISOString().slice(0, 10),
+    to: filters.to ?? campaign?.endsAt.toISOString().slice(0, 10),
+    salesGroupId: filters.salesGroupId ?? campaign?.salesGroupId ?? undefined
+  };
+
+  const items = await prisma.salesItem.findMany({
+    where: { salesDocument: periodDocumentWhere(actor, periodFilters) },
+    include: { sellerProfile: { include: { salesGroup: true } } }
+  });
+
+  const bySeller = new Map<
+    string,
+    { sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number; documents: Set<string> }
+  >();
+  for (const item of items) {
+    const current =
+      bySeller.get(item.sellerProfileId) ??
+      {
+        sellerId: item.sellerProfileId,
+        sellerName: item.sellerProfile.displayName,
+        groupName: item.sellerProfile.salesGroup?.name ?? null,
+        totalAmountCents: 0,
+        quantity: 0,
+        documents: new Set<string>()
+      };
+    current.totalAmountCents += item.totalAmountCents;
+    current.quantity += item.quantity;
+    current.documents.add(item.salesDocumentId);
+    bySeller.set(item.sellerProfileId, current);
+  }
+
+  const ranking = [...bySeller.values()]
+    .sort((a, b) => b.totalAmountCents - a.totalAmountCents)
+    .map((row, index) => ({ ...row, documents: row.documents.size, position: index + 1 }));
+
+  return { campaign, items: ranking, total: ranking.length };
+}
+
+export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
+  assertCommercialRole(actor);
+  const documents = await prisma.salesDocument.findMany({
+    where: periodDocumentWhere(actor, filters),
+    include: { sellerProfile: { include: { salesGroup: true } }, items: true },
+    orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }]
+  });
+
+  const totalAmountCents = documents.reduce(
+    (sum, document) => sum + (document.totalAmountCents ?? document.items.reduce((itemSum, item) => itemSum + item.totalAmountCents, 0)),
+    0
+  );
+  const totalItems = documents.reduce((sum, document) => sum + document.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+
+  return {
+    filters,
+    summary: { documents: documents.length, totalAmountCents, totalItems },
+    items: documents
+  };
+}
+
+export function salesStatementsCsv(statement: Awaited<ReturnType<typeof getSalesStatements>>) {
+  const header = ["data", "vendedor", "grupo", "nota", "serie", "emitente", "comprador", "produto", "quantidade", "total_centavos"];
+  const rows = statement.items.flatMap((document) =>
+    document.items.map((item) => [
+      document.issuedAt?.toISOString().slice(0, 10) ?? "",
+      document.sellerProfile.displayName,
+      document.sellerProfile.salesGroup?.name ?? "",
+      document.invoiceNumber ?? "",
+      document.series ?? "",
+      document.issuerName ?? "",
+      document.buyerName ?? "",
+      item.description,
+      String(item.quantity),
+      String(item.totalAmountCents)
+    ])
+  );
+  return [header, ...rows].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
 export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser) {

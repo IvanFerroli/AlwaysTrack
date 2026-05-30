@@ -1,4 +1,4 @@
-import { Fragment, StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, StrictMode, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BadgeCheck,
@@ -500,14 +500,19 @@ interface SalesDocumentItem {
   id: string;
   fileName: string;
   status: string;
+  accessKey: string | null;
   invoiceNumber: string | null;
+  series: string | null;
   issuedAt: string | null;
   issuerName: string | null;
   buyerName: string | null;
   totalAmountCents: number | null;
+  extractionConfidence?: number | null;
+  rejectionReason?: string | null;
   createdAt: string;
   sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
-  items: Array<{ id: string; description: string; quantity: number; totalAmountCents: number }>;
+  items: Array<{ id: string; sku?: string | null; description: string; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
+  extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string }>;
 }
 
 interface SalesDashboardData {
@@ -524,6 +529,32 @@ interface SalesDashboardData {
     topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;
     groups: Array<{ groupName: string; totalAmountCents: number; quantity: number }>;
   };
+}
+
+interface SalesCampaignItem {
+  id: string;
+  name: string;
+  description: string | null;
+  metric: string;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  salesGroup: { id: string; name: string } | null;
+}
+
+interface SalesRankingRow {
+  position: number;
+  sellerId: string;
+  sellerName: string;
+  groupName: string | null;
+  totalAmountCents: number;
+  quantity: number;
+  documents: number;
+}
+
+interface SalesStatementData {
+  summary: { documents: number; totalAmountCents: number; totalItems: number };
+  items: SalesDocumentItem[];
 }
 
 type ReportKey =
@@ -705,7 +736,7 @@ function PlaceholderView({ item }: { item: NavItem }) {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MetricCard({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="metric-card">
       <span>{label}</span>
@@ -857,7 +888,9 @@ function NotesView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesDocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const canReview = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(user.role);
 
   async function load() {
     setLoading(true);
@@ -894,6 +927,46 @@ function NotesView({ user }: { user: CurrentUser }) {
       setError(caught instanceof Error ? caught.message : "Falha ao enviar DANFE.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function analyze(document: SalesDocumentItem) {
+    setActingId(document.id);
+    setError(null);
+    try {
+      await api<{ document: SalesDocumentItem; warnings: string[] }>(`/v1/sales/documents/${document.id}/analyze`, { method: "POST" });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao extrair dados da DANFE.");
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  async function review(document: SalesDocumentItem, status: "APPROVED" | "REJECTED") {
+    setActingId(document.id);
+    setError(null);
+    try {
+      await api<{ document: SalesDocumentItem }>(`/v1/sales/documents/${document.id}/review`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status,
+          accessKey: document.accessKey,
+          invoiceNumber: document.invoiceNumber,
+          series: document.series,
+          issuedAt: document.issuedAt,
+          issuerName: document.issuerName,
+          buyerName: document.buyerName,
+          totalAmountCents: document.totalAmountCents,
+          rejectionReason: status === "REJECTED" ? "Reprovada na revisão manual." : null,
+          items: document.items
+        })
+      });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao revisar nota.");
+    } finally {
+      setActingId(null);
     }
   }
 
@@ -935,8 +1008,32 @@ function NotesView({ user }: { user: CurrentUser }) {
               { key: "group", header: "Grupo", render: (item) => item.sellerProfile.salesGroup?.name ?? "-" },
               { key: "file", header: "Arquivo", render: (item) => item.fileName },
               { key: "status", header: "Status", render: (item) => item.status },
+              { key: "invoice", header: "NF", render: (item) => item.invoiceNumber ?? "-" },
               { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-              { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) }
+              { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) },
+              {
+                key: "actions",
+                header: "Ações",
+                render: (item) => (
+                  <div className="inline-actions">
+                    {["UPLOADED", "PENDING_REVIEW", "DUPLICATE"].includes(item.status) ? (
+                      <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item)}>
+                        {actingId === item.id ? "Extraindo..." : "Extrair"}
+                      </button>
+                    ) : null}
+                    {canReview && item.status === "PENDING_REVIEW" ? (
+                      <>
+                        <button className="ghost-button small" disabled={actingId === item.id || item.items.length === 0} onClick={() => review(item, "APPROVED")}>
+                          Aprovar
+                        </button>
+                        <button className="ghost-button small danger" disabled={actingId === item.id} onClick={() => review(item, "REJECTED")}>
+                          Reprovar
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                )
+              }
             ]}
           />
         )}
@@ -946,9 +1043,9 @@ function NotesView({ user }: { user: CurrentUser }) {
 }
 
 function RankingView() {
-  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
+  const [rows, setRows] = useState<SalesRankingRow[] | null>(null);
   useEffect(() => {
-    api<SalesDashboardData>("/v1/sales/dashboard").then(setDashboard).catch(() => setDashboard(null));
+    api<{ items: SalesRankingRow[] }>("/v1/sales/ranking").then((result) => setRows(result.items)).catch(() => setRows(null));
   }, []);
   return (
     <section className="panel table-panel">
@@ -958,23 +1055,103 @@ function RankingView() {
           <h2>Vendedores por venda aprovada</h2>
         </div>
       </div>
-      {!dashboard ? (
+      {!rows ? (
         <OperationalState state="loading" title="Carregando ranking" />
-      ) : dashboard.queues.topSellers.length === 0 ? (
+      ) : rows.length === 0 ? (
         <OperationalState state="empty" title="Ainda não há ranking" />
       ) : (
         <OperationalTable
-          items={dashboard.queues.topSellers}
+          items={rows}
           getRowKey={(item) => item.sellerId}
           columns={[
+            { key: "position", header: "#", render: (item) => item.position },
             { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
             { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
             { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-            { key: "quantity", header: "Itens", render: (item) => item.quantity }
+            { key: "quantity", header: "Itens", render: (item) => item.quantity },
+            { key: "documents", header: "Notas", render: (item) => item.documents }
           ]}
         />
       )}
     </section>
+  );
+}
+
+function CampaignsView() {
+  const [items, setItems] = useState<SalesCampaignItem[] | null>(null);
+  useEffect(() => {
+    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setItems(result.items)).catch(() => setItems(null));
+  }, []);
+  return (
+    <section className="panel table-panel">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Campanhas</p>
+          <h2>Campanhas comerciais</h2>
+        </div>
+      </div>
+      {!items ? (
+        <OperationalState state="loading" title="Carregando campanhas" />
+      ) : items.length === 0 ? (
+        <OperationalState state="empty" title="Nenhuma campanha cadastrada" />
+      ) : (
+        <OperationalTable
+          items={items}
+          getRowKey={(item) => item.id}
+          columns={[
+            { key: "name", header: "Campanha", render: (item) => item.name },
+            { key: "group", header: "Grupo", render: (item) => item.salesGroup?.name ?? "Todos" },
+            { key: "metric", header: "Métrica", render: (item) => item.metric },
+            { key: "status", header: "Status", render: (item) => item.status },
+            { key: "period", header: "Período", render: (item) => `${formatDateBr(item.startsAt)} a ${formatDateBr(item.endsAt)}` }
+          ]}
+        />
+      )}
+    </section>
+  );
+}
+
+function StatementsView() {
+  const [statement, setStatement] = useState<SalesStatementData | null>(null);
+  useEffect(() => {
+    api<SalesStatementData>("/v1/sales/statements").then(setStatement).catch(() => setStatement(null));
+  }, []);
+  return (
+    <div className="content-stack">
+      <section className="metric-grid">
+        <MetricCard label="Notas aprovadas" value={statement ? String(statement.summary.documents) : "..."} />
+        <MetricCard label="Total vendido" value={statement ? formatMoneyFromCents(statement.summary.totalAmountCents) : "..."} />
+        <MetricCard label="Itens" value={statement ? String(statement.summary.totalItems) : "..."} />
+      </section>
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Extratos</p>
+            <h2>Notas aprovadas</h2>
+          </div>
+          <a className="secondary button-link" href={`${apiBaseUrl}/v1/sales/statements.csv`}>
+            Baixar CSV
+          </a>
+        </div>
+        {!statement ? (
+          <OperationalState state="loading" title="Carregando extrato" />
+        ) : statement.items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" />
+        ) : (
+          <OperationalTable
+            items={statement.items}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
+              { key: "group", header: "Grupo", render: (item) => item.sellerProfile.salesGroup?.name ?? "-" },
+              { key: "invoice", header: "NF", render: (item) => item.invoiceNumber ?? "-" },
+              { key: "date", header: "Emissão", render: (item) => formatDateBr(item.issuedAt) },
+              { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
+            ]}
+          />
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -5317,9 +5494,9 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         ) : activeItem.key === "ranking" ? (
           <RankingView />
         ) : activeItem.key === "campaigns" ? (
-          <CommercialPlaceholderView title="Campanhas comerciais" detail="A base de campanhas já existe no domínio. O próximo passo é criar CRUD de regras por período, grupo, produto e métrica." />
+          <CampaignsView />
         ) : activeItem.key === "statements" ? (
-          <CommercialPlaceholderView title="Extratos" detail="A base de notas e itens já permite montar extratos gerais, por vendedor e por grupo no próximo lote." />
+          <StatementsView />
         ) : activeItem.key === "users" ? (
           <CommercialPlaceholderView title="Usuários, vendedores e times" detail="O seed já cria SAC, financeiro, vendedor e grupo comercial. O CRUD administrativo entra no próximo lote." />
         ) : activeItem.key === "professionals" ? (

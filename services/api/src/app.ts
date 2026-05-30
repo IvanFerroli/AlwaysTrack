@@ -115,8 +115,14 @@ import {
   updateWikiPageHandler
 } from "./core/wiki/wiki.handlers.js";
 import {
+  analyzeSalesDocumentHandler,
+  listSalesCampaignsHandler,
   listSalesDocumentsHandler,
+  reviewSalesDocumentHandler,
+  salesRankingHandler,
   salesDashboardHandler,
+  salesStatementsCsvHandler,
+  salesStatementsHandler,
   uploadSalesDocumentHandler
 } from "./core/sales-documents/sales-documents.handlers.js";
 
@@ -160,6 +166,10 @@ export function createApp() {
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
   app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   app.get("/v1/sales/dashboard", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesDashboardHandler);
+  app.get("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesCampaignsHandler);
+  app.get("/v1/sales/ranking", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesRankingHandler);
+  app.get("/v1/sales/statements", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsHandler);
+  app.get("/v1/sales/statements.csv", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsCsvHandler);
   app.get("/v1/sales/documents", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesDocumentsHandler);
   app.post(
     "/v1/sales/documents",
@@ -168,6 +178,8 @@ export function createApp() {
     express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
+  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), analyzeSalesDocumentHandler);
+  app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO"]), reviewSalesDocumentHandler);
   app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
   app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
   app.get("/v1/reports/licenses/expiring", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesReportHandler);

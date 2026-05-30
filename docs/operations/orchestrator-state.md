@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-05-29
+- last-updated: 2026-05-30
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
@@ -22,13 +22,13 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-006 (2026-05-29): pivot comercial, roles comerciais, schema de vendas, upload DANFE, seed comercial, dashboard comercial inicial e limpeza visual da navegacao.
+- EXEC-AT-007 (2026-05-30): extracao estruturada de DANFE, revisao MVP, ranking/campanhas read-only e extratos JSON/CSV.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
-- Implementar extracao estruturada de DANFE.
-- Implementar revisao/aprovacao de notas com edicao manual.
-- Implementar ranking/campanhas e extratos comerciais.
+- Implementar editor visual de campos/itens extraidos antes da aprovacao.
+- Implementar CRUD de campanhas, filtros visuais e snapshots de ranking.
+- Implementar filtros visuais e consolidacoes de extratos comerciais.
 - Implementar wiki com editor rico e imagens.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
@@ -73,6 +73,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run smoke:beta-local | passou — env/setup/login/dashboard/wiki | 2026-05-29 (EXEC-AT-005) |
 | npm run setup | passou — sales migration e seed comercial aplicados | 2026-05-29 (EXEC-AT-006) |
 | npm run smoke:beta-local | passou — env/setup/login/dashboard comercial/notas/wiki | 2026-05-29 (EXEC-AT-006) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-30 (EXEC-AT-007) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-007) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 8 testes | 2026-05-30 (EXEC-AT-007) |
+| npm run check | passou — 133 testes | 2026-05-30 (EXEC-AT-007) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-007) |
+| npm run smoke:beta-local | passou — dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-007) |
 | GitHub Actions check.yml | versionado — npm ci + setup + check | 2026-05-29 |
 | docs/tasks sem manifests historicos TASK-* | passou — 58 tasks arquivadas em docs/archive/sylembra/tasks/ | 2026-05-29 |
 | trilha TASK-AT inicial | criada — baseline + runtime copy/seed cleanup | 2026-05-29 |
@@ -82,6 +88,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | wiki hardening | comparacao + rascunho local + preview admin | 2026-05-29 (EXEC-AT-005) |
 | dashboard action center | metricas/filas wiki e atalhos operacionais | 2026-05-29 (EXEC-AT-005) |
 | pivot comercial | roles + schema vendas + upload DANFE + UI ativa comercial | 2026-05-29 (EXEC-AT-006) |
+| DANFE comercial | extracao IA + revisao MVP + ranking/campanhas read-only + extratos | 2026-05-30 (EXEC-AT-007) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

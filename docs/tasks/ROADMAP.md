@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-05-29
+- last-updated: 2026-05-30
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -24,13 +24,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 5. `TASK-AT-016-seller-danfe-upload.md`: upload autenticado de DANFE. Status: completed-mvp.
 6. `TASK-AT-020-commercial-dashboard-initial.md`: dashboard comercial inicial. Status: completed-partial.
 7. `TASK-AT-023-frankenstein-ui-cleanup.md`: navegacao ativa comercial. Status: completed-partial.
+8. `TASK-AT-017-danfe-structured-extraction.md`: extracao estruturada de DANFE com IA. Status: completed-mvp.
+9. `TASK-AT-018-sales-document-review.md`: revisao/aprovacao MVP de notas. Status: completed-mvp.
+10. `TASK-AT-019-ranking-campaigns-mvp.md`: ranking e campanhas read-only. Status: completed-partial.
+11. `TASK-AT-021-sales-statements-mvp.md`: extratos JSON/CSV simples. Status: completed-partial.
 
 ## Proximas tasks recomendadas
 1. `AT-014`: Google login como entrada principal.
-2. `AT-017`: extracao estruturada de DANFE.
-3. `AT-018`: revisao/aprovacao de notas com edicao manual.
-4. `AT-019`: motor de ranking e campanhas.
-5. `AT-021`: extratos gerais, por vendedor e por grupo.
-6. `AT-022`: wiki com editor rico e imagens.
-7. `AT-025`: remover/descontinuar legado SyLembra em fases.
-8. `AT-026`: smoke/e2e do fluxo comercial.
+2. `AT-018B`: editor visual de campos/itens antes da aprovacao.
+3. `AT-019B`: CRUD de campanhas, filtros visuais e snapshots.
+4. `AT-021B`: filtros visuais e extratos consolidados por vendedor/grupo.
+5. `AT-022`: wiki com editor rico e imagens.
+6. `AT-025`: remover/descontinuar legado SyLembra em fases.
+7. `AT-026`: smoke/e2e do fluxo comercial.

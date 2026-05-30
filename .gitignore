@@ -8,3 +8,4 @@ dist/
 .tmp-venv-parse/
 services/api/prisma/dev.db
 services/api/.storage/
+.storage/

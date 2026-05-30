@@ -73,6 +73,18 @@ async function smokeHttp(baseUrl) {
   if (!Array.isArray(notes.payload.data.items)) {
     throw new Error("Sales documents list is missing.");
   }
+  const campaigns = await request(baseUrl, "/v1/sales/campaigns", { headers });
+  if (!Array.isArray(campaigns.payload.data.items)) {
+    throw new Error("Sales campaigns list is missing.");
+  }
+  const ranking = await request(baseUrl, "/v1/sales/ranking", { headers });
+  if (!Array.isArray(ranking.payload.data.items)) {
+    throw new Error("Sales ranking is missing.");
+  }
+  const statements = await request(baseUrl, "/v1/sales/statements", { headers });
+  if (typeof statements.payload.data.summary?.documents !== "number") {
+    throw new Error("Sales statements summary is missing.");
+  }
   const wiki = await request(baseUrl, "/v1/wiki/pages", { headers });
   if (!Array.isArray(wiki.payload.data.items) || wiki.payload.data.items.length === 0) {
     throw new Error("Wiki seed page was not found.");

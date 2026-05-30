@@ -26,6 +26,32 @@ export interface DocumentAiProvider {
   provider: string;
   model?: string;
   analyze(input: { body: Buffer; mimeType: string; fileName: string }): Promise<DocumentAiResult>;
+  analyzeSalesDocument?(input: { body: Buffer; mimeType: string; fileName: string }): Promise<SalesDocumentAiResult>;
+}
+
+export interface SalesDocumentAiItem {
+  sku: string | null;
+  description: string | null;
+  category: string | null;
+  quantity: number | null;
+  unitAmountCents: number | null;
+  totalAmountCents: number | null;
+}
+
+export interface SalesDocumentAiResult {
+  documentKind: string | null;
+  rawText: string | null;
+  fields: {
+    accessKey: ExtractedField;
+    invoiceNumber: ExtractedField;
+    series: ExtractedField;
+    issuedAt: ExtractedField;
+    issuerName: ExtractedField;
+    buyerName: ExtractedField;
+    totalAmountCents: ExtractedField<number>;
+  };
+  items: SalesDocumentAiItem[];
+  warnings: string[];
 }
 
 const emptyResult: DocumentAiResult = {
@@ -50,6 +76,24 @@ export class FakeDocumentAiProvider implements DocumentAiProvider {
   async analyze() {
     return {
       ...emptyResult,
+      warnings: ["DOCUMENT_AI_PROVIDER nao configurado. Configure openai ou gemini para extracao real."]
+    };
+  }
+
+  async analyzeSalesDocument() {
+    return {
+      documentKind: null,
+      rawText: null,
+      fields: {
+        accessKey: { value: null, confidence: null, evidence: null },
+        invoiceNumber: { value: null, confidence: null, evidence: null },
+        series: { value: null, confidence: null, evidence: null },
+        issuedAt: { value: null, confidence: null, evidence: null },
+        issuerName: { value: null, confidence: null, evidence: null },
+        buyerName: { value: null, confidence: null, evidence: null },
+        totalAmountCents: { value: null, confidence: null, evidence: null }
+      },
+      items: [],
       warnings: ["DOCUMENT_AI_PROVIDER nao configurado. Configure openai ou gemini para extracao real."]
     };
   }
@@ -91,6 +135,67 @@ function extractionSchema() {
       warnings: { type: "array", items: { type: "string" } }
     },
     required: ["documentKind", "rawText", "fields", "warnings"]
+  };
+}
+
+function salesDocumentExtractionSchema() {
+  const field = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      value: { type: ["string", "null"] },
+      confidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
+      evidence: { type: ["string", "null"] }
+    },
+    required: ["value", "confidence", "evidence"]
+  };
+  const numberField = {
+    ...field,
+    properties: {
+      ...field.properties,
+      value: { type: ["number", "null"] }
+    }
+  };
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      documentKind: { type: ["string", "null"] },
+      rawText: { type: ["string", "null"] },
+      fields: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          accessKey: field,
+          invoiceNumber: field,
+          series: field,
+          issuedAt: field,
+          issuerName: field,
+          buyerName: field,
+          totalAmountCents: numberField
+        },
+        required: ["accessKey", "invoiceNumber", "series", "issuedAt", "issuerName", "buyerName", "totalAmountCents"]
+      },
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            sku: { type: ["string", "null"] },
+            description: { type: ["string", "null"] },
+            category: { type: ["string", "null"] },
+            quantity: { type: ["number", "null"] },
+            unitAmountCents: { type: ["number", "null"] },
+            totalAmountCents: { type: ["number", "null"] }
+          },
+          required: ["sku", "description", "category", "quantity", "unitAmountCents", "totalAmountCents"]
+        }
+      },
+      warnings: { type: "array", items: { type: "string" } }
+    },
+    required: ["documentKind", "rawText", "fields", "items", "warnings"]
   };
 }
 
@@ -180,6 +285,52 @@ export class OpenAiDocumentAiProvider implements DocumentAiProvider {
     if (!text) throw new Error("EMPTY_AI_RESPONSE");
     return JSON.parse(text) as DocumentAiResult;
   }
+
+  async analyzeSalesDocument(input: { body: Buffer; mimeType: string; fileName: string }) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${this.apiKey}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        model: this.model,
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text:
+                  "Extraia dados de DANFE ou nota fiscal brasileira para operacao comercial de suplementos. " +
+                  "Responda somente pelo schema. Use null quando o campo nao estiver legivel. " +
+                  "Nao invente chave de acesso, valores, produtos ou datas. Datas em YYYY-MM-DD. Valores devem ser em centavos inteiros."
+              },
+              ...inputContent(input)
+            ]
+          }
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "alwaystrack_sales_document_extraction",
+            strict: true,
+            schema: salesDocumentExtractionSchema()
+          }
+        }
+      })
+    });
+
+    const raw = (await response.json().catch(() => null)) as unknown;
+    if (!response.ok) {
+      const message = typeof raw === "object" && raw ? JSON.stringify(raw) : `OpenAI HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const text = outputText(raw);
+    if (!text) throw new Error("EMPTY_AI_RESPONSE");
+    return JSON.parse(text) as SalesDocumentAiResult;
+  }
 }
 
 function geminiExtractionSchema() {
@@ -208,6 +359,60 @@ function geminiExtractionSchema() {
           uf: field,
           issuedAt: field,
           expiresAt: field
+        }
+      },
+      warnings: { type: "ARRAY", items: { type: "STRING" } }
+    }
+  };
+}
+
+function geminiSalesDocumentExtractionSchema() {
+  const field = {
+    type: "OBJECT",
+    properties: {
+      value: { type: "STRING", nullable: true },
+      confidence: { type: "NUMBER", nullable: true },
+      evidence: { type: "STRING", nullable: true }
+    }
+  };
+  const numberField = {
+    type: "OBJECT",
+    properties: {
+      value: { type: "NUMBER", nullable: true },
+      confidence: { type: "NUMBER", nullable: true },
+      evidence: { type: "STRING", nullable: true }
+    }
+  };
+
+  return {
+    type: "OBJECT",
+    properties: {
+      documentKind: { type: "STRING", nullable: true },
+      rawText: { type: "STRING", nullable: true },
+      fields: {
+        type: "OBJECT",
+        properties: {
+          accessKey: field,
+          invoiceNumber: field,
+          series: field,
+          issuedAt: field,
+          issuerName: field,
+          buyerName: field,
+          totalAmountCents: numberField
+        }
+      },
+      items: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            sku: { type: "STRING", nullable: true },
+            description: { type: "STRING", nullable: true },
+            category: { type: "STRING", nullable: true },
+            quantity: { type: "NUMBER", nullable: true },
+            unitAmountCents: { type: "NUMBER", nullable: true },
+            totalAmountCents: { type: "NUMBER", nullable: true }
+          }
         }
       },
       warnings: { type: "ARRAY", items: { type: "STRING" } }
@@ -264,6 +469,52 @@ export class GeminiDocumentAiProvider implements DocumentAiProvider {
     const text = raw.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("EMPTY_AI_RESPONSE");
     return JSON.parse(text) as DocumentAiResult;
+  }
+
+  async analyzeSalesDocument(input: { body: Buffer; mimeType: string; fileName: string }) {
+    const base64 = input.body.toString("base64");
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  "Extraia dados de DANFE ou nota fiscal brasileira para operacao comercial de suplementos. " +
+                  "Responda somente pelo schema. Use null quando o campo nao estiver legivel. " +
+                  "Nao invente chave de acesso, valores, produtos ou datas. Datas em YYYY-MM-DD. Valores devem ser em centavos inteiros."
+              },
+              {
+                inlineData: {
+                  mimeType: input.mimeType === "application/pdf" ? "application/pdf" : input.mimeType,
+                  data: base64
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: geminiSalesDocumentExtractionSchema()
+        }
+      })
+    });
+
+    const raw = (await response.json().catch(() => null)) as any;
+    if (!response.ok) {
+      const message = typeof raw === "object" && raw ? JSON.stringify(raw) : `Gemini HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const text = raw.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("EMPTY_AI_RESPONSE");
+    return JSON.parse(text) as SalesDocumentAiResult;
   }
 }
 
