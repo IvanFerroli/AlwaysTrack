@@ -24,7 +24,7 @@ O AlwaysTrack precisa de uma base operacional viva para procedimentos, orientaco
 
 ## Dependencias
 - satisfeitas: auth, roles, auditoria, app shell e schema wiki MVP
-- em aberto: editor rico, permissoes granulares e UX avancada de revisao
+- em aberto: editor rico em `AT-029`/`AT-030`/`AT-031`, imagens em `AT-032`, permissoes granulares e UX avancada de revisao
 
 ## Alvos explicitos
 1. Rota/tela `/wiki` com lista, leitura e busca inicial.
@@ -49,6 +49,13 @@ O AlwaysTrack precisa de uma base operacional viva para procedimentos, orientaco
 - Notificacao em tempo real por WebSocket.
 - Publicacao anonima.
 - Wiki publica sem login.
+
+## Evolucao planejada
+- `TASK-AT-029`: contrato seguro para conteudo rico.
+- `TASK-AT-030`: editor rico com toolbar.
+- `TASK-AT-031`: renderizacao bonita de documento.
+- `TASK-AT-032`: imagens e anexos.
+- `TASK-AT-033`: review rico para admin.
 
 ## Riscos
 - Presenca em tempo real pode virar complexidade alta; iniciar com heartbeat/ping HTTP e janela curta.

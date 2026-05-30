@@ -22,10 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-010 (2026-05-30): XML NF-e deterministico como caminho barato para upload comercial.
+- EXEC-AT-011 (2026-05-30): planejamento da Wiki rica, recomendacao de Markdown seguro com toolbar e tasks `AT-029` a `AT-036`.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
+- Implementar Wiki rica em fases: formato seguro, toolbar, renderer, imagens e review rico.
 - Implementar editor visual de campos/itens extraidos antes da aprovacao.
 - Implementar CRUD de campanhas e snapshots de ranking.
 - Implementar consolidacoes de extratos comerciais por vendedor/grupo.
@@ -109,6 +110,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-010) |
 | npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-010) |
 | smoke manual XML NF-e | passou — upload criou PENDING_REVIEW com deterministic-nfe-xml | 2026-05-30 (EXEC-AT-010) |
+| planejamento Wiki rica | concluido — tasks AT-029 a AT-036 | 2026-05-30 (EXEC-AT-011) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

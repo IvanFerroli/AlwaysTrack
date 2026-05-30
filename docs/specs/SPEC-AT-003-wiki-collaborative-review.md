@@ -43,6 +43,11 @@ Definir o MVP da wiki interna do AlwaysTrack em `/wiki`.
 - Permissoes granulares por pagina.
 - Wiki publica sem login.
 
+## Evolucao aceita
+O proximo ciclo da Wiki deve priorizar conteudo rico seguro. A recomendacao operacional e usar Markdown como formato canonico inicial, com toolbar, preview renderizado, sanitizacao e leitura bonita. Tiptap/ProseMirror fica como evolucao possivel caso a experiencia precise de WYSIWYG mais completo.
+
+Tasks derivadas: `TASK-AT-029` a `TASK-AT-036`.
+
 ## Validacao
 - `services/api/src/core/wiki/wiki.service.test.ts`
 - `npm run setup`
