@@ -911,7 +911,8 @@ function NotesView({ user }: { user: CurrentUser }) {
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const file = new FormData(event.currentTarget).get("danfe");
+    const form = event.currentTarget;
+    const file = new FormData(form).get("danfe");
     if (!(file instanceof File)) return;
     setSaving(true);
     setError(null);
@@ -921,7 +922,7 @@ function NotesView({ user }: { user: CurrentUser }) {
         headers: { "content-type": file.type || "application/pdf" },
         body: await file.arrayBuffer()
       });
-      event.currentTarget.reset();
+      form.reset();
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao enviar DANFE.");

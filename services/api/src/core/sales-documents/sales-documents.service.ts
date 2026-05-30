@@ -4,6 +4,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { logEvent } from "../diagnostics/logger.js";
 import type { StorageProvider } from "../documents/storage.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 
@@ -15,6 +16,7 @@ export class SalesDocumentError extends Error {
       | "FORBIDDEN"
       | "UNSUPPORTED_TYPE"
       | "FILE_TOO_LARGE"
+      | "STORED_FILE_MISSING"
       | "PROVIDER_ERROR"
       | "DUPLICATE"
   ) {
@@ -120,6 +122,14 @@ function confidenceFrom(result: SalesDocumentAiResult) {
     .map((field) => field.confidence)
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function maskedAccessKey(value: string | null | undefined) {
+  return value ? `${value.slice(0, 6)}...${value.slice(-6)}` : null;
+}
+
+function isMissingStoredFile(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "ENOENT");
 }
 
 function normalizeSalesExtraction(result: SalesDocumentAiResult): SalesDocumentAiResult {
@@ -323,6 +333,19 @@ export async function analyzeSalesDocumentWithAi(
   const document = await getScopedSalesDocument(prisma, actor, documentId);
   if (document.status === "APPROVED" || document.status === "REJECTED") throw new SalesDocumentError("INVALID_INPUT");
 
+  const startedAt = Date.now();
+  logEvent("info", "sales_document.extract.start", {
+    documentId: document.id,
+    sellerProfileId: document.sellerProfileId,
+    actorId: actor.id,
+    role: actor.role,
+    status: document.status,
+    provider: provider.provider,
+    model: provider.model,
+    mimeType: document.mimeType,
+    size: document.size
+  });
+
   await prisma.salesDocument.update({ where: { id: document.id }, data: { status: "EXTRACTING" } });
 
   try {
@@ -405,9 +428,22 @@ export async function analyzeSalesDocumentWithAi(
         provider: provider.provider,
         model: provider.model,
         status: updated.status,
-        accessKey: accessKey ? `${accessKey.slice(0, 6)}...${accessKey.slice(-6)}` : null,
+        accessKey: maskedAccessKey(accessKey),
         itemCount: updated.items.length
       }
+    });
+
+    logEvent("info", duplicate ? "sales_document.extract.duplicate" : "sales_document.extract.complete", {
+      documentId: document.id,
+      sellerProfileId: document.sellerProfileId,
+      actorId: actor.id,
+      provider: provider.provider,
+      model: provider.model,
+      status: updated.status,
+      accessKey: maskedAccessKey(accessKey),
+      itemCount: updated.items.length,
+      warningCount: result.warnings.length,
+      durationMs: Date.now() - startedAt
     });
 
     return { document: updated, duplicate: Boolean(duplicate), warnings: result.warnings };
@@ -421,7 +457,17 @@ export async function analyzeSalesDocumentWithAi(
       entityId: document.id,
       metadata: { provider: provider.provider, model: provider.model, error: error instanceof Error ? error.message.slice(0, 300) : "PROVIDER_ERROR" }
     });
-    throw new SalesDocumentError("PROVIDER_ERROR");
+    logEvent("error", "sales_document.extract.failed", {
+      documentId: document.id,
+      sellerProfileId: document.sellerProfileId,
+      actorId: actor.id,
+      provider: provider.provider,
+      model: provider.model,
+      restoredStatus: document.status,
+      durationMs: Date.now() - startedAt,
+      error
+    });
+    throw new SalesDocumentError(isMissingStoredFile(error) ? "STORED_FILE_MISSING" : "PROVIDER_ERROR");
   }
 }
 
@@ -438,6 +484,15 @@ export async function uploadSalesDocument(
   const seller = await resolveSellerProfile(prisma, actor, input.sellerProfileId);
   const fileName = safeFileName(input.fileName ?? `danfe${extensionFor(input.mimeType)}`);
   const fileKey = `${actor.organizationId}/sales-documents/${seller.id}/${randomUUID()}${extensionFor(input.mimeType)}`;
+
+  logEvent("info", "sales_document.upload.start", {
+    actorId: actor.id,
+    role: actor.role,
+    sellerProfileId: seller.id,
+    fileName,
+    mimeType: input.mimeType,
+    size: input.body.length
+  });
 
   await storage.put({ fileKey, body: input.body, mimeType: input.mimeType });
 
@@ -470,6 +525,16 @@ export async function uploadSalesDocument(
     metadata: { sellerProfileId: seller.id, fileName, mimeType: input.mimeType, size: input.body.length }
   });
 
+  logEvent("info", "sales_document.upload.complete", {
+    documentId: document.id,
+    actorId: actor.id,
+    sellerProfileId: seller.id,
+    fileName,
+    mimeType: input.mimeType,
+    size: input.body.length,
+    status: document.status
+  });
+
   return document;
 }
 
@@ -485,6 +550,17 @@ export async function reviewSalesDocument(
 
   const document = await getScopedSalesDocument(prisma, actor, documentId);
   const accessKey = digitsOnly(input.accessKey);
+  const startedAt = Date.now();
+  logEvent("info", "sales_document.review.start", {
+    documentId: document.id,
+    actorId: actor.id,
+    actorRole: actor.role,
+    sellerProfileId: document.sellerProfileId,
+    statusBefore: document.status,
+    requestedStatus: status,
+    itemCount: input.items?.length ?? 0,
+    hasAccessKey: Boolean(accessKey)
+  });
   if (accessKey && status === "APPROVED") {
     const duplicate = await prisma.salesDocument.findFirst({
       where: { organizationId: actor.organizationId, accessKey, id: { not: document.id } },
@@ -554,6 +630,17 @@ export async function reviewSalesDocument(
     entityType: "SalesDocument",
     entityId: document.id,
     metadata: { status, itemCount: updated.items.length }
+  });
+
+  logEvent("info", "sales_document.review.complete", {
+    documentId: document.id,
+    actorId: actor.id,
+    actorRole: actor.role,
+    sellerProfileId: document.sellerProfileId,
+    statusBefore: document.status,
+    statusAfter: updated.status,
+    itemCount: updated.items.length,
+    durationMs: Date.now() - startedAt
   });
 
   return { document: updated };

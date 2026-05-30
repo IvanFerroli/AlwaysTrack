@@ -190,6 +190,36 @@ describe("sales documents service", () => {
     expect(prisma.salesItem.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ description: "Whey" })] }));
   });
 
+  it("reports missing stored files separately from provider failures", async () => {
+    const prisma = {
+      salesDocument: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "doc-1",
+          organizationId: "org-1",
+          sellerProfileId: "seller-1",
+          fileKey: "missing-file",
+          fileName: "danfe.pdf",
+          mimeType: "application/pdf",
+          status: "UPLOADED",
+          sellerProfile: { displayName: "Ana" },
+          uploadedBy: {},
+          reviewedBy: null,
+          items: [],
+          extractions: []
+        }),
+        update: vi.fn().mockResolvedValue({ id: "doc-1", status: "UPLOADED" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+    const storage = { get: vi.fn().mockRejectedValue(Object.assign(new Error("missing"), { code: "ENOENT" })), put: vi.fn() };
+    const provider = { provider: "fake-sales", model: "test", analyze: vi.fn(), analyzeSalesDocument: vi.fn() };
+
+    await expect(analyzeSalesDocumentWithAi(prisma as never, storage, provider, seller, "doc-1")).rejects.toMatchObject({
+      code: "STORED_FILE_MISSING"
+    });
+  });
+
+
   it("approves a reviewed DANFE and replaces commercial items", async () => {
     const prisma = {
       salesDocument: {
