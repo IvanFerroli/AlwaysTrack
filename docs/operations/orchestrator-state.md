@@ -22,13 +22,14 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-008 (2026-05-30): pivot deterministico-first de DANFE PDF textual, upload ja persistindo dados no Prisma, visibilidade de dados extraidos e reprocessamento IA sob demanda.
+- EXEC-AT-009 (2026-05-30): filtros visuais de ranking/extratos comerciais e CSV filtrado.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
 - Implementar editor visual de campos/itens extraidos antes da aprovacao.
-- Implementar CRUD de campanhas, filtros visuais e snapshots de ranking.
-- Implementar filtros visuais e consolidacoes de extratos comerciais.
+- Implementar XML NF-e como caminho deterministico preferencial.
+- Implementar CRUD de campanhas e snapshots de ranking.
+- Implementar consolidacoes de extratos comerciais por vendedor/grupo.
 - Implementar wiki com editor rico e imagens.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
@@ -96,6 +97,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-008) |
 | npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-008) |
 | PDF real DANFE textual | passou — 28 DANFEs completas via deterministic-pdf-text, sem IA | 2026-05-30 (EXEC-AT-008) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-05-30 (EXEC-AT-009) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-009) |
+| npm run check | passou — 135 testes | 2026-05-30 (EXEC-AT-009) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-05-30 (EXEC-AT-009) |
+| npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-009) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

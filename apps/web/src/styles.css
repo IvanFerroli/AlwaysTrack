@@ -1051,6 +1051,20 @@ button .icon {
   padding: 18px;
 }
 
+.filter-panel {
+  padding: 16px;
+}
+
+.filter-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+.filter-grid label {
+  min-width: 0;
+}
+
 .form-panel form {
   display: grid;
   gap: 13px;
@@ -1620,6 +1634,7 @@ legend {
   }
 
   .operational-filters,
+  .filter-grid,
   .metrics-grid,
   .dashboard-grid,
   .action-center-grid,

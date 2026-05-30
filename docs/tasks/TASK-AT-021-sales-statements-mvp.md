@@ -13,6 +13,8 @@ Permitir extratos comerciais gerais, por vendedor ou por grupo a partir das nota
 - Endpoint `GET /v1/sales/statements`.
 - Endpoint `GET /v1/sales/statements.csv`.
 - Filtros tecnicos por periodo, vendedor e grupo.
+- Filtros visuais por campanha, grupo, vendedor e periodo na tela de Extratos.
+- Link de CSV passa a preservar os filtros aplicados.
 - Resumo com quantidade de notas, valor total e itens.
 - Tela de Extratos com lista de notas aprovadas e link CSV.
 
@@ -23,5 +25,5 @@ Permitir extratos comerciais gerais, por vendedor ou por grupo a partir das nota
 - Admin/gestor/SAC/financeiro enxergam escopo amplo da organizacao.
 
 ## Residual
-- Falta UI de filtros.
 - CSV ainda e simples e focado em itens aprovados.
+- Falta consolidado visual agrupado por vendedor/grupo no proprio painel.

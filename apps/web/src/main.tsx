@@ -552,9 +552,24 @@ interface SalesRankingRow {
   documents: number;
 }
 
+interface SalesRankingData {
+  campaign: SalesCampaignItem | null;
+  items: SalesRankingRow[];
+  total: number;
+}
+
 interface SalesStatementData {
+  filters?: SalesFilters;
   summary: { documents: number; totalAmountCents: number; totalItems: number };
   items: SalesDocumentItem[];
+}
+
+interface SalesFilters {
+  campaignId?: string;
+  from?: string;
+  to?: string;
+  salesGroupId?: string;
+  sellerProfileId?: string;
 }
 
 type ReportKey =
@@ -764,6 +779,26 @@ function formatMoneyFromCents(value: number | null | undefined) {
 
 function formatPercent(value: number | null | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
+}
+
+function salesFilterQuery(filters: SalesFilters) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) query.set(key, value);
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
+function mergeUniqueGroups(campaigns: SalesCampaignItem[] | null, documents: SalesDocumentItem[] = []) {
+  const groups = new Map<string, string>();
+  for (const campaign of campaigns ?? []) {
+    if (campaign.salesGroup) groups.set(campaign.salesGroup.id, campaign.salesGroup.name);
+  }
+  for (const document of documents) {
+    if (document.sellerProfile.salesGroup) groups.set(document.sellerProfile.salesGroup.id, document.sellerProfile.salesGroup.name);
+  }
+  return [...groups.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
@@ -1106,37 +1141,85 @@ function NotesView({ user }: { user: CurrentUser }) {
 }
 
 function RankingView() {
-  const [rows, setRows] = useState<SalesRankingRow[] | null>(null);
+  const [ranking, setRanking] = useState<SalesRankingData | null>(null);
+  const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
+  const [filters, setFilters] = useState<SalesFilters>({});
   useEffect(() => {
-    api<{ items: SalesRankingRow[] }>("/v1/sales/ranking").then((result) => setRows(result.items)).catch(() => setRows(null));
+    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
   }, []);
+  useEffect(() => {
+    api<SalesRankingData>(`/v1/sales/ranking${salesFilterQuery(filters)}`).then(setRanking).catch(() => setRanking(null));
+  }, [filters]);
+  const groups = mergeUniqueGroups(campaigns);
   return (
-    <section className="panel table-panel">
-      <div className="table-panel-toolbar">
-        <div>
-          <p className="eyebrow">Ranking</p>
-          <h2>Vendedores por venda aprovada</h2>
+    <div className="content-stack">
+      <section className="panel filter-panel">
+        <div className="filter-grid">
+          <label>
+            Campanha
+            <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
+              <option value="">Todas</option>
+              {(campaigns ?? []).map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Grupo
+            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
+              <option value="">Todos</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            De
+            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
+          </label>
+          <label>
+            Até
+            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
+          </label>
         </div>
-      </div>
-      {!rows ? (
-        <OperationalState state="loading" title="Carregando ranking" />
-      ) : rows.length === 0 ? (
-        <OperationalState state="empty" title="Ainda não há ranking" />
-      ) : (
-        <OperationalTable
-          items={rows}
-          getRowKey={(item) => item.sellerId}
-          columns={[
-            { key: "position", header: "#", render: (item) => item.position },
-            { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
-            { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
-            { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-            { key: "quantity", header: "Itens", render: (item) => item.quantity },
-            { key: "documents", header: "Notas", render: (item) => item.documents }
-          ]}
-        />
-      )}
-    </section>
+        <div className="form-actions">
+          <button className="secondary" type="button" onClick={() => setFilters({})}>
+            Limpar filtros
+          </button>
+        </div>
+      </section>
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Ranking</p>
+            <h2>Vendedores por venda aprovada</h2>
+          </div>
+          {ranking?.campaign ? <span className="status-badge">{ranking.campaign.name}</span> : null}
+        </div>
+        {!ranking ? (
+          <OperationalState state="loading" title="Carregando ranking" />
+        ) : ranking.items.length === 0 ? (
+          <OperationalState state="empty" title="Ainda não há ranking" />
+        ) : (
+          <OperationalTable
+            items={ranking.items}
+            getRowKey={(item) => item.sellerId}
+            columns={[
+              { key: "position", header: "#", render: (item) => item.position },
+              { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
+              { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
+              { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
+              { key: "quantity", header: "Itens", render: (item) => item.quantity },
+              { key: "documents", header: "Notas", render: (item) => item.documents }
+            ]}
+          />
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -1176,11 +1259,73 @@ function CampaignsView() {
 
 function StatementsView() {
   const [statement, setStatement] = useState<SalesStatementData | null>(null);
+  const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
+  const [referenceDocuments, setReferenceDocuments] = useState<SalesDocumentItem[]>([]);
+  const [filters, setFilters] = useState<SalesFilters>({});
   useEffect(() => {
-    api<SalesStatementData>("/v1/sales/statements").then(setStatement).catch(() => setStatement(null));
+    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
+    api<{ items: SalesDocumentItem[] }>("/v1/sales/documents").then((result) => setReferenceDocuments(result.items)).catch(() => setReferenceDocuments([]));
   }, []);
+  useEffect(() => {
+    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery(filters)}`).then(setStatement).catch(() => setStatement(null));
+  }, [filters]);
+  const groups = mergeUniqueGroups(campaigns, referenceDocuments);
+  const sellers = [...new Map(referenceDocuments.map((item) => [item.sellerProfile.id, item.sellerProfile.displayName])).entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const csvHref = `${apiBaseUrl}/v1/sales/statements.csv${salesFilterQuery(filters)}`;
   return (
     <div className="content-stack">
+      <section className="panel filter-panel">
+        <div className="filter-grid">
+          <label>
+            Campanha
+            <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
+              <option value="">Todas</option>
+              {(campaigns ?? []).map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Grupo
+            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
+              <option value="">Todos</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Vendedor
+            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
+              <option value="">Todos</option>
+              {sellers.map((seller) => (
+                <option key={seller.id} value={seller.id}>
+                  {seller.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            De
+            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
+          </label>
+          <label>
+            Até
+            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button className="secondary" type="button" onClick={() => setFilters({})}>
+            Limpar filtros
+          </button>
+        </div>
+      </section>
       <section className="metric-grid">
         <MetricCard label="Notas aprovadas" value={statement ? String(statement.summary.documents) : "..."} />
         <MetricCard label="Total vendido" value={statement ? formatMoneyFromCents(statement.summary.totalAmountCents) : "..."} />
@@ -1192,7 +1337,7 @@ function StatementsView() {
             <p className="eyebrow">Extratos</p>
             <h2>Notas aprovadas</h2>
           </div>
-          <a className="secondary button-link" href={`${apiBaseUrl}/v1/sales/statements.csv`}>
+          <a className="secondary button-link" href={csvHref}>
             Baixar CSV
           </a>
         </div>

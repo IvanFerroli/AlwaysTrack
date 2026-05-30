@@ -15,6 +15,7 @@ Exibir ranking comercial e campanhas iniciais com base em notas aprovadas.
 - Ranking calculado em tempo real por vendedor, total vendido, quantidade e notas.
 - Filtros tecnicos por periodo, vendedor, grupo e campanha.
 - Tela de Ranking usando endpoint dedicado.
+- Tela de Ranking agora expoe filtros visuais por campanha, grupo e periodo.
 - Tela de Campanhas read-only usando campanhas seedadas/cadastradas.
 
 ## Aceite
@@ -25,4 +26,4 @@ Exibir ranking comercial e campanhas iniciais com base em notas aprovadas.
 ## Residual
 - Falta CRUD de campanhas.
 - Falta snapshot historico em `RankingSnapshot`.
-- Falta filtros visuais completos na interface.
+- Falta filtro visual por vendedor no ranking.
