@@ -32,6 +32,11 @@ model Organization {
   documentAiExtractions DocumentAiExtraction[]
   googleConnections     GoogleConnection[]
   googleOauthStates     GoogleOauthState[]
+  sellerProfiles        SellerProfile[]
+  salesGroups           SalesGroup[]
+  salesDocuments        SalesDocument[]
+  salesCampaigns        SalesCampaign[]
+  rankingSnapshots      RankingSnapshot[]
 }
 
 model Unit {
@@ -98,10 +103,183 @@ model User {
   wikiReadReceipts    WikiReadReceipt[] @relation("WikiReadReceiptUser")
   wikiPresences       WikiPresence[] @relation("WikiPresenceUser")
   wikiRevisions       WikiRevision[] @relation("WikiRevisionAuthor")
+  sellerProfile       SellerProfile? @relation("SellerProfileUser")
+  supervisedSalesGroups SalesGroup[] @relation("SalesGroupSupervisor")
+  uploadedSalesDocuments SalesDocument[] @relation("SalesDocumentUploadedBy")
+  reviewedSalesDocuments SalesDocument[] @relation("SalesDocumentReviewedBy")
 
   @@index([organizationId])
   @@index([role])
   @@index([active])
+}
+
+model SellerProfile {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?  @unique
+  salesGroupId   String?
+  code           String
+  displayName    String
+  document       String?
+  email          String?
+  phone          String?
+  active         Boolean  @default(true)
+  monthlyGoalCents Int?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation("SellerProfileUser", fields: [userId], references: [id])
+  salesGroup   SalesGroup?  @relation(fields: [salesGroupId], references: [id])
+  documents    SalesDocument[]
+  items        SalesItem[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([salesGroupId])
+  @@index([active])
+}
+
+model SalesGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  supervisorId   String?
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  supervisor   User?        @relation("SalesGroupSupervisor", fields: [supervisorId], references: [id])
+  sellers      SellerProfile[]
+  campaigns    SalesCampaign[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([supervisorId])
+  @@index([active])
+}
+
+model SalesDocument {
+  id             String   @id @default(cuid())
+  organizationId String
+  sellerProfileId String
+  uploadedById   String
+  reviewedById   String?
+  fileKey        String
+  fileName       String
+  mimeType       String
+  size           Int
+  status         String   @default("UPLOADED")
+  accessKey      String?
+  invoiceNumber  String?
+  series         String?
+  issuedAt       DateTime?
+  issuerName     String?
+  buyerName      String?
+  totalAmountCents Int?
+  extractionConfidence Float?
+  rejectionReason String?
+  reviewedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id])
+  uploadedBy   User @relation("SalesDocumentUploadedBy", fields: [uploadedById], references: [id])
+  reviewedBy   User? @relation("SalesDocumentReviewedBy", fields: [reviewedById], references: [id])
+  extractions  SalesDocumentExtraction[]
+  items        SalesItem[]
+
+  @@unique([organizationId, accessKey])
+  @@index([organizationId])
+  @@index([sellerProfileId])
+  @@index([uploadedById])
+  @@index([reviewedById])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+model SalesDocumentExtraction {
+  id             String   @id @default(cuid())
+  salesDocumentId String
+  provider       String
+  rawText        String?
+  extractedJson  String
+  confidence     Float?
+  createdAt      DateTime @default(now())
+
+  salesDocument SalesDocument @relation(fields: [salesDocumentId], references: [id])
+
+  @@index([salesDocumentId])
+  @@index([provider])
+}
+
+model SalesItem {
+  id             String   @id @default(cuid())
+  salesDocumentId String
+  sellerProfileId String
+  sku            String?
+  description    String
+  category       String?
+  quantity       Float
+  unitAmountCents Int?
+  totalAmountCents Int
+  createdAt      DateTime @default(now())
+
+  salesDocument SalesDocument @relation(fields: [salesDocumentId], references: [id])
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id])
+
+  @@index([salesDocumentId])
+  @@index([sellerProfileId])
+  @@index([sku])
+  @@index([category])
+}
+
+model SalesCampaign {
+  id             String   @id @default(cuid())
+  organizationId String
+  salesGroupId   String?
+  name           String
+  description    String?
+  metric         String
+  status         String   @default("DRAFT")
+  startsAt       DateTime
+  endsAt         DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  salesGroup   SalesGroup?  @relation(fields: [salesGroupId], references: [id])
+  rankingSnapshots RankingSnapshot[]
+
+  @@index([organizationId])
+  @@index([salesGroupId])
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model RankingSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  campaignId     String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  scopeType      String
+  scopeId        String?
+  payloadJson    String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  campaign     SalesCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([periodStart])
+  @@index([periodEnd])
+  @@index([scopeType])
 }
 
 model Professional {

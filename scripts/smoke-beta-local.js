@@ -6,6 +6,9 @@ const env = {
   ...process.env,
   API_PORT: port,
   SEED_ADMIN_PASSWORD: adminPassword,
+  SEED_SAC_PASSWORD: process.env.SEED_SAC_PASSWORD ?? "SacSmoke123456!",
+  SEED_FINANCEIRO_PASSWORD: process.env.SEED_FINANCEIRO_PASSWORD ?? "FinanceiroSmoke123456!",
+  SEED_SELLER_PASSWORD: process.env.SEED_SELLER_PASSWORD ?? "VendedorSmoke123456!",
   SEED_RT_PASSWORD: process.env.SEED_RT_PASSWORD ?? "RtSmoke123456!",
   SEED_SUPERVISOR_PASSWORD: process.env.SEED_SUPERVISOR_PASSWORD ?? "SupervisorSmoke123456!",
   SEED_UPLOAD_TOKEN: process.env.SEED_UPLOAD_TOKEN ?? "UploadSmoke123456!",
@@ -62,9 +65,13 @@ async function smokeHttp(baseUrl) {
   if (!cookie) throw new Error("Login did not return a session cookie.");
   const headers = { cookie };
   await request(baseUrl, "/v1/auth/me", { headers });
-  const dashboard = await request(baseUrl, "/v1/dashboard", { headers });
-  if (typeof dashboard.payload.data.metrics?.wiki?.pendingRequests !== "number") {
-    throw new Error("Dashboard wiki metric is missing.");
+  const dashboard = await request(baseUrl, "/v1/sales/dashboard", { headers });
+  if (typeof dashboard.payload.data.metrics?.totalDocuments !== "number") {
+    throw new Error("Commercial dashboard metric is missing.");
+  }
+  const notes = await request(baseUrl, "/v1/sales/documents", { headers });
+  if (!Array.isArray(notes.payload.data.items)) {
+    throw new Error("Sales documents list is missing.");
   }
   const wiki = await request(baseUrl, "/v1/wiki/pages", { headers });
   if (!Array.isArray(wiki.payload.data.items) || wiki.payload.data.items.length === 0) {

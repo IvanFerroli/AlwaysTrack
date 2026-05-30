@@ -39,7 +39,21 @@ import {
 } from "./components/operational";
 import "./styles.css";
 
-type ViewKey = "dashboard" | "professionals" | "licenses" | "documents" | "reports" | "wiki" | "audit" | "settings" | "help";
+type ViewKey =
+  | "dashboard"
+  | "notes"
+  | "ranking"
+  | "campaigns"
+  | "statements"
+  | "wiki"
+  | "users"
+  | "audit"
+  | "help"
+  | "professionals"
+  | "licenses"
+  | "documents"
+  | "reports"
+  | "settings";
 type IconName =
   | "home"
   | "users"
@@ -482,24 +496,33 @@ interface FaqItem {
   active?: boolean;
 }
 
-interface DashboardData {
+interface SalesDocumentItem {
+  id: string;
+  fileName: string;
+  status: string;
+  invoiceNumber: string | null;
+  issuedAt: string | null;
+  issuerName: string | null;
+  buyerName: string | null;
+  totalAmountCents: number | null;
+  createdAt: string;
+  sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
+  items: Array<{ id: string; description: string; quantity: number; totalAmountCents: number }>;
+}
+
+interface SalesDashboardData {
   metrics: {
-    totalProfessionals: number;
-    licenses: { regular: number; expiring: number; expired: number };
-    documents: { pendingValidation: number };
-    notifications: { pending: number; sent: number; failed: number };
-    wiki: { pendingRequests: number };
+    totalDocuments: number;
+    pendingDocuments: number;
+    approvedDocuments: number;
+    rejectedDocuments: number;
+    activeSellers: number;
+    totalAmountCents: number;
   };
   queues: {
-    expiringLicenses: LicenseItem[];
-    expiredLicenses: LicenseItem[];
-    pendingDocuments: DocumentItem[];
-    recentUploads: DocumentItem[];
-    failedNotifications: NotificationJobItem[];
-    expiredBySector: Array<{ label: string; total: number }>;
-    pendingDocumentsByRt: Array<{ label: string; total: number }>;
-    pendingDocumentsByUnit: Array<{ label: string; total: number }>;
-    pendingWikiRequests: WikiEditRequestItem[];
+    pendingDocuments: SalesDocumentItem[];
+    topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;
+    groups: Array<{ groupName: string; totalAmountCents: number; quantity: number }>;
   };
 }
 
@@ -529,15 +552,15 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", description: "Visão operacional do dia", icon: "home", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "professionals", label: "Profissionais", description: "Cadastro e acompanhamento", icon: "users", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "licenses", label: "Licenças", description: "Vencimentos e status", icon: "badge", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "documents", label: "Documentos", description: "Uploads e validações", icon: "file", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "reports", label: "Relatórios", description: "Consultas operacionais", icon: "chart", roles: ["ADMIN", "RT", "SUPERVISOR"] },
-  { key: "wiki", label: "Wiki", description: "Procedimentos e revisões", icon: "wiki", roles: ["ADMIN", "RT", "SUPERVISOR"] },
+  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
+  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: ["ADMIN", "GESTOR", "SUPERVISOR"] },
+  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: ["ADMIN", "GESTOR"] },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
-  { key: "settings", label: "Configurações", description: "Usuários e organização", icon: "settings", roles: ["ADMIN"] },
-  { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: ["ADMIN", "RT", "SUPERVISOR"] }
+  { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
 ];
 
 const helpAnchorIds = new Set([
@@ -704,8 +727,12 @@ function wikiChangeSummary(before: string, after: string) {
   return `${changed} linha(s) alterada(s), ${deltaLabel}`;
 }
 
+function formatMoneyFromCents(value: number | null | undefined) {
+  return ((value ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -713,7 +740,7 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
     setLoading(true);
     setError(null);
     try {
-      setDashboard(await api<DashboardData>("/v1/dashboard"));
+      setDashboard(await api<SalesDashboardData>("/v1/sales/dashboard"));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar dashboard.");
     } finally {
@@ -732,208 +759,232 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
   return (
     <div className="content-stack">
       <section className="metrics-grid">
-        <MetricCard label="Profissionais" value={dashboard.metrics.totalProfessionals} />
-        <MetricCard label="Licenças regulares" value={dashboard.metrics.licenses.regular} />
-        <MetricCard label="Licenças a vencer" value={dashboard.metrics.licenses.expiring} />
-        <MetricCard label="Licenças vencidas" value={dashboard.metrics.licenses.expired} />
-        <MetricCard label="Docs em validação" value={dashboard.metrics.documents.pendingValidation} />
-        <MetricCard label="Notificações pendentes" value={dashboard.metrics.notifications.pending} />
-        <MetricCard label="Notificações enviadas" value={dashboard.metrics.notifications.sent} />
-        <MetricCard label="Notificações com falha" value={dashboard.metrics.notifications.failed} />
-        <MetricCard label="Wiki pendente" value={dashboard.metrics.wiki.pendingRequests} />
+        <MetricCard label="Notas enviadas" value={dashboard.metrics.totalDocuments} />
+        <MetricCard label="Pendentes" value={dashboard.metrics.pendingDocuments} />
+        <MetricCard label="Aprovadas" value={dashboard.metrics.approvedDocuments} />
+        <MetricCard label="Recusadas/Duplicadas" value={dashboard.metrics.rejectedDocuments} />
+        <MetricCard label="Vendedores ativos" value={dashboard.metrics.activeSellers} />
       </section>
 
       <section className="panel action-center-panel">
         <div className="table-panel-toolbar">
           <div>
             <p className="eyebrow">Central de ações</p>
-            <h2>Prioridades do dia</h2>
+            <h2>Prioridades comerciais</h2>
           </div>
         </div>
         <div className="action-center-grid">
-          <button type="button" onClick={() => onOpen("licenses")}>
-            <strong>{dashboard.metrics.licenses.expired}</strong>
-            <span>licença(s) vencida(s)</span>
+          <button type="button" onClick={() => onOpen("notes")}>
+            <strong>{dashboard.metrics.pendingDocuments}</strong>
+            <span>nota(s) aguardando revisão</span>
           </button>
-          <button type="button" onClick={() => onOpen("documents")}>
-            <strong>{dashboard.metrics.documents.pendingValidation}</strong>
-            <span>documento(s) para validar</span>
+          <button type="button" onClick={() => onOpen("ranking")}>
+            <strong>{dashboard.queues.topSellers.length}</strong>
+            <span>vendedor(es) no ranking</span>
           </button>
-          <button type="button" onClick={() => onOpen("reports")}>
-            <strong>{dashboard.metrics.notifications.failed}</strong>
-            <span>notificação(ões) com falha</span>
+          <button type="button" onClick={() => onOpen("statements")}>
+            <strong>{formatMoneyFromCents(dashboard.metrics.totalAmountCents)}</strong>
+            <span>em vendas aprovadas</span>
           </button>
           <button type="button" onClick={() => onOpen("wiki")}>
-            <strong>{dashboard.metrics.wiki.pendingRequests}</strong>
-            <span>revisão(ões) de wiki</span>
+            <strong>Wiki</strong>
+            <span>procedimentos do SAC, financeiro e vendas</span>
           </button>
         </div>
       </section>
 
       <section className="dashboard-grid">
         <div className="panel table-panel">
-          <h2>Vencendo em 30 dias</h2>
-          {dashboard.queues.expiringLicenses.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma licença a vencer" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.expiringLicenses}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "license", header: "Licença", render: (item) => item.licenseType.name },
-                { key: "expires", header: "Vence", render: (item) => formatDateBr(item.expiresAt) },
-                { key: "status", header: "Status", render: (item) => <StatusBadge kind="license" value={item.status} /> },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver licenças</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Vencidas</h2>
-          {dashboard.queues.expiredLicenses.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma licença vencida" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.expiredLicenses}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "sector", header: "Setor", render: (item) => item.professional.sector.name },
-                { key: "license", header: "Licença", render: (item) => item.licenseType.name },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Regularizar</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Documentos pendentes</h2>
+          <h2>Notas pendentes</h2>
           {dashboard.queues.pendingDocuments.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum documento pendente" />
+            <OperationalState state="empty" title="Nenhuma nota pendente" />
           ) : (
             <OperationalTable
               items={dashboard.queues.pendingDocuments}
               getRowKey={(item) => item.id}
               columns={[
+                { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
                 { key: "file", header: "Arquivo", render: (item) => item.fileName },
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "status", header: "Status", render: (item) => <StatusBadge kind="document" value={item.status} /> },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Validar</button> }
+                { key: "status", header: "Status", render: (item) => item.status },
+                { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) },
+                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("notes")}>Revisar</button> }
               ]}
             />
           )}
         </div>
 
         <div className="panel table-panel">
-          <h2>Uploads recentes</h2>
-          {dashboard.queues.recentUploads.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum upload recente" />
+          <h2>Top vendedores</h2>
+          {dashboard.queues.topSellers.length === 0 ? (
+            <OperationalState state="empty" title="Ranking sem vendas aprovadas" />
           ) : (
             <OperationalTable
-              items={dashboard.queues.recentUploads}
-              getRowKey={(item) => item.id}
+              items={dashboard.queues.topSellers}
+              getRowKey={(item) => item.sellerId}
               columns={[
-                { key: "file", header: "Arquivo", render: (item) => item.fileName },
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "createdAt", header: "Recebido", render: (item) => formatDateBr(item.createdAt) },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Abrir</button> }
-              ]}
-            />
-          )}
-        </div>
-      </section>
-
-      <section className="dashboard-grid">
-        <div className="panel table-panel">
-          <h2>Vencidas por setor</h2>
-          {dashboard.queues.expiredBySector.length === 0 ? (
-            <OperationalState state="empty" title="Sem vencidas por setor" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.expiredBySector}
-              getRowKey={(item) => item.label}
-              columns={[
-                { key: "label", header: "Setor", render: (item) => item.label },
-                { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("licenses")}>Ver</button> }
+                { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
+                { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
+                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
+                { key: "quantity", header: "Itens", render: (item) => item.quantity }
               ]}
             />
           )}
         </div>
 
         <div className="panel table-panel">
-          <h2>Pendências por RT</h2>
-          {dashboard.queues.pendingDocumentsByRt.length === 0 ? (
-            <OperationalState state="empty" title="Sem pendências por RT" />
+          <h2>Grupos</h2>
+          {dashboard.queues.groups.length === 0 ? (
+            <OperationalState state="empty" title="Nenhum grupo com venda aprovada" />
           ) : (
             <OperationalTable
-              items={dashboard.queues.pendingDocumentsByRt}
-              getRowKey={(item) => item.label}
+              items={dashboard.queues.groups}
+              getRowKey={(item) => item.groupName}
               columns={[
-                { key: "label", header: "RT", render: (item) => item.label },
-                { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Pendências por unidade</h2>
-          {dashboard.queues.pendingDocumentsByUnit.length === 0 ? (
-            <OperationalState state="empty" title="Sem pendências por unidade" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.pendingDocumentsByUnit}
-              getRowKey={(item) => item.label}
-              columns={[
-                { key: "label", header: "Unidade", render: (item) => item.label },
-                { key: "total", header: "Total", render: (item) => item.total },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("documents")}>Ver</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Falhas de notificação</h2>
-          {dashboard.queues.failedNotifications.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma falha de notificação" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.failedNotifications}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "professional", header: "Profissional", render: (item) => item.professional.name },
-                { key: "template", header: "Template", render: (item) => item.templateKey },
-                { key: "attempts", header: "Tentativas", render: (item) => item.attempts },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("reports")}>Ver relatório</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Wiki pendente</h2>
-          {dashboard.queues.pendingWikiRequests.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma revisão pendente" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.pendingWikiRequests}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "page", header: "Página", render: (item) => item.page.title },
-                { key: "author", header: "Autor", render: (item) => item.author.name },
-                { key: "base", header: "Base", render: (item) => `v${item.baseVersion}` },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("wiki")}>Revisar</button> }
+                { key: "group", header: "Grupo", render: (item) => item.groupName },
+                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
+                { key: "quantity", header: "Itens", render: (item) => item.quantity }
               ]}
             />
           )}
         </div>
       </section>
     </div>
+  );
+
+}
+
+function NotesView({ user }: { user: CurrentUser }) {
+  const [items, setItems] = useState<SalesDocumentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api<{ items: SalesDocumentItem[]; total: number }>("/v1/sales/documents");
+      setItems(result.items);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar notas.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function upload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const file = new FormData(event.currentTarget).get("danfe");
+    if (!(file instanceof File)) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api<{ document: SalesDocumentItem }>(`/v1/sales/documents?fileName=${encodeURIComponent(file.name)}`, {
+        method: "POST",
+        headers: { "content-type": file.type || "application/pdf" },
+        body: await file.arrayBuffer()
+      });
+      event.currentTarget.reset();
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao enviar DANFE.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="content-stack">
+      {user.role === "VENDEDOR" ? (
+        <section className="panel form-panel">
+          <h2>Enviar DANFE</h2>
+          <form onSubmit={upload}>
+            <label>
+              PDF ou imagem da nota
+              <input name="danfe" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+            </label>
+            <div className="form-actions">
+              <button disabled={saving}>{saving ? "Enviando..." : "Enviar nota"}</button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      {error ? <OperationalState state="error" title="Falha nas notas" detail={error} /> : null}
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Notas fiscais</p>
+            <h2>DANFEs recebidas</h2>
+          </div>
+        </div>
+        {loading ? (
+          <OperationalState state="loading" title="Carregando notas" />
+        ) : items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma nota enviada" />
+        ) : (
+          <OperationalTable
+            items={items}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
+              { key: "group", header: "Grupo", render: (item) => item.sellerProfile.salesGroup?.name ?? "-" },
+              { key: "file", header: "Arquivo", render: (item) => item.fileName },
+              { key: "status", header: "Status", render: (item) => item.status },
+              { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
+              { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) }
+            ]}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function RankingView() {
+  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
+  useEffect(() => {
+    api<SalesDashboardData>("/v1/sales/dashboard").then(setDashboard).catch(() => setDashboard(null));
+  }, []);
+  return (
+    <section className="panel table-panel">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Ranking</p>
+          <h2>Vendedores por venda aprovada</h2>
+        </div>
+      </div>
+      {!dashboard ? (
+        <OperationalState state="loading" title="Carregando ranking" />
+      ) : dashboard.queues.topSellers.length === 0 ? (
+        <OperationalState state="empty" title="Ainda não há ranking" />
+      ) : (
+        <OperationalTable
+          items={dashboard.queues.topSellers}
+          getRowKey={(item) => item.sellerId}
+          columns={[
+            { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
+            { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
+            { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
+            { key: "quantity", header: "Itens", render: (item) => item.quantity }
+          ]}
+        />
+      )}
+    </section>
+  );
+}
+
+function CommercialPlaceholderView({ title, detail }: { title: string; detail: string }) {
+  return (
+    <section className="panel empty-state">
+      <p className="eyebrow">AlwaysTrack Comercial</p>
+      <h2>{title}</h2>
+      <p className="muted">{detail}</p>
+    </section>
   );
 }
 
@@ -5209,7 +5260,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <BrandMark />
           <div>
             <strong>{appName}</strong>
-            <small>Licenças e documentos</small>
+            <small>Notas, ranking e campanhas</small>
           </div>
         </div>
         <nav className="nav-list" aria-label="Navegação principal">
@@ -5261,7 +5312,17 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
             </button>
           </div>
         </header>
-        {activeItem.key === "professionals" ? (
+        {activeItem.key === "notes" ? (
+          <NotesView user={user} />
+        ) : activeItem.key === "ranking" ? (
+          <RankingView />
+        ) : activeItem.key === "campaigns" ? (
+          <CommercialPlaceholderView title="Campanhas comerciais" detail="A base de campanhas já existe no domínio. O próximo passo é criar CRUD de regras por período, grupo, produto e métrica." />
+        ) : activeItem.key === "statements" ? (
+          <CommercialPlaceholderView title="Extratos" detail="A base de notas e itens já permite montar extratos gerais, por vendedor e por grupo no próximo lote." />
+        ) : activeItem.key === "users" ? (
+          <CommercialPlaceholderView title="Usuários, vendedores e times" detail="O seed já cria SAC, financeiro, vendedor e grupo comercial. O CRUD administrativo entra no próximo lote." />
+        ) : activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
         ) : activeItem.key === "dashboard" ? (
           <DashboardView onOpen={openView} />

@@ -170,10 +170,16 @@ async function main() {
   const licenseTypeName = "Registro profissional padrão";
   const licenseTypeDescription = "Registro profissional usado no seed local do AlwaysTrack.";
   const adminPassword = seedSecret("SEED_ADMIN_PASSWORD");
+  const sacPassword = seedSecret("SEED_SAC_PASSWORD");
+  const financeiroPassword = seedSecret("SEED_FINANCEIRO_PASSWORD");
+  const sellerPassword = seedSecret("SEED_SELLER_PASSWORD");
   const rtPassword = seedSecret("SEED_RT_PASSWORD");
   const supervisorPassword = seedSecret("SEED_SUPERVISOR_PASSWORD");
   const uploadToken = seedSecret("SEED_UPLOAD_TOKEN");
   const adminPasswordHash = await hashPassword(adminPassword);
+  const sacPasswordHash = await hashPassword(sacPassword);
+  const financeiroPasswordHash = await hashPassword(financeiroPassword);
+  const sellerPasswordHash = await hashPassword(sellerPassword);
   const rtPasswordHash = await hashPassword(rtPassword);
   const supervisorPasswordHash = await hashPassword(supervisorPassword);
 
@@ -209,7 +215,7 @@ async function main() {
     update: {
       title: "Primeiros passos",
       content:
-        "Use esta wiki para registrar procedimentos operacionais do AlwaysTrack.\n\nAdmins publicam mudancas diretamente. RTs e supervisores podem sugerir alteracoes para aprovacao administrativa.",
+        "Use esta wiki para registrar procedimentos transversais do AlwaysTrack: SAC, financeiro, vendedores, supervisores, campanhas, extratos e revisao de notas.\n\nAdmins publicam mudancas diretamente. Outros perfis podem sugerir alteracoes para aprovacao administrativa.",
       updatedById: admin.id,
       active: true
     },
@@ -218,7 +224,7 @@ async function main() {
       slug: "primeiros-passos",
       title: "Primeiros passos",
       content:
-        "Use esta wiki para registrar procedimentos operacionais do AlwaysTrack.\n\nAdmins publicam mudancas diretamente. RTs e supervisores podem sugerir alteracoes para aprovacao administrativa.",
+        "Use esta wiki para registrar procedimentos transversais do AlwaysTrack: SAC, financeiro, vendedores, supervisores, campanhas, extratos e revisao de notas.\n\nAdmins publicam mudancas diretamente. Outros perfis podem sugerir alteracoes para aprovacao administrativa.",
       createdById: admin.id,
       updatedById: admin.id
     }
@@ -287,7 +293,7 @@ async function main() {
     }
   });
 
-  await prisma.user.upsert({
+  const supervisor = await prisma.user.upsert({
     where: { email: "supervisor@example.com" },
     update: {
       name: "Supervisor Demo",
@@ -308,6 +314,205 @@ async function main() {
       organizationId: organization.id,
       unitScopeJson: JSON.stringify([unit.id]),
       sectorScopeJson: JSON.stringify([sector.id])
+    }
+  });
+
+  const sac = await prisma.user.upsert({
+    where: { email: "sac@example.com" },
+    update: { name: "SAC Demo", passwordHash: sacPasswordHash, role: "SAC", active: true, organizationId: organization.id },
+    create: {
+      name: "SAC Demo",
+      email: "sac@example.com",
+      passwordHash: sacPasswordHash,
+      role: "SAC",
+      organizationId: organization.id
+    }
+  });
+
+  const financeiro = await prisma.user.upsert({
+    where: { email: "financeiro@example.com" },
+    update: {
+      name: "Financeiro Demo",
+      passwordHash: financeiroPasswordHash,
+      role: "FINANCEIRO",
+      active: true,
+      organizationId: organization.id
+    },
+    create: {
+      name: "Financeiro Demo",
+      email: "financeiro@example.com",
+      passwordHash: financeiroPasswordHash,
+      role: "FINANCEIRO",
+      organizationId: organization.id
+    }
+  });
+
+  const sellerUser = await prisma.user.upsert({
+    where: { email: "vendedor@example.com" },
+    update: {
+      name: "Vendedor Demo",
+      passwordHash: sellerPasswordHash,
+      role: "VENDEDOR",
+      phone: "+5511999992001",
+      active: true,
+      organizationId: organization.id
+    },
+    create: {
+      name: "Vendedor Demo",
+      email: "vendedor@example.com",
+      passwordHash: sellerPasswordHash,
+      role: "VENDEDOR",
+      phone: "+5511999992001",
+      organizationId: organization.id
+    }
+  });
+
+  const salesGroup = await prisma.salesGroup.upsert({
+    where: {
+      organizationId_name: {
+        organizationId: organization.id,
+        name: "Equipe Farma Norte"
+      }
+    },
+    update: { supervisorId: supervisor.id, active: true },
+    create: {
+      organizationId: organization.id,
+      name: "Equipe Farma Norte",
+      supervisorId: supervisor.id
+    }
+  });
+
+  const sellerProfile = await prisma.sellerProfile.upsert({
+    where: {
+      organizationId_code: {
+        organizationId: organization.id,
+        code: "VD-001"
+      }
+    },
+    update: {
+      userId: sellerUser.id,
+      salesGroupId: salesGroup.id,
+      displayName: "Vendedor Demo",
+      email: sellerUser.email,
+      phone: sellerUser.phone,
+      active: true,
+      monthlyGoalCents: 2500000
+    },
+    create: {
+      organizationId: organization.id,
+      userId: sellerUser.id,
+      salesGroupId: salesGroup.id,
+      code: "VD-001",
+      displayName: "Vendedor Demo",
+      email: sellerUser.email,
+      phone: sellerUser.phone,
+      monthlyGoalCents: 2500000
+    }
+  });
+
+  const approvedSalesDocument = await prisma.salesDocument.upsert({
+    where: {
+      organizationId_accessKey: {
+        organizationId: organization.id,
+        accessKey: "35260500000000000100550010000000011000000010"
+      }
+    },
+    update: {
+      sellerProfileId: sellerProfile.id,
+      uploadedById: sellerUser.id,
+      reviewedById: financeiro.id,
+      status: "APPROVED",
+      invoiceNumber: "000000001",
+      series: "1",
+      issuedAt: daysAgo(3),
+      issuerName: "Distribuidora Suplementos Demo",
+      buyerName: "Cliente Farma Norte",
+      totalAmountCents: 189970,
+      reviewedAt: daysAgo(2)
+    },
+    create: {
+      organizationId: organization.id,
+      sellerProfileId: sellerProfile.id,
+      uploadedById: sellerUser.id,
+      reviewedById: financeiro.id,
+      fileKey: `${organization.id}/sales-documents/${sellerProfile.id}/seed-danfe.pdf`,
+      fileName: "danfe-demo-aprovada.pdf",
+      mimeType: "application/pdf",
+      size: 128000,
+      status: "APPROVED",
+      accessKey: "35260500000000000100550010000000011000000010",
+      invoiceNumber: "000000001",
+      series: "1",
+      issuedAt: daysAgo(3),
+      issuerName: "Distribuidora Suplementos Demo",
+      buyerName: "Cliente Farma Norte",
+      totalAmountCents: 189970,
+      extractionConfidence: 0.96,
+      reviewedAt: daysAgo(2)
+    }
+  });
+
+  const existingSalesItem = await prisma.salesItem.findFirst({
+    where: { salesDocumentId: approvedSalesDocument.id, sku: "WHEY-900-BAU" }
+  });
+  if (!existingSalesItem) {
+    await prisma.salesItem.createMany({
+      data: [
+        {
+          salesDocumentId: approvedSalesDocument.id,
+          sellerProfileId: sellerProfile.id,
+          sku: "WHEY-900-BAU",
+          description: "Whey Protein 900g Baunilha",
+          category: "Proteinas",
+          quantity: 4,
+          unitAmountCents: 18990,
+          totalAmountCents: 75960
+        },
+        {
+          salesDocumentId: approvedSalesDocument.id,
+          sellerProfileId: sellerProfile.id,
+          sku: "CREA-300",
+          description: "Creatina 300g",
+          category: "Performance",
+          quantity: 6,
+          unitAmountCents: 8990,
+          totalAmountCents: 53940
+        },
+        {
+          salesDocumentId: approvedSalesDocument.id,
+          sellerProfileId: sellerProfile.id,
+          sku: "PRE-300-LIM",
+          description: "Pre treino 300g Limao",
+          category: "Performance",
+          quantity: 5,
+          unitAmountCents: 12014,
+          totalAmountCents: 60070
+        }
+      ]
+    });
+  }
+
+  await prisma.salesCampaign.upsert({
+    where: { id: "seed-campaign-maio" },
+    update: {
+      organizationId: organization.id,
+      salesGroupId: salesGroup.id,
+      name: "Campanha Maio Proteinas",
+      metric: "TOTAL_AMOUNT",
+      status: "ACTIVE",
+      startsAt: new Date(Date.UTC(2026, 4, 1)),
+      endsAt: new Date(Date.UTC(2026, 4, 31))
+    },
+    create: {
+      id: "seed-campaign-maio",
+      organizationId: organization.id,
+      salesGroupId: salesGroup.id,
+      name: "Campanha Maio Proteinas",
+      description: "Ranking inicial por valor aprovado em notas fiscais.",
+      metric: "TOTAL_AMOUNT",
+      status: "ACTIVE",
+      startsAt: new Date(Date.UTC(2026, 4, 1)),
+      endsAt: new Date(Date.UTC(2026, 4, 31))
     }
   });
 
@@ -752,10 +957,13 @@ async function main() {
   console.log("Local seed ready:");
   console.log(`- Organization: ${organization.id} / ${organization.name}`);
   console.log(`- Admin: admin@example.com / ${adminPassword}`);
-  console.log(`- RT: rt@example.com / ${rtPassword}`);
+  console.log(`- SAC: sac@example.com / ${sacPassword}`);
+  console.log(`- Financeiro: financeiro@example.com / ${financeiroPassword}`);
+  console.log(`- Vendedor: vendedor@example.com / ${sellerPassword}`);
   console.log(`- Supervisor: supervisor@example.com / ${supervisorPassword}`);
+  console.log(`- Legacy RT: rt@example.com / ${rtPassword}`);
   console.log(`- Public upload token: ${uploadToken}`);
-  console.log("- Set SEED_ORGANIZATION_ID, SEED_ORGANIZATION_NAME, SEED_ADMIN_PASSWORD, SEED_RT_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local seed data.");
+  console.log("- Set SEED_ORGANIZATION_ID, SEED_ORGANIZATION_NAME, SEED_ADMIN_PASSWORD, SEED_SAC_PASSWORD, SEED_FINANCEIRO_PASSWORD, SEED_SELLER_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local seed data.");
   console.log("- Notifications use NOTIFICATION_PROVIDER=fake until Meta envs are configured.");
 }
 

@@ -5,6 +5,8 @@ export interface ResourceScope {
   responsibleRtId?: string | null;
   unitId?: string | null;
   sectorId?: string | null;
+  sellerUserId?: string | null;
+  supervisorId?: string | null;
 }
 
 export type AccessDecision =
@@ -18,6 +20,22 @@ export function canAccessScopedResource(user: CurrentUser, resource: ResourceSco
 
   if (user.role === "ADMIN") {
     return { allowed: true };
+  }
+
+  if (user.role === "GESTOR" || user.role === "SAC" || user.role === "FINANCEIRO") {
+    return { allowed: true };
+  }
+
+  if (user.role === "VENDEDOR") {
+    return resource.sellerUserId === user.id
+      ? { allowed: true }
+      : { allowed: false, reason: "ROLE_SCOPE_MISMATCH" };
+  }
+
+  if (user.role === "SUPERVISOR" && resource.supervisorId) {
+    return resource.supervisorId === user.id
+      ? { allowed: true }
+      : { allowed: false, reason: "ROLE_SCOPE_MISMATCH" };
   }
 
   if (user.role === "RT") {

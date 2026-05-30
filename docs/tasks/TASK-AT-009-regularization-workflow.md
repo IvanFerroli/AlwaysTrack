@@ -1,7 +1,7 @@
 # TASK-AT-009 - Regularization workflow
 
 ## Metadata
-- status: proposed
+- status: cancelled
 - owner: product-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-009-regularization-workflow.md
@@ -10,10 +10,10 @@
 - mode: planning
 
 ## Objetivo unico
-Criar acompanhamento explicito de pendencias/casos de regularizacao por licenca ou documento.
+Cancelada: pertencia ao recorte antigo de licencas/compliance.
 
 ## Contexto minimo
-O dashboard ja aponta vencimentos, documentos pendentes e falhas. O proximo salto de produto e transformar essas filas em casos com responsavel, prazo, status, nota e auditoria.
+O produto foi pivotado para operacao comercial de suplementos. Regularizacao de licencas/documentos nao e backlog ativo do AlwaysTrack.
 
 ## Inputs
 - `docs/specs/`

@@ -1,7 +1,7 @@
 # TASK-AT-010 - Compliance dossier export
 
 ## Metadata
-- status: proposed
+- status: cancelled
 - owner: product-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-010-compliance-dossier-export.md
@@ -10,10 +10,10 @@
 - mode: planning
 
 ## Objetivo unico
-Criar dossie exportavel de compliance por profissional ou licenca.
+Cancelada: pertencia ao recorte antigo de licencas/compliance.
 
 ## Contexto minimo
-AlwaysTrack ja centraliza profissional, licencas, documentos, notificacoes, auditoria e wiki operacional. Um dossie reduz trabalho manual em fiscalizacao, reuniao interna ou transferencia de responsabilidade.
+O produto foi pivotado para operacao comercial de suplementos. O equivalente futuro e extrato comercial por vendedor/grupo/campanha, nao dossie de compliance.
 
 ## Inputs
 - `services/api/src/core/reports/*`

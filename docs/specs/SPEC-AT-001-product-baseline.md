@@ -7,37 +7,41 @@
 - source-of-truth: docs/specs/SPEC-AT-001-product-baseline.md
 
 ## Objetivo
-Definir o primeiro baseline ativo do AlwaysTrack depois da transicao: um starter vertical de licencas/compliance, pronto para evoluir em ciclos pequenos sem depender do backlog historico SyLembra.
+Definir o baseline ativo do AlwaysTrack: uma ferramenta comercial para empresa de suplementos, usada por vendedores, SAC, financeiro, supervisores, gestores e admin.
 
 ## Produto
-AlwaysTrack organiza uma operacao recorrente de controle de licencas, documentos, vencimentos, notificacoes e evidencias de auditoria.
+AlwaysTrack recebe DANFEs/notas fiscais enviadas por vendedores, extrai dados comerciais, atrela vendas ao perfil correto, alimenta rankings/campanhas e gera extratos por vendedor, grupo ou visao geral.
 
 ## Usuario-alvo inicial
-- Admin operacional que configura organizacao, usuarios, unidades, setores, tipos de licenca e regras.
-- RT ou responsavel tecnico que acompanha profissionais, documentos e pendencias.
-- Supervisor que consulta escopo limitado e acompanha riscos.
+- Vendedor: envia notas e acompanha seu desempenho.
+- Supervisor: acompanha grupos/equipes e campanhas.
+- SAC: acompanha fila operacional e ajuda em inconsistencias.
+- Financeiro: revisa notas, extratos e valores aprovados.
+- Gestor/Admin: configura usuarios, times, campanhas, ranking, wiki e auditoria.
 
 ## Fluxo principal
-1. Criar ou usar uma organizacao local seedada.
-2. Cadastrar profissionais, tipos de licenca e licencas.
-3. Acompanhar vencimentos no dashboard e relatorios.
-4. Solicitar, receber e validar documentos.
-5. Gerar jobs de notificacao e manter evidencia em auditoria.
+1. Usuario entra, inicialmente por seed local e depois por Google.
+2. Vendedor envia DANFE/PDF autenticado.
+3. Sistema salva nota, extrai dados e coloca em fila de revisao.
+4. SAC/financeiro/admin aprova, rejeita, duplica ou reatribui a nota.
+5. Notas aprovadas alimentam ranking, campanhas, dashboard e extratos.
+6. Wiki registra procedimentos transversais da operacao.
+
+## Reaproveitar do legado
+- Layout, componentes operacionais, auth/session, auditoria, upload/storage, dashboard estrutural, relatorios/export e provider de IA documental.
+
+## Legado a esconder/remover
+- Profissionais, licencas, RT, COREN, vencimento, regularizacao e compliance de licencas.
 
 ## Vocabulario canonico
-- `AlwaysTrack`: nome do produto/starter atual.
-- `seed local`: dados sinteticos para desenvolvimento e demonstracao controlada.
-- `starter vertical`: base funcional focada em licencas/compliance, nao scaffold SaaS generico.
-- `beta externo`: uso fora de maquina local ou ambiente controlado interno.
-
-## Fora de escopo imediato
-- Renomear workspaces, rotas ou modelos de dominio.
-- Transformar o produto em SaaS generico.
-- Remover features de licencas/compliance que ja sustentam o fluxo principal.
-- Habilitar integracoes externas reais por padrao.
+- `DANFE` / `nota`: documento enviado pelo vendedor.
+- `vendedor`: perfil comercial que gera vendas.
+- `grupo/time`: conjunto de vendedores sob supervisor.
+- `campanha`: regra temporal usada para ranking.
+- `extrato`: consulta/export de vendas aprovadas.
 
 ## Criterios de aceite
-- Roadmap e intake apontam para a trilha `TASK-AT-*`.
-- Runtime publico nao usa copy "V1" para descrever a experiencia atual.
-- Seed local nao referencia task historica como metadata operacional.
+- UI ativa nao apresenta licencas/RT/compliance como produto principal.
+- Schema possui dominio comercial de vendedores, grupos, notas, itens, campanhas e ranking.
+- Seed local cria usuarios comerciais e dados comerciais demonstraveis.
 - Validacao minima `npm run check` passa.

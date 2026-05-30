@@ -1,5 +1,8 @@
-export const userRoles = ["ADMIN", "RT", "SUPERVISOR"] as const;
+export const userRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR", "RT"] as const;
 export type UserRole = (typeof userRoles)[number];
+
+export const commercialUserRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR"] as const;
+export type CommercialUserRole = (typeof commercialUserRoles)[number];
 
 export const licenseStatuses = [
   "REGULAR",
@@ -13,6 +16,12 @@ export type LicenseStatus = (typeof licenseStatuses)[number];
 
 export const documentStatuses = ["UPLOADED", "APPROVED", "REJECTED", "ARCHIVED"] as const;
 export type DocumentStatus = (typeof documentStatuses)[number];
+
+export const salesDocumentStatuses = ["UPLOADED", "EXTRACTING", "PENDING_REVIEW", "APPROVED", "REJECTED", "DUPLICATE"] as const;
+export type SalesDocumentStatus = (typeof salesDocumentStatuses)[number];
+
+export const campaignStatuses = ["DRAFT", "ACTIVE", "PAUSED", "CLOSED"] as const;
+export type CampaignStatus = (typeof campaignStatuses)[number];
 
 export const notificationStatuses = [
   "PENDING",
