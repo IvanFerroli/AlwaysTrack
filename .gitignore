@@ -3,6 +3,7 @@ dist/
 .env
 .env.local
 .env.production
+.env.real
 *.log
 .openclaw/
 .tmp-venv-parse/
