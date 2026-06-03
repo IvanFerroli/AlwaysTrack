@@ -40,6 +40,7 @@ export interface WikiPresenceInput {
 export interface WikiFilters {
   query?: string;
   status?: string;
+  pageStatus?: "ACTIVE" | "ARCHIVED" | "ALL";
 }
 
 const wikiContentFormat = "MARKDOWN";
@@ -80,6 +81,10 @@ function cleanNumber(value: unknown) {
 
 function cleanStatus(value: unknown) {
   return value === "PENDING" || value === "APPROVED" || value === "REJECTED" ? value : undefined;
+}
+
+function cleanPageStatus(value: unknown) {
+  return value === "ARCHIVED" || value === "ALL" ? value : value === "ACTIVE" ? "ACTIVE" : undefined;
 }
 
 function cleanMode(value: unknown) {
@@ -160,14 +165,23 @@ export function parseWikiPresenceInput(payload: unknown): WikiPresenceInput {
 export function parseWikiFilters(query: Record<string, unknown>): WikiFilters {
   return {
     query: cleanText(query.query),
-    status: cleanStatus(query.status)
+    status: cleanStatus(query.status),
+    pageStatus: cleanPageStatus(query.status)
   };
 }
 
 export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, filters: WikiFilters = {}) {
+  const active =
+    actor.role !== "ADMIN"
+      ? true
+      : filters.pageStatus === "ARCHIVED"
+        ? false
+        : filters.pageStatus === "ALL"
+          ? undefined
+          : true;
   const where: Prisma.WikiPageWhereInput = {
     organizationId: actor.organizationId,
-    active: true,
+    active,
     OR: filters.query
       ? [{ title: { contains: filters.query } }, { content: { contains: filters.query } }, { slug: { contains: filters.query } }]
       : undefined
@@ -186,7 +200,7 @@ export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, fi
 export async function getWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {
   const since = new Date(Date.now() - 2 * 60 * 1000);
   const page = await prisma.wikiPage.findFirst({
-    where: { id: pageId, organizationId: actor.organizationId, active: true },
+    where: { id: pageId, organizationId: actor.organizationId, active: actor.role === "ADMIN" ? undefined : true },
     include: {
       updatedBy: { select: { id: true, name: true, email: true, role: true } },
       readReceipts: {
@@ -261,10 +275,16 @@ export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, p
   const existing = await prisma.wikiPage.findFirst({ where: { id: pageId, organizationId: actor.organizationId, active: true } });
   if (!existing) throw new WikiError("NOT_FOUND");
   if (existing.version !== input.baseVersion) throw new WikiError("VERSION_CONFLICT");
+  const slug = input.slug ? slugify(input.slug) : undefined;
+  if (slug && slug !== existing.slug) {
+    const duplicate = await prisma.wikiPage.findFirst({ where: { organizationId: actor.organizationId, slug, id: { not: pageId } } });
+    if (duplicate) throw new WikiError("INVALID_INPUT");
+  }
 
   const page = await prisma.wikiPage.update({
     where: { id: pageId },
     data: {
+      slug,
       title: input.title,
       content: input.content,
       version: existing.version + 1,
@@ -288,9 +308,90 @@ export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, p
     action: "wiki.page.update",
     entityType: "WikiPage",
     entityId: page.id,
-    metadata: { previousVersion: existing.version, version: page.version }
+    metadata: { previousSlug: existing.slug, slug: page.slug, previousVersion: existing.version, version: page.version }
   });
   return withWikiContentFormat(page);
+}
+
+export async function archiveWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {
+  ensureAdmin(actor);
+  const existing = await prisma.wikiPage.findFirst({ where: { id: pageId, organizationId: actor.organizationId } });
+  if (!existing) throw new WikiError("NOT_FOUND");
+  if (!existing.active) return withWikiContentFormat(existing);
+
+  const page = await prisma.wikiPage.update({
+    where: { id: pageId },
+    data: { active: false, updatedById: actor.id }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "wiki.page.archive",
+    entityType: "WikiPage",
+    entityId: page.id,
+    metadata: { slug: page.slug, version: page.version }
+  });
+  return withWikiContentFormat(page);
+}
+
+export async function unarchiveWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {
+  ensureAdmin(actor);
+  const existing = await prisma.wikiPage.findFirst({ where: { id: pageId, organizationId: actor.organizationId } });
+  if (!existing) throw new WikiError("NOT_FOUND");
+  if (existing.active) return withWikiContentFormat(existing);
+
+  const page = await prisma.wikiPage.update({
+    where: { id: pageId },
+    data: { active: true, updatedById: actor.id }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "wiki.page.unarchive",
+    entityType: "WikiPage",
+    entityId: page.id,
+    metadata: { slug: page.slug, version: page.version }
+  });
+  return withWikiContentFormat(page);
+}
+
+export async function restoreWikiRevision(prisma: PrismaClient, actor: CurrentUser, pageId: string, revisionId: string) {
+  ensureAdmin(actor);
+  const page = await prisma.wikiPage.findFirst({ where: { id: pageId, organizationId: actor.organizationId } });
+  if (!page) throw new WikiError("NOT_FOUND");
+  const revision = await prisma.wikiRevision.findFirst({ where: { id: revisionId, pageId, organizationId: actor.organizationId } });
+  if (!revision) throw new WikiError("NOT_FOUND");
+
+  const restored = await prisma.wikiPage.update({
+    where: { id: pageId },
+    data: {
+      title: revision.title,
+      content: revision.content,
+      version: page.version + 1,
+      active: true,
+      updatedById: actor.id,
+      publishedAt: new Date()
+    }
+  });
+  await prisma.wikiRevision.create({
+    data: {
+      organizationId: actor.organizationId,
+      pageId: restored.id,
+      authorId: actor.id,
+      version: restored.version,
+      title: restored.title,
+      content: restored.content
+    }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "wiki.revision.restore",
+    entityType: "WikiPage",
+    entityId: restored.id,
+    metadata: { restoredFromVersion: revision.version, restoredFromRevisionId: revision.id, version: restored.version }
+  });
+  return withWikiContentFormat(restored);
 }
 
 export async function createWikiEditRequest(prisma: PrismaClient, actor: CurrentUser, input: WikiEditRequestInput) {

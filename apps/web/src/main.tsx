@@ -5109,10 +5109,12 @@ function WikiView({ user }: { user: CurrentUser }) {
   const [requests, setRequests] = useState<WikiEditRequestItem[]>([]);
   const [selected, setSelected] = useState<WikiPageDetail | null>(null);
   const [query, setQuery] = useState("");
+  const [pageStatus, setPageStatus] = useState("ACTIVE");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
+  const [editSlug, setEditSlug] = useState("");
   const [editContent, setEditContent] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [selectedRevisionVersion, setSelectedRevisionVersion] = useState<number | null>(null);
@@ -5131,6 +5133,7 @@ function WikiView({ user }: { user: CurrentUser }) {
     setError(null);
     const search = new URLSearchParams();
     if (query) search.set("query", query);
+    if (user.role === "ADMIN" && pageStatus !== "ACTIVE") search.set("status", pageStatus);
     try {
       const result = await api<{ items: WikiPageSummary[]; total: number }>(`/v1/wiki/pages?${search.toString()}`);
       setPages(result.items);
@@ -5155,10 +5158,11 @@ function WikiView({ user }: { user: CurrentUser }) {
     const result = await api<{ page: WikiPageDetail }>(`/v1/wiki/pages/${pageId}`);
     setSelected(result.page);
     setEditTitle(result.page.title);
+    setEditSlug(result.page.slug);
     setEditContent(result.page.content);
     setSelectedRevisionVersion(null);
     setDraftMessage(null);
-    if (markRead) {
+    if (markRead && result.page.active) {
       await api(`/v1/wiki/pages/${pageId}/read`, { method: "POST", body: JSON.stringify({}) });
       await api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) });
     }
@@ -5169,7 +5173,7 @@ function WikiView({ user }: { user: CurrentUser }) {
   }, []);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !selected.active) return;
     const pageId = selected.id;
     const timer = window.setInterval(() => {
       void api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) }).catch(() => null);
@@ -5182,9 +5186,10 @@ function WikiView({ user }: { user: CurrentUser }) {
     const rawDraft = window.localStorage.getItem(draftKey(selected.id));
     if (!rawDraft) return;
     try {
-      const draft = JSON.parse(rawDraft) as { title?: string; content?: string; baseVersion?: number; savedAt?: string };
+      const draft = JSON.parse(rawDraft) as { title?: string; slug?: string; content?: string; baseVersion?: number; savedAt?: string };
       if (draft.baseVersion === selected.version && typeof draft.title === "string" && typeof draft.content === "string") {
         setEditTitle(draft.title);
+        setEditSlug(typeof draft.slug === "string" ? draft.slug : selected.slug);
         setEditContent(draft.content);
         setDraftMessage(`Rascunho local recuperado de ${formatDateTimeBr(draft.savedAt ?? null)}.`);
       } else {
@@ -5227,7 +5232,7 @@ function WikiView({ user }: { user: CurrentUser }) {
     await run(async () => {
       await api(`/v1/wiki/pages/${selected.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title: editTitle, content: editContent, baseVersion: selected.version })
+        body: JSON.stringify({ title: editTitle, slug: editSlug || undefined, content: editContent, baseVersion: selected.version })
       });
       window.localStorage.removeItem(draftKey(selected.id));
       setDraftMessage(null);
@@ -5253,7 +5258,7 @@ function WikiView({ user }: { user: CurrentUser }) {
     if (!selected) return;
     window.localStorage.setItem(
       draftKey(selected.id),
-      JSON.stringify({ title: editTitle, content: editContent, baseVersion: selected.version, savedAt: new Date().toISOString() })
+      JSON.stringify({ title: editTitle, slug: editSlug, content: editContent, baseVersion: selected.version, savedAt: new Date().toISOString() })
     );
     setDraftMessage("Rascunho local salvo neste navegador.");
   }
@@ -5262,6 +5267,7 @@ function WikiView({ user }: { user: CurrentUser }) {
     if (!selected) return;
     window.localStorage.removeItem(draftKey(selected.id));
     setEditTitle(selected.title);
+    setEditSlug(selected.slug);
     setEditContent(selected.content);
     setDraftMessage("Rascunho descartado; editor voltou para a versão publicada.");
   }
@@ -5274,6 +5280,25 @@ function WikiView({ user }: { user: CurrentUser }) {
       });
       setDecisionNote("");
       await loadPages(selected?.id);
+    });
+  }
+
+  async function setSelectedArchived(archived: boolean) {
+    if (!selected) return;
+    await run(async () => {
+      await api(`/v1/wiki/pages/${selected.id}/${archived ? "archive" : "unarchive"}`, { method: "POST", body: JSON.stringify({}) });
+      await loadPages(selected.id);
+    });
+  }
+
+  async function restoreComparedRevision() {
+    if (!selected || !comparedRevision) return;
+    await run(async () => {
+      const result = await api<{ page: WikiPageSummary }>(`/v1/wiki/pages/${selected.id}/revisions/${comparedRevision.id}/restore`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      await loadPages(result.page.id);
     });
   }
 
@@ -5298,7 +5323,24 @@ function WikiView({ user }: { user: CurrentUser }) {
             value: query,
             placeholder: "Titulo, slug ou conteudo",
             onChange: setQuery
-          }
+          },
+          ...(user.role === "ADMIN"
+            ? [
+                {
+                  key: "pageStatus",
+                  label: "Status",
+                  value: pageStatus,
+                  type: "select" as const,
+                  placeholder: "Ativas",
+                  options: [
+                    { value: "ACTIVE", label: "Ativas" },
+                    { value: "ARCHIVED", label: "Arquivadas" },
+                    { value: "ALL", label: "Todas" }
+                  ],
+                  onChange: setPageStatus
+                }
+              ]
+            : [])
         ]}
         onSubmit={() => void loadPages()}
       />
@@ -5352,6 +5394,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                 >
                   <strong>{page.title}</strong>
                   <span>v{page.version} / {formatDateBr(page.updatedAt)}</span>
+                  {!page.active ? <small>Arquivada</small> : null}
                   {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
                 </button>
               ))}
@@ -5368,7 +5411,15 @@ function WikiView({ user }: { user: CurrentUser }) {
                   <h2>{selected.title}</h2>
                   <p className="muted">Versao {selected.version} publicada em {formatDateBr(selected.publishedAt)}</p>
                 </div>
+                {user.role === "ADMIN" ? (
+                  <div className="row-actions">
+                    <button className="secondary" type="button" disabled={saving} onClick={() => void setSelectedArchived(selected.active)}>
+                      {selected.active ? "Arquivar" : "Desarquivar"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
+              {!selected.active ? <OperationalState state="empty" title="Pagina arquivada" detail="Ela fica fora da Wiki padrao, mas historico e restauracao continuam disponiveis para admin." /> : null}
               <WikiMarkdownContent content={selected.content} />
               <div className="wiki-meta-grid">
                 <div>
@@ -5404,6 +5455,11 @@ function WikiView({ user }: { user: CurrentUser }) {
                         ))}
                       </select>
                     </label>
+                    {user.role === "ADMIN" && comparedRevision.version !== selected.version ? (
+                      <button className="secondary" type="button" disabled={saving} onClick={() => void restoreComparedRevision()}>
+                        Restaurar esta versao
+                      </button>
+                    ) : null}
                   </div>
                   <p className="muted">{wikiChangeSummary(comparedRevision.content, selected.content)}</p>
                   <div className="wiki-compare-grid">
@@ -5421,26 +5477,34 @@ function WikiView({ user }: { user: CurrentUser }) {
               {pendingForSelected.length ? (
                 <OperationalState state="success" title={`${pendingForSelected.length} requisicao(oes) pendente(s) nesta pagina`} />
               ) : null}
-              <form className="wiki-edit-form" onSubmit={user.role === "ADMIN" ? publishEdit : requestEdit}>
-                <h3>{user.role === "ADMIN" ? "Editar e publicar" : "Sugerir alteracao"}</h3>
-                {draftMessage ? <p className="muted">{draftMessage}</p> : null}
-                <label>
-                  Titulo
-                  <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
-                </label>
-                <WikiMarkdownEditor label="Conteudo" value={editContent} onChange={setEditContent} />
-                <div className="form-actions">
-                  <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
-                    {user.role === "ADMIN" ? "Publicar versao" : "Enviar para aprovacao"}
-                  </button>
-                  <button className="secondary" type="button" disabled={!selected || saving} onClick={saveDraft}>
-                    Salvar rascunho
-                  </button>
-                  <button className="secondary" type="button" disabled={!selected || saving} onClick={discardDraft}>
-                    Descartar rascunho
-                  </button>
-                </div>
-              </form>
+              {selected.active ? (
+                <form className="wiki-edit-form" onSubmit={user.role === "ADMIN" ? publishEdit : requestEdit}>
+                  <h3>{user.role === "ADMIN" ? "Editar e publicar" : "Sugerir alteracao"}</h3>
+                  {draftMessage ? <p className="muted">{draftMessage}</p> : null}
+                  <label>
+                    Titulo
+                    <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+                  </label>
+                  {user.role === "ADMIN" ? (
+                    <label>
+                      Slug
+                      <input value={editSlug} onChange={(event) => setEditSlug(event.target.value)} />
+                    </label>
+                  ) : null}
+                  <WikiMarkdownEditor label="Conteudo" value={editContent} onChange={setEditContent} />
+                  <div className="form-actions">
+                    <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
+                      {user.role === "ADMIN" ? "Publicar versao" : "Enviar para aprovacao"}
+                    </button>
+                    <button className="secondary" type="button" disabled={!selected || saving} onClick={saveDraft}>
+                      Salvar rascunho
+                    </button>
+                    <button className="secondary" type="button" disabled={!selected || saving} onClick={discardDraft}>
+                      Descartar rascunho
+                    </button>
+                  </div>
+                </form>
+              ) : null}
             </>
           ) : (
             <OperationalState state="empty" title="Selecione uma pagina" />

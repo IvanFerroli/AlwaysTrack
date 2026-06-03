@@ -103,6 +103,7 @@ import {
   googleOauthStartHandler
 } from "./core/integrations/google/google.handlers.js";
 import {
+  archiveWikiPageHandler,
   approveWikiEditRequestHandler,
   createWikiEditRequestHandler,
   createWikiPageHandler,
@@ -112,6 +113,8 @@ import {
   listWikiPagesHandler,
   markWikiReadHandler,
   rejectWikiEditRequestHandler,
+  restoreWikiRevisionHandler,
+  unarchiveWikiPageHandler,
   updateWikiPageHandler
 } from "./core/wiki/wiki.handlers.js";
 import {
@@ -292,6 +295,9 @@ export function createApp() {
   app.post("/v1/wiki/pages", requireAuth, requireRole(["ADMIN"]), createWikiPageHandler);
   app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), getWikiPageHandler);
   app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN"]), updateWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/archive", requireAuth, requireRole(["ADMIN"]), archiveWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/unarchive", requireAuth, requireRole(["ADMIN"]), unarchiveWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/revisions/:revisionId/restore", requireAuth, requireRole(["ADMIN"]), restoreWikiRevisionHandler);
   app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), markWikiReadHandler);
   app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), heartbeatWikiPresenceHandler);
   app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), listWikiEditRequestsHandler);

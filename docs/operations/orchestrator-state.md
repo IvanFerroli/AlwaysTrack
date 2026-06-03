@@ -22,16 +22,17 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-012 (2026-06-03): Wiki Markdown editor MVP com toolbar, preview e renderer seguro.
+- EXEC-AT-013 (2026-06-03): Wiki content admin MVP com archive/unarchive, restore de revisao, slug editavel e filtros admin por status.
 
 ## Proximo ciclo a rotar
+- Implementar descoberta da Wiki: recentes, pendencias, filtros e organizacao de conteudo (`AT-035`).
+- Implementar imagens/anexos da Wiki com storage privado (`AT-032`).
+- Implementar review rico para admin (`AT-033`).
 - Implementar Google login como entrada principal.
-- Implementar proximas fases da Wiki rica: imagens/anexos, review rico, administracao de conteudo e descoberta.
 - Implementar editor visual de campos/itens extraidos antes da aprovacao.
 - Implementar CRUD de campanhas e snapshots de ranking.
 - Implementar consolidacoes de extratos comerciais por vendedor/grupo.
 - Ampliar smoke/e2e do fluxo comercial com upload XML/PDF.
-- Implementar wiki com editor rico e imagens.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -118,6 +119,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run check | passou — 136 testes | 2026-06-03 (EXEC-AT-012) |
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-012) |
 | npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-06-03 (EXEC-AT-012) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-013) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 13 testes | 2026-06-03 (EXEC-AT-013) |
+| npm run check | passou — 140 testes | 2026-06-03 (EXEC-AT-013) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-013) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

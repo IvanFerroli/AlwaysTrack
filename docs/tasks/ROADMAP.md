@@ -34,11 +34,12 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 15. `EXEC-AT-010`: extracao deterministica de XML NF-e. Status: completed.
 16. `EXEC-AT-011`: planejamento da Wiki rica e tasks `AT-029` a `AT-036`. Status: completed.
 17. `EXEC-AT-012`: Wiki Markdown editor MVP (`AT-029`/`AT-030`/`AT-031`). Status: completed.
+18. `EXEC-AT-013`: Wiki content admin MVP (`AT-034`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `AT-032`: imagens/anexos na Wiki.
-2. `AT-033`: review rico para admin.
-3. `AT-034`: administracao de conteudo da Wiki.
+1. `AT-035`: descoberta da Wiki com filtros, recentes, pendencias e organizacao.
+2. `AT-032`: imagens/anexos na Wiki.
+3. `AT-033`: review rico para admin.
 4. `AT-018B`: editor visual de campos/itens antes da aprovacao.
 5. `AT-019B`: CRUD de campanhas e snapshots.
 6. `AT-014`: Google login como entrada principal.

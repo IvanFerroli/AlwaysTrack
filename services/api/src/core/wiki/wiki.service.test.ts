@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
+  archiveWikiPage,
   approveWikiEditRequest,
   createWikiEditRequest,
   createWikiPage,
@@ -10,6 +11,8 @@ import {
   markWikiRead,
   parseWikiEditRequestInput,
   parseWikiPageInput,
+  restoreWikiRevision,
+  unarchiveWikiPage,
   updateWikiPage,
   WikiError
 } from "./wiki.service.js";
@@ -68,6 +71,23 @@ describe("wiki service", () => {
     );
   });
 
+  it("lets admins include archived wiki pages in administration lists", async () => {
+    const prisma = {
+      wikiPage: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
+    };
+
+    await listWikiPages(prisma as never, admin, { pageStatus: "ARCHIVED" });
+
+    expect(prisma.wikiPage.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          active: false
+        })
+      })
+    );
+  });
+
   it("lets admins create and publish pages directly", async () => {
     const prisma = {
       wikiPage: {
@@ -91,6 +111,34 @@ describe("wiki service", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "wiki.page.create", entityType: "WikiPage" }) })
     );
+  });
+
+  it("lets admins update a page slug when it stays unique in the organization", async () => {
+    const prisma = {
+      wikiPage: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "page-1", slug: "guia-antigo", title: "Guia", content: "Conteudo", version: 2, organizationId: "org-1" })
+          .mockResolvedValueOnce(null),
+        update: vi.fn().mockResolvedValue({ id: "page-1", slug: "guia-novo", title: "Guia", content: "Conteudo", version: 3 })
+      },
+      wikiRevision: { create: vi.fn().mockResolvedValue({ id: "rev-3" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const page = await updateWikiPage(prisma as never, admin, "page-1", {
+      title: "Guia",
+      slug: " Guia Novo ",
+      content: "Conteudo",
+      baseVersion: 2
+    });
+
+    expect(page.slug).toBe("guia-novo");
+    expect(prisma.wikiPage.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: expect.objectContaining({ organizationId: "org-1", slug: "guia-novo", id: { not: "page-1" } }) })
+    );
+    expect(prisma.wikiPage.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ slug: "guia-novo" }) }));
   });
 
   it("turns non-admin edits into pending requests", async () => {
@@ -177,6 +225,63 @@ describe("wiki service", () => {
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "wiki.request.approve" }) })
+    );
+  });
+
+  it("archives and unarchives pages without deleting history", async () => {
+    const prisma = {
+      wikiPage: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "page-1", slug: "guia", content: "Conteudo", version: 2, active: true })
+          .mockResolvedValueOnce({ id: "page-1", slug: "guia", content: "Conteudo", version: 2, active: false }),
+        update: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "page-1", slug: "guia", content: "Conteudo", version: 2, active: false })
+          .mockResolvedValueOnce({ id: "page-1", slug: "guia", content: "Conteudo", version: 2, active: true })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const archived = await archiveWikiPage(prisma as never, admin, "page-1");
+    const unarchived = await unarchiveWikiPage(prisma as never, admin, "page-1");
+
+    expect(archived.active).toBe(false);
+    expect(unarchived.active).toBe(true);
+    expect(prisma.wikiPage.update).toHaveBeenNthCalledWith(1, expect.objectContaining({ data: expect.objectContaining({ active: false }) }));
+    expect(prisma.wikiPage.update).toHaveBeenNthCalledWith(2, expect.objectContaining({ data: expect.objectContaining({ active: true }) }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "wiki.page.archive" }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "wiki.page.unarchive" }) })
+    );
+  });
+
+  it("restores an old revision as a new page version", async () => {
+    const prisma = {
+      wikiPage: {
+        findFirst: vi.fn().mockResolvedValue({ id: "page-1", version: 4, organizationId: "org-1" }),
+        update: vi.fn().mockResolvedValue({ id: "page-1", title: "Antigo", content: "Conteudo antigo", version: 5, active: true })
+      },
+      wikiRevision: {
+        findFirst: vi.fn().mockResolvedValue({ id: "rev-2", title: "Antigo", content: "Conteudo antigo", version: 2 }),
+        create: vi.fn().mockResolvedValue({ id: "rev-5" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const page = await restoreWikiRevision(prisma as never, admin, "page-1", "rev-2");
+
+    expect(page.version).toBe(5);
+    expect(prisma.wikiPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ title: "Antigo", content: "Conteudo antigo", version: 5, active: true }) })
+    );
+    expect(prisma.wikiRevision.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ pageId: "page-1", version: 5 }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "wiki.revision.restore" }) })
     );
   });
 

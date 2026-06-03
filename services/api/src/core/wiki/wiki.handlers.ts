@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
+  archiveWikiPage,
   approveWikiEditRequest,
   createWikiEditRequest,
   createWikiPage,
@@ -16,6 +17,8 @@ import {
   parseWikiPageInput,
   parseWikiPresenceInput,
   rejectWikiEditRequest,
+  restoreWikiRevision,
+  unarchiveWikiPage,
   updateWikiPage,
   WikiError
 } from "./wiki.service.js";
@@ -68,6 +71,33 @@ export async function createWikiPageHandler(request: Request, response: Response
 export async function updateWikiPageHandler(request: Request, response: Response) {
   try {
     const page = await updateWikiPage(prisma, actorFrom(request), routeParam(request.params.pageId), parseWikiPageInput(request.body));
+    return sendOk(response, { page });
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function archiveWikiPageHandler(request: Request, response: Response) {
+  try {
+    const page = await archiveWikiPage(prisma, actorFrom(request), routeParam(request.params.pageId));
+    return sendOk(response, { page });
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function unarchiveWikiPageHandler(request: Request, response: Response) {
+  try {
+    const page = await unarchiveWikiPage(prisma, actorFrom(request), routeParam(request.params.pageId));
+    return sendOk(response, { page });
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function restoreWikiRevisionHandler(request: Request, response: Response) {
+  try {
+    const page = await restoreWikiRevision(prisma, actorFrom(request), routeParam(request.params.pageId), routeParam(request.params.revisionId));
     return sendOk(response, { page });
   } catch (error) {
     return sendWikiError(response, error);
