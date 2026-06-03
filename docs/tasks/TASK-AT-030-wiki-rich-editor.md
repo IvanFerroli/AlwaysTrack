@@ -1,7 +1,7 @@
 # TASK-AT-030 - Wiki rich editor
 
 ## Metadata
-- status: planned
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-05-30
 - source-of-truth: docs/tasks/TASK-AT-030-wiki-rich-editor.md
@@ -18,6 +18,11 @@ Implementar uma primeira versao Markdown com toolbar propria e preview renderiza
 - Preservar rascunho local.
 - Manter fluxo de aprovacao existente.
 
+## Entregue
+- Editor Markdown com toolbar propria em criacao, edicao admin e sugestao de nao-admin.
+- Abas Escrever/Preview usando o mesmo renderer da leitura publicada.
+- Rascunho local continua funcionando com conteudo formatado.
+
 ## Aceite
 - Admin cria e publica pagina formatada.
 - Usuario nao-admin envia proposta formatada para aprovacao.
@@ -25,7 +30,7 @@ Implementar uma primeira versao Markdown com toolbar propria e preview renderiza
 - Preview mostra a formatacao antes de publicar/enviar.
 - Mobile continua usavel.
 
-## Riscos
+## Residual
 - `apps/web/src/main.tsx` ja esta grande; ideal extrair componentes de Wiki durante a implementacao.
-- Toolbar custom pode crescer demais se tentar virar WYSIWYG completo.
-- Biblioteca pesada pode aumentar bundle e destoar do design atual.
+- Toolbar ainda e Markdown-first, nao WYSIWYG completo.
+- Imagens com upload local ficam em `AT-032`.

@@ -52,7 +52,7 @@ const licenseType = {
 
 describe("main operational flow", () => {
   it("covers license status, notification job, public upload and RT validation", async () => {
-    const expiresAt = new Date("2026-05-30T00:00:00.000Z");
+    const expiresAt = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
     const prisma = {
       professional: { findFirst: vi.fn().mockResolvedValue(professional) },
       licenseType: { findFirst: vi.fn().mockResolvedValue(licenseType) },
@@ -194,7 +194,7 @@ describe("main operational flow", () => {
       number: "COREN-1",
       expiresAt
     });
-    const scan = await scanNotificationJobs(prisma as never, admin, { today: new Date("2026-04-30T00:00:00.000Z") });
+    const scan = await scanNotificationJobs(prisma as never, admin, { today: new Date(expiresAt.getTime() - 30 * 24 * 60 * 60 * 1000) });
     const process = await processNotificationJobs(prisma as never, admin, new FakeNotificationProvider());
     const document = await uploadDocumentWithToken(prisma as never, storage, {
       token: "raw-token",

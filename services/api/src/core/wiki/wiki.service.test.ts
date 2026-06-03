@@ -81,6 +81,7 @@ describe("wiki service", () => {
     const page = await createWikiPage(prisma as never, admin, { title: "Primeiros passos", content: "Use." });
 
     expect(page.id).toBe("page-1");
+    expect(page.contentFormat).toBe("MARKDOWN");
     expect(prisma.wikiPage.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", slug: "primeiros-passos" }) })
     );
@@ -109,6 +110,7 @@ describe("wiki service", () => {
     });
 
     expect(request.status).toBe("PENDING");
+    expect(request.contentFormat).toBe("MARKDOWN");
     expect(prisma.wikiEditRequest.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ organizationId: "org-1", authorId: "rt-1", baseVersion: 2, status: "PENDING" })

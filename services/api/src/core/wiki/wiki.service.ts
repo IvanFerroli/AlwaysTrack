@@ -42,6 +42,24 @@ export interface WikiFilters {
   status?: string;
 }
 
+const wikiContentFormat = "MARKDOWN";
+
+function withWikiContentFormat<T extends { content: string }>(item: T) {
+  return { ...item, contentFormat: wikiContentFormat };
+}
+
+function withWikiRequestContentFormat<T extends { content: string }>(item: T) {
+  return { ...item, contentFormat: wikiContentFormat };
+}
+
+function withWikiPageDetailFormat<T extends { content: string; revisions?: Array<{ content: string }>; editRequests?: Array<{ content: string }> }>(page: T) {
+  return {
+    ...withWikiContentFormat(page),
+    revisions: page.revisions?.map(withWikiContentFormat),
+    editRequests: page.editRequests?.map(withWikiRequestContentFormat)
+  };
+}
+
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -162,7 +180,7 @@ export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, fi
     }),
     prisma.wikiPage.count({ where })
   ]);
-  return { items, total };
+  return { items: items.map(withWikiContentFormat), total };
 }
 
 export async function getWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {
@@ -195,7 +213,7 @@ export async function getWikiPage(prisma: PrismaClient, actor: CurrentUser, page
     }
   });
   if (!page) throw new WikiError("NOT_FOUND");
-  return { page };
+  return { page: withWikiPageDetailFormat(page) };
 }
 
 export async function createWikiPage(prisma: PrismaClient, actor: CurrentUser, input: WikiPageInput) {
@@ -234,7 +252,7 @@ export async function createWikiPage(prisma: PrismaClient, actor: CurrentUser, i
     entityId: page.id,
     metadata: { slug: page.slug, version: page.version }
   });
-  return page;
+  return withWikiContentFormat(page);
 }
 
 export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string, input: WikiPageInput) {
@@ -272,7 +290,7 @@ export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, p
     entityId: page.id,
     metadata: { previousVersion: existing.version, version: page.version }
   });
-  return page;
+  return withWikiContentFormat(page);
 }
 
 export async function createWikiEditRequest(prisma: PrismaClient, actor: CurrentUser, input: WikiEditRequestInput) {
@@ -302,7 +320,7 @@ export async function createWikiEditRequest(prisma: PrismaClient, actor: Current
     entityId: request.id,
     metadata: { pageId: page.id, baseVersion: input.baseVersion }
   });
-  return request;
+  return withWikiRequestContentFormat(request);
 }
 
 export async function listWikiEditRequests(prisma: PrismaClient, actor: CurrentUser, filters: WikiFilters = {}) {
@@ -328,7 +346,7 @@ export async function listWikiEditRequests(prisma: PrismaClient, actor: CurrentU
     }),
     prisma.wikiEditRequest.count({ where })
   ]);
-  return { items, total };
+  return { items: items.map(withWikiRequestContentFormat), total };
 }
 
 async function findPendingRequest(prisma: PrismaClient, actor: CurrentUser, requestId: string) {
@@ -384,7 +402,7 @@ export async function approveWikiEditRequest(prisma: PrismaClient, actor: Curren
     entityId: request.id,
     metadata: { pageId: page.id, version: page.version, decisionNote: input.decisionNote ?? null }
   });
-  return { request: approved, page };
+  return { request: withWikiRequestContentFormat(approved), page: withWikiContentFormat(page) };
 }
 
 export async function rejectWikiEditRequest(prisma: PrismaClient, actor: CurrentUser, requestId: string, input: WikiDecisionInput = {}) {
@@ -407,7 +425,7 @@ export async function rejectWikiEditRequest(prisma: PrismaClient, actor: Current
     entityId: request.id,
     metadata: { pageId: request.pageId, decisionNote: input.decisionNote ?? null }
   });
-  return rejected;
+  return withWikiRequestContentFormat(rejected);
 }
 
 export async function markWikiRead(prisma: PrismaClient, actor: CurrentUser, pageId: string) {

@@ -22,11 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-011 (2026-05-30): planejamento da Wiki rica, recomendacao de Markdown seguro com toolbar e tasks `AT-029` a `AT-036`.
+- EXEC-AT-012 (2026-06-03): Wiki Markdown editor MVP com toolbar, preview e renderer seguro.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
-- Implementar Wiki rica em fases: formato seguro, toolbar, renderer, imagens e review rico.
+- Implementar proximas fases da Wiki rica: imagens/anexos, review rico, administracao de conteudo e descoberta.
 - Implementar editor visual de campos/itens extraidos antes da aprovacao.
 - Implementar CRUD de campanhas e snapshots de ranking.
 - Implementar consolidacoes de extratos comerciais por vendedor/grupo.
@@ -111,6 +111,13 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-05-30 (EXEC-AT-010) |
 | smoke manual XML NF-e | passou — upload criou PENDING_REVIEW com deterministic-nfe-xml | 2026-05-30 (EXEC-AT-010) |
 | planejamento Wiki rica | concluido — tasks AT-029 a AT-036 | 2026-05-30 (EXEC-AT-011) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-012) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-012) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 9 testes | 2026-06-03 (EXEC-AT-012) |
+| npm run test --workspace @alwaystrack/api -- main-flow.e2e.test.ts | passou — 1 teste | 2026-06-03 (EXEC-AT-012) |
+| npm run check | passou — 136 testes | 2026-06-03 (EXEC-AT-012) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-012) |
+| npm run smoke:beta-local | passou — env/setup/login/dashboard/notas/campanhas/ranking/extratos/wiki | 2026-06-03 (EXEC-AT-012) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

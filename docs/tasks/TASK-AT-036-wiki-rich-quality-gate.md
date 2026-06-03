@@ -1,7 +1,7 @@
 # TASK-AT-036 - Wiki rich quality gate
 
 ## Metadata
-- status: planned
+- status: completed-partial
 - owner: olympus_taskyfier
 - last-updated: 2026-05-30
 - source-of-truth: docs/tasks/TASK-AT-036-wiki-rich-quality-gate.md
@@ -14,6 +14,14 @@ Proteger a Wiki rica contra regressao de seguranca, acesso e usabilidade.
 - Validacao de XSS para Markdown/HTML perigoso.
 - Build web e smoke local.
 - Checklist manual mobile para editor e leitura.
+
+## Entregue
+- Service tests cobrem `contentFormat: MARKDOWN` em pagina e requisicao.
+- Renderer evita `dangerouslySetInnerHTML`, reduzindo risco de XSS no MVP Markdown.
+
+## Residual
+- Falta teste browser/DOM dedicado para toolbar e renderer.
+- Falta checklist manual mobile formal.
 
 ## Aceite
 - `npm run check` passa.
