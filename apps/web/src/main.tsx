@@ -98,6 +98,7 @@ interface WikiPageSummary {
   title: string;
   content: string;
   contentFormat?: "MARKDOWN";
+  tags?: string[];
   version: number;
   active: boolean;
   publishedAt: string;
@@ -116,6 +117,7 @@ interface WikiEditRequestItem {
   title: string;
   content: string;
   contentFormat?: "MARKDOWN";
+  tags?: string[];
   status: "PENDING" | "APPROVED" | "REJECTED";
   decisionNote: string | null;
   reviewedAt: string | null;
@@ -773,6 +775,53 @@ function wikiChangeSummary(before: string, after: string) {
   const delta = after.length - before.length;
   const deltaLabel = delta === 0 ? "mesmo tamanho" : delta > 0 ? `+${delta} caracteres` : `${delta} caracteres`;
   return `${changed} linha(s) alterada(s), ${deltaLabel}`;
+}
+
+function extractWikiTags(content: string) {
+  const tags = new Set<string>();
+  for (const match of content.matchAll(/(^|\s)#([a-z0-9][a-z0-9_-]{1,32})/gi)) {
+    tags.add(match[2].toLowerCase());
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b));
+}
+
+function wikiTagsFor(item: { content: string; tags?: string[] }) {
+  return item.tags?.length ? item.tags : extractWikiTags(item.content);
+}
+
+function wikiLineDiff(before: string, after: string) {
+  const beforeLines = before.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const afterLines = after.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const beforeSet = new Set(beforeLines);
+  const afterSet = new Set(afterLines);
+  return {
+    added: afterLines.filter((line) => !beforeSet.has(line)).slice(0, 8),
+    removed: beforeLines.filter((line) => !afterSet.has(line)).slice(0, 8),
+    unchanged: afterLines.filter((line) => beforeSet.has(line)).length
+  };
+}
+
+function WikiChangeDigest({ before, after }: { before: string; after: string }) {
+  const diff = wikiLineDiff(before, after);
+  return (
+    <div className="wiki-change-digest">
+      <div>
+        <strong>Adicoes</strong>
+        {diff.added.length ? diff.added.map((line, index) => <p key={index}>+ {line}</p>) : <p className="muted">Sem linhas novas detectadas.</p>}
+      </div>
+      <div>
+        <strong>Remocoes</strong>
+        {diff.removed.length ? diff.removed.map((line, index) => <p key={index}>- {line}</p>) : <p className="muted">Sem linhas removidas detectadas.</p>}
+      </div>
+      <small>{diff.unchanged} linha(s) preservada(s) na proposta.</small>
+    </div>
+  );
+}
+
+function isRecentlyUpdated(value: string) {
+  const updatedAt = new Date(value).getTime();
+  if (Number.isNaN(updatedAt)) return false;
+  return Date.now() - updatedAt <= 7 * 24 * 60 * 60 * 1000;
 }
 
 function safeWikiUrl(value: string) {
@@ -5110,6 +5159,7 @@ function WikiView({ user }: { user: CurrentUser }) {
   const [selected, setSelected] = useState<WikiPageDetail | null>(null);
   const [query, setQuery] = useState("");
   const [pageStatus, setPageStatus] = useState("ACTIVE");
+  const [selectedTag, setSelectedTag] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
@@ -5303,6 +5353,18 @@ function WikiView({ user }: { user: CurrentUser }) {
   }
 
   const pendingForSelected = selected?.editRequests.filter((request) => request.status === "PENDING") ?? [];
+  const wikiTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const page of pages) {
+      for (const tag of wikiTagsFor(page)) tags.add(tag);
+    }
+    return [...tags].sort((a, b) => a.localeCompare(b));
+  }, [pages]);
+  const visiblePages = selectedTag ? pages.filter((page) => wikiTagsFor(page).includes(selectedTag)) : pages;
+  const activePages = visiblePages.filter((page) => page.active);
+  const archivedPages = visiblePages.filter((page) => !page.active);
+  const pagesWithPendingRequests = visiblePages.filter((page) => page.editRequests.length > 0);
+  const recentPages = visiblePages.filter((page) => isRecentlyUpdated(page.updatedAt)).slice(0, 4);
   const comparedRevision = selected
     ? selected.revisions.find((revision) => revision.version === selectedRevisionVersion) ??
       selected.revisions.find((revision) => revision.version !== selected.version) ??
@@ -5347,6 +5409,69 @@ function WikiView({ user }: { user: CurrentUser }) {
 
       {error ? <OperationalState state="error" title="Falha na wiki" detail={error} /> : null}
 
+      <section className="panel wiki-discovery-panel">
+        <div className="wiki-discovery-summary">
+          <div>
+            <p className="eyebrow">Descoberta</p>
+            <h2>Mapa da Wiki</h2>
+          </div>
+          <div className="wiki-discovery-stats">
+            <span>{activePages.length} ativa(s)</span>
+            {user.role === "ADMIN" ? <span>{archivedPages.length} arquivada(s)</span> : null}
+            <span>{pagesWithPendingRequests.length} com pendencia</span>
+          </div>
+        </div>
+        <div className="wiki-discovery-grid">
+          <div>
+            <strong>Atualizadas recentemente</strong>
+            {recentPages.length ? (
+              <div className="wiki-chip-list">
+                {recentPages.map((page) => (
+                  <button key={page.id} type="button" onClick={() => void openPage(page.id)}>
+                    {page.title}
+                    <small>{formatDateBr(page.updatedAt)}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Sem movimentacao recente.</p>
+            )}
+          </div>
+          <div>
+            <strong>Precisam de atencao</strong>
+            {pagesWithPendingRequests.length ? (
+              <div className="wiki-chip-list">
+                {pagesWithPendingRequests.slice(0, 4).map((page) => (
+                  <button key={page.id} type="button" onClick={() => void openPage(page.id)}>
+                    {page.title}
+                    <small>{page.editRequests.length} pendente(s)</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Nenhuma requisicao pendente nas paginas listadas.</p>
+            )}
+          </div>
+          <div>
+            <strong>Tags</strong>
+            {wikiTags.length ? (
+              <div className="wiki-tag-filter">
+                <button className={!selectedTag ? "active" : ""} type="button" onClick={() => setSelectedTag("")}>
+                  Todas
+                </button>
+                {wikiTags.map((tag) => (
+                  <button className={selectedTag === tag ? "active" : ""} key={tag} type="button" onClick={() => setSelectedTag(tag)}>
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Use #tags no conteudo para criar filtros automaticos.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {user.role === "ADMIN" ? (
         <section className="panel form-panel">
           <h2>Nova pagina</h2>
@@ -5381,11 +5506,11 @@ function WikiView({ user }: { user: CurrentUser }) {
           </div>
           {loading ? (
             <OperationalState state="loading" title="Carregando wiki" />
-          ) : pages.length === 0 ? (
+          ) : visiblePages.length === 0 ? (
             <OperationalState state="empty" title="Nenhuma pagina publicada" />
           ) : (
             <div className="wiki-page-list">
-              {pages.map((page) => (
+              {visiblePages.map((page) => (
                 <button
                   className={selected?.id === page.id ? "wiki-page-button active" : "wiki-page-button"}
                   key={page.id}
@@ -5394,6 +5519,8 @@ function WikiView({ user }: { user: CurrentUser }) {
                 >
                   <strong>{page.title}</strong>
                   <span>v{page.version} / {formatDateBr(page.updatedAt)}</span>
+                  {wikiTagsFor(page).length ? <span>{wikiTagsFor(page).map((tag) => `#${tag}`).join(" ")}</span> : null}
+                  {isRecentlyUpdated(page.updatedAt) ? <small>Atualizada recentemente</small> : null}
                   {!page.active ? <small>Arquivada</small> : null}
                   {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
                 </button>
@@ -5420,6 +5547,15 @@ function WikiView({ user }: { user: CurrentUser }) {
                 ) : null}
               </div>
               {!selected.active ? <OperationalState state="empty" title="Pagina arquivada" detail="Ela fica fora da Wiki padrao, mas historico e restauracao continuam disponiveis para admin." /> : null}
+              {wikiTagsFor(selected).length ? (
+                <div className="wiki-tag-row">
+                  {wikiTagsFor(selected).map((tag) => (
+                    <button key={tag} type="button" onClick={() => setSelectedTag(tag)}>
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <WikiMarkdownContent content={selected.content} />
               <div className="wiki-meta-grid">
                 <div>
@@ -5462,6 +5598,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                     ) : null}
                   </div>
                   <p className="muted">{wikiChangeSummary(comparedRevision.content, selected.content)}</p>
+                  <WikiChangeDigest before={comparedRevision.content} after={selected.content} />
                   <div className="wiki-compare-grid">
                     <div>
                       <strong>v{comparedRevision.version}</strong>
@@ -5536,8 +5673,18 @@ function WikiView({ user }: { user: CurrentUser }) {
                     <p className="muted">
                       {selectedRequest.author.name} sugeriu sobre {selectedRequest.page.title} a partir da v{selectedRequest.baseVersion}.
                     </p>
+                    {selectedRequest.page.version !== selectedRequest.baseVersion ? (
+                      <OperationalState
+                        state="error"
+                        title="Base desatualizada"
+                        detail={`A pagina publicada esta na v${selectedRequest.page.version}; esta proposta nasceu da v${selectedRequest.baseVersion}.`}
+                      />
+                    ) : null}
                     {selected?.id === selectedRequest.pageId ? (
-                      <p className="muted">{wikiChangeSummary(selected.content, selectedRequest.content)}</p>
+                      <>
+                        <p className="muted">{wikiChangeSummary(selected.content, selectedRequest.content)}</p>
+                        <WikiChangeDigest before={selected.content} after={selectedRequest.content} />
+                      </>
                     ) : null}
                   </div>
                   <WikiMarkdownContent content={selectedRequest.content} />

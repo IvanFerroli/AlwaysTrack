@@ -1151,6 +1151,96 @@ legend {
   grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
 }
 
+.wiki-discovery-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.wiki-discovery-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.wiki-discovery-stats,
+.wiki-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wiki-discovery-stats span {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 9px;
+}
+
+.wiki-discovery-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wiki-discovery-grid > div {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.wiki-chip-list {
+  margin-top: 8px;
+}
+
+.wiki-chip-list button {
+  align-items: flex-start;
+  background: white;
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+  color: var(--color-text);
+  display: grid;
+  gap: 2px;
+  min-height: 42px;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.wiki-chip-list small {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.wiki-tag-filter,
+.wiki-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.wiki-tag-filter button,
+.wiki-tag-row button {
+  background: white;
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.wiki-tag-filter button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
 .wiki-page-list {
   display: grid;
   gap: 8px;
@@ -1402,6 +1492,29 @@ legend {
   display: grid;
   gap: 12px;
   padding: 14px;
+}
+
+.wiki-change-digest {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px;
+}
+
+.wiki-change-digest p {
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.wiki-change-digest small {
+  color: var(--color-muted);
+  grid-column: 1 / -1;
 }
 
 .wiki-compare-grid {
@@ -1781,7 +1894,9 @@ legend {
   .help-grid,
   .detail-grid,
   .upload-link-panel,
+  .wiki-discovery-grid,
   .wiki-layout,
+  .wiki-change-digest,
   .wiki-compare-grid,
   .wiki-meta-grid {
     grid-template-columns: 1fr;
@@ -1822,6 +1937,7 @@ legend {
   .scope-grid,
   .detail-grid,
   .upload-link-panel,
+  .wiki-discovery-grid,
   .wiki-layout,
   .wiki-compare-grid,
   .wiki-meta-grid {

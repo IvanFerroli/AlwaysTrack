@@ -46,11 +46,11 @@ export interface WikiFilters {
 const wikiContentFormat = "MARKDOWN";
 
 function withWikiContentFormat<T extends { content: string }>(item: T) {
-  return { ...item, contentFormat: wikiContentFormat };
+  return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
 }
 
 function withWikiRequestContentFormat<T extends { content: string }>(item: T) {
-  return { ...item, contentFormat: wikiContentFormat };
+  return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
 }
 
 function withWikiPageDetailFormat<T extends { content: string; revisions?: Array<{ content: string }>; editRequests?: Array<{ content: string }> }>(page: T) {
@@ -99,6 +99,15 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "pagina";
+}
+
+function extractWikiTags(content: string | null | undefined) {
+  const tags = new Set<string>();
+  if (!content) return [];
+  for (const match of content.matchAll(/(^|\s)#([a-z0-9][a-z0-9_-]{1,32})/gi)) {
+    tags.add(match[2].toLowerCase());
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b));
 }
 
 function ensureAdmin(actor: CurrentUser) {

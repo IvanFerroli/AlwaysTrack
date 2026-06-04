@@ -92,7 +92,7 @@ describe("wiki service", () => {
     const prisma = {
       wikiPage: {
         findFirst: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue({ id: "page-1", slug: "primeiros-passos", title: "Primeiros passos", content: "Use.", version: 1 })
+        create: vi.fn().mockResolvedValue({ id: "page-1", slug: "primeiros-passos", title: "Primeiros passos", content: "Use. #onboarding", version: 1 })
       },
       wikiRevision: { create: vi.fn().mockResolvedValue({ id: "rev-1" }) },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
@@ -102,6 +102,7 @@ describe("wiki service", () => {
 
     expect(page.id).toBe("page-1");
     expect(page.contentFormat).toBe("MARKDOWN");
+    expect(page.tags).toEqual(["onboarding"]);
     expect(prisma.wikiPage.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", slug: "primeiros-passos" }) })
     );
