@@ -22,11 +22,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-017 (2026-06-03): Sales document review editor com campos e itens editaveis antes da aprovacao.
+- EXEC-AT-018 (2026-06-03): CRUD de campanhas comerciais e snapshots historicos de ranking.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
-- Implementar CRUD de campanhas e snapshots de ranking.
+- Implementar filtro visual por vendedor no ranking e comparacao de snapshots.
 - Implementar consolidacoes de extratos comerciais por vendedor/grupo.
 - Ampliar smoke/e2e do fluxo comercial com upload XML/PDF.
 - Remover/descontinuar legado SyLembra em fases.
@@ -134,6 +134,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-016) |
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-017) |
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-017) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 14 testes | 2026-06-03 (EXEC-AT-018) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-018) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-018) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-018) |
+| npm run check | passou — 145 testes | 2026-06-03 (EXEC-AT-018) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

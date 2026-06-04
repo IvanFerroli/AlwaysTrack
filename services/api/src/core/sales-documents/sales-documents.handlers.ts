@@ -6,11 +6,15 @@ import { getDocumentAiProvider } from "../document-ai/provider.js";
 import { logEvent } from "../diagnostics/logger.js";
 import {
   analyzeSalesDocumentWithAi,
+  createRankingSnapshot,
+  createSalesCampaign,
   getSalesRanking,
   getSalesStatements,
   getSalesDashboard,
+  listRankingSnapshots,
   listSalesCampaigns,
   listSalesDocuments,
+  parseSalesCampaignInput,
   parseSalesDocumentFilters,
   parseSalesDocumentReviewInput,
   parseSalesPeriodFilters,
@@ -18,6 +22,7 @@ import {
   reviewSalesDocument,
   salesStatementsCsv,
   SalesDocumentError,
+  updateSalesCampaign,
   uploadSalesDocument
 } from "./sales-documents.service.js";
 
@@ -89,6 +94,72 @@ export async function listSalesCampaignsHandler(request: Request, response: Resp
     return sendOk(response, result);
   } catch (error) {
     logHandlerError(request, "sales_campaigns.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function createSalesCampaignHandler(request: Request, response: Response) {
+  try {
+    const result = await createSalesCampaign(prisma, actorFrom(request), parseSalesCampaignInput(request.body));
+    logEvent("info", "sales_campaign.create", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      campaignId: result.campaign.id
+    });
+    return sendOk(response, result, 201);
+  } catch (error) {
+    logHandlerError(request, "sales_campaign.create.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function updateSalesCampaignHandler(request: Request, response: Response) {
+  try {
+    const result = await updateSalesCampaign(prisma, actorFrom(request), String(request.params.campaignId), parseSalesCampaignInput(request.body));
+    logEvent("info", "sales_campaign.update", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      campaignId: result.campaign.id,
+      status: result.campaign.status
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_campaign.update.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function listRankingSnapshotsHandler(request: Request, response: Response) {
+  try {
+    const result = await listRankingSnapshots(prisma, actorFrom(request));
+    logEvent("info", "sales_ranking_snapshots.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      total: result.total
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_ranking_snapshots.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function createRankingSnapshotHandler(request: Request, response: Response) {
+  try {
+    const result = await createRankingSnapshot(prisma, actorFrom(request), String(request.params.campaignId));
+    logEvent("info", "sales_ranking_snapshot.create", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      campaignId: request.params.campaignId,
+      snapshotId: result.snapshot.id
+    });
+    return sendOk(response, result, 201);
+  } catch (error) {
+    logHandlerError(request, "sales_ranking_snapshot.create.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }

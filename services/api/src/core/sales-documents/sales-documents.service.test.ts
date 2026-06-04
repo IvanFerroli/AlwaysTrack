@@ -3,9 +3,12 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { extractDanfeFromText, extractNfeFromXml } from "./danfe-deterministic.js";
 import {
   analyzeSalesDocumentWithAi,
+  createRankingSnapshot,
+  createSalesCampaign,
   getSalesDashboard,
   getSalesRanking,
   listSalesDocuments,
+  parseSalesCampaignInput,
   parseSalesDocumentReviewInput,
   parseSalesDocumentUploadInput,
   reviewSalesDocument,
@@ -150,6 +153,28 @@ INFORMAÇÕES COMPLEMENTARES
       totalAmountCents: null,
       rejectionReason: null,
       items: [{ sku: null, description: "Whey", category: null, quantity: 2, unitAmountCents: null, totalAmountCents: 15990 }]
+    });
+  });
+
+  it("parses campaign payload", () => {
+    expect(
+      parseSalesCampaignInput({
+        name: " Campanha Proteina ",
+        description: " ranking mensal ",
+        metric: "totalAmountCents",
+        status: "ACTIVE",
+        startsAt: "2026-06-01",
+        endsAt: "2026-06-30",
+        salesGroupId: " group-1 "
+      })
+    ).toEqual({
+      name: "Campanha Proteina",
+      description: "ranking mensal",
+      metric: "totalAmountCents",
+      status: "ACTIVE",
+      startsAt: "2026-06-01",
+      endsAt: "2026-06-30",
+      salesGroupId: "group-1"
     });
   });
 
@@ -384,5 +409,109 @@ INFORMAÇÕES COMPLEMENTARES
     expect(ranking.items).toEqual([
       { position: 1, sellerId: "seller-1", sellerName: "Ana", groupName: "Norte", totalAmountCents: 20000, quantity: 2, documents: 1 }
     ]);
+  });
+
+  it("creates campaigns and writes an audit trail", async () => {
+    const startsAt = new Date("2026-06-01T00:00:00.000Z");
+    const endsAt = new Date("2026-06-30T00:00:00.000Z");
+    const prisma = {
+      salesGroup: { findFirst: vi.fn().mockResolvedValue({ id: "group-1", organizationId: "org-1" }) },
+      salesCampaign: {
+        create: vi.fn().mockResolvedValue({
+          id: "campaign-1",
+          organizationId: "org-1",
+          salesGroupId: "group-1",
+          name: "Campanha Proteina",
+          description: null,
+          metric: "totalAmountCents",
+          status: "ACTIVE",
+          startsAt,
+          endsAt,
+          salesGroup: { id: "group-1", name: "Norte" }
+        })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const result = await createSalesCampaign(prisma as never, admin, {
+      name: "Campanha Proteina",
+      metric: "totalAmountCents",
+      startsAt: "2026-06-01",
+      endsAt: "2026-06-30",
+      salesGroupId: "group-1"
+    });
+
+    expect(result.campaign.id).toBe("campaign-1");
+    expect(prisma.salesCampaign.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", salesGroupId: "group-1", status: "ACTIVE" }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "sales_campaign.create", entityType: "SalesCampaign" }) })
+    );
+  });
+
+  it("stores ranking snapshots from campaign ranking", async () => {
+    const startsAt = new Date("2026-06-01T00:00:00.000Z");
+    const endsAt = new Date("2026-06-30T00:00:00.000Z");
+    const prisma = {
+      salesCampaign: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: "campaign-1",
+            organizationId: "org-1",
+            salesGroupId: "group-1",
+            name: "Campanha Proteina",
+            metric: "totalAmountCents",
+            status: "ACTIVE",
+            startsAt,
+            endsAt,
+            salesGroup: { id: "group-1", name: "Norte" }
+          })
+          .mockResolvedValueOnce({
+            id: "campaign-1",
+            organizationId: "org-1",
+            salesGroupId: "group-1",
+            name: "Campanha Proteina",
+            metric: "totalAmountCents",
+            status: "ACTIVE",
+            startsAt,
+            endsAt
+          })
+      },
+      salesItem: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            salesDocumentId: "doc-1",
+            sellerProfileId: "seller-1",
+            totalAmountCents: 20000,
+            quantity: 2,
+            sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+          }
+        ])
+      },
+      rankingSnapshot: {
+        create: vi.fn().mockResolvedValue({ id: "snapshot-1", campaignId: "campaign-1" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    const result = await createRankingSnapshot(prisma as never, admin, "campaign-1");
+
+    expect(result.snapshot.id).toBe("snapshot-1");
+    expect(prisma.rankingSnapshot.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: "org-1",
+          campaignId: "campaign-1",
+          scopeType: "SALES_GROUP",
+          scopeId: "group-1",
+          payloadJson: expect.stringContaining("\"sellerName\":\"Ana\"")
+        })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "sales_ranking.snapshot", entityType: "RankingSnapshot" }) })
+    );
   });
 });

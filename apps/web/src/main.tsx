@@ -566,6 +566,28 @@ interface SalesCampaignItem {
   salesGroup: { id: string; name: string } | null;
 }
 
+interface RankingSnapshotItem {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  scopeType: string;
+  scopeId: string | null;
+  payloadJson: string;
+  createdAt: string;
+  campaign: SalesCampaignItem | null;
+}
+
+interface SalesCampaignDraft {
+  id?: string;
+  name: string;
+  description: string;
+  metric: string;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  salesGroupId: string;
+}
+
 interface SalesRankingRow {
   position: number;
   sellerId: string;
@@ -1305,6 +1327,40 @@ function salesFilterQuery(filters: SalesFilters) {
   return serialized ? `?${serialized}` : "";
 }
 
+function campaignDraftFromItem(item?: SalesCampaignItem): SalesCampaignDraft {
+  return {
+    id: item?.id,
+    name: item?.name ?? "",
+    description: item?.description ?? "",
+    metric: item?.metric ?? "totalAmountCents",
+    status: item?.status ?? "ACTIVE",
+    startsAt: item?.startsAt ? item.startsAt.slice(0, 10) : "",
+    endsAt: item?.endsAt ? item.endsAt.slice(0, 10) : "",
+    salesGroupId: item?.salesGroup?.id ?? ""
+  };
+}
+
+function campaignPayloadFromDraft(draft: SalesCampaignDraft) {
+  return {
+    name: draft.name,
+    description: draft.description || null,
+    metric: draft.metric,
+    status: draft.status,
+    startsAt: draft.startsAt,
+    endsAt: draft.endsAt,
+    salesGroupId: draft.salesGroupId || null
+  };
+}
+
+function snapshotTotal(snapshot: RankingSnapshotItem) {
+  try {
+    const payload = JSON.parse(snapshot.payloadJson) as { total?: number; items?: unknown[] };
+    return typeof payload.total === "number" ? payload.total : Array.isArray(payload.items) ? payload.items.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function mergeUniqueGroups(campaigns: SalesCampaignItem[] | null, documents: SalesDocumentItem[] = []) {
   const groups = new Map<string, string>();
   for (const campaign of campaigns ?? []) {
@@ -1865,37 +1921,217 @@ function RankingView() {
   );
 }
 
-function CampaignsView() {
+function CampaignsView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesCampaignItem[] | null>(null);
+  const [snapshots, setSnapshots] = useState<RankingSnapshotItem[]>([]);
+  const [draft, setDraft] = useState<SalesCampaignDraft>(() => campaignDraftFromItem());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canManage = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
+  const groups = mergeUniqueGroups(items);
+
+  async function load() {
+    const [campaignResult, snapshotResult] = await Promise.all([
+      api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns"),
+      api<{ items: RankingSnapshotItem[] }>("/v1/sales/campaigns/snapshots")
+    ]);
+    setItems(campaignResult.items);
+    setSnapshots(snapshotResult.items);
+  }
+
   useEffect(() => {
-    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setItems(result.items)).catch(() => setItems(null));
+    load().catch(() => setItems(null));
   }, []);
+
+  async function saveCampaign(event: FormEvent) {
+    event.preventDefault();
+    if (!canManage) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const path = draft.id ? `/v1/sales/campaigns/${draft.id}` : "/v1/sales/campaigns";
+      await api<{ campaign: SalesCampaignItem }>(path, {
+        method: draft.id ? "PATCH" : "POST",
+        body: JSON.stringify(campaignPayloadFromDraft(draft))
+      });
+      setDraft(campaignDraftFromItem());
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar campanha.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateStatus(item: SalesCampaignItem, status: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await api<{ campaign: SalesCampaignItem }>(`/v1/sales/campaigns/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...campaignPayloadFromDraft(campaignDraftFromItem(item)), status })
+      });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao atualizar campanha.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function snapshotCampaign(item: SalesCampaignItem) {
+    setSaving(true);
+    setError(null);
+    try {
+      await api<{ snapshot: RankingSnapshotItem }>(`/v1/sales/campaigns/${item.id}/snapshots`, { method: "POST" });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao congelar ranking.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <section className="panel table-panel">
-      <div className="table-panel-toolbar">
-        <div>
-          <p className="eyebrow">Campanhas</p>
-          <h2>Campanhas comerciais</h2>
+    <div className="content-stack">
+      {canManage ? (
+        <section className="panel">
+          <form onSubmit={saveCampaign}>
+            <div className="table-panel-toolbar">
+              <div>
+                <p className="eyebrow">{draft.id ? "Editar campanha" : "Nova campanha"}</p>
+                <h2>Regras comerciais</h2>
+              </div>
+              {draft.id ? (
+                <button className="secondary" type="button" disabled={saving} onClick={() => setDraft(campaignDraftFromItem())}>
+                  Cancelar edição
+                </button>
+              ) : null}
+            </div>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input required value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+              </label>
+              <label>
+                Grupo
+                <select value={draft.salesGroupId} onChange={(event) => setDraft((current) => ({ ...current, salesGroupId: event.target.value }))}>
+                  <option value="">Todos</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Métrica
+                <select value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value }))}>
+                  <option value="totalAmountCents">Valor vendido</option>
+                  <option value="quantity">Quantidade de itens</option>
+                  <option value="documents">Notas aprovadas</option>
+                </select>
+              </label>
+              <label>
+                Status
+                <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
+                  <option value="ACTIVE">Ativa</option>
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="PAUSED">Pausada</option>
+                  <option value="CLOSED">Encerrada</option>
+                </select>
+              </label>
+              <label>
+                Início
+                <input required type="date" value={draft.startsAt} onChange={(event) => setDraft((current) => ({ ...current, startsAt: event.target.value }))} />
+              </label>
+              <label>
+                Fim
+                <input required type="date" value={draft.endsAt} onChange={(event) => setDraft((current) => ({ ...current, endsAt: event.target.value }))} />
+              </label>
+              <label className="full-span">
+                Descrição
+                <textarea rows={3} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} />
+              </label>
+            </div>
+            {error ? <p className="error">{error}</p> : null}
+            <div className="form-actions">
+              <button disabled={saving} type="submit">
+                {draft.id ? "Salvar campanha" : "Criar campanha"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Campanhas</p>
+            <h2>Campanhas comerciais</h2>
+          </div>
         </div>
-      </div>
-      {!items ? (
-        <OperationalState state="loading" title="Carregando campanhas" />
-      ) : items.length === 0 ? (
-        <OperationalState state="empty" title="Nenhuma campanha cadastrada" />
-      ) : (
-        <OperationalTable
-          items={items}
-          getRowKey={(item) => item.id}
-          columns={[
-            { key: "name", header: "Campanha", render: (item) => item.name },
-            { key: "group", header: "Grupo", render: (item) => item.salesGroup?.name ?? "Todos" },
-            { key: "metric", header: "Métrica", render: (item) => item.metric },
-            { key: "status", header: "Status", render: (item) => item.status },
-            { key: "period", header: "Período", render: (item) => `${formatDateBr(item.startsAt)} a ${formatDateBr(item.endsAt)}` }
-          ]}
-        />
-      )}
-    </section>
+        {!items ? (
+          <OperationalState state="loading" title="Carregando campanhas" />
+        ) : items.length === 0 ? (
+          <OperationalState state="empty" title="Nenhuma campanha cadastrada" />
+        ) : (
+          <OperationalTable
+            items={items}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "name", header: "Campanha", render: (item) => item.name },
+              { key: "group", header: "Grupo", render: (item) => item.salesGroup?.name ?? "Todos" },
+              { key: "metric", header: "Métrica", render: (item) => item.metric },
+              { key: "status", header: "Status", render: (item) => <span className={`status-badge document ${item.status.toLowerCase()}`}>{item.status}</span> },
+              { key: "period", header: "Período", render: (item) => `${formatDateBr(item.startsAt)} a ${formatDateBr(item.endsAt)}` },
+              {
+                key: "actions",
+                header: "Ações",
+                render: (item) =>
+                  canManage ? (
+                    <div className="row-actions">
+                      <button className="secondary small" type="button" disabled={saving} onClick={() => setDraft(campaignDraftFromItem(item))}>
+                        Editar
+                      </button>
+                      <button className="secondary small" type="button" disabled={saving} onClick={() => void snapshotCampaign(item)}>
+                        Snapshot
+                      </button>
+                      <button className="secondary small" type="button" disabled={saving} onClick={() => void updateStatus(item, item.status === "ACTIVE" ? "PAUSED" : "ACTIVE")}>
+                        {item.status === "ACTIVE" ? "Pausar" : "Ativar"}
+                      </button>
+                    </div>
+                  ) : (
+                    "-"
+                  )
+              }
+            ]}
+          />
+        )}
+      </section>
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Snapshots</p>
+            <h2>Histórico congelado de ranking</h2>
+          </div>
+        </div>
+        {snapshots.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum snapshot criado" />
+        ) : (
+          <OperationalTable
+            items={snapshots}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "campaign", header: "Campanha", render: (item) => item.campaign?.name ?? "-" },
+              { key: "scope", header: "Escopo", render: (item) => item.campaign?.salesGroup?.name ?? item.scopeType },
+              { key: "period", header: "Período", render: (item) => `${formatDateBr(item.periodStart)} a ${formatDateBr(item.periodEnd)}` },
+              { key: "total", header: "Posições", render: (item) => snapshotTotal(item) },
+              { key: "created", header: "Criado", render: (item) => formatDateBr(item.createdAt) }
+            ]}
+          />
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -6496,7 +6732,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         ) : activeItem.key === "ranking" ? (
           <RankingView />
         ) : activeItem.key === "campaigns" ? (
-          <CampaignsView />
+          <CampaignsView user={user} />
         ) : activeItem.key === "statements" ? (
           <StatementsView />
         ) : activeItem.key === "users" ? (

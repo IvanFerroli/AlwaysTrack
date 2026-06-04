@@ -44,6 +44,16 @@ export interface SalesPeriodFilters extends SalesDocumentFilters {
   to?: string;
 }
 
+export interface SalesCampaignInput {
+  name?: string;
+  description?: string | null;
+  metric?: string;
+  status?: string;
+  startsAt?: string;
+  endsAt?: string;
+  salesGroupId?: string | null;
+}
+
 export interface SalesDocumentReviewInput {
   status?: string;
   accessKey?: string | null;
@@ -109,6 +119,10 @@ function dateFromIso(value: string | null) {
   if (!value) return undefined;
   const date = new Date(`${value}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function parseRequiredDate(value: string | null | undefined) {
+  return dateFromIso(normalizeDate(value));
 }
 
 function centsFrom(value: number | string | null | undefined) {
@@ -280,6 +294,11 @@ function assertCommercialReviewer(actor: CurrentUser) {
   throw new SalesDocumentError("FORBIDDEN");
 }
 
+function assertCampaignManager(actor: CurrentUser) {
+  if (["ADMIN", "GESTOR", "SUPERVISOR"].includes(actor.role)) return;
+  throw new SalesDocumentError("FORBIDDEN");
+}
+
 export function parseSalesDocumentUploadInput(input: {
   query: Record<string, unknown>;
   headers: Record<string, unknown>;
@@ -308,6 +327,20 @@ export function parseSalesPeriodFilters(query: Record<string, unknown>): SalesPe
     campaignId: cleanText(query.campaignId),
     from: cleanText(query.from),
     to: cleanText(query.to)
+  };
+}
+
+export function parseSalesCampaignInput(body: unknown): SalesCampaignInput {
+  if (!body || typeof body !== "object") return {};
+  const input = body as Record<string, unknown>;
+  return {
+    name: cleanText(input.name),
+    description: cleanText(input.description) ?? null,
+    metric: cleanText(input.metric),
+    status: cleanText(input.status),
+    startsAt: cleanText(input.startsAt),
+    endsAt: cleanText(input.endsAt),
+    salesGroupId: cleanText(input.salesGroupId) ?? null
   };
 }
 
@@ -378,6 +411,42 @@ function periodDocumentWhere(actor: CurrentUser, filters: SalesPeriodFilters = {
     status: "APPROVED",
     issuedAt: from || to ? { gte: from, lte: to } : undefined
   };
+}
+
+function dateFromCampaignInput(value: string | undefined) {
+  const date = dateFromIso(normalizeDate(value));
+  if (!date) throw new SalesDocumentError("INVALID_INPUT");
+  return date;
+}
+
+async function assertCampaignGroupScope(prisma: PrismaClient, actor: CurrentUser, salesGroupId: string | null | undefined) {
+  if (!salesGroupId) {
+    if (actor.role === "SUPERVISOR") throw new SalesDocumentError("INVALID_INPUT");
+    return null;
+  }
+
+  const salesGroup = await prisma.salesGroup.findFirst({
+    where: {
+      id: salesGroupId,
+      organizationId: actor.organizationId,
+      supervisorId: actor.role === "SUPERVISOR" ? actor.id : undefined
+    }
+  });
+  if (!salesGroup) throw new SalesDocumentError("FORBIDDEN");
+  return salesGroup;
+}
+
+async function getScopedCampaign(prisma: PrismaClient, actor: CurrentUser, campaignId: string) {
+  const campaign = await prisma.salesCampaign.findFirst({
+    where: {
+      id: campaignId,
+      organizationId: actor.organizationId,
+      salesGroup: actor.role === "SUPERVISOR" ? { supervisorId: actor.id } : undefined
+    },
+    include: { salesGroup: true }
+  });
+  if (!campaign) throw new SalesDocumentError("NOT_FOUND");
+  return campaign;
 }
 
 async function getScopedSalesDocument(prisma: PrismaClient, actor: CurrentUser, documentId: string) {
@@ -768,6 +837,119 @@ export async function listSalesCampaigns(prisma: PrismaClient, actor: CurrentUse
     orderBy: [{ status: "asc" }, { startsAt: "desc" }]
   });
   return { items: campaigns, total: campaigns.length };
+}
+
+export async function createSalesCampaign(prisma: PrismaClient, actor: CurrentUser, input: SalesCampaignInput) {
+  assertCampaignManager(actor);
+  if (!input.name || !input.startsAt || !input.endsAt) throw new SalesDocumentError("INVALID_INPUT");
+  const startsAt = dateFromCampaignInput(input.startsAt);
+  const endsAt = dateFromCampaignInput(input.endsAt);
+  if (endsAt.getTime() < startsAt.getTime()) throw new SalesDocumentError("INVALID_INPUT");
+  await assertCampaignGroupScope(prisma, actor, input.salesGroupId);
+
+  const campaign = await prisma.salesCampaign.create({
+    data: {
+      organizationId: actor.organizationId,
+      salesGroupId: input.salesGroupId ?? null,
+      name: input.name,
+      description: input.description ?? null,
+      metric: input.metric ?? "totalAmountCents",
+      status: input.status ?? "ACTIVE",
+      startsAt,
+      endsAt
+    },
+    include: { salesGroup: true }
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "sales_campaign.create",
+    entityType: "SalesCampaign",
+    entityId: campaign.id,
+    metadata: { status: campaign.status, salesGroupId: campaign.salesGroupId }
+  });
+
+  return { campaign };
+}
+
+export async function updateSalesCampaign(prisma: PrismaClient, actor: CurrentUser, campaignId: string, input: SalesCampaignInput) {
+  assertCampaignManager(actor);
+  const current = await getScopedCampaign(prisma, actor, campaignId);
+  const startsAt = input.startsAt ? dateFromCampaignInput(input.startsAt) : current.startsAt;
+  const endsAt = input.endsAt ? dateFromCampaignInput(input.endsAt) : current.endsAt;
+  if (endsAt.getTime() < startsAt.getTime()) throw new SalesDocumentError("INVALID_INPUT");
+  const nextSalesGroupId = input.salesGroupId === undefined ? current.salesGroupId : input.salesGroupId;
+  await assertCampaignGroupScope(prisma, actor, nextSalesGroupId);
+
+  const campaign = await prisma.salesCampaign.update({
+    where: { id: current.id },
+    data: {
+      salesGroupId: nextSalesGroupId ?? null,
+      name: input.name ?? current.name,
+      description: input.description === undefined ? current.description : input.description,
+      metric: input.metric ?? current.metric,
+      status: input.status ?? current.status,
+      startsAt,
+      endsAt
+    },
+    include: { salesGroup: true }
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "sales_campaign.update",
+    entityType: "SalesCampaign",
+    entityId: campaign.id,
+    metadata: { status: campaign.status, salesGroupId: campaign.salesGroupId }
+  });
+
+  return { campaign };
+}
+
+export async function createRankingSnapshot(prisma: PrismaClient, actor: CurrentUser, campaignId: string) {
+  assertCampaignManager(actor);
+  const campaign = await getScopedCampaign(prisma, actor, campaignId);
+  const ranking = await getSalesRanking(prisma, actor, { campaignId: campaign.id });
+  const scopeType = campaign.salesGroupId ? "SALES_GROUP" : "ORGANIZATION";
+  const snapshot = await prisma.rankingSnapshot.create({
+    data: {
+      organizationId: actor.organizationId,
+      campaignId: campaign.id,
+      periodStart: campaign.startsAt,
+      periodEnd: campaign.endsAt,
+      scopeType,
+      scopeId: campaign.salesGroupId,
+      payloadJson: JSON.stringify({ campaign: ranking.campaign, items: ranking.items, total: ranking.total })
+    },
+    include: { campaign: { include: { salesGroup: true } } }
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "sales_ranking.snapshot",
+    entityType: "RankingSnapshot",
+    entityId: snapshot.id,
+    metadata: { campaignId: campaign.id, total: ranking.total, scopeType, scopeId: campaign.salesGroupId }
+  });
+
+  return { snapshot };
+}
+
+export async function listRankingSnapshots(prisma: PrismaClient, actor: CurrentUser) {
+  assertCommercialRole(actor);
+  const snapshots = await prisma.rankingSnapshot.findMany({
+    where: {
+      organizationId: actor.organizationId,
+      campaign: actor.role === "SUPERVISOR" ? { salesGroup: { supervisorId: actor.id } } : undefined
+    },
+    include: { campaign: { include: { salesGroup: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 12
+  });
+  return { items: snapshots, total: snapshots.length };
 }
 
 export async function getSalesRanking(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {

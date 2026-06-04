@@ -121,13 +121,17 @@ import {
 } from "./core/wiki/wiki.handlers.js";
 import {
   analyzeSalesDocumentHandler,
+  createRankingSnapshotHandler,
+  createSalesCampaignHandler,
   listSalesCampaignsHandler,
+  listRankingSnapshotsHandler,
   listSalesDocumentsHandler,
   reviewSalesDocumentHandler,
   salesRankingHandler,
   salesDashboardHandler,
   salesStatementsCsvHandler,
   salesStatementsHandler,
+  updateSalesCampaignHandler,
   uploadSalesDocumentHandler
 } from "./core/sales-documents/sales-documents.handlers.js";
 
@@ -172,6 +176,10 @@ export function createApp() {
   app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   app.get("/v1/sales/dashboard", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesDashboardHandler);
   app.get("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesCampaignsHandler);
+  app.post("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), createSalesCampaignHandler);
+  app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listRankingSnapshotsHandler);
+  app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), updateSalesCampaignHandler);
+  app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), createRankingSnapshotHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesRankingHandler);
   app.get("/v1/sales/statements", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsHandler);
   app.get("/v1/sales/statements.csv", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsCsvHandler);
