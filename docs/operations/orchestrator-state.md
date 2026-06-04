@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-05-30
+- last-updated: 2026-06-03
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
