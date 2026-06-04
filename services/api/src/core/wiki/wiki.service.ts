@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
+import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import type { StorageProvider } from "../documents/storage.js";
 
 export class WikiError extends Error {
   constructor(
@@ -10,6 +13,8 @@ export class WikiError extends Error {
       | "FORBIDDEN"
       | "VERSION_CONFLICT"
       | "REQUEST_NOT_PENDING"
+      | "UNSUPPORTED_TYPE"
+      | "FILE_TOO_LARGE"
   ) {
     super(code);
   }
@@ -37,6 +42,14 @@ export interface WikiPresenceInput {
   mode?: "READING" | "EDITING";
 }
 
+export interface WikiAttachmentUploadInput {
+  pageId?: string;
+  requestId?: string;
+  fileName?: string;
+  mimeType?: string;
+  body?: Buffer;
+}
+
 export interface WikiFilters {
   query?: string;
   status?: string;
@@ -44,6 +57,7 @@ export interface WikiFilters {
 }
 
 const wikiContentFormat = "MARKDOWN";
+const allowedWikiAttachmentMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function withWikiContentFormat<T extends { content: string }>(item: T) {
   return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
@@ -85,6 +99,17 @@ function cleanStatus(value: unknown) {
 
 function cleanPageStatus(value: unknown) {
   return value === "ARCHIVED" || value === "ALL" ? value : value === "ACTIVE" ? "ACTIVE" : undefined;
+}
+
+function safeFileName(value: string) {
+  return value.replace(/[^\w.\- ]+/g, "_").replace(/\s+/g, " ").trim().slice(0, 120) || "imagem";
+}
+
+function extensionFor(mimeType: string) {
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/webp") return ".webp";
+  return "";
 }
 
 function cleanMode(value: unknown) {
@@ -169,6 +194,18 @@ export function parseWikiDecisionInput(payload: unknown): WikiDecisionInput {
 export function parseWikiPresenceInput(payload: unknown): WikiPresenceInput {
   const input = (payload ?? {}) as Record<string, unknown>;
   return { mode: cleanMode(input.mode) };
+}
+
+export function parseWikiAttachmentUploadInput(input: { query: Record<string, unknown>; headers: Record<string, unknown>; body: unknown }): WikiAttachmentUploadInput {
+  const contentType = typeof input.headers["content-type"] === "string" ? input.headers["content-type"].split(";")[0].trim() : undefined;
+  const fileName = typeof input.headers["x-file-name"] === "string" ? input.headers["x-file-name"] : undefined;
+  return {
+    pageId: cleanText(input.query.pageId),
+    requestId: cleanText(input.query.requestId),
+    fileName,
+    mimeType: contentType,
+    body: Buffer.isBuffer(input.body) ? input.body : undefined
+  };
 }
 
 export function parseWikiFilters(query: Record<string, unknown>): WikiFilters {
@@ -567,4 +604,63 @@ export async function heartbeatWikiPresence(prisma: PrismaClient, actor: Current
     update: { lastSeenAt: now, mode: input.mode ?? "READING" },
     create: { organizationId: actor.organizationId, pageId, userId: actor.id, mode: input.mode ?? "READING", lastSeenAt: now }
   });
+}
+
+export async function uploadWikiAttachment(prisma: PrismaClient, storage: StorageProvider, actor: CurrentUser, input: WikiAttachmentUploadInput) {
+  if (!input.body || input.body.length === 0) throw new WikiError("INVALID_INPUT");
+  if (!input.mimeType || !allowedWikiAttachmentMimeTypes.has(input.mimeType)) throw new WikiError("UNSUPPORTED_TYPE");
+  if (input.body.length > loadEnv().documentMaxBytes) throw new WikiError("FILE_TOO_LARGE");
+  if (input.pageId) {
+    const page = await prisma.wikiPage.findFirst({
+      where: { id: input.pageId, organizationId: actor.organizationId, active: actor.role === "ADMIN" ? undefined : true }
+    });
+    if (!page) throw new WikiError("NOT_FOUND");
+  }
+  if (input.requestId) {
+    const request = await prisma.wikiEditRequest.findFirst({ where: { id: input.requestId, organizationId: actor.organizationId } });
+    if (!request) throw new WikiError("NOT_FOUND");
+  }
+
+  const fileName = safeFileName(input.fileName ?? `wiki-image${extensionFor(input.mimeType)}`);
+  const extension = extensionFor(input.mimeType);
+  const fileKey = `${actor.organizationId}/wiki-attachments/${randomUUID()}${extension}`;
+
+  await storage.put({ fileKey, body: input.body, mimeType: input.mimeType });
+  const attachment = await prisma.wikiAttachment.create({
+    data: {
+      organizationId: actor.organizationId,
+      uploadedById: actor.id,
+      pageId: input.pageId,
+      requestId: input.requestId,
+      fileKey,
+      fileName,
+      mimeType: input.mimeType,
+      size: input.body.length
+    }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "wiki.attachment.upload",
+    entityType: "WikiAttachment",
+    entityId: attachment.id,
+    metadata: { pageId: input.pageId ?? null, requestId: input.requestId ?? null, fileName, mimeType: input.mimeType, size: attachment.size }
+  });
+  return { ...attachment, markdownUrl: `/v1/wiki/attachments/${attachment.id}/file` };
+}
+
+export async function getWikiAttachmentFile(prisma: PrismaClient, storage: StorageProvider, actor: CurrentUser, attachmentId: string) {
+  const attachment = await prisma.wikiAttachment.findFirst({
+    where: { id: attachmentId, organizationId: actor.organizationId },
+    include: { page: { select: { active: true } } }
+  });
+  if (!attachment) throw new WikiError("NOT_FOUND");
+  if (actor.role !== "ADMIN" && attachment.page && !attachment.page.active) throw new WikiError("NOT_FOUND");
+  const stored = await storage.get(attachment.fileKey);
+  return {
+    body: stored.body,
+    fileName: attachment.fileName,
+    mimeType: attachment.mimeType,
+    size: attachment.size
+  };
 }

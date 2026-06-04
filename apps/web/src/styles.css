@@ -773,7 +773,7 @@ button .icon {
 }
 
 .dashboard-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .metric-card {
@@ -1832,6 +1832,15 @@ legend {
 
 .muted {
   color: var(--color-muted);
+}
+
+.visually-hidden-input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
 }
 
 .error {

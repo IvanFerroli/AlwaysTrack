@@ -108,6 +108,7 @@ import {
   createWikiEditRequestHandler,
   createWikiPageHandler,
   getWikiPageHandler,
+  getWikiAttachmentFileHandler,
   heartbeatWikiPresenceHandler,
   listWikiEditRequestsHandler,
   listWikiPagesHandler,
@@ -115,7 +116,8 @@ import {
   rejectWikiEditRequestHandler,
   restoreWikiRevisionHandler,
   unarchiveWikiPageHandler,
-  updateWikiPageHandler
+  updateWikiPageHandler,
+  uploadWikiAttachmentHandler
 } from "./core/wiki/wiki.handlers.js";
 import {
   analyzeSalesDocumentHandler,
@@ -137,7 +139,7 @@ export function createApp() {
     if (env.corsOrigin) {
       response.header("access-control-allow-origin", env.corsOrigin);
       response.header("access-control-allow-credentials", "true");
-      response.header("access-control-allow-headers", "content-type");
+      response.header("access-control-allow-headers", "content-type,x-file-name");
       response.header("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
     }
     if (request.method === "OPTIONS") {
@@ -300,6 +302,14 @@ export function createApp() {
   app.post("/v1/wiki/pages/:pageId/revisions/:revisionId/restore", requireAuth, requireRole(["ADMIN"]), restoreWikiRevisionHandler);
   app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), markWikiReadHandler);
   app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), heartbeatWikiPresenceHandler);
+  app.post(
+    "/v1/wiki/attachments",
+    requireAuth,
+    requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]),
+    express.raw({ limit: "11mb", type: ["image/jpeg", "image/png", "image/webp"] }),
+    uploadWikiAttachmentHandler
+  );
+  app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), getWikiAttachmentFileHandler);
   app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), listWikiEditRequestsHandler);
   app.post("/v1/wiki/edit-requests", requireAuth, requireRole(["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), createWikiEditRequestHandler);
   app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(["ADMIN"]), approveWikiEditRequestHandler);

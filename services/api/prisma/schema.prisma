@@ -27,6 +27,7 @@ model Organization {
   wikiReadReceipts      WikiReadReceipt[]
   wikiPresences         WikiPresence[]
   wikiRevisions         WikiRevision[]
+  wikiAttachments       WikiAttachment[]
   professionals         Professional[]
   auditLogs             AuditLog[]
   documentAiExtractions DocumentAiExtraction[]
@@ -103,6 +104,7 @@ model User {
   wikiReadReceipts    WikiReadReceipt[] @relation("WikiReadReceiptUser")
   wikiPresences       WikiPresence[] @relation("WikiPresenceUser")
   wikiRevisions       WikiRevision[] @relation("WikiRevisionAuthor")
+  wikiAttachments     WikiAttachment[] @relation("WikiAttachmentUploader")
   sellerProfile       SellerProfile? @relation("SellerProfileUser")
   supervisedSalesGroups SalesGroup[] @relation("SalesGroupSupervisor")
   uploadedSalesDocuments SalesDocument[] @relation("SalesDocumentUploadedBy")
@@ -589,6 +591,7 @@ model WikiPage {
   readReceipts WikiReadReceipt[]
   presences    WikiPresence[]
   revisions    WikiRevision[]
+  attachments  WikiAttachment[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -619,6 +622,29 @@ model WikiRevision {
   @@unique([pageId, version])
 }
 
+model WikiAttachment {
+  id             String   @id @default(cuid())
+  organizationId String
+  uploadedById   String
+  pageId         String?
+  requestId      String?
+  fileKey        String
+  fileName       String
+  mimeType       String
+  size           Int
+  createdAt      DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  uploadedBy   User             @relation("WikiAttachmentUploader", fields: [uploadedById], references: [id])
+  page         WikiPage?        @relation(fields: [pageId], references: [id])
+  request      WikiEditRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([organizationId])
+  @@index([uploadedById])
+  @@index([pageId])
+  @@index([requestId])
+}
+
 model WikiEditRequest {
   id             String    @id @default(cuid())
   organizationId String
@@ -639,6 +665,7 @@ model WikiEditRequest {
   author       User           @relation("WikiEditRequestAuthor", fields: [authorId], references: [id])
   reviewer     User?          @relation("WikiEditRequestReviewer", fields: [reviewerId], references: [id])
   revisions    WikiRevision[]
+  attachments  WikiAttachment[]
 
   @@index([organizationId])
   @@index([pageId])

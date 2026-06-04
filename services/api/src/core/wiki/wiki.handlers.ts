@@ -8,9 +8,11 @@ import {
   createWikiPage,
   getWikiPage,
   heartbeatWikiPresence,
+  getWikiAttachmentFile,
   listWikiEditRequests,
   listWikiPages,
   markWikiRead,
+  parseWikiAttachmentUploadInput,
   parseWikiDecisionInput,
   parseWikiEditRequestInput,
   parseWikiFilters,
@@ -20,8 +22,10 @@ import {
   restoreWikiRevision,
   unarchiveWikiPage,
   updateWikiPage,
+  uploadWikiAttachment,
   WikiError
 } from "./wiki.service.js";
+import { getStorageProvider } from "../documents/storage.provider.js";
 
 function routeParam(value: string | string[] | undefined) {
   return typeof value === "string" ? value : "";
@@ -38,6 +42,8 @@ function sendWikiError(response: Response, error: unknown) {
     if (error.code === "NOT_FOUND") return sendError(response, 404, "NOT_FOUND", "Wiki resource not found.");
     if (error.code === "VERSION_CONFLICT") return sendError(response, 409, "VERSION_CONFLICT", "Wiki page changed before this edit.");
     if (error.code === "REQUEST_NOT_PENDING") return sendError(response, 409, "REQUEST_NOT_PENDING", "Wiki request is not pending.");
+    if (error.code === "UNSUPPORTED_TYPE") return sendError(response, 415, "UNSUPPORTED_TYPE", "Unsupported wiki attachment type.");
+    if (error.code === "FILE_TOO_LARGE") return sendError(response, 413, "FILE_TOO_LARGE", "Wiki attachment is too large.");
     return sendError(response, 400, "INVALID_INPUT", "Invalid wiki payload.");
   }
   throw error;
@@ -164,6 +170,32 @@ export async function heartbeatWikiPresenceHandler(request: Request, response: R
       parseWikiPresenceInput(request.body)
     );
     return sendOk(response, { presence });
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function uploadWikiAttachmentHandler(request: Request, response: Response) {
+  try {
+    const attachment = await uploadWikiAttachment(
+      prisma,
+      getStorageProvider(),
+      actorFrom(request),
+      parseWikiAttachmentUploadInput({ query: request.query, headers: request.headers, body: request.body })
+    );
+    return sendOk(response, { attachment }, 201);
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function getWikiAttachmentFileHandler(request: Request, response: Response) {
+  try {
+    const file = await getWikiAttachmentFile(prisma, getStorageProvider(), actorFrom(request), routeParam(request.params.attachmentId));
+    response.setHeader("content-type", file.mimeType);
+    response.setHeader("content-length", String(file.size));
+    response.setHeader("content-disposition", `inline; filename="${file.fileName.replaceAll('"', "")}"`);
+    return response.status(200).send(file.body);
   } catch (error) {
     return sendWikiError(response, error);
   }

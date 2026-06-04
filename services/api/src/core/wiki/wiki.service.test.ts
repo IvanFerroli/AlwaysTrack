@@ -9,11 +9,14 @@ import {
   listWikiEditRequests,
   listWikiPages,
   markWikiRead,
+  getWikiAttachmentFile,
+  parseWikiAttachmentUploadInput,
   parseWikiEditRequestInput,
   parseWikiPageInput,
   restoreWikiRevision,
   unarchiveWikiPage,
   updateWikiPage,
+  uploadWikiAttachment,
   WikiError
 } from "./wiki.service.js";
 
@@ -50,6 +53,19 @@ describe("wiki service", () => {
       title: "Novo",
       content: "Texto",
       baseVersion: 1
+    });
+    expect(
+      parseWikiAttachmentUploadInput({
+        query: { pageId: " page-1 " },
+        headers: { "content-type": "image/png; charset=binary", "x-file-name": "foto.png" },
+        body: Buffer.from("file")
+      })
+    ).toEqual({
+      pageId: "page-1",
+      requestId: undefined,
+      fileName: "foto.png",
+      mimeType: "image/png",
+      body: Buffer.from("file")
     });
   });
 
@@ -302,6 +318,63 @@ describe("wiki service", () => {
     );
     expect(prisma.wikiPresence.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ mode: "EDITING" }) })
+    );
+  });
+
+  it("uploads wiki image attachments into private organization storage", async () => {
+    const prisma = {
+      wikiPage: { findFirst: vi.fn().mockResolvedValue({ id: "page-1", organizationId: "org-1" }) },
+      wikiEditRequest: { findFirst: vi.fn() },
+      wikiAttachment: {
+        create: vi.fn().mockResolvedValue({
+          id: "att-1",
+          fileName: "foto.png",
+          fileKey: "org-1/wiki-attachments/file.png",
+          mimeType: "image/png",
+          size: 4
+        })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+    const storage = { put: vi.fn().mockResolvedValue(undefined), get: vi.fn() };
+
+    const attachment = await uploadWikiAttachment(prisma as never, storage as never, admin, {
+      pageId: "page-1",
+      fileName: "foto.png",
+      mimeType: "image/png",
+      body: Buffer.from("file")
+    });
+
+    expect(attachment.markdownUrl).toBe("/v1/wiki/attachments/att-1/file");
+    expect(storage.put).toHaveBeenCalledWith(expect.objectContaining({ fileKey: expect.stringContaining("org-1/wiki-attachments/") }));
+    expect(prisma.wikiAttachment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", uploadedById: "admin-1", pageId: "page-1" }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "wiki.attachment.upload" }) })
+    );
+  });
+
+  it("downloads wiki attachments only from the actor organization", async () => {
+    const prisma = {
+      wikiAttachment: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "att-1",
+          fileName: "foto.png",
+          fileKey: "org-1/wiki-attachments/file.png",
+          mimeType: "image/png",
+          size: 4,
+          page: { active: true }
+        })
+      }
+    };
+    const storage = { put: vi.fn(), get: vi.fn().mockResolvedValue({ body: Buffer.from("file"), mimeType: "image/png" }) };
+
+    const file = await getWikiAttachmentFile(prisma as never, storage as never, admin, "att-1");
+
+    expect(file.fileName).toBe("foto.png");
+    expect(prisma.wikiAttachment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "att-1", organizationId: "org-1" }, include: expect.objectContaining({ page: expect.any(Object) }) })
     );
   });
 

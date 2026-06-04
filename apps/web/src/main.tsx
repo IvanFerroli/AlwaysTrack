@@ -689,6 +689,20 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   return payload.data;
 }
 
+async function uploadWikiImage(file: File, pageId?: string) {
+  const search = new URLSearchParams();
+  if (pageId) search.set("pageId", pageId);
+  const result = await api<{ attachment: { id: string; fileName: string; markdownUrl: string } }>(`/v1/wiki/attachments?${search.toString()}`, {
+    method: "POST",
+    headers: {
+      "content-type": file.type,
+      "x-file-name": file.name
+    },
+    body: await file.arrayBuffer()
+  });
+  return `![${result.attachment.fileName}](${apiBaseUrl}${result.attachment.markdownUrl})`;
+}
+
 function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("");
@@ -801,8 +815,21 @@ function wikiLineDiff(before: string, after: string) {
   };
 }
 
+function wikiImageRefs(content: string) {
+  return [...content.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)].map((match) => ({
+    alt: match[1] || "imagem",
+    src: match[2]
+  }));
+}
+
 function WikiChangeDigest({ before, after }: { before: string; after: string }) {
   const diff = wikiLineDiff(before, after);
+  const beforeImages = wikiImageRefs(before);
+  const afterImages = wikiImageRefs(after);
+  const beforeImageKeys = new Set(beforeImages.map((image) => image.src));
+  const afterImageKeys = new Set(afterImages.map((image) => image.src));
+  const addedImages = afterImages.filter((image) => !beforeImageKeys.has(image.src));
+  const removedImages = beforeImages.filter((image) => !afterImageKeys.has(image.src));
   return (
     <div className="wiki-change-digest">
       <div>
@@ -812,6 +839,12 @@ function WikiChangeDigest({ before, after }: { before: string; after: string }) 
       <div>
         <strong>Remocoes</strong>
         {diff.removed.length ? diff.removed.map((line, index) => <p key={index}>- {line}</p>) : <p className="muted">Sem linhas removidas detectadas.</p>}
+      </div>
+      <div>
+        <strong>Imagens</strong>
+        {addedImages.length ? addedImages.map((image, index) => <p key={`add-${index}`}>+ {image.alt}</p>) : null}
+        {removedImages.length ? removedImages.map((image, index) => <p key={`remove-${index}`}>- {image.alt}</p>) : null}
+        {!addedImages.length && !removedImages.length ? <p className="muted">Sem mudancas de imagem.</p> : null}
       </div>
       <small>{diff.unchanged} linha(s) preservada(s) na proposta.</small>
     </div>
@@ -1001,9 +1034,23 @@ function applyWikiMarkdownFormat(value: string, selectionStart: number, selectio
   return { nextValue: value, cursor: selectionEnd };
 }
 
-function WikiMarkdownEditor({ label, value, onChange, rows = 10 }: { label: string; value: string; onChange: (value: string) => void; rows?: number }) {
+function WikiMarkdownEditor({
+  label,
+  value,
+  onChange,
+  onUploadImage,
+  rows = 10
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onUploadImage?: (file: File) => Promise<string>;
+  rows?: number;
+}) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   function format(type: string) {
     const textarea = ref.current;
@@ -1014,6 +1061,29 @@ function WikiMarkdownEditor({ label, value, onChange, rows = 10 }: { label: stri
       textarea.focus();
       textarea.setSelectionRange(result.cursor, result.cursor);
     });
+  }
+
+  async function uploadImage(file: File | undefined) {
+    if (!file || !onUploadImage) return;
+    setUploadingImage(true);
+    try {
+      const markdown = await onUploadImage(file);
+      const textarea = ref.current;
+      const selectionStart = textarea?.selectionStart ?? value.length;
+      const selectionEnd = textarea?.selectionEnd ?? value.length;
+      const prefix = selectionStart > 0 && value[selectionStart - 1] !== "\n" ? "\n" : "";
+      const suffix = selectionEnd < value.length && value[selectionEnd] !== "\n" ? "\n" : "";
+      const nextValue = `${value.slice(0, selectionStart)}${prefix}${markdown}${suffix}${value.slice(selectionEnd)}`;
+      onChange(nextValue);
+      window.requestAnimationFrame(() => {
+        textarea?.focus();
+        const cursor = selectionStart + prefix.length + markdown.length + suffix.length;
+        textarea?.setSelectionRange(cursor, cursor);
+      });
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
   }
 
   return (
@@ -1048,6 +1118,20 @@ function WikiMarkdownEditor({ label, value, onChange, rows = 10 }: { label: stri
             {buttonLabel}
           </button>
         ))}
+        {onUploadImage ? (
+          <>
+            <button className="ghost-button small" type="button" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()}>
+              {uploadingImage ? "Enviando..." : "Imagem"}
+            </button>
+            <input
+              ref={imageInputRef}
+              accept="image/png,image/jpeg,image/webp"
+              className="visually-hidden-input"
+              type="file"
+              onChange={(event) => void uploadImage(event.target.files?.[0])}
+            />
+          </>
+        ) : null}
       </div>
       {preview ? <WikiMarkdownContent content={value} /> : <textarea ref={ref} rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />}
     </div>
@@ -5486,7 +5570,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                 <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="primeiros-passos" />
               </label>
               <div className="full-span">
-                <WikiMarkdownEditor label="Conteudo" rows={6} value={content} onChange={setContent} />
+                <WikiMarkdownEditor label="Conteudo" rows={6} value={content} onChange={setContent} onUploadImage={(file) => uploadWikiImage(file)} />
               </div>
             </div>
             <div className="form-actions">
@@ -5628,7 +5712,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                       <input value={editSlug} onChange={(event) => setEditSlug(event.target.value)} />
                     </label>
                   ) : null}
-                  <WikiMarkdownEditor label="Conteudo" value={editContent} onChange={setEditContent} />
+                  <WikiMarkdownEditor label="Conteudo" value={editContent} onChange={setEditContent} onUploadImage={(file) => uploadWikiImage(file, selected.id)} />
                   <div className="form-actions">
                     <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
                       {user.role === "ADMIN" ? "Publicar versao" : "Enviar para aprovacao"}
