@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-05-30
+- last-updated: 2026-06-03
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -26,7 +26,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 7. `TASK-AT-023-frankenstein-ui-cleanup.md`: navegacao ativa comercial. Status: completed-partial.
 8. `TASK-AT-017-danfe-structured-extraction.md`: extracao estruturada de DANFE com IA. Status: completed-mvp.
 9. `TASK-AT-018-sales-document-review.md`: revisao/aprovacao MVP de notas. Status: completed-mvp.
-10. `TASK-AT-019-ranking-campaigns-mvp.md`: ranking e campanhas read-only. Status: completed-partial.
+10. `TASK-AT-019-ranking-campaigns-mvp.md`: ranking, campanhas e snapshots. Status: completed-mvp.
 11. `TASK-AT-021-sales-statements-mvp.md`: extratos JSON/CSV simples. Status: completed-partial.
 12. `TASK-AT-025-sales-danfe-diagnostic-logs.md`: logs diagnosticos do fluxo DANFE. Status: completed-mvp.
 13. `TASK-AT-028-danfe-deterministic-extraction.md`: extracao deterministica de DANFE PDF textual antes da IA. Status: completed-mvp.
