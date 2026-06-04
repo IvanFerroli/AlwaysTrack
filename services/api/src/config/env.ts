@@ -32,6 +32,7 @@ export interface ApiEnv {
   googleClientSecret?: string;
   googleRedirectUri?: string;
   googleTokenEncryptionKey?: string;
+  enableLegacySylembra?: boolean;
 }
 
 let dotEnvLoaded = false;
@@ -95,6 +96,7 @@ export function loadEnv(source = process.env): ApiEnv {
     googleClientId: source.GOOGLE_CLIENT_ID,
     googleClientSecret: source.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: source.GOOGLE_REDIRECT_URI,
-    googleTokenEncryptionKey: source.GOOGLE_TOKEN_ENCRYPTION_KEY
+    googleTokenEncryptionKey: source.GOOGLE_TOKEN_ENCRYPTION_KEY,
+    enableLegacySylembra: source.ENABLE_LEGACY_SYLEMBRA === "true"
   };
 }

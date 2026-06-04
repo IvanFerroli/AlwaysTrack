@@ -17,7 +17,7 @@ function siteManifest(appName: string) {
     {
       name: appName,
       short_name: appName,
-      description: "Controle operacional de licencas, documentos, notificacoes e auditoria.",
+      description: "Operacao comercial para notas, ranking, campanhas, extratos e wiki.",
       start_url: "/",
       scope: "/",
       display: "standalone",

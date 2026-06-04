@@ -779,7 +779,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
           </div>
         </div>
         <div>
-          <p className="muted">Acesso administrativo para operação de licenças e documentos.</p>
+          <p className="muted">Acesso operacional para notas, ranking, campanhas e extratos comerciais.</p>
         </div>
         <label>
           Email

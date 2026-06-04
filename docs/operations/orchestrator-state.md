@@ -22,11 +22,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-018 (2026-06-03): CRUD de campanhas comerciais e snapshots historicos de ranking.
+- EXEC-AT-019 (2026-06-03): descontinuacao SyLembra fase 1 com rotas autenticadas legadas opt-in.
 
 ## Proximo ciclo a rotar
 - Implementar Google login como entrada principal.
 - Implementar filtro visual por vendedor no ranking e comparacao de snapshots.
+- Executar `AT-027B`: seed comercial sem fixtures SyLembra, help comercial e rotas publicas antigas opt-in/removidas.
 - Implementar consolidacoes de extratos comerciais por vendedor/grupo.
 - Ampliar smoke/e2e do fluxo comercial com upload XML/PDF.
 - Remover/descontinuar legado SyLembra em fases.
@@ -139,6 +140,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-018) |
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-018) |
 | npm run check | passou — 145 testes | 2026-06-03 (EXEC-AT-018) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-019) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-019) |
+| npm run check | passou — 145 testes | 2026-06-03 (EXEC-AT-019) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-019) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

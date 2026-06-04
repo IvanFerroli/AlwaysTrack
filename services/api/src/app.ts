@@ -158,14 +158,16 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(attachRequestContext);
 
-  app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
-  app.get("/v1/public-faq", listPublicFaqItemsHandler);
-  app.post("/v1/public-help/wa-link", buildPublicHelpLinkHandler);
-  app.post(
-    "/v1/public-upload/:token",
-    express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
-    publicUploadDocumentHandler
-  );
+  if (env.enableLegacySylembra) {
+    app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
+    app.get("/v1/public-faq", listPublicFaqItemsHandler);
+    app.post("/v1/public-help/wa-link", buildPublicHelpLinkHandler);
+    app.post(
+      "/v1/public-upload/:token",
+      express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
+      publicUploadDocumentHandler
+    );
+  }
 
   app.post("/v1/auth/login", loginHandler);
   app.post("/v1/auth/logout", requireAuth, logoutHandler);
@@ -173,7 +175,9 @@ export function createApp() {
   app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
-  app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
+  if (env.enableLegacySylembra) {
+    app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
+  }
   app.get("/v1/sales/dashboard", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesDashboardHandler);
   app.get("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesCampaignsHandler);
   app.post("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), createSalesCampaignHandler);
@@ -193,22 +197,24 @@ export function createApp() {
   );
   app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), analyzeSalesDocumentHandler);
   app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO"]), reviewSalesDocumentHandler);
-  app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
-  app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
-  app.get("/v1/reports/licenses/expiring", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesReportHandler);
-  app.get("/v1/reports/licenses/expiring/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesCsvReportHandler);
-  app.get("/v1/reports/groups/rt", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryReportHandler);
-  app.get("/v1/reports/groups/rt/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryCsvReportHandler);
-  app.get("/v1/reports/groups/areas", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryReportHandler);
-  app.get("/v1/reports/groups/areas/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryCsvReportHandler);
-  app.get("/v1/reports/documents/pending", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsReportHandler);
-  app.get("/v1/reports/documents/pending/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsCsvReportHandler);
-  app.get("/v1/reports/documents/rejected", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsReportHandler);
-  app.get("/v1/reports/documents/rejected/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsCsvReportHandler);
-  app.get("/v1/reports/notifications", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsReportHandler);
-  app.get("/v1/reports/notifications/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsCsvReportHandler);
-  app.get("/v1/reports/regularization", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationReportHandler);
-  app.get("/v1/reports/regularization/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationCsvReportHandler);
+  if (env.enableLegacySylembra) {
+    app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
+    app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
+    app.get("/v1/reports/licenses/expiring", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesReportHandler);
+    app.get("/v1/reports/licenses/expiring/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiringLicensesCsvReportHandler);
+    app.get("/v1/reports/groups/rt", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryReportHandler);
+    app.get("/v1/reports/groups/rt/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rtSummaryCsvReportHandler);
+    app.get("/v1/reports/groups/areas", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryReportHandler);
+    app.get("/v1/reports/groups/areas/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), areaSummaryCsvReportHandler);
+    app.get("/v1/reports/documents/pending", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsReportHandler);
+    app.get("/v1/reports/documents/pending/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), pendingDocumentsCsvReportHandler);
+    app.get("/v1/reports/documents/rejected", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsReportHandler);
+    app.get("/v1/reports/documents/rejected/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), rejectedDocumentsCsvReportHandler);
+    app.get("/v1/reports/notifications", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsReportHandler);
+    app.get("/v1/reports/notifications/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), notificationsCsvReportHandler);
+    app.get("/v1/reports/regularization", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationReportHandler);
+    app.get("/v1/reports/regularization/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationCsvReportHandler);
+  }
   app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
   app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
   app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);
@@ -222,104 +228,106 @@ export function createApp() {
   app.get("/v1/integrations/google/status", requireAuth, requireRole(["ADMIN"]), googleIntegrationStatusHandler);
   app.get("/v1/integrations/google/oauth/start", requireAuth, requireRole(["ADMIN"]), googleOauthStartHandler);
   app.delete("/v1/integrations/google", requireAuth, requireRole(["ADMIN"]), googleIntegrationDisconnectHandler);
-  app.get("/v1/professionals", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listProfessionalsHandler);
-  app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
-  app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);
-  app.patch("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN"]), updateProfessionalHandler);
-  app.get(
-    "/v1/imports/professionals-licenses/template",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    professionalsLicensesTemplateHandler
-  );
-  app.get(
-    "/v1/imports/professionals-licenses/template.xlsx",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    professionalsLicensesWorkbookHandler
-  );
-  app.get(
-    "/v1/imports/professionals-licenses/template/google-sheet",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    professionalsLicensesGoogleSheetTemplateHandler
-  );
-  app.post(
-    "/v1/imports/professionals-licenses/validate",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    validateProfessionalsLicensesCsvHandler
-  );
-  app.post(
-    "/v1/imports/professionals-licenses/commit",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    commitProfessionalsLicensesCsvHandler
-  );
-  app.get("/v1/license-types", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicenseTypesHandler);
-  app.post("/v1/license-types", requireAuth, requireRole(["ADMIN"]), createLicenseTypeHandler);
-  app.patch("/v1/license-types/:licenseTypeId", requireAuth, requireRole(["ADMIN"]), updateLicenseTypeHandler);
-  app.get("/v1/licenses", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicensesHandler);
-  app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
-  app.post("/v1/licenses/recalculate", requireAuth, requireRole(["ADMIN"]), recalculateLicensesHandler);
-  app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
-  app.post("/v1/upload-tokens", requireAuth, requireRole(["ADMIN"]), createUploadTokenHandler);
-  app.patch("/v1/upload-tokens/:uploadTokenId/invalidate", requireAuth, requireRole(["ADMIN"]), invalidateUploadTokenHandler);
-  app.get("/v1/documents", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listDocumentsHandler);
-  app.post(
-    "/v1/documents",
-    requireAuth,
-    requireRole(["ADMIN", "RT", "SUPERVISOR"]),
-    express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
-    uploadDocumentHandler
-  );
-  app.get(
-    "/v1/documents/:documentId/download",
-    requireAuth,
-    requireRole(["ADMIN", "RT", "SUPERVISOR"]),
-    downloadDocumentHandler
-  );
-  app.patch(
-    "/v1/documents/:documentId/validation",
-    requireAuth,
-    requireRole(["ADMIN", "RT"]),
-    validateDocumentHandler
-  );
-  app.post("/v1/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "RT"]), analyzeDocumentHandler);
-  app.get("/v1/documents/:documentId/analysis", requireAuth, requireRole(["ADMIN", "RT"]), listDocumentAnalysesHandler);
-  app.post("/v1/documents/:documentId/analysis/apply", requireAuth, requireRole(["ADMIN", "RT"]), applyDocumentAnalysisHandler);
-  app.get("/v1/notifications/config", requireAuth, requireRole(["ADMIN"]), listNotificationConfigHandler);
-  app.post("/v1/notifications/templates", requireAuth, requireRole(["ADMIN"]), createNotificationTemplateHandler);
-  app.patch(
-    "/v1/notifications/templates/:templateId",
-    requireAuth,
-    requireRole(["ADMIN"]),
-    updateNotificationTemplateHandler
-  );
-  app.post("/v1/notifications/rules", requireAuth, requireRole(["ADMIN"]), createNotificationRuleHandler);
-  app.patch("/v1/notifications/rules/:ruleId", requireAuth, requireRole(["ADMIN"]), updateNotificationRuleHandler);
-  app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
-  app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
-  app.post("/v1/notifications/manual-license", requireAuth, requireRole(["ADMIN"]), manualLicenseNotificationHandler);
-  app.get("/v1/wiki/pages", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), listWikiPagesHandler);
+  if (env.enableLegacySylembra) {
+    app.get("/v1/professionals", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listProfessionalsHandler);
+    app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
+    app.post("/v1/professionals", requireAuth, requireRole(["ADMIN"]), createProfessionalHandler);
+    app.patch("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN"]), updateProfessionalHandler);
+    app.get(
+      "/v1/imports/professionals-licenses/template",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      professionalsLicensesTemplateHandler
+    );
+    app.get(
+      "/v1/imports/professionals-licenses/template.xlsx",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      professionalsLicensesWorkbookHandler
+    );
+    app.get(
+      "/v1/imports/professionals-licenses/template/google-sheet",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      professionalsLicensesGoogleSheetTemplateHandler
+    );
+    app.post(
+      "/v1/imports/professionals-licenses/validate",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      validateProfessionalsLicensesCsvHandler
+    );
+    app.post(
+      "/v1/imports/professionals-licenses/commit",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      commitProfessionalsLicensesCsvHandler
+    );
+    app.get("/v1/license-types", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicenseTypesHandler);
+    app.post("/v1/license-types", requireAuth, requireRole(["ADMIN"]), createLicenseTypeHandler);
+    app.patch("/v1/license-types/:licenseTypeId", requireAuth, requireRole(["ADMIN"]), updateLicenseTypeHandler);
+    app.get("/v1/licenses", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listLicensesHandler);
+    app.post("/v1/licenses", requireAuth, requireRole(["ADMIN"]), createLicenseHandler);
+    app.post("/v1/licenses/recalculate", requireAuth, requireRole(["ADMIN"]), recalculateLicensesHandler);
+    app.patch("/v1/licenses/:licenseId", requireAuth, requireRole(["ADMIN"]), updateLicenseHandler);
+    app.post("/v1/upload-tokens", requireAuth, requireRole(["ADMIN"]), createUploadTokenHandler);
+    app.patch("/v1/upload-tokens/:uploadTokenId/invalidate", requireAuth, requireRole(["ADMIN"]), invalidateUploadTokenHandler);
+    app.get("/v1/documents", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listDocumentsHandler);
+    app.post(
+      "/v1/documents",
+      requireAuth,
+      requireRole(["ADMIN", "RT", "SUPERVISOR"]),
+      express.raw({ limit: "11mb", type: ["application/pdf", "image/jpeg", "image/png", "image/webp"] }),
+      uploadDocumentHandler
+    );
+    app.get(
+      "/v1/documents/:documentId/download",
+      requireAuth,
+      requireRole(["ADMIN", "RT", "SUPERVISOR"]),
+      downloadDocumentHandler
+    );
+    app.patch(
+      "/v1/documents/:documentId/validation",
+      requireAuth,
+      requireRole(["ADMIN", "RT"]),
+      validateDocumentHandler
+    );
+    app.post("/v1/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "RT"]), analyzeDocumentHandler);
+    app.get("/v1/documents/:documentId/analysis", requireAuth, requireRole(["ADMIN", "RT"]), listDocumentAnalysesHandler);
+    app.post("/v1/documents/:documentId/analysis/apply", requireAuth, requireRole(["ADMIN", "RT"]), applyDocumentAnalysisHandler);
+    app.get("/v1/notifications/config", requireAuth, requireRole(["ADMIN"]), listNotificationConfigHandler);
+    app.post("/v1/notifications/templates", requireAuth, requireRole(["ADMIN"]), createNotificationTemplateHandler);
+    app.patch(
+      "/v1/notifications/templates/:templateId",
+      requireAuth,
+      requireRole(["ADMIN"]),
+      updateNotificationTemplateHandler
+    );
+    app.post("/v1/notifications/rules", requireAuth, requireRole(["ADMIN"]), createNotificationRuleHandler);
+    app.patch("/v1/notifications/rules/:ruleId", requireAuth, requireRole(["ADMIN"]), updateNotificationRuleHandler);
+    app.post("/v1/notifications/scan", requireAuth, requireRole(["ADMIN"]), scanNotificationJobsHandler);
+    app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
+    app.post("/v1/notifications/manual-license", requireAuth, requireRole(["ADMIN"]), manualLicenseNotificationHandler);
+  }
+  app.get("/v1/wiki/pages", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listWikiPagesHandler);
   app.post("/v1/wiki/pages", requireAuth, requireRole(["ADMIN"]), createWikiPageHandler);
-  app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), getWikiPageHandler);
+  app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiPageHandler);
   app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN"]), updateWikiPageHandler);
   app.post("/v1/wiki/pages/:pageId/archive", requireAuth, requireRole(["ADMIN"]), archiveWikiPageHandler);
   app.post("/v1/wiki/pages/:pageId/unarchive", requireAuth, requireRole(["ADMIN"]), unarchiveWikiPageHandler);
   app.post("/v1/wiki/pages/:pageId/revisions/:revisionId/restore", requireAuth, requireRole(["ADMIN"]), restoreWikiRevisionHandler);
-  app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), markWikiReadHandler);
-  app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), heartbeatWikiPresenceHandler);
+  app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markWikiReadHandler);
+  app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), heartbeatWikiPresenceHandler);
   app.post(
     "/v1/wiki/attachments",
     requireAuth,
-    requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]),
+    requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
     express.raw({ limit: "11mb", type: ["image/jpeg", "image/png", "image/webp"] }),
     uploadWikiAttachmentHandler
   );
-  app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), getWikiAttachmentFileHandler);
-  app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), listWikiEditRequestsHandler);
-  app.post("/v1/wiki/edit-requests", requireAuth, requireRole(["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "RT"]), createWikiEditRequestHandler);
+  app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiAttachmentFileHandler);
+  app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listWikiEditRequestsHandler);
+  app.post("/v1/wiki/edit-requests", requireAuth, requireRole(["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), createWikiEditRequestHandler);
   app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(["ADMIN"]), approveWikiEditRequestHandler);
   app.post("/v1/wiki/edit-requests/:requestId/reject", requireAuth, requireRole(["ADMIN"]), rejectWikiEditRequestHandler);
   app.get("/v1/faq", requireAuth, requireRole(["ADMIN"]), listFaqItemsHandler);
