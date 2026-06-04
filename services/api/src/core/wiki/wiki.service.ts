@@ -63,8 +63,24 @@ function withWikiContentFormat<T extends { content: string }>(item: T) {
   return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
 }
 
-function withWikiRequestContentFormat<T extends { content: string }>(item: T) {
-  return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
+function withWikiRequestContentFormat<T extends { content: string; baseVersion?: number; page?: { content?: string; version?: number; revisions?: Array<{ version: number; content: string; title: string }> } }>(item: T) {
+  const baseRevision = item.page?.revisions?.find((revision) => revision.version === item.baseVersion);
+  const baseContent = baseRevision?.content ?? (item.page?.version === item.baseVersion ? item.page?.content : undefined);
+  return {
+    ...item,
+    contentFormat: wikiContentFormat,
+    tags: extractWikiTags(item.content),
+    review: item.page
+      ? {
+          currentVersion: item.page.version,
+          currentContent: item.page.content,
+          baseVersion: item.baseVersion,
+          baseTitle: baseRevision?.title,
+          baseContent,
+          baseAvailable: Boolean(baseContent)
+        }
+      : undefined
+  };
 }
 
 function withWikiPageDetailFormat<T extends { content: string; revisions?: Array<{ content: string }>; editRequests?: Array<{ content: string }> }>(page: T) {
@@ -160,7 +176,20 @@ function wikiPageSelect() {
 
 function wikiRequestInclude() {
   return {
-    page: { select: { id: true, slug: true, title: true, version: true } },
+    page: {
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        content: true,
+        version: true,
+        revisions: {
+          orderBy: { version: "desc" },
+          take: 20,
+          select: { version: true, title: true, content: true }
+        }
+      }
+    },
     author: { select: { id: true, name: true, email: true, role: true } },
     reviewer: { select: { id: true, name: true, email: true, role: true } }
   } satisfies Prisma.WikiEditRequestInclude;

@@ -123,9 +123,17 @@ interface WikiEditRequestItem {
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  page: { id: string; slug: string; title: string; version: number };
+  page: { id: string; slug: string; title: string; version: number; content?: string };
   author: WikiUserRef;
   reviewer: WikiUserRef | null;
+  review?: {
+    currentVersion?: number;
+    currentContent?: string;
+    baseVersion?: number;
+    baseTitle?: string;
+    baseContent?: string;
+    baseAvailable?: boolean;
+  };
 }
 
 interface WikiPageDetail extends WikiPageSummary {
@@ -847,6 +855,65 @@ function WikiChangeDigest({ before, after }: { before: string; after: string }) 
         {!addedImages.length && !removedImages.length ? <p className="muted">Sem mudancas de imagem.</p> : null}
       </div>
       <small>{diff.unchanged} linha(s) preservada(s) na proposta.</small>
+    </div>
+  );
+}
+
+function wikiReviewBaseContent(request: WikiEditRequestItem, selected?: WikiPageDetail | null) {
+  if (request.review?.baseContent) return request.review.baseContent;
+  const selectedRevision = selected?.id === request.pageId ? selected.revisions.find((revision) => revision.version === request.baseVersion) : null;
+  if (selectedRevision?.content) return selectedRevision.content;
+  if ((request.review?.currentVersion ?? request.page.version) === request.baseVersion) return request.review?.currentContent ?? request.page.content ?? "";
+  return "";
+}
+
+function WikiReviewSnapshot({ label, version, content, emptyDetail }: { label: string; version?: number; content?: string; emptyDetail?: string }) {
+  return (
+    <div className="wiki-review-snapshot">
+      <strong>{version ? `${label} v${version}` : label}</strong>
+      {content ? <WikiMarkdownContent content={content} /> : <OperationalState state="empty" title={emptyDetail ?? "Conteudo indisponivel"} />}
+    </div>
+  );
+}
+
+function WikiRequestReviewPanel({ request, selected }: { request: WikiEditRequestItem; selected?: WikiPageDetail | null }) {
+  const currentContent = request.review?.currentContent ?? request.page.content ?? (selected?.id === request.pageId ? selected.content : "");
+  const currentVersion = request.review?.currentVersion ?? request.page.version;
+  const baseContent = wikiReviewBaseContent(request, selected);
+  const hasConflict = currentVersion !== request.baseVersion;
+
+  return (
+    <div className="wiki-request-review-panel">
+      <div className="wiki-request-review-main">
+        <div>
+          <p className="muted">{wikiChangeSummary(baseContent || currentContent, request.content)}</p>
+          <WikiChangeDigest before={baseContent || currentContent} after={request.content} />
+        </div>
+        {!baseContent ? (
+          <OperationalState
+            state="error"
+            title="Base nao encontrada no historico carregado"
+            detail="A proposta ainda pode ser revisada pela versao atual e pela previa, mas a comparacao da base original ficou limitada."
+          />
+        ) : null}
+      </div>
+      <div className={hasConflict ? "wiki-review-grid three" : "wiki-review-grid"}>
+        {hasConflict ? (
+          <WikiReviewSnapshot
+            label="Publicada atual"
+            version={currentVersion}
+            content={currentContent}
+            emptyDetail="Nao foi possivel carregar a versao atual desta pagina."
+          />
+        ) : null}
+        <WikiReviewSnapshot
+          label={hasConflict ? "Base da proposta" : "Publicada/base"}
+          version={request.baseVersion}
+          content={baseContent}
+          emptyDetail="A base original nao esta disponivel no pacote de revisao."
+        />
+        <WikiReviewSnapshot label="Proposta" content={request.content} />
+      </div>
     </div>
   );
 }
@@ -5764,14 +5831,8 @@ function WikiView({ user }: { user: CurrentUser }) {
                         detail={`A pagina publicada esta na v${selectedRequest.page.version}; esta proposta nasceu da v${selectedRequest.baseVersion}.`}
                       />
                     ) : null}
-                    {selected?.id === selectedRequest.pageId ? (
-                      <>
-                        <p className="muted">{wikiChangeSummary(selected.content, selectedRequest.content)}</p>
-                        <WikiChangeDigest before={selected.content} after={selectedRequest.content} />
-                      </>
-                    ) : null}
                   </div>
-                  <WikiMarkdownContent content={selectedRequest.content} />
+                  <WikiRequestReviewPanel request={selectedRequest} selected={selected} />
                 </div>
               ) : null}
               <OperationalTable

@@ -22,10 +22,9 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-015 (2026-06-03): Wiki image attachments MVP com upload privado, URL autenticada e insercao Markdown no editor.
+- EXEC-AT-016 (2026-06-03): Wiki rich review MVP com pacote de review, digest de imagens/linhas e paineis de conflito.
 
 ## Proximo ciclo a rotar
-- Concluir review rico para admin com diff/conflito mais granular (`AT-033`).
 - Implementar Google login como entrada principal.
 - Implementar editor visual de campos/itens extraidos antes da aprovacao.
 - Implementar CRUD de campanhas e snapshots de ranking.
@@ -129,6 +128,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 15 testes | 2026-06-03 (EXEC-AT-015) |
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-015) |
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-015) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 15 testes | 2026-06-03 (EXEC-AT-016) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-03 (EXEC-AT-016) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-016) |
+| npm run check | passou — 142 testes | 2026-06-03 (EXEC-AT-016) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-016) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

@@ -37,11 +37,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 18. `EXEC-AT-013`: Wiki content admin MVP (`AT-034`). Status: completed.
 19. `EXEC-AT-014`: Wiki discovery MVP (`AT-035`) e review digest parcial (`AT-033`). Status: completed.
 20. `EXEC-AT-015`: Wiki image attachments MVP (`AT-032`). Status: completed.
+21. `EXEC-AT-016`: Wiki rich review MVP (`AT-033`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `AT-033`: review rico para admin, concluindo diff/conflitos.
-2. `AT-018B`: editor visual de campos/itens antes da aprovacao.
-3. `AT-019B`: CRUD de campanhas e snapshots.
-4. `AT-014`: Google login como entrada principal.
-5. `AT-026`: smoke/e2e do fluxo comercial com upload XML/PDF.
-6. `AT-027`: remover/descontinuar legado SyLembra em fases.
+1. `AT-018B`: editor visual de campos/itens antes da aprovacao.
+2. `AT-019B`: CRUD de campanhas e snapshots.
+3. `AT-014`: Google login como entrada principal.
+4. `AT-026`: smoke/e2e do fluxo comercial com upload XML/PDF.
+5. `AT-027`: remover/descontinuar legado SyLembra em fases.

@@ -1517,6 +1517,40 @@ legend {
   grid-column: 1 / -1;
 }
 
+.wiki-request-review-panel,
+.wiki-request-review-main {
+  display: grid;
+  gap: 12px;
+}
+
+.wiki-review-grid,
+.wiki-conflict-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wiki-review-grid.three,
+.wiki-conflict-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wiki-review-snapshot,
+.wiki-conflict-grid > div {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.wiki-review-snapshot .wiki-content,
+.wiki-conflict-grid .wiki-content {
+  min-height: 120px;
+  padding: 12px;
+}
+
 .wiki-compare-grid {
   display: grid;
   gap: 12px;
@@ -1906,6 +1940,8 @@ legend {
   .wiki-discovery-grid,
   .wiki-layout,
   .wiki-change-digest,
+  .wiki-review-grid,
+  .wiki-conflict-grid,
   .wiki-compare-grid,
   .wiki-meta-grid {
     grid-template-columns: 1fr;
@@ -1948,6 +1984,9 @@ legend {
   .upload-link-panel,
   .wiki-discovery-grid,
   .wiki-layout,
+  .wiki-change-digest,
+  .wiki-review-grid,
+  .wiki-conflict-grid,
   .wiki-compare-grid,
   .wiki-meta-grid {
     grid-template-columns: 1fr;
