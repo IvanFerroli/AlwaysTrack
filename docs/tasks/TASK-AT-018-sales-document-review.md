@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-mvp
 - owner: runtime-builder
-- last-updated: 2026-05-30
+- last-updated: 2026-06-03
 - source-of-truth: docs/tasks/TASK-AT-018-sales-document-review.md
 
 ## Objetivo
@@ -16,6 +16,7 @@ Permitir que perfis superiores revisem notas extraidas antes de alimentar rankin
 - Substituicao transacional dos itens comerciais revisados.
 - Registro de revisor, data de revisao e auditoria.
 - Acoes de aprovar/reprovar na tela de Notas.
+- Editor visual na tela de Notas para ajustar chave, NF, serie, emissao, emitente, comprador, total, motivo de reprovacao e itens antes de aprovar/reprovar.
 
 ## Aceite
 - Nota `PENDING_REVIEW` pode ser aprovada quando possui itens.
@@ -23,5 +24,4 @@ Permitir que perfis superiores revisem notas extraidas antes de alimentar rankin
 - Chave de acesso duplicada bloqueia aprovacao.
 
 ## Residual
-- Falta editor visual de campos/itens antes da aprovacao.
 - Falta fila dedicada com filtros de revisao.

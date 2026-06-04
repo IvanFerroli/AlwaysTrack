@@ -523,8 +523,20 @@ interface SalesDocumentItem {
   rejectionReason?: string | null;
   createdAt: string;
   sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
-  items: Array<{ id: string; sku?: string | null; description: string; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
+  items: Array<{ id: string; sku?: string | null; description: string; category?: string | null; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
   extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string; extractedJson?: string | null }>;
+}
+
+interface SalesDocumentReviewDraft {
+  accessKey: string;
+  invoiceNumber: string;
+  series: string;
+  issuedAt: string;
+  issuerName: string;
+  buyerName: string;
+  totalAmountCents: string;
+  rejectionReason: string;
+  items: Array<{ id: string; sku: string; description: string; category: string; quantity: string; unitAmountCents: string; totalAmountCents: string }>;
 }
 
 interface SalesDashboardData {
@@ -1209,6 +1221,77 @@ function formatMoneyFromCents(value: number | null | undefined) {
   return ((value ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function moneyInputValue(value: number | null | undefined) {
+  return value === null || value === undefined ? "" : (value / 100).toFixed(2);
+}
+
+function numberOrNull(value: string) {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function centsFromMoneyInput(value: string) {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
+}
+
+function reviewDraftFromDocument(document: SalesDocumentItem): SalesDocumentReviewDraft {
+  return {
+    accessKey: document.accessKey ?? "",
+    invoiceNumber: document.invoiceNumber ?? "",
+    series: document.series ?? "",
+    issuedAt: document.issuedAt ? document.issuedAt.slice(0, 10) : "",
+    issuerName: document.issuerName ?? "",
+    buyerName: document.buyerName ?? "",
+    totalAmountCents: moneyInputValue(document.totalAmountCents),
+    rejectionReason: document.rejectionReason ?? "Reprovada na revisão manual.",
+    items:
+      document.items.length > 0
+        ? document.items.map((item) => ({
+            id: item.id,
+            sku: item.sku ?? "",
+            description: item.description ?? "",
+            category: item.category ?? "",
+            quantity: String(item.quantity ?? ""),
+            unitAmountCents: moneyInputValue(item.unitAmountCents),
+            totalAmountCents: moneyInputValue(item.totalAmountCents)
+          }))
+        : [{ id: `draft-${Date.now()}`, sku: "", description: "", category: "", quantity: "1", unitAmountCents: "", totalAmountCents: "" }]
+  };
+}
+
+function reviewPayloadFromDraft(draft: SalesDocumentReviewDraft, status: "APPROVED" | "REJECTED") {
+  return {
+    status,
+    accessKey: draft.accessKey || null,
+    invoiceNumber: draft.invoiceNumber || null,
+    series: draft.series || null,
+    issuedAt: draft.issuedAt || null,
+    issuerName: draft.issuerName || null,
+    buyerName: draft.buyerName || null,
+    totalAmountCents: centsFromMoneyInput(draft.totalAmountCents),
+    rejectionReason: status === "REJECTED" ? draft.rejectionReason || "Reprovada na revisão manual." : null,
+    items: draft.items
+      .map((item) => ({
+        sku: item.sku || null,
+        description: item.description || null,
+        category: item.category || null,
+        quantity: numberOrNull(item.quantity),
+        unitAmountCents: centsFromMoneyInput(item.unitAmountCents),
+        totalAmountCents: centsFromMoneyInput(item.totalAmountCents)
+      }))
+      .filter((item) => item.description && item.quantity !== null && item.totalAmountCents !== null)
+  };
+}
+
+function validReviewItemCount(draft: SalesDocumentReviewDraft) {
+  return reviewPayloadFromDraft(draft, "APPROVED").items.length;
+}
+
 function formatPercent(value: number | null | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
 }
@@ -1355,8 +1438,132 @@ function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
 
 }
 
+function SalesDocumentReviewEditor({
+  document,
+  draft,
+  disabled,
+  onChange,
+  onApprove,
+  onReject
+}: {
+  document: SalesDocumentItem;
+  draft: SalesDocumentReviewDraft;
+  disabled: boolean;
+  onChange: (draft: SalesDocumentReviewDraft) => void;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  function updateField(key: keyof SalesDocumentReviewDraft, value: string) {
+    onChange({ ...draft, [key]: value });
+  }
+
+  function updateItem(index: number, key: keyof SalesDocumentReviewDraft["items"][number], value: string) {
+    onChange({
+      ...draft,
+      items: draft.items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item))
+    });
+  }
+
+  function addItem() {
+    onChange({
+      ...draft,
+      items: [...draft.items, { id: `draft-${Date.now()}`, sku: "", description: "", category: "", quantity: "1", unitAmountCents: "", totalAmountCents: "" }]
+    });
+  }
+
+  function removeItem(index: number) {
+    onChange({ ...draft, items: draft.items.filter((_, itemIndex) => itemIndex !== index) });
+  }
+
+  function recalculateTotal() {
+    const total = draft.items.reduce((sum, item) => sum + (centsFromMoneyInput(item.totalAmountCents) ?? 0), 0);
+    onChange({ ...draft, totalAmountCents: moneyInputValue(total) });
+  }
+
+  return (
+    <div className="review-editor">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Revisao manual</p>
+          <h3>{document.invoiceNumber ? `NF ${document.invoiceNumber}` : document.fileName}</h3>
+        </div>
+        <div className="inline-actions">
+          <button className="ghost-button small" disabled={disabled || validReviewItemCount(draft) === 0} type="button" onClick={onApprove}>
+            Aprovar dados editados
+          </button>
+          <button className="ghost-button small danger" disabled={disabled} type="button" onClick={onReject}>
+            Reprovar
+          </button>
+        </div>
+      </div>
+      <div className="review-editor-grid">
+        <label>
+          Chave
+          <input value={draft.accessKey} onChange={(event) => updateField("accessKey", event.target.value)} />
+        </label>
+        <label>
+          NF
+          <input value={draft.invoiceNumber} onChange={(event) => updateField("invoiceNumber", event.target.value)} />
+        </label>
+        <label>
+          Serie
+          <input value={draft.series} onChange={(event) => updateField("series", event.target.value)} />
+        </label>
+        <label>
+          Emissao
+          <input type="date" value={draft.issuedAt} onChange={(event) => updateField("issuedAt", event.target.value)} />
+        </label>
+        <label>
+          Emitente
+          <input value={draft.issuerName} onChange={(event) => updateField("issuerName", event.target.value)} />
+        </label>
+        <label>
+          Comprador
+          <input value={draft.buyerName} onChange={(event) => updateField("buyerName", event.target.value)} />
+        </label>
+        <label>
+          Total da nota (R$)
+          <input inputMode="decimal" value={draft.totalAmountCents} onChange={(event) => updateField("totalAmountCents", event.target.value)} />
+        </label>
+        <label>
+          Motivo se reprovar
+          <input value={draft.rejectionReason} onChange={(event) => updateField("rejectionReason", event.target.value)} />
+        </label>
+      </div>
+      <div className="review-items-toolbar">
+        <strong>Itens comerciais</strong>
+        <div className="inline-actions">
+          <button className="secondary small" type="button" onClick={recalculateTotal}>
+            Recalcular total
+          </button>
+          <button className="secondary small" type="button" onClick={addItem}>
+            Adicionar item
+          </button>
+        </div>
+      </div>
+      <div className="review-items-grid">
+        {draft.items.map((item, index) => (
+          <div className="review-item-row" key={item.id}>
+            <input placeholder="SKU" value={item.sku} onChange={(event) => updateItem(index, "sku", event.target.value)} />
+            <input placeholder="Produto" value={item.description} onChange={(event) => updateItem(index, "description", event.target.value)} />
+            <input placeholder="Categoria" value={item.category} onChange={(event) => updateItem(index, "category", event.target.value)} />
+            <input inputMode="decimal" placeholder="Qtd" value={item.quantity} onChange={(event) => updateItem(index, "quantity", event.target.value)} />
+            <input inputMode="decimal" placeholder="Unit. R$" value={item.unitAmountCents} onChange={(event) => updateItem(index, "unitAmountCents", event.target.value)} />
+            <input inputMode="decimal" placeholder="Total R$" value={item.totalAmountCents} onChange={(event) => updateItem(index, "totalAmountCents", event.target.value)} />
+            <button className="ghost-button small danger" disabled={draft.items.length === 1} type="button" onClick={() => removeItem(index)}>
+              Remover
+            </button>
+          </div>
+        ))}
+      </div>
+      {validReviewItemCount(draft) === 0 ? <p className="muted">Preencha produto, quantidade e total de ao menos um item para aprovar a nota.</p> : null}
+    </div>
+  );
+}
+
 function NotesView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesDocumentItem[]>([]);
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, SalesDocumentReviewDraft>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -1369,6 +1576,14 @@ function NotesView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ items: SalesDocumentItem[]; total: number }>("/v1/sales/documents");
       setItems(result.items);
+      setReviewDrafts((current) => {
+        const next = { ...current };
+        for (const document of result.items) {
+          if (document.status === "PENDING_REVIEW" && !next[document.id]) next[document.id] = reviewDraftFromDocument(document);
+          if (document.status !== "PENDING_REVIEW") delete next[document.id];
+        }
+        return next;
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar notas.");
     } finally {
@@ -1420,21 +1635,11 @@ function NotesView({ user }: { user: CurrentUser }) {
   async function review(document: SalesDocumentItem, status: "APPROVED" | "REJECTED") {
     setActingId(document.id);
     setError(null);
+    const draft = reviewDrafts[document.id] ?? reviewDraftFromDocument(document);
     try {
       await api<{ document: SalesDocumentItem }>(`/v1/sales/documents/${document.id}/review`, {
         method: "PATCH",
-        body: JSON.stringify({
-          status,
-          accessKey: document.accessKey,
-          invoiceNumber: document.invoiceNumber,
-          series: document.series,
-          issuedAt: document.issuedAt,
-          issuerName: document.issuerName,
-          buyerName: document.buyerName,
-          totalAmountCents: document.totalAmountCents,
-          rejectionReason: status === "REJECTED" ? "Reprovada na revisão manual." : null,
-          items: document.items
-        })
+        body: JSON.stringify(reviewPayloadFromDraft(draft, status))
       });
       await load();
     } catch (caught) {
@@ -1495,19 +1700,13 @@ function NotesView({ user }: { user: CurrentUser }) {
                         {actingId === item.id ? "Extraindo..." : "Extrair"}
                       </button>
                     ) : null}
-                    {canReview && item.status === "PENDING_REVIEW" ? (
-                      <>
-                        <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item, { forceAi: true })}>
-                          {actingId === item.id ? "Reprocessando..." : "Reprocessar IA"}
-                        </button>
-                        <button className="ghost-button small" disabled={actingId === item.id || item.items.length === 0} onClick={() => review(item, "APPROVED")}>
-                          Aprovar
-                        </button>
-                        <button className="ghost-button small danger" disabled={actingId === item.id} onClick={() => review(item, "REJECTED")}>
-                          Reprovar
-                        </button>
-                      </>
-                    ) : null}
+                  {canReview && item.status === "PENDING_REVIEW" ? (
+                    <>
+                      <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item, { forceAi: true })}>
+                        {actingId === item.id ? "Reprocessando..." : "Reprocessar IA"}
+                      </button>
+                    </>
+                  ) : null}
                   </div>
                 )
               }
@@ -1564,6 +1763,16 @@ function NotesView({ user }: { user: CurrentUser }) {
                   ) : (
                     <p className="muted">Nenhum item estruturado salvo para esta nota.</p>
                   )}
+                  {canReview && item.status === "PENDING_REVIEW" ? (
+                    <SalesDocumentReviewEditor
+                      document={item}
+                      draft={reviewDrafts[item.id] ?? reviewDraftFromDocument(item)}
+                      disabled={actingId === item.id}
+                      onChange={(draft) => setReviewDrafts((current) => ({ ...current, [item.id]: draft }))}
+                      onApprove={() => void review(item, "APPROVED")}
+                      onReject={() => void review(item, "REJECTED")}
+                    />
+                  ) : null}
                 </details>
               ))}
           </div>

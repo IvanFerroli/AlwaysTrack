@@ -213,6 +213,41 @@ button.small {
   overflow-wrap: anywhere;
 }
 
+.review-editor {
+  border-top: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.review-editor-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.review-items-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.review-items-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.review-item-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(80px, 0.7fr) minmax(180px, 1.6fr) minmax(120px, 1fr) minmax(72px, 0.6fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) auto;
+}
+
+.review-item-row input {
+  min-width: 0;
+}
+
 input,
 select,
 textarea {
@@ -1936,6 +1971,8 @@ legend {
   .help-section-grid,
   .help-grid,
   .detail-grid,
+  .review-editor-grid,
+  .review-item-row,
   .upload-link-panel,
   .wiki-discovery-grid,
   .wiki-layout,
@@ -1981,6 +2018,8 @@ legend {
   .form-grid,
   .scope-grid,
   .detail-grid,
+  .review-editor-grid,
+  .review-item-row,
   .upload-link-panel,
   .wiki-discovery-grid,
   .wiki-layout,
