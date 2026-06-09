@@ -14,6 +14,7 @@ Dar a um dev novo um mapa curto do AlwaysTrack: dominios, fluxos, contratos e on
 - API: Express + TypeScript em `services/api`.
 - Shared contracts: `packages/shared`.
 - Banco local atual: Prisma + SQLite.
+- Jobs: inline por padrao; BullMQ + Redis quando `JOB_QUEUE_DRIVER=bullmq`.
 - Auth: sessao por cookie, login email/senha e Google login opcional.
 - Storage privado local: `.storage/`.
 
@@ -78,6 +79,12 @@ Arquivos principais:
 - Logs estruturados existem no fluxo de notas/extracao.
 - `TASK-AT-053` vai ampliar metricas, queries lentas e profiling.
 
+## Jobs e backpressure
+- Contrato canonico: `docs/adr/ADR-005-filas-bullmq-backpressure.md`.
+- Piloto atual: snapshot de ranking em `services/api/src/core/jobs/ranking-snapshot.jobs.ts`.
+- Worker: `npm run job:ranking-snapshots`.
+- Dev local usa driver inline para nao exigir Redis.
+
 ## Documentacao gerada
 `npm run docs:api` gera TypeDoc em `docs/generated/typedoc`.
 
@@ -90,4 +97,3 @@ Essa documentacao gerada complementa os docs curados. Use TypeDoc para localizar
 4. Leia `docs/testing/strategy.md`.
 5. Abra o service do dominio afetado.
 6. Adicione teste unitario/regressivo antes de corrigir bug.
-

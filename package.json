@@ -34,6 +34,7 @@
     "db:flush:local": "node scripts/flush-local-demo.js",
     "db:flush:demo": "node scripts/flush-local-demo.js",
     "job:notifications": "npm run job:notifications --workspace @alwaystrack/api",
+    "job:ranking-snapshots": "npm run job:ranking-snapshots --workspace @alwaystrack/api",
     "smoke:whatsapp": "npm run smoke:whatsapp --workspace @alwaystrack/api",
     "smoke:google-sheets": "npm run smoke:google-sheets --workspace @alwaystrack/api",
     "prisma:generate": "prisma generate --schema services/api/prisma/schema.prisma",

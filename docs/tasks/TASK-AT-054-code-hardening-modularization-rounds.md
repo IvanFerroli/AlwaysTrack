@@ -52,6 +52,7 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 
 ## Execucao 2026-06-09
 - Rodada 1 concluida com inventario de hotspots em `docs/architecture/hardening-hotspots-2026-06-09.md`.
+- Rodada 2 iniciada com extracao do cliente API web para `apps/web/src/api.ts`.
 - Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
 - Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
 

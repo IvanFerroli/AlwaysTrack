@@ -41,13 +41,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-036 (2026-06-09): estrategia de testes, scripts separados, TypeDoc e arquitetura transversal.
 - EXEC-AT-037 (2026-06-09): Playwright smoke isolado, migration gate, Artillery smoke/1000, CI e onboarding.
 - EXEC-AT-038 (2026-06-09): observabilidade HTTP/Prisma e inventario de hotspots de hardening.
+- EXEC-AT-039 (2026-06-09): ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
 - `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e pendencia de fluxos profundos.
 - `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
-- Prioridade recomendada: expandir Playwright profundo, depois BullMQ/backpressure e modularizacao guiada por inventario.
+- `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; `TASK-AT-054` tambem iniciou extracao do cliente API web.
+- Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real e continuar modularizacao por dominio.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -121,6 +123,13 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run test:all | passou — 27 arquivos, 171 testes + TypeDoc | 2026-06-09 (EXEC-AT-038) |
 | npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-09 (EXEC-AT-038) |
 | npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-038) |
+| npm run test --workspace @alwaystrack/api -- ranking-snapshot.jobs.test.ts sales-documents.service.test.ts | passou — 22 testes | 2026-06-09 (EXEC-AT-039) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-039) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-039) |
+| npm run test:all | passou — 28 arquivos, 173 testes + TypeDoc | 2026-06-09 (EXEC-AT-039) |
+| npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-09 (EXEC-AT-039) |
+| npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-039) |
+| npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-039) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

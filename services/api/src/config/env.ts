@@ -39,6 +39,9 @@ export interface ApiEnv {
   enableLegacySylembra?: boolean;
   httpMetricsSlowMs?: number;
   prismaSlowQueryMs?: number;
+  jobQueueDriver?: "inline" | "bullmq";
+  redisUrl?: string;
+  jobConcurrency?: number;
 }
 
 let dotEnvLoaded = false;
@@ -112,6 +115,9 @@ export function loadEnv(source = process.env): ApiEnv {
       .filter(Boolean),
     enableLegacySylembra: source.ENABLE_LEGACY_SYLEMBRA === "true",
     httpMetricsSlowMs: Number(source.HTTP_METRICS_SLOW_MS ?? "500"),
-    prismaSlowQueryMs: Number(source.PRISMA_SLOW_QUERY_MS ?? "200")
+    prismaSlowQueryMs: Number(source.PRISMA_SLOW_QUERY_MS ?? "200"),
+    jobQueueDriver: source.JOB_QUEUE_DRIVER === "bullmq" ? "bullmq" : "inline",
+    redisUrl: source.REDIS_URL,
+    jobConcurrency: Number(source.JOB_CONCURRENCY ?? "2")
   };
 }

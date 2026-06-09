@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "job:notifications": "tsx src/jobs/notifications.ts",
+    "job:ranking-snapshots": "tsx src/jobs/ranking-snapshots.ts",
     "smoke:whatsapp": "tsx src/scripts/smoke-whatsapp.ts",
     "smoke:google-sheets": "tsx src/scripts/smoke-google-sheets.ts",
     "seed": "tsx prisma/seed.ts"
@@ -18,6 +19,7 @@
   "dependencies": {
     "@alwaystrack/shared": "file:../../packages/shared",
     "@prisma/client": "6.19.3",
+    "bullmq": "^5.78.0",
     "cookie": "^1.0.2",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",

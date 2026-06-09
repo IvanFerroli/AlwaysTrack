@@ -60,10 +60,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 41. `EXEC-AT-036`: estrategia de testes, scripts separados, TypeDoc e docs de arquitetura transversal (`TASK-AT-047`/`TASK-AT-048`). Status: completed.
 42. `EXEC-AT-037`: Playwright smoke, migration gate, Artillery smoke/1000, CI e onboarding (`TASK-AT-049`/`TASK-AT-050`/`TASK-AT-051`/`TASK-AT-055`). Status: completed.
 43. `EXEC-AT-038`: observabilidade HTTP/Prisma e inventario de hotspots de hardening (`TASK-AT-053`/`TASK-AT-054`). Status: completed.
+44. `EXEC-AT-039`: ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web (`TASK-AT-052`/`TASK-AT-054`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-049-playwright-e2e-regression-suite.md`: ampliar suite Playwright para fluxos profundos de DANFE, Wiki, FAQ, notificacoes e usuarios.
-2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: BullMQ para jobs pesados, retry, backpressure e idempotencia.
+2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: validar BullMQ com Redis real e status observavel de jobs.
 3. `TASK-AT-054-code-hardening-modularization-rounds.md`: proxima rodada de modularizacao guiada pelo inventario.
 4. `TASK-AT-053-observability-profiling-and-query-optimization.md`: aplicar otimizacao comprovada por metricas.
 5. `TASK-AT-051-load-performance-1000-users-gate.md`: rodar `perf:1000` em stage/producao-like e produzir relatorio.

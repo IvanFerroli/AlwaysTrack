@@ -29,6 +29,7 @@ import {
   type LicenseStatus,
   type UserRole
 } from "@alwaystrack/shared";
+import { api, apiBaseUrl, appName, uploadWikiImage } from "./api";
 import {
   ConfirmButton,
   HelpTip,
@@ -845,42 +846,10 @@ function InfoTip({ text, href }: { text: string; href?: string }) {
   return <HelpTip text={text} href={href} />;
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
-const appName = import.meta.env.VITE_APP_NAME?.trim() || "AlwaysTrack";
 document.title = appName;
 
 function BrandMark({ className = "" }: { className?: string }) {
   return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt={appName} />;
-}
-
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...options?.headers
-    },
-    ...options
-  });
-  const payload = (await response.json()) as ApiResult<T>;
-  if (!payload.ok) {
-    throw new Error(payload.error.message);
-  }
-  return payload.data;
-}
-
-async function uploadWikiImage(file: File, pageId?: string) {
-  const search = new URLSearchParams();
-  if (pageId) search.set("pageId", pageId);
-  const result = await api<{ attachment: { id: string; fileName: string; markdownUrl: string } }>(`/v1/wiki/attachments?${search.toString()}`, {
-    method: "POST",
-    headers: {
-      "content-type": file.type,
-      "x-file-name": file.name
-    },
-    body: await file.arrayBuffer()
-  });
-  return `![${result.attachment.fileName}](${apiBaseUrl}${result.attachment.markdownUrl})`;
 }
 
 function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
