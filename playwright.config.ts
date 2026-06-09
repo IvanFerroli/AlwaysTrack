@@ -20,7 +20,17 @@ export default defineConfig({
     reuseExistingServer: false
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 5"] } }
+    {
+      name: "api",
+      testMatch: /.*\.api\.spec\.ts/,
+      use: {
+        baseURL: "http://127.0.0.1:3334",
+        trace: "off",
+        screenshot: "off",
+        video: "off"
+      }
+    },
+    { name: "desktop", testIgnore: /.*\.api\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile", testIgnore: /.*\.api\.spec\.ts/, use: { ...devices["Pixel 5"] } }
   ]
 });

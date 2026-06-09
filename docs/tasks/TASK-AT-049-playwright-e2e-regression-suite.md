@@ -52,7 +52,9 @@ O app e uma SPA Vite/React com API Express. O backend tem boa cobertura service-
 - Ambiente e2e isolado criado em `scripts/start-e2e.js`, com SQLite temporario em `.tmp/e2e`, API `3334` e web `5174`.
 - Smoke desktop/mobile criado para login admin e navegacao das areas comerciais principais.
 - CI instala Chromium com deps e roda smoke desktop.
-- Pendente: ampliar para upload/review DANFE, Wiki review, FAQ thread/promocao, notificacoes e criacao de usuario.
+- Projeto Playwright `api` criado para regressao end-to-end HTTP sem dependencia de Chromium local.
+- Fluxos API adicionados para FAQ thread com comentario/reacao/promocao para Wiki, leitura/marcacao de notificacoes e criacao/listagem de usuario SAC.
+- Pendente: ampliar navegador para upload/review DANFE e Wiki review quando as dependencias de browser estiverem disponiveis localmente/CI.
 - Validacao local do navegador ficou bloqueada por dependencia de SO ausente (`libnspr4.so`) e falta de sudo para `playwright install-deps`; CI cobre instalacao com `--with-deps`.
 
 ## Riscos

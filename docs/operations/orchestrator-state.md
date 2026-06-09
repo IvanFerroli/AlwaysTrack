@@ -43,11 +43,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-038 (2026-06-09): observabilidade HTTP/Prisma e inventario de hotspots de hardening.
 - EXEC-AT-039 (2026-06-09): ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web.
 - EXEC-AT-040 (2026-06-09): polimento visual de logo e overflow de botoes/listas na Wiki/FAQ.
+- EXEC-AT-041 (2026-06-09): regressao Playwright API para FAQ->Wiki, notificacoes e criacao/listagem de usuario.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
-- `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e pendencia de fluxos profundos.
+- `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e regressao API, ainda com pendencia de navegador para DANFE/review Wiki.
 - `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
 - `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; `TASK-AT-054` tambem iniciou extracao do cliente API web.
 - Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real e continuar modularizacao por dominio.
@@ -135,6 +136,9 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-040) |
 | npm run test:all | passou — 28 arquivos, 173 testes + TypeDoc | 2026-06-09 (EXEC-AT-040) |
 | npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-040) |
+| npm run test:e2e -- --project=api | passou — FAQ->Wiki/notificacoes e usuarios API | 2026-06-09 (EXEC-AT-041) |
+| npm run test:all | passou — 28 arquivos, 173 testes + TypeDoc | 2026-06-09 (EXEC-AT-041) |
+| npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-041) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |
