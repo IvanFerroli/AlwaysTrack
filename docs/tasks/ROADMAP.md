@@ -61,6 +61,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 42. `EXEC-AT-037`: Playwright smoke, migration gate, Artillery smoke/1000, CI e onboarding (`TASK-AT-049`/`TASK-AT-050`/`TASK-AT-051`/`TASK-AT-055`). Status: completed.
 43. `EXEC-AT-038`: observabilidade HTTP/Prisma e inventario de hotspots de hardening (`TASK-AT-053`/`TASK-AT-054`). Status: completed.
 44. `EXEC-AT-039`: ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web (`TASK-AT-052`/`TASK-AT-054`). Status: completed.
+45. `EXEC-AT-040`: polimento visual de logo e overflow de botoes/listas na Wiki/FAQ (`TASK-AT-056`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-049-playwright-e2e-regression-suite.md`: ampliar suite Playwright para fluxos profundos de DANFE, Wiki, FAQ, notificacoes e usuarios.

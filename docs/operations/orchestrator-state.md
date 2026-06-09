@@ -42,6 +42,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-037 (2026-06-09): Playwright smoke isolado, migration gate, Artillery smoke/1000, CI e onboarding.
 - EXEC-AT-038 (2026-06-09): observabilidade HTTP/Prisma e inventario de hotspots de hardening.
 - EXEC-AT-039 (2026-06-09): ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web.
+- EXEC-AT-040 (2026-06-09): polimento visual de logo e overflow de botoes/listas na Wiki/FAQ.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
@@ -130,6 +131,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-09 (EXEC-AT-039) |
 | npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-039) |
 | npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-039) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-040) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-040) |
+| npm run test:all | passou — 28 arquivos, 173 testes + TypeDoc | 2026-06-09 (EXEC-AT-040) |
+| npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-040) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

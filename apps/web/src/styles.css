@@ -92,7 +92,9 @@ button {
     box-shadow 160ms ease,
     background 160ms ease,
     opacity 160ms ease;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  white-space: normal;
 }
 
 button:hover:not(:disabled) {
@@ -141,6 +143,12 @@ button.small {
   height: 32px;
   min-height: 32px;
   padding: 0 10px;
+}
+
+button.secondary,
+button.ghost-button,
+.button-link {
+  min-width: 0;
 }
 
 .inline-actions {
@@ -614,6 +622,7 @@ tr:hover td {
     0 14px 28px rgb(0 0 0 / 22%);
   filter: none;
   height: 64px;
+  object-fit: contain;
   padding: 7px;
   width: 64px;
 }
@@ -1351,8 +1360,16 @@ legend {
   display: grid;
   gap: 2px;
   min-height: 42px;
+  min-width: 0;
   padding: 7px 10px;
   text-align: left;
+  width: 100%;
+}
+
+.wiki-chip-list button > *,
+.wiki-page-button > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .wiki-chip-list small {
@@ -1400,8 +1417,11 @@ legend {
   color: inherit;
   display: grid;
   gap: 4px;
+  min-height: auto;
+  min-width: 0;
   padding: 11px 12px;
   text-align: left;
+  width: 100%;
 }
 
 .wiki-page-button.active {
@@ -1413,6 +1433,8 @@ legend {
 .wiki-page-button small {
   color: var(--color-muted);
   font-size: 12px;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .wiki-reader-panel {
@@ -1798,9 +1820,12 @@ legend {
 }
 
 .row-actions button:not(.ui-info-button) {
-  height: var(--control-height-sm);
   min-height: var(--control-height-sm);
   padding: 0 10px;
+}
+
+.row-actions {
+  min-width: 0;
 }
 
 .notes-review-filters {

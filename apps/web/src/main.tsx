@@ -30,6 +30,7 @@ import {
   type UserRole
 } from "@alwaystrack/shared";
 import { api, apiBaseUrl, appName, uploadWikiImage } from "./api";
+import { BrandMark } from "./components/brand";
 import {
   ConfirmButton,
   HelpTip,
@@ -847,10 +848,6 @@ function InfoTip({ text, href }: { text: string; href?: string }) {
 }
 
 document.title = appName;
-
-function BrandMark({ className = "" }: { className?: string }) {
-  return <img className={`brand-mark ${className}`.trim()} src="/favicon/favicon.svg" alt={appName} />;
-}
 
 function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   const [email, setEmail] = useState("admin@example.com");
