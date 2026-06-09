@@ -1,7 +1,7 @@
 import type { CurrentUser } from "@alwaystrack/shared";
 import type { PrismaClient } from "@prisma/client";
 import { createRankingSnapshot } from "../sales-documents/sales-documents.service.js";
-import { enqueueJob } from "./queue.js";
+import { enqueueJob, getQueueJobStatus } from "./queue.js";
 
 export const rankingSnapshotQueueName = "ranking-snapshots";
 export const createRankingSnapshotJobName = "ranking-snapshot.create";
@@ -27,4 +27,8 @@ export async function enqueueRankingSnapshotJob(prisma: PrismaClient, data: Rank
     data,
     processor: (payload) => processRankingSnapshotJob(prisma, payload)
   });
+}
+
+export async function getRankingSnapshotJobStatus(data: RankingSnapshotJobData) {
+  return getQueueJobStatus(rankingSnapshotQueueName, createRankingSnapshotJobName, rankingSnapshotDedupeKey(data));
 }

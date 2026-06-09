@@ -63,10 +63,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 44. `EXEC-AT-039`: ADR/piloto BullMQ para snapshots de ranking e extracao do cliente API web (`TASK-AT-052`/`TASK-AT-054`). Status: completed.
 45. `EXEC-AT-040`: polimento visual de logo e overflow de botoes/listas na Wiki/FAQ (`TASK-AT-056`). Status: completed.
 46. `EXEC-AT-041`: regressao Playwright API para FAQ->Wiki, notificacoes e criacao/listagem de usuario (`TASK-AT-049`). Status: completed.
+47. `EXEC-AT-042`: endpoint/contrato de status observavel para job BullMQ piloto de snapshots de ranking (`TASK-AT-052`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-049-playwright-e2e-regression-suite.md`: completar fluxos de navegador para upload/review DANFE e review Wiki.
-2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: validar BullMQ com Redis real e status observavel de jobs.
+2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: validar BullMQ com Redis real e conectar status observavel na UI.
 3. `TASK-AT-054-code-hardening-modularization-rounds.md`: proxima rodada de modularizacao guiada pelo inventario.
 4. `TASK-AT-053-observability-profiling-and-query-optimization.md`: aplicar otimizacao comprovada por metricas.
 5. `TASK-AT-051-load-performance-1000-users-gate.md`: rodar `perf:1000` em stage/producao-like e produzir relatorio.

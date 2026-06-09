@@ -10,6 +10,31 @@ export interface QueueJobResult {
   dedupeKey: string;
 }
 
+export interface QueueJobStatus {
+  id: string;
+  name: string;
+  driver: "inline" | "bullmq";
+  dedupeKey: string;
+  status:
+    | "not_tracked"
+    | "waiting"
+    | "waiting-children"
+    | "active"
+    | "completed"
+    | "failed"
+    | "delayed"
+    | "prioritized"
+    | "paused"
+    | "unknown"
+    | "not_found"
+    | "unavailable";
+  attemptsMade?: number;
+  failedReason?: string;
+  finishedAt?: string;
+  processedAt?: string;
+  timestamp?: string;
+}
+
 export interface EnqueuedJob<TResult> {
   job: QueueJobResult;
   result?: TResult;
@@ -78,6 +103,59 @@ export async function enqueueJob<TData, TResult>(config: QueueJobConfig<TData, T
       dedupeKey: config.dedupeKey
     }
   };
+}
+
+export async function getQueueJobStatus(queueName: string, jobName: string, dedupeKey: string): Promise<QueueJobStatus> {
+  const env = loadEnv();
+  if (env.jobQueueDriver !== "bullmq") {
+    return {
+      id: dedupeKey,
+      name: jobName,
+      driver: "inline",
+      dedupeKey,
+      status: "not_tracked"
+    };
+  }
+
+  const connection = redisConnection();
+  if (!connection) {
+    return {
+      id: dedupeKey,
+      name: jobName,
+      driver: "bullmq",
+      dedupeKey,
+      status: "unavailable",
+      failedReason: "REDIS_URL is required when JOB_QUEUE_DRIVER=bullmq."
+    };
+  }
+
+  const queue = new Queue(queueName, { connection });
+  try {
+    const job = await queue.getJob(dedupeKey);
+    if (!job) {
+      return {
+        id: dedupeKey,
+        name: jobName,
+        driver: "bullmq",
+        dedupeKey,
+        status: "not_found"
+      };
+    }
+    return {
+      id: String(job.id),
+      name: job.name,
+      driver: "bullmq",
+      dedupeKey,
+      status: await job.getState(),
+      attemptsMade: job.attemptsMade,
+      failedReason: job.failedReason,
+      finishedAt: job.finishedOn ? new Date(job.finishedOn).toISOString() : undefined,
+      processedAt: job.processedOn ? new Date(job.processedOn).toISOString() : undefined,
+      timestamp: job.timestamp ? new Date(job.timestamp).toISOString() : undefined
+    };
+  } finally {
+    await queue.close();
+  }
 }
 
 export function createWorker<TData, TResult>(

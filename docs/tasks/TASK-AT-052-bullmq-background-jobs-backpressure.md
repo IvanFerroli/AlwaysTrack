@@ -57,7 +57,8 @@ Fluxos como extracao/reprocessamento de DANFE, notificacoes, snapshots, digest d
 - Piloto `ranking-snapshot.create` criado com fallback inline local e BullMQ quando `JOB_QUEUE_DRIVER=bullmq`.
 - Worker separado criado em `services/api/src/jobs/ranking-snapshots.ts`.
 - Script `npm run job:ranking-snapshots` criado.
-- Pendente: validar BullMQ com Redis real em stage/CI dedicado e expor status detalhado de job na UI.
+- Status observavel do job de ranking snapshot exposto por dedupe key em `GET /v1/sales/campaigns/:campaignId/snapshots/job`.
+- Pendente: validar BullMQ com Redis real em stage/CI dedicado e conectar status detalhado na UI.
 
 ## Riscos
 - BullMQ exige Redis e muda operacao/deploy.

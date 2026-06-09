@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
-import { enqueueRankingSnapshotJob, rankingSnapshotDedupeKey } from "./ranking-snapshot.jobs.js";
+import { enqueueRankingSnapshotJob, getRankingSnapshotJobStatus, rankingSnapshotDedupeKey } from "./ranking-snapshot.jobs.js";
 
 const actor: CurrentUser = {
   id: "admin-1",
@@ -61,5 +61,15 @@ describe("ranking snapshot jobs", () => {
       }
     });
     expect(prisma.rankingSnapshot.create).toHaveBeenCalled();
+  });
+
+  it("returns not_tracked status for inline ranking snapshot jobs", async () => {
+    await expect(getRankingSnapshotJobStatus({ actor, campaignId: "campaign-1" })).resolves.toEqual({
+      id: "ranking-snapshot.create:org-1:campaign-1",
+      name: "ranking-snapshot.create",
+      driver: "inline",
+      dedupeKey: "ranking-snapshot.create:org-1:campaign-1",
+      status: "not_tracked"
+    });
   });
 });

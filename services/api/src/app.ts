@@ -142,6 +142,7 @@ import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
   createSalesCampaignHandler,
+  getRankingSnapshotJobStatusHandler,
   listSalesCampaignsHandler,
   listRankingSnapshotsHandler,
   listSalesDocumentsHandler,
@@ -209,6 +210,7 @@ export function createApp() {
   app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listRankingSnapshotsHandler);
   app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), updateSalesCampaignHandler);
   app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), createRankingSnapshotHandler);
+  app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), getRankingSnapshotJobStatusHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesRankingHandler);
   app.get("/v1/sales/sellers", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesSellersHandler);
   app.get("/v1/sales/statements", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsHandler);

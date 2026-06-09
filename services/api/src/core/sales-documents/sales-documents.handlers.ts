@@ -4,7 +4,7 @@ import { sendError, sendOk } from "../http/responses.js";
 import { getStorageProvider } from "../documents/storage.provider.js";
 import { getDocumentAiProvider } from "../document-ai/provider.js";
 import { logEvent } from "../diagnostics/logger.js";
-import { enqueueRankingSnapshotJob } from "../jobs/ranking-snapshot.jobs.js";
+import { enqueueRankingSnapshotJob, getRankingSnapshotJobStatus } from "../jobs/ranking-snapshot.jobs.js";
 import {
   analyzeSalesDocumentWithAi,
   createSalesCampaign,
@@ -172,6 +172,24 @@ export async function createRankingSnapshotHandler(request: Request, response: R
     return sendOk(response, { ...result.result, job: result.job }, result.job.status === "queued" ? 202 : 201);
   } catch (error) {
     logHandlerError(request, "sales_ranking_snapshot.create.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function getRankingSnapshotJobStatusHandler(request: Request, response: Response) {
+  try {
+    const actor = actorFrom(request);
+    const job = await getRankingSnapshotJobStatus({ actor, campaignId: String(request.params.campaignId) });
+    logEvent("info", "sales_ranking_snapshot.job_status", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      campaignId: request.params.campaignId,
+      job
+    });
+    return sendOk(response, { job });
+  } catch (error) {
+    logHandlerError(request, "sales_ranking_snapshot.job_status.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }
