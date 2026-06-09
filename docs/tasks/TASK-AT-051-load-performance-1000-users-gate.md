@@ -1,7 +1,7 @@
 # TASK-AT-051 - Load and performance gate for 1000 concurrent users
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-051-load-performance-1000-users-gate.md
@@ -47,6 +47,14 @@ Hoje nao ha evidencia de carga. O alvo de 1000 simultaneos exige medir login, da
 - `npm run perf:smoke`
 - `npm run perf:1000 -- --target=<url>`
 - `npm run check`
+
+## Execucao 2026-06-09
+- Artillery instalado e configurado como ferramenta principal.
+- Criados `tests/performance/alwaystrack-smoke.yml` e `tests/performance/alwaystrack-1000.yml`.
+- Criados scripts `perf:smoke` e `perf:1000`.
+- Criado `docs/performance/README.md` com SLO inicial e preparo.
+- `perf:smoke` validado contra API isolada em `3334`: 160 respostas 200, 0 falhas de VU, p95 ~31ms.
+- Pendente: rodar `perf:1000` em ambiente stage/producao-like; SQLite local nao prova meta de 1000 simultaneos.
 
 ## Riscos
 - SQLite pode ser gargalo estrutural para 1000 simultaneos.

@@ -1,7 +1,7 @@
 # TASK-AT-055 - CI quality gates and developer onboarding
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-055-ci-quality-gates-dev-onboarding.md
@@ -55,7 +55,13 @@ O projeto ja tem scripts de setup/check, docs de tasks e runbooks, mas um dev no
 - Simular clone limpo: `npm install`, `npm run setup`, `npm run check`.
 - Abrir PR teste ou rodar GitHub Actions.
 
+## Execucao 2026-06-09
+- Criado `CONTRIBUTING.md` com primeira hora, comandos e politica de PR.
+- Criado `.github/pull_request_template.md`.
+- CI separado em gate de qualidade e smoke Playwright.
+- CI agora roda `check`, `check:docs`, `db:test:migrations`, `repo:hygiene` e Playwright desktop.
+- Pendente: avaliar custo do Playwright em todo push e mover para PR/nightly se pesar.
+
 ## Riscos
 - Gates demais podem atrasar entrega; separar rapido/completo.
 - Docs precisam ser mantidas junto com mudanças de runtime.
-

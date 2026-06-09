@@ -33,7 +33,7 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `npm run test:unit`: roda testes Vitest rapidos excluindo `src/core/quality`.
 - `npm run test:integration`: roda o fluxo operacional principal service-level.
 - `npm run test:regression`: roda suites que protegem notas, Wiki, FAQ e notificacoes.
-- `npm run test:e2e`: alias temporario para `test:integration` ate Playwright entrar.
+- `npm run test:e2e`: roda Playwright com ambiente isolado.
 - `npm run test:all`: roda `check` e docs TypeDoc.
 - `npm run check`: gate rapido atual de lint/typecheck/test.
 - `npm run check:docs`: gera TypeDoc e falha se a documentacao tecnica quebrar.
@@ -64,8 +64,7 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 7. Bug sem teste de regressao deve ser excecao, nao padrao.
 
 ## Proximas tasks conectadas
-- `TASK-AT-049`: substituir o alias temporario `test:e2e` por Playwright real.
+- `TASK-AT-049`: ampliar o smoke Playwright para fluxos profundos de DANFE, Wiki, FAQ, notificacoes e usuarios.
 - `TASK-AT-050`: migration/rollback tests.
 - `TASK-AT-051`: Artillery load gate.
 - `TASK-AT-052`: BullMQ backpressure tests.
-

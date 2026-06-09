@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  check:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,5 +25,36 @@ jobs:
       - name: Setup local app
         run: npm run setup
 
-      - name: Check
+      - name: Fast quality gate
         run: npm run check
+
+      - name: Documentation gate
+        run: npm run check:docs
+
+      - name: Migration gate
+        run: npm run db:test:migrations
+
+      - name: Repository hygiene
+        run: npm run repo:hygiene
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright smoke
+        run: npm run test:e2e -- --project=desktop

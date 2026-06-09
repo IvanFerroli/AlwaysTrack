@@ -7,8 +7,11 @@ dist/
 *.log
 .openclaw/
 .tmp-venv-parse/
+.tmp/
 services/api/prisma/dev.db
 services/api/prisma/dev.db.backup-*
 services/api/.storage/
 .storage/
 docs/generated/
+test-results/
+playwright-report/

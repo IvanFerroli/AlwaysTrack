@@ -1,0 +1,48 @@
+config:
+  target: "http://localhost:3333"
+  phases:
+    - duration: 120
+      arrivalRate: 25
+      rampTo: 250
+      name: ramp toward 1000 concurrent readers
+    - duration: 180
+      arrivalRate: 250
+      name: sustained high read pressure
+  http:
+    cookieJar: true
+  defaults:
+    headers:
+      content-type: application/json
+scenarios:
+  - name: commercial read pressure
+    weight: 8
+    flow:
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - loop:
+          - get:
+              url: "/v1/sales/dashboard"
+          - get:
+              url: "/v1/sales/ranking"
+          - get:
+              url: "/v1/sales/statements"
+          - get:
+              url: "/v1/in-app-notifications"
+        count: 4
+  - name: knowledge base pressure
+    weight: 2
+    flow:
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - loop:
+          - get:
+              url: "/v1/wiki/pages"
+          - get:
+              url: "/v1/faq/threads"
+        count: 4

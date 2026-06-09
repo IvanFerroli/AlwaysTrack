@@ -39,13 +39,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-034 (2026-06-09): notificacoes in-app para eventos de notas, Wiki e FAQ.
 - EXEC-AT-035 (2026-06-09): validacao final do ranking e do reprocessamento idempotente sem duplicata falsa.
 - EXEC-AT-036 (2026-06-09): estrategia de testes, scripts separados, TypeDoc e arquitetura transversal.
+- EXEC-AT-037 (2026-06-09): Playwright smoke isolado, migration gate, Artillery smoke/1000, CI e onboarding.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
-- Prioridade recomendada: seguir por `TASK-AT-049`/`TASK-AT-050`, antes de carga pesada em `TASK-AT-051`.
+- `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e pendencia de fluxos profundos.
+- Prioridade recomendada: expandir Playwright profundo, depois BullMQ/backpressure e observabilidade.
 - Remover/descontinuar legado SyLembra em fases.
-- Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
+- Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
 
 ## Blockers conhecidos
@@ -106,6 +108,13 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run test:all | passou — 26 arquivos, 170 testes + TypeDoc | 2026-06-09 (EXEC-AT-036) |
 | npm audit fix | passou parcialmente — removeu critica de dev no Vitest | 2026-06-09 (EXEC-AT-036) |
 | npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-036) |
+| npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-037) |
+| npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-09 (EXEC-AT-037) |
+| npm run check:docs | passou — TypeDoc gerado | 2026-06-09 (EXEC-AT-037) |
+| SEED_ADMIN_PASSWORD=AlwaysTrackE2E123! npm run perf:smoke -- --target=http://localhost:3334 | passou — 160 respostas 200, p95 ~31ms | 2026-06-09 (EXEC-AT-037) |
+| npm run test:e2e -- --project=desktop | bloqueado localmente — falta libnspr4.so; CI instala deps com Playwright | 2026-06-09 (EXEC-AT-037) |
+| npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-037) |
+| npm audit | residual — 5 moderadas, incluindo dev deps do Artillery | 2026-06-09 (EXEC-AT-037) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

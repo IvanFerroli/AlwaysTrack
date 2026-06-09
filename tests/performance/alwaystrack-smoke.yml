@@ -1,0 +1,33 @@
+config:
+  target: "http://localhost:3333"
+  phases:
+    - duration: 10
+      arrivalRate: 2
+      name: local smoke
+  http:
+    cookieJar: true
+  defaults:
+    headers:
+      content-type: application/json
+scenarios:
+  - name: authenticated commercial read path
+    flow:
+      - get:
+          url: "/health"
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - get:
+          url: "/v1/sales/dashboard"
+      - get:
+          url: "/v1/sales/ranking"
+      - get:
+          url: "/v1/sales/statements"
+      - get:
+          url: "/v1/wiki/pages"
+      - get:
+          url: "/v1/faq/threads"
+      - get:
+          url: "/v1/in-app-notifications"

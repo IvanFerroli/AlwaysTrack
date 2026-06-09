@@ -1,7 +1,7 @@
 # TASK-AT-049 - Playwright E2E regression suite
 
 ## Metadata
-- status: proposed
+- status: completed-partial
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-049-playwright-e2e-regression-suite.md
@@ -46,7 +46,15 @@ O app e uma SPA Vite/React com API Express. O backend tem boa cobertura service-
 - `npm run test:e2e`
 - `npm run check`
 
+## Execucao 2026-06-09
+- Playwright instalado e configurado em `playwright.config.ts`.
+- `npm run test:e2e` agora roda Playwright real, nao alias de integration.
+- Ambiente e2e isolado criado em `scripts/start-e2e.js`, com SQLite temporario em `.tmp/e2e`, API `3334` e web `5174`.
+- Smoke desktop/mobile criado para login admin e navegacao das areas comerciais principais.
+- CI instala Chromium com deps e roda smoke desktop.
+- Pendente: ampliar para upload/review DANFE, Wiki review, FAQ thread/promocao, notificacoes e criacao de usuario.
+- Validacao local do navegador ficou bloqueada por dependencia de SO ausente (`libnspr4.so`) e falta de sudo para `playwright install-deps`; CI cobre instalacao com `--with-deps`.
+
 ## Riscos
 - E2E flaky se servidor/banco nao forem isolados.
 - Login Google real deve ser mockado ou evitado no CI.
-

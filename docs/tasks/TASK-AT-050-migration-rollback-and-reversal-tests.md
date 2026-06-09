@@ -1,7 +1,7 @@
 # TASK-AT-050 - Migration rollback and reversal tests
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-050-migration-rollback-and-reversal-tests.md
@@ -46,7 +46,12 @@ O projeto usa Prisma + SQLite e ja teve migrations aplicadas manualmente por cau
 - `npm run setup`
 - `npm run check`
 
+## Execucao 2026-06-09
+- Criado `scripts/test-migrations.js` e script `npm run db:test:migrations`.
+- O gate valida schema em SQLite temporario vazio, schema em SQLite temporario seedado e copia local de backup/restore.
+- Criado `docs/operations/migration-rollback-runbook.md`.
+- Criado `npm run repo:hygiene` para impedir rastreio de DB local, backups, env real e docs geradas.
+
 ## Riscos
 - SQLite local nao representa totalmente producao futura se migrar para Postgres.
 - Rollback de schema precisa ser tratado como operacao, nao promessa magica.
-
