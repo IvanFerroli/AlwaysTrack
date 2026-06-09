@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": [
+    "packages/shared/src/index.ts",
+    "services/api/src/core/auth/auth.service.ts",
+    "services/api/src/core/auth/google-login.service.ts",
+    "services/api/src/core/sales-documents/sales-documents.service.ts",
+    "services/api/src/core/wiki/wiki.service.ts",
+    "services/api/src/core/faq/faq.service.ts",
+    "services/api/src/core/notifications/notifications.service.ts",
+    "services/api/src/core/users/users.service.ts",
+    "apps/web/src/components/operational.tsx"
+  ]
+}

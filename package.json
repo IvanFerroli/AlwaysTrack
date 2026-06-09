@@ -15,9 +15,16 @@
     "up": "node scripts/start-all.js",
     "setup": "node scripts/start-all.js --setup-only",
     "check": "npm run lint && npm run typecheck --workspaces --if-present && npm run test --workspaces --if-present",
+    "check:docs": "npm run docs:api",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:unit": "npm run test --workspace @alwaystrack/api -- --exclude \"src/core/quality/**\"",
+    "test:integration": "npm run test --workspace @alwaystrack/api -- main-flow.e2e.test.ts",
+    "test:regression": "npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts wiki.service.test.ts faq.service.test.ts notifications.service.test.ts",
+    "test:e2e": "npm run test:integration",
+    "test:all": "npm run check && npm run check:docs",
+    "docs:api": "typedoc --options typedoc.json",
     "env:check": "node scripts/check-env.js",
     "smoke:beta-local": "node scripts/smoke-beta-local.js",
     "db:flush:local": "node scripts/flush-local-demo.js",
@@ -31,6 +38,7 @@
   },
   "devDependencies": {
     "prisma": "6.19.3",
+    "typedoc": "^0.28.19",
     "typescript": "^5.9.3"
   }
 }

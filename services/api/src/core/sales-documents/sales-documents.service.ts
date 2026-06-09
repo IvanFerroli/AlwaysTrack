@@ -10,6 +10,7 @@ import type { StorageProvider } from "../documents/storage.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 import { extractDanfeDeterministic } from "./danfe-deterministic.js";
 
+/** Domain error surfaced by DANFE upload, extraction, review and ranking flows. */
 export class SalesDocumentError extends Error {
   constructor(
     public readonly code:
@@ -26,6 +27,7 @@ export class SalesDocumentError extends Error {
   }
 }
 
+/** File payload accepted by the commercial DANFE upload service. */
 export interface SalesDocumentUploadInput {
   sellerProfileId?: string;
   fileName?: string;
@@ -33,6 +35,7 @@ export interface SalesDocumentUploadInput {
   body?: Buffer;
 }
 
+/** Common filters used by notes, ranking and statements queries. */
 export interface SalesDocumentFilters {
   status?: string;
   sellerProfileId?: string;
@@ -57,6 +60,7 @@ export interface SalesCampaignInput {
   salesGroupId?: string | null;
 }
 
+/** Mutable review payload used when an operator approves, rejects or corrects a DANFE. */
 export interface SalesDocumentReviewInput {
   status?: string;
   accessKey?: string | null;

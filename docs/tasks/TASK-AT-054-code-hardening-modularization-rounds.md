@@ -1,0 +1,56 @@
+# TASK-AT-054 - Code hardening and modularization rounds
+
+## Metadata
+- status: proposed
+- owner: olympus_taskyfier
+- last-updated: 2026-06-09
+- source-of-truth: docs/tasks/TASK-AT-054-code-hardening-modularization-rounds.md
+
+## Modo
+- mode: maintainability-hardening
+
+## Objetivo unico
+Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplamento e tamanho de arquivos, sem refatorar o produto inteiro de uma vez.
+
+## Contexto minimo
+`apps/web/src/main.tsx` concentra muita UI e logica. Services backend cresceram com notas, Wiki, FAQ, notificacoes e users. Para manutencao por qualquer dev, precisamos modularizar por dominios, extrair contratos e reforcar invariantes.
+
+## Alvos explicitos
+1. Rodada 1: inventario de hotspots por tamanho, complexidade e churn.
+2. Rodada 2: extrair frontend por dominios:
+   - Notes
+   - Ranking
+   - Campaigns
+   - Statements
+   - Wiki
+   - FAQ
+   - Users/Teams
+   - Notifications
+3. Rodada 3: extrair hooks e clients API tipados.
+4. Rodada 4: reforcar DTOs/schemas compartilhados.
+5. Rodada 5: separar services backend em comandos/queries quando fizer sentido.
+6. Rodada 6: padronizar erros e responses.
+7. Rodada 7: remover legado SyLembra restante ou isolar em modulo legacy.
+8. Cada rodada deve ter teste antes/depois e diff pequeno.
+
+## Fora de escopo
+- Big bang rewrite.
+- Trocar framework.
+- Refatorar sem teste de protecao.
+
+## Acceptance Criteria
+1. Hotspots documentados com prioridade.
+2. Cada rodada reduz complexidade mensuravel ou acoplamento real.
+3. `main.tsx` deixa de concentrar toda a UI operacional.
+4. Contratos e erros ficam mais previsiveis.
+5. `npm run check` passa apos cada rodada.
+
+## Validacao
+- `npm run check`
+- Playwright smoke quando UI for movida.
+- Revisao de diff por modulo.
+
+## Riscos
+- Refatoracao grande pode introduzir regressao visual.
+- Extrair abstracao cedo demais pode piorar manutencao.
+

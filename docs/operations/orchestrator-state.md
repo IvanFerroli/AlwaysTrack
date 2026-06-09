@@ -38,9 +38,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-033 (2026-06-09): FAQ interna em threads e promocao de thread para Wiki com backlink.
 - EXEC-AT-034 (2026-06-09): notificacoes in-app para eventos de notas, Wiki e FAQ.
 - EXEC-AT-035 (2026-06-09): validacao final do ranking e do reprocessamento idempotente sem duplicata falsa.
+- EXEC-AT-036 (2026-06-09): estrategia de testes, scripts separados, TypeDoc e arquitetura transversal.
 
 ## Proximo ciclo a rotar
-- Sem backlog ativo recomendado. Acompanhar teste exploratorio com pacote real do usuario se houver novo artefato ou divergencia observada.
+- Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
+- `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
+- Prioridade recomendada: seguir por `TASK-AT-049`/`TASK-AT-050`, antes de carga pesada em `TASK-AT-051`.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -97,6 +100,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-035) |
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-035) |
 | npm run check | passou — 170 testes | 2026-06-09 (EXEC-AT-035) |
+| npm run test:unit | passou — 25 arquivos, 168 testes | 2026-06-09 (EXEC-AT-036) |
+| npm run test:integration | passou — 1 arquivo, 2 testes | 2026-06-09 (EXEC-AT-036) |
+| npm run test:regression | passou — 4 arquivos, 65 testes | 2026-06-09 (EXEC-AT-036) |
+| npm run test:all | passou — 26 arquivos, 170 testes + TypeDoc | 2026-06-09 (EXEC-AT-036) |
+| npm audit fix | passou parcialmente — removeu critica de dev no Vitest | 2026-06-09 (EXEC-AT-036) |
+| npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-036) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

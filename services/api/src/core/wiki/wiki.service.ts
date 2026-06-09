@@ -6,6 +6,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import type { StorageProvider } from "../documents/storage.js";
 
+/** Domain error returned by Wiki pages, revisions, attachments and review actions. */
 export class WikiError extends Error {
   constructor(
     public readonly code:
@@ -21,6 +22,7 @@ export class WikiError extends Error {
   }
 }
 
+/** Canonical input for creating or updating a published Wiki page. */
 export interface WikiPageInput {
   title?: string;
   content?: string;
@@ -35,6 +37,7 @@ export interface WikiEditRequestInput {
   baseVersion?: number;
 }
 
+/** Optional reviewer note persisted when a Wiki edit request is approved or rejected. */
 export interface WikiDecisionInput {
   decisionNote?: string | null;
 }
@@ -51,6 +54,7 @@ export interface WikiAttachmentUploadInput {
   body?: Buffer;
 }
 
+/** Search and status filters for the internal Wiki index. */
 export interface WikiFilters {
   query?: string;
   status?: string;

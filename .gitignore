@@ -11,3 +11,4 @@ services/api/prisma/dev.db
 services/api/prisma/dev.db.backup-*
 services/api/.storage/
 .storage/
+docs/generated/

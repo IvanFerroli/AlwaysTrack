@@ -4,6 +4,7 @@ import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 
+/** Domain error for FAQ articles, discussion threads, comments and reactions. */
 export class FaqError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN") {
     super(code);
@@ -33,6 +34,7 @@ export interface PublicHelpInput {
   message?: string;
 }
 
+/** User-created question thread that can later be promoted into the Wiki. */
 export interface FaqThreadInput {
   title?: string;
   body?: string | null;
@@ -48,6 +50,7 @@ export interface FaqCommentInput {
   body?: string;
 }
 
+/** Reaction toggle for FAQ threads and comments. */
 export interface FaqReactionInput {
   targetType?: "THREAD" | "COMMENT";
   targetId?: string;

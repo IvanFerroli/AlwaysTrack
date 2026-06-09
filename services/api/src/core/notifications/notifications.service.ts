@@ -5,6 +5,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import type { NotificationProvider } from "./provider.js";
 import { NotificationProviderError, verifyMetaSignature } from "./provider.js";
 
+/** Domain error for legacy provider notifications and in-app notifications. */
 export class NotificationError extends Error {
   constructor(
     public readonly code:
@@ -50,6 +51,7 @@ export interface ManualLicenseNotificationInput {
   force?: boolean;
 }
 
+/** Payload used to fan out in-app notifications by explicit recipients or roles. */
 export interface InAppNotificationInput {
   recipientIds?: string[];
   recipientRoles?: string[];

@@ -57,6 +57,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 38. `EXEC-AT-033`: FAQ interna em threads com comentarios/reacoes/estado e promocao de thread para Wiki com backlink (`TASK-AT-042`/`TASK-AT-043`). Status: completed.
 39. `EXEC-AT-034`: centro de notificacoes in-app com eventos de notas, Wiki e FAQ, badge no topo e leitura individual/geral (`TASK-AT-044`). Status: completed.
 40. `EXEC-AT-035`: validacao final do ranking com tres vendedores e do reprocessamento idempotente sem duplicata falsa (`TASK-AT-046`/`TASK-AT-038`). Status: completed.
+41. `EXEC-AT-036`: estrategia de testes, scripts separados, TypeDoc e docs de arquitetura transversal (`TASK-AT-047`/`TASK-AT-048`). Status: completed.
 
 ## Proximas tasks recomendadas
-Sem backlog ativo recomendado no momento. Proximo passo e teste exploratorio com pacote real do usuario, se ele quiser produzir evidencia manual alem dos gates automatizados.
+1. `TASK-AT-049-playwright-e2e-regression-suite.md`: suite e2e Playwright para fluxos reais do app.
+2. `TASK-AT-050-migration-rollback-and-reversal-tests.md`: testes de migration, rollback e reversao operacional.
+3. `TASK-AT-051-load-performance-1000-users-gate.md`: gate Artillery de carga/performance para meta de 1000 usuarios simultaneos.
+4. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: BullMQ para jobs pesados, retry, backpressure e idempotencia.
+5. `TASK-AT-053-observability-profiling-and-query-optimization.md`: observabilidade, profiling e otimizacao por evidencia.
+6. `TASK-AT-054-code-hardening-modularization-rounds.md`: rodadas de hardening e modularizacao do codigo.
+7. `TASK-AT-055-ci-quality-gates-dev-onboarding.md`: CI, quality gates e onboarding de devs.
