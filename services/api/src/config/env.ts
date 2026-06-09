@@ -37,6 +37,8 @@ export interface ApiEnv {
   googleLoginRedirectUri?: string;
   googleLoginAllowedDomains?: string[];
   enableLegacySylembra?: boolean;
+  httpMetricsSlowMs?: number;
+  prismaSlowQueryMs?: number;
 }
 
 let dotEnvLoaded = false;
@@ -108,6 +110,8 @@ export function loadEnv(source = process.env): ApiEnv {
       .split(",")
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
-    enableLegacySylembra: source.ENABLE_LEGACY_SYLEMBRA === "true"
+    enableLegacySylembra: source.ENABLE_LEGACY_SYLEMBRA === "true",
+    httpMetricsSlowMs: Number(source.HTTP_METRICS_SLOW_MS ?? "500"),
+    prismaSlowQueryMs: Number(source.PRISMA_SLOW_QUERY_MS ?? "200")
   };
 }

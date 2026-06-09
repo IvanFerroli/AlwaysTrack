@@ -40,12 +40,14 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-035 (2026-06-09): validacao final do ranking e do reprocessamento idempotente sem duplicata falsa.
 - EXEC-AT-036 (2026-06-09): estrategia de testes, scripts separados, TypeDoc e arquitetura transversal.
 - EXEC-AT-037 (2026-06-09): Playwright smoke isolado, migration gate, Artillery smoke/1000, CI e onboarding.
+- EXEC-AT-038 (2026-06-09): observabilidade HTTP/Prisma e inventario de hotspots de hardening.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
 - `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e pendencia de fluxos profundos.
-- Prioridade recomendada: expandir Playwright profundo, depois BullMQ/backpressure e observabilidade.
+- `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
+- Prioridade recomendada: expandir Playwright profundo, depois BullMQ/backpressure e modularizacao guiada por inventario.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -115,6 +117,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run test:e2e -- --project=desktop | bloqueado localmente — falta libnspr4.so; CI instala deps com Playwright | 2026-06-09 (EXEC-AT-037) |
 | npm audit --omit=dev | residual — 2 moderadas via exceljs/uuid | 2026-06-09 (EXEC-AT-037) |
 | npm audit | residual — 5 moderadas, incluindo dev deps do Artillery | 2026-06-09 (EXEC-AT-037) |
+| npm run test --workspace @alwaystrack/api -- http-metrics.test.ts | passou — 1 teste | 2026-06-09 (EXEC-AT-038) |
+| npm run test:all | passou — 27 arquivos, 171 testes + TypeDoc | 2026-06-09 (EXEC-AT-038) |
+| npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-09 (EXEC-AT-038) |
+| npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-038) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

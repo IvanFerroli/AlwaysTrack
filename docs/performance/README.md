@@ -24,5 +24,11 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 - erro HTTP < 1%.
 - memoria sem crescimento descontrolado.
 
+## Observabilidade
+- `GET /v1/diagnostics/http-metrics` mostra metricas agregadas em memoria para ADMIN.
+- `HTTP_METRICS_SLOW_MS` controla warning de request lento.
+- `PRISMA_SLOW_QUERY_MS` controla warning de query Prisma lenta.
+- Relatorio baseline: `docs/performance/observability-report-2026-06-09.md`.
+
 ## Observacao
 SQLite local nao prova capacidade para 1000 usuarios simultaneos. O gate de 1000 deve rodar em stage/producao-like.

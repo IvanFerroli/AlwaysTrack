@@ -1,7 +1,7 @@
 # TASK-AT-054 - Code hardening and modularization rounds
 
 ## Metadata
-- status: proposed
+- status: completed-partial
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-054-code-hardening-modularization-rounds.md
@@ -50,7 +50,11 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 - Playwright smoke quando UI for movida.
 - Revisao de diff por modulo.
 
+## Execucao 2026-06-09
+- Rodada 1 concluida com inventario de hotspots em `docs/architecture/hardening-hotspots-2026-06-09.md`.
+- Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
+- Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
+
 ## Riscos
 - Refatoracao grande pode introduzir regressao visual.
 - Extrair abstracao cedo demais pode piorar manutencao.
-

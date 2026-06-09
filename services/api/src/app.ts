@@ -2,6 +2,7 @@ import express from "express";
 import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
 import { sendError, sendOk } from "./core/http/responses.js";
+import { httpMetricsHandler, httpMetricsMiddleware } from "./core/diagnostics/http-metrics.js";
 import { listAuditLogsHandler } from "./core/audit/audit.handlers.js";
 import {
   googleLoginCallbackHandler,
@@ -176,6 +177,7 @@ export function createApp() {
 
   app.use(express.json({ limit: "1mb" }));
   app.use(attachRequestContext);
+  app.use(httpMetricsMiddleware);
 
   if (env.enableLegacySylembra) {
     app.get("/v1/public-upload/:token", getPublicUploadTokenHandler);
@@ -197,6 +199,7 @@ export function createApp() {
   app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
+  app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(["ADMIN"]), httpMetricsHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

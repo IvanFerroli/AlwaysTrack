@@ -1,7 +1,7 @@
 # TASK-AT-053 - Observability, profiling and query optimization
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-09
 - source-of-truth: docs/tasks/TASK-AT-053-observability-profiling-and-query-optimization.md
@@ -46,7 +46,15 @@ Sem observabilidade, otimizacao vira chute. O projeto tem logs estruturados parc
 - `npm run perf:smoke`
 - comparar relatorio antes/depois.
 
+## Execucao 2026-06-09
+- Middleware de metricas HTTP adicionado com agregacao em memoria por metodo/rota.
+- Endpoint admin `GET /v1/diagnostics/http-metrics` criado.
+- Rotas quentes de notas, ranking, extratos, Wiki, FAQ e notificacoes geram log estruturado.
+- Slow request threshold configuravel por `HTTP_METRICS_SLOW_MS`.
+- Slow query Prisma configuravel por `PRISMA_SLOW_QUERY_MS`.
+- Relatorio baseline criado em `docs/performance/observability-report-2026-06-09.md`.
+- Pendente: coletar antes/depois em stage com `perf:1000` e otimizar gargalo comprovado.
+
 ## Riscos
 - Cache pode vazar dados entre tenants se mal desenhado.
 - Otimizacao prematura pode complicar manutencao.
-
