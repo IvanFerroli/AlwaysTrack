@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = resolve(rootDir, "services/api/prisma/schema.prisma");
 const storagePath = resolve(rootDir, ".storage/private");
+const enableLegacySylembra = process.env.ENABLE_LEGACY_SYLEMBRA === "true";
 
 function configText(localKey, legacyKey, fallback) {
   return process.env[localKey]?.trim() || process.env[legacyKey]?.trim() || fallback;
@@ -86,7 +87,7 @@ function resetStorage() {
 }
 
 async function seedSingleAdmin() {
-  console.log("\n[AlwaysTrack Flush] Recriando organizacao minima, admin, templates e regras...");
+  console.log("\n[AlwaysTrack Flush] Recriando organizacao minima e admin...");
   const prisma = new PrismaClient();
 
   try {
@@ -109,31 +110,33 @@ async function seedSingleAdmin() {
       }
     });
 
-    await prisma.notificationTemplate.createMany({
-      data: notificationTemplates.map((template) => ({
-        organizationId: organization.id,
-        key: template.key,
-        channel: "WHATSAPP",
-        metaTemplateName: template.metaTemplateName,
-        language: template.language,
-        bodyPreview: template.bodyPreview,
-        active: true
-      }))
-    });
+    if (enableLegacySylembra) {
+      await prisma.notificationTemplate.createMany({
+        data: notificationTemplates.map((template) => ({
+          organizationId: organization.id,
+          key: template.key,
+          channel: "WHATSAPP",
+          metaTemplateName: template.metaTemplateName,
+          language: template.language,
+          bodyPreview: template.bodyPreview,
+          active: true
+        }))
+      });
 
-    await prisma.notificationRule.createMany({
-      data: notificationRules.map((rule) => ({
-        organizationId: organization.id,
-        licenseTypeId: null,
-        channel: "WHATSAPP",
-        templateKey: rule.templateKey,
-        daysBeforeExpiration: rule.daysBeforeExpiration,
-        repeatAfterExpiredDays: rule.repeatAfterExpiredDays,
-        notifyProfessional: rule.notifyProfessional,
-        notifyRt: rule.notifyRt,
-        active: true
-      }))
-    });
+      await prisma.notificationRule.createMany({
+        data: notificationRules.map((rule) => ({
+          organizationId: organization.id,
+          licenseTypeId: null,
+          channel: "WHATSAPP",
+          templateKey: rule.templateKey,
+          daysBeforeExpiration: rule.daysBeforeExpiration,
+          repeatAfterExpiredDays: rule.repeatAfterExpiredDays,
+          notifyProfessional: rule.notifyProfessional,
+          notifyRt: rule.notifyRt,
+          active: true
+        }))
+      });
+    }
 
     const counts = {
       organizations: await prisma.organization.count(),
@@ -167,6 +170,7 @@ async function main() {
   console.log(`Senha do admin desta execucao: ${adminConfig.password}`);
   console.log("Defina FLUSH_LOCAL_ADMIN_EMAIL e FLUSH_LOCAL_ADMIN_PASSWORD para credenciais locais estaveis.");
   console.log("As variaveis FLUSH_DEMO_* antigas continuam aceitas como compatibilidade.");
+  console.log("Fixtures SyLembra antigas ficam desligadas por padrao; use ENABLE_LEGACY_SYLEMBRA=true para templates/regras de licenca.");
 
   run("npx", ["prisma", "migrate", "reset", "--force", "--skip-seed", "--schema", schemaPath], "Resetando banco local");
   resetStorage();

@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-03
+- last-updated: 2026-06-09
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -27,7 +27,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 8. `TASK-AT-017-danfe-structured-extraction.md`: extracao estruturada de DANFE com IA. Status: completed-mvp.
 9. `TASK-AT-018-sales-document-review.md`: revisao/aprovacao MVP de notas. Status: completed-mvp.
 10. `TASK-AT-019-ranking-campaigns-mvp.md`: ranking, campanhas e snapshots. Status: completed-mvp.
-11. `TASK-AT-021-sales-statements-mvp.md`: extratos JSON/CSV simples. Status: completed-partial.
+11. `TASK-AT-021-sales-statements-mvp.md`: extratos JSON/CSV simples. Status: completed-mvp.
 12. `TASK-AT-025-sales-danfe-diagnostic-logs.md`: logs diagnosticos do fluxo DANFE. Status: completed-mvp.
 13. `TASK-AT-028-danfe-deterministic-extraction.md`: extracao deterministica de DANFE PDF textual antes da IA. Status: completed-mvp.
 14. `EXEC-AT-009`: filtros visuais de ranking/extratos e CSV filtrado. Status: completed.
@@ -41,9 +41,22 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 22. `EXEC-AT-017`: editor visual de revisao de DANFE (`AT-018B`). Status: completed.
 23. `EXEC-AT-018`: CRUD de campanhas e snapshots (`AT-019B`). Status: completed.
 24. `EXEC-AT-019`: descontinuacao SyLembra fase 1 (`AT-023`/`AT-027`). Status: completed.
+25. `EXEC-AT-020`: Google login como entrada principal (`TASK-AT-014`). Status: completed.
+26. `EXEC-AT-021`: seed/flush local comercial por padrao com fixtures SyLembra default-off (`AT-027B`). Status: completed.
+27. `EXEC-AT-022`: filtro visual por vendedor no ranking e comparacao leve de snapshots (`AT-019C`). Status: completed.
+28. `EXEC-AT-023`: consolidacoes backend de extratos por vendedor/grupo (`AT-021B`). Status: completed.
+29. `EXEC-AT-024`: smoke/e2e do fluxo comercial com upload XML/PDF (`TASK-AT-026`). Status: completed.
+30. `EXEC-AT-025`: UI de consolidacoes de extratos por vendedor/grupo (`AT-021B`). Status: completed.
+31. `EXEC-AT-026`: fila operacional de aprovacao de notas com filtros por envio/vendedor/status, selecao multipla, select all visivel, acoes em lote de aprovar/rejeitar e comentario auditavel (`TASK-AT-037`). Status: completed.
+32. `EXEC-AT-027`: dedupe interno de pacote deterministico e feedback observavel do reprocessamento (`TASK-AT-038`). Status: completed-partial.
+33. `EXEC-AT-028`: setup do gate de ranking com tres vendedores, endpoint de vendedores e upload administrativo por vendedor (`TASK-AT-046`). Status: completed-partial.
+34. `EXEC-AT-029`: acesso autenticado da Wiki por slug publicado (`TASK-AT-040`). Status: completed.
+35. `EXEC-AT-030`: comentarios/notas de decisao em review Wiki visiveis no historico (`TASK-AT-041`). Status: completed.
+36. `EXEC-AT-031`: `Como usar` comercial e icones `i` contextuais em Notas, Ranking, Campanhas, Extratos, Wiki, Usuarios/Times e Auditoria (`TASK-AT-045`). Status: completed.
+37. `EXEC-AT-032`: CRUD administrativo comercial de usuarios/roles em `Usuarios/Times`, com vinculo de vendedor a `SellerProfile` e supervisor a grupo comercial (`TASK-AT-039`). Status: completed.
+38. `EXEC-AT-033`: FAQ interna em threads com comentarios/reacoes/estado e promocao de thread para Wiki com backlink (`TASK-AT-042`/`TASK-AT-043`). Status: completed.
+39. `EXEC-AT-034`: centro de notificacoes in-app com eventos de notas, Wiki e FAQ, badge no topo e leitura individual/geral (`TASK-AT-044`). Status: completed.
+40. `EXEC-AT-035`: validacao final do ranking com tres vendedores e do reprocessamento idempotente sem duplicata falsa (`TASK-AT-046`/`TASK-AT-038`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `AT-014`: Google login como entrada principal.
-2. `AT-026`: smoke/e2e do fluxo comercial com upload XML/PDF.
-3. `AT-027B`: seed comercial sem fixtures SyLembra, help comercial e rotas publicas antigas opt-in/removidas.
-4. `AT-019C`: filtro visual por vendedor no ranking e comparacao de snapshots.
+Sem backlog ativo recomendado no momento. Proximo passo e teste exploratorio com pacote real do usuario, se ele quiser produzir evidencia manual alem dos gates automatizados.

@@ -6,6 +6,7 @@ import {
   createWikiEditRequest,
   createWikiPage,
   heartbeatWikiPresence,
+  getWikiPageBySlug,
   listWikiEditRequests,
   listWikiPages,
   markWikiRead,
@@ -14,6 +15,7 @@ import {
   parseWikiEditRequestInput,
   parseWikiPageInput,
   restoreWikiRevision,
+  rejectWikiEditRequest,
   unarchiveWikiPage,
   updateWikiPage,
   uploadWikiAttachment,
@@ -99,6 +101,56 @@ describe("wiki service", () => {
         where: expect.objectContaining({
           organizationId: "org-1",
           active: false
+        })
+      })
+    );
+  });
+
+  it("gets a wiki page by slug scoped to the actor organization", async () => {
+    const prisma = {
+      wikiPage: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "page-1",
+          slug: "primeira-wiki",
+          title: "Primeira Wiki",
+          content: "Conteudo #wiki",
+          version: 1,
+          active: true,
+          updatedBy: null,
+          readReceipts: [],
+          presences: [],
+          editRequests: [],
+          revisions: []
+        })
+      }
+    };
+
+    const result = await getWikiPageBySlug(prisma as never, admin, " Primeira Wiki ");
+
+    expect(result.page.slug).toBe("primeira-wiki");
+    expect(result.page.tags).toEqual(["wiki"]);
+    expect(prisma.wikiPage.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          slug: "primeira-wiki"
+        })
+      })
+    );
+  });
+
+  it("does not expose archived wiki pages by slug to non-admin users", async () => {
+    const prisma = {
+      wikiPage: { findFirst: vi.fn().mockResolvedValue(null) }
+    };
+
+    await expect(getWikiPageBySlug(prisma as never, { ...admin, role: "VENDEDOR" }, "arquivada")).rejects.toEqual(new WikiError("NOT_FOUND"));
+    expect(prisma.wikiPage.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          slug: "arquivada",
+          active: true
         })
       })
     );
@@ -238,10 +290,39 @@ describe("wiki service", () => {
 
     expect(result.page.version).toBe(3);
     expect(prisma.wikiEditRequest.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: "APPROVED", reviewerId: "admin-1" }) })
+      expect.objectContaining({ data: expect.objectContaining({ status: "APPROVED", reviewerId: "admin-1", decisionNote: "ok" }) })
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "wiki.request.approve" }) })
+    );
+  });
+
+  it("stores decision notes when rejecting wiki edit requests", async () => {
+    const prisma = {
+      wikiEditRequest: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "req-1",
+          organizationId: "org-1",
+          pageId: "page-1",
+          authorId: "rt-1",
+          baseVersion: 2,
+          title: "Rejeitado",
+          content: "Conteudo",
+          status: "PENDING",
+          page: { id: "page-1", version: 2 }
+        }),
+        update: vi.fn().mockResolvedValue({ id: "req-1", status: "REJECTED", decisionNote: "precisa ajustar" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await rejectWikiEditRequest(prisma as never, admin, "req-1", { decisionNote: "precisa ajustar" });
+
+    expect(prisma.wikiEditRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED", reviewerId: "admin-1", decisionNote: "precisa ajustar" }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "wiki.request.reject", metadataJson: expect.stringContaining("precisa ajustar") }) })
     );
   });
 

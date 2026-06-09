@@ -1,14 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
+  addFaqComment,
   buildPublicHelpLink,
+  createFaqThread,
   createFaqItem,
   FaqError,
   listFaqItems,
+  promoteFaqThreadToWiki,
   listPublicFaqItems,
+  parseFaqCommentInput,
   parseFaqFilters,
   parseFaqInput,
+  parseFaqReactionInput,
+  parseFaqThreadFilters,
+  parseFaqThreadInput,
   parsePublicHelpInput,
+  setFaqReaction,
+  updateFaqThreadStatus,
   updateFaqItem
 } from "./faq.service.js";
 
@@ -53,6 +62,19 @@ describe("faq service", () => {
       licenseId: undefined,
       problemType: "Upload",
       message: "Nao consigo"
+    });
+    expect(parseFaqThreadInput({ title: " Como aprovar? ", body: "", status: "RESOLVED" })).toEqual({
+      title: "Como aprovar?",
+      body: null,
+      status: "RESOLVED"
+    });
+    expect(parseFaqThreadFilters({ query: " nota ", status: "OPEN" })).toEqual({ query: "nota", status: "OPEN" });
+    expect(parseFaqCommentInput({ body: " Resposta " })).toEqual({ body: "Resposta" });
+    expect(parseFaqReactionInput({ targetType: "THREAD", targetId: "thread-1", type: "HELPFUL", active: false })).toEqual({
+      targetType: "THREAD",
+      targetId: "thread-1",
+      type: "HELPFUL",
+      active: false
     });
   });
 
@@ -187,5 +209,151 @@ describe("faq service", () => {
 
     expect(result.recipient).toBe("ADMIN");
     expect(result.url).toContain("5511900000000");
+  });
+
+  it("creates FAQ threads with tenant and audit", async () => {
+    const thread = {
+      id: "thread-1",
+      title: "Como aprovar nota?",
+      body: "Tenho duvida",
+      status: "OPEN",
+      author: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" },
+      wikiPage: null,
+      promotedBy: null,
+      comments: [],
+      reactions: []
+    };
+    const prisma = {
+      faqThread: { create: vi.fn().mockResolvedValue(thread) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await createFaqThread(prisma as never, admin, { title: "Como aprovar nota?", body: "Tenho duvida" });
+
+    expect(prisma.faqThread.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: "org-1", authorId: "admin-1", status: "OPEN" })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "faq.thread.create", entityType: "FaqThread" }) })
+    );
+  });
+
+  it("adds comments and marks thread answered", async () => {
+    const baseThread = { id: "thread-1", organizationId: "org-1", comments: [], reactions: [] };
+    const prisma = {
+      faqThread: {
+        findFirst: vi.fn().mockResolvedValue(baseThread),
+        update: vi.fn().mockResolvedValue({ ...baseThread, status: "ANSWERED" })
+      },
+      faqComment: { create: vi.fn().mockResolvedValue({ id: "comment-1" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await addFaqComment(prisma as never, admin, "thread-1", { body: "Revise os itens antes." });
+
+    expect(prisma.faqComment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", threadId: "thread-1", authorId: "admin-1" }) })
+    );
+    expect(prisma.faqThread.update).toHaveBeenCalledWith({ where: { id: "thread-1" }, data: { status: "ANSWERED" } });
+  });
+
+  it("upserts and removes FAQ reactions by target", async () => {
+    const baseThread = { id: "thread-1", organizationId: "org-1", comments: [], reactions: [] };
+    const prisma = {
+      faqThread: { findFirst: vi.fn().mockResolvedValue(baseThread) },
+      faqReaction: {
+        upsert: vi.fn().mockResolvedValue({ id: "reaction-1" }),
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await setFaqReaction(prisma as never, admin, "thread-1", { targetType: "THREAD", targetId: "thread-1", type: "HELPFUL" });
+    await setFaqReaction(prisma as never, admin, "thread-1", { targetType: "THREAD", targetId: "thread-1", type: "HELPFUL", active: false });
+
+    expect(prisma.faqReaction.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId_targetType_targetId_userId_type: {
+            organizationId: "org-1",
+            targetType: "THREAD",
+            targetId: "thread-1",
+            userId: "admin-1",
+            type: "HELPFUL"
+          }
+        }
+      })
+    );
+    expect(prisma.faqReaction.deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ targetType: "THREAD", targetId: "thread-1", userId: "admin-1" }) })
+    );
+  });
+
+  it("allows supervisors to update FAQ thread status", async () => {
+    const prisma = {
+      faqThread: {
+        findFirst: vi.fn().mockResolvedValue({ id: "thread-1", organizationId: "org-1", comments: [], reactions: [] }),
+        update: vi.fn().mockResolvedValue({ id: "thread-1", status: "RESOLVED", comments: [], reactions: [] })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await updateFaqThreadStatus(prisma as never, supervisor, "thread-1", { status: "RESOLVED" });
+
+    expect(prisma.faqThread.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "thread-1" }, data: { status: "RESOLVED" } })
+    );
+  });
+
+  it("blocks non-superior FAQ promotion to wiki", async () => {
+    const seller: CurrentUser = { ...supervisor, id: "seller-1", role: "VENDEDOR" };
+
+    await expect(promoteFaqThreadToWiki({} as never, seller, "thread-1")).rejects.toEqual(new FaqError("FORBIDDEN"));
+  });
+
+  it("promotes FAQ thread to wiki and stores backlink", async () => {
+    const thread = {
+      id: "thread-1",
+      title: "Como aprovar nota?",
+      body: "Preciso revisar itens",
+      status: "ANSWERED",
+      wikiPage: null,
+      comments: [{ id: "comment-1", body: "Confira vendedor e total.", author: { name: "Supervisor" }, reactions: [] }],
+      reactions: []
+    };
+    const prisma = {
+      faqThread: {
+        findFirst: vi.fn().mockResolvedValue(thread),
+        update: vi.fn().mockResolvedValue({ ...thread, status: "RESOLVED", wikiPage: { id: "wiki-1", slug: "como-aprovar-nota" } })
+      },
+      wikiPage: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "wiki-1",
+          slug: "como-aprovar-nota",
+          title: "Como aprovar nota?",
+          content: "# Como aprovar nota?",
+          version: 1
+        })
+      },
+      wikiRevision: { create: vi.fn().mockResolvedValue({ id: "rev-1" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await promoteFaqThreadToWiki(prisma as never, admin, "thread-1");
+
+    expect(prisma.wikiPage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ organizationId: "org-1", slug: "como-aprovar-nota", createdById: "admin-1" })
+      })
+    );
+    expect(prisma.faqThread.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "thread-1" },
+        data: expect.objectContaining({ wikiPageId: "wiki-1", promotedById: "admin-1", status: "RESOLVED" })
+      })
+    );
   });
 });

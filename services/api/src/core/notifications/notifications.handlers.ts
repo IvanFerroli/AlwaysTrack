@@ -6,7 +6,10 @@ import {
   createNotificationRule,
   createNotificationTemplate,
   handleMetaWebhook,
+  listInAppNotifications,
   listNotificationConfig,
+  markAllInAppNotificationsRead,
+  markInAppNotificationRead,
   NotificationError,
   parseManualLicenseNotificationInput,
   parseNotificationRuleInput,
@@ -44,6 +47,30 @@ function sendNotificationError(response: Response, error: unknown) {
 export async function listNotificationConfigHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await listNotificationConfig(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendNotificationError(response, error);
+  }
+}
+
+export async function listInAppNotificationsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listInAppNotifications(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendNotificationError(response, error);
+  }
+}
+
+export async function markInAppNotificationReadHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await markInAppNotificationRead(prisma, actorFrom(request), routeParam(request.params.notificationId)));
+  } catch (error) {
+    return sendNotificationError(response, error);
+  }
+}
+
+export async function markAllInAppNotificationsReadHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await markAllInAppNotificationsRead(prisma, actorFrom(request)));
   } catch (error) {
     return sendNotificationError(response, error);
   }

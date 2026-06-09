@@ -3,7 +3,14 @@ import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
 import { sendError, sendOk } from "./core/http/responses.js";
 import { listAuditLogsHandler } from "./core/audit/audit.handlers.js";
-import { loginHandler, logoutHandler, meHandler } from "./core/auth/auth.handlers.js";
+import {
+  googleLoginCallbackHandler,
+  googleLoginStartHandler,
+  googleLoginStatusHandler,
+  loginHandler,
+  logoutHandler,
+  meHandler
+} from "./core/auth/auth.handlers.js";
 import { requireAuth, requireRole } from "./core/auth/auth.middleware.js";
 import {
   createSectorHandler,
@@ -15,6 +22,7 @@ import {
 } from "./core/organizations/organizations.handlers.js";
 import {
   createUserHandler,
+  listCommercialUserOptionsHandler,
   listUsersHandler,
   resetUserPasswordHandler,
   updateUserHandler
@@ -54,7 +62,10 @@ import {
 import {
   createNotificationRuleHandler,
   createNotificationTemplateHandler,
+  listInAppNotificationsHandler,
   listNotificationConfigHandler,
+  markAllInAppNotificationsReadHandler,
+  markInAppNotificationReadHandler,
   manualLicenseNotificationHandler,
   metaWebhookHandler,
   processNotificationJobsHandler,
@@ -66,8 +77,14 @@ import {
 import {
   buildPublicHelpLinkHandler,
   createFaqItemHandler,
+  addFaqCommentHandler,
+  createFaqThreadHandler,
   listFaqItemsHandler,
+  listFaqThreadsHandler,
   listPublicFaqItemsHandler,
+  promoteFaqThreadToWikiHandler,
+  setFaqReactionHandler,
+  updateFaqThreadStatusHandler,
   updateFaqItemHandler
 } from "./core/faq/faq.handlers.js";
 import { getDashboardHandler } from "./core/dashboard/dashboard.handlers.js";
@@ -110,6 +127,7 @@ import {
   getWikiPageHandler,
   getWikiAttachmentFileHandler,
   heartbeatWikiPresenceHandler,
+  getWikiPageBySlugHandler,
   listWikiEditRequestsHandler,
   listWikiPagesHandler,
   markWikiReadHandler,
@@ -126,6 +144,7 @@ import {
   listSalesCampaignsHandler,
   listRankingSnapshotsHandler,
   listSalesDocumentsHandler,
+  listSalesSellersHandler,
   reviewSalesDocumentHandler,
   salesRankingHandler,
   salesDashboardHandler,
@@ -170,6 +189,9 @@ export function createApp() {
   }
 
   app.post("/v1/auth/login", loginHandler);
+  app.get("/v1/auth/google/status", googleLoginStatusHandler);
+  app.get("/v1/auth/google/start", googleLoginStartHandler);
+  app.get("/v1/auth/google/callback", googleLoginCallbackHandler);
   app.post("/v1/auth/logout", requireAuth, logoutHandler);
   app.get("/v1/auth/me", requireAuth, meHandler);
   app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
@@ -185,6 +207,7 @@ export function createApp() {
   app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), updateSalesCampaignHandler);
   app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), createRankingSnapshotHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesRankingHandler);
+  app.get("/v1/sales/sellers", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesSellersHandler);
   app.get("/v1/sales/statements", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsHandler);
   app.get("/v1/sales/statements.csv", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsCsvHandler);
   app.get("/v1/sales/documents", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesDocumentsHandler);
@@ -197,6 +220,15 @@ export function createApp() {
   );
   app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), analyzeSalesDocumentHandler);
   app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO"]), reviewSalesDocumentHandler);
+  app.get("/v1/faq/threads", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listFaqThreadsHandler);
+  app.post("/v1/faq/threads", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), createFaqThreadHandler);
+  app.post("/v1/faq/threads/:threadId/comments", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), addFaqCommentHandler);
+  app.patch("/v1/faq/threads/:threadId/status", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), updateFaqThreadStatusHandler);
+  app.post("/v1/faq/threads/:threadId/reactions", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), setFaqReactionHandler);
+  app.post("/v1/faq/threads/:threadId/promote-to-wiki", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), promoteFaqThreadToWikiHandler);
+  app.get("/v1/in-app-notifications", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listInAppNotificationsHandler);
+  app.post("/v1/in-app-notifications/read-all", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markAllInAppNotificationsReadHandler);
+  app.post("/v1/in-app-notifications/:notificationId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markInAppNotificationReadHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
     app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
@@ -222,6 +254,7 @@ export function createApp() {
   app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(["ADMIN"]), createSectorHandler);
   app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(["ADMIN"]), updateSectorHandler);
   app.get("/v1/users", requireAuth, requireRole(["ADMIN"]), listUsersHandler);
+  app.get("/v1/users/commercial-options", requireAuth, requireRole(["ADMIN"]), listCommercialUserOptionsHandler);
   app.post("/v1/users", requireAuth, requireRole(["ADMIN"]), createUserHandler);
   app.patch("/v1/users/:userId", requireAuth, requireRole(["ADMIN"]), updateUserHandler);
   app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(["ADMIN"]), resetUserPasswordHandler);
@@ -311,6 +344,7 @@ export function createApp() {
   }
   app.get("/v1/wiki/pages", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listWikiPagesHandler);
   app.post("/v1/wiki/pages", requireAuth, requireRole(["ADMIN"]), createWikiPageHandler);
+  app.get("/v1/wiki/pages/by-slug/:slug", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiPageBySlugHandler);
   app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiPageHandler);
   app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN"]), updateWikiPageHandler);
   app.post("/v1/wiki/pages/:pageId/archive", requireAuth, requireRole(["ADMIN"]), archiveWikiPageHandler);

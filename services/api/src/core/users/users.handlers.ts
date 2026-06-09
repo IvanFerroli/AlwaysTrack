@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
   createManagedUser,
+  listCommercialUserOptions,
   listManagedUsers,
   parseCreateUserInput,
   parseResetPasswordInput,
@@ -47,6 +48,14 @@ export async function listUsersHandler(request: Request, response: Response) {
   try {
     const users = await listManagedUsers(prisma, actorFrom(request));
     return sendOk(response, { users });
+  } catch (error) {
+    return sendUserManagementError(response, error);
+  }
+}
+
+export async function listCommercialUserOptionsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listCommercialUserOptions(prisma, actorFrom(request)));
   } catch (error) {
     return sendUserManagementError(response, error);
   }

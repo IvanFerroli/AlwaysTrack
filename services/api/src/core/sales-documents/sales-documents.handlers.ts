@@ -14,6 +14,7 @@ import {
   listRankingSnapshots,
   listSalesCampaigns,
   listSalesDocuments,
+  listSalesSellers,
   parseSalesCampaignInput,
   parseSalesDocumentFilters,
   parseSalesDocumentReviewInput,
@@ -78,6 +79,15 @@ export async function listSalesDocumentsHandler(request: Request, response: Resp
     return sendOk(response, await listSalesDocuments(prisma, actorFrom(request), parseSalesDocumentFilters(request.query)));
   } catch (error) {
     logHandlerError(request, "sales_documents.list.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function listSalesSellersHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listSalesSellers(prisma, actorFrom(request)));
+  } catch (error) {
+    logHandlerError(request, "sales_sellers.list.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }

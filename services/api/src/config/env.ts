@@ -32,6 +32,10 @@ export interface ApiEnv {
   googleClientSecret?: string;
   googleRedirectUri?: string;
   googleTokenEncryptionKey?: string;
+  googleLoginClientId?: string;
+  googleLoginClientSecret?: string;
+  googleLoginRedirectUri?: string;
+  googleLoginAllowedDomains?: string[];
   enableLegacySylembra?: boolean;
 }
 
@@ -97,6 +101,13 @@ export function loadEnv(source = process.env): ApiEnv {
     googleClientSecret: source.GOOGLE_CLIENT_SECRET,
     googleRedirectUri: source.GOOGLE_REDIRECT_URI,
     googleTokenEncryptionKey: source.GOOGLE_TOKEN_ENCRYPTION_KEY,
+    googleLoginClientId: source.GOOGLE_LOGIN_CLIENT_ID || source.GOOGLE_CLIENT_ID,
+    googleLoginClientSecret: source.GOOGLE_LOGIN_CLIENT_SECRET || source.GOOGLE_CLIENT_SECRET,
+    googleLoginRedirectUri: source.GOOGLE_LOGIN_REDIRECT_URI,
+    googleLoginAllowedDomains: (source.GOOGLE_LOGIN_ALLOWED_DOMAINS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
     enableLegacySylembra: source.ENABLE_LEGACY_SYLEMBRA === "true"
   };
 }

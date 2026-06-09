@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import type { StorageProvider } from "../documents/storage.js";
 
 export class WikiError extends Error {
@@ -273,9 +274,18 @@ export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, fi
 }
 
 export async function getWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {
+  return getWikiPageByWhere(prisma, actor, { id: pageId });
+}
+
+export async function getWikiPageBySlug(prisma: PrismaClient, actor: CurrentUser, rawSlug: string) {
+  const slug = slugify(rawSlug);
+  return getWikiPageByWhere(prisma, actor, { slug });
+}
+
+async function getWikiPageByWhere(prisma: PrismaClient, actor: CurrentUser, whereInput: { id?: string; slug?: string }) {
   const since = new Date(Date.now() - 2 * 60 * 1000);
   const page = await prisma.wikiPage.findFirst({
-    where: { id: pageId, organizationId: actor.organizationId, active: actor.role === "ADMIN" ? undefined : true },
+    where: { ...whereInput, organizationId: actor.organizationId, active: actor.role === "ADMIN" ? undefined : true },
     include: {
       updatedBy: { select: { id: true, name: true, email: true, role: true } },
       readReceipts: {
@@ -341,6 +351,17 @@ export async function createWikiPage(prisma: PrismaClient, actor: CurrentUser, i
     entityId: page.id,
     metadata: { slug: page.slug, version: page.version }
   });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientRoles: ["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"],
+    type: "wiki.page.published",
+    title: "Nova pagina na Wiki",
+    body: page.title,
+    entityType: "WikiPage",
+    entityId: page.id,
+    href: `/wiki/${page.slug}`,
+    dedupeKey: `wiki.page.published:${page.id}:v${page.version}`
+  });
   return withWikiContentFormat(page);
 }
 
@@ -384,6 +405,17 @@ export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, p
     entityType: "WikiPage",
     entityId: page.id,
     metadata: { previousSlug: existing.slug, slug: page.slug, previousVersion: existing.version, version: page.version }
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientRoles: ["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"],
+    type: "wiki.page.published",
+    title: "Wiki atualizada",
+    body: page.title,
+    entityType: "WikiPage",
+    entityId: page.id,
+    href: `/wiki/${page.slug}`,
+    dedupeKey: `wiki.page.published:${page.id}:v${page.version}`
   });
   return withWikiContentFormat(page);
 }
@@ -496,6 +528,17 @@ export async function createWikiEditRequest(prisma: PrismaClient, actor: Current
     entityId: request.id,
     metadata: { pageId: page.id, baseVersion: input.baseVersion }
   });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientRoles: ["ADMIN"],
+    type: "wiki.request.created",
+    title: "Nova proposta na Wiki",
+    body: request.title,
+    entityType: "WikiEditRequest",
+    entityId: request.id,
+    href: `/wiki/${page.slug}`,
+    dedupeKey: `wiki.request.created:${request.id}`
+  });
   return withWikiRequestContentFormat(request);
 }
 
@@ -578,6 +621,28 @@ export async function approveWikiEditRequest(prisma: PrismaClient, actor: Curren
     entityId: request.id,
     metadata: { pageId: page.id, version: page.version, decisionNote: input.decisionNote ?? null }
   });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientIds: [request.authorId],
+    type: "wiki.request.approved",
+    title: "Proposta da Wiki aprovada",
+    body: input.decisionNote ?? request.title,
+    entityType: "WikiEditRequest",
+    entityId: request.id,
+    href: `/wiki/${page.slug}`,
+    dedupeKey: `wiki.request.approved:${request.id}`
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientRoles: ["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"],
+    type: "wiki.page.published",
+    title: "Wiki atualizada",
+    body: page.title,
+    entityType: "WikiPage",
+    entityId: page.id,
+    href: `/wiki/${page.slug}`,
+    dedupeKey: `wiki.page.published:${page.id}:v${page.version}`
+  });
   return { request: withWikiRequestContentFormat(approved), page: withWikiContentFormat(page) };
 }
 
@@ -600,6 +665,17 @@ export async function rejectWikiEditRequest(prisma: PrismaClient, actor: Current
     entityType: "WikiEditRequest",
     entityId: request.id,
     metadata: { pageId: request.pageId, decisionNote: input.decisionNote ?? null }
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientIds: [request.authorId],
+    type: "wiki.request.rejected",
+    title: "Proposta da Wiki rejeitada",
+    body: input.decisionNote ?? request.title,
+    entityType: "WikiEditRequest",
+    entityId: request.id,
+    href: `/wiki/${request.page.slug}`,
+    dedupeKey: `wiki.request.rejected:${request.id}`
   });
   return withWikiRequestContentFormat(rejected);
 }

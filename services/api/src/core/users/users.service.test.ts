@@ -16,7 +16,7 @@ describe("users service", () => {
         name: " Admin ",
         email: " ADMIN@EXAMPLE.COM ",
         password: "12345678",
-        role: "RT",
+        role: "VENDEDOR",
         phone: "",
         unitScopeIds: ["unit-1", "unit-1", ""],
         ignored: true
@@ -25,11 +25,14 @@ describe("users service", () => {
       name: "Admin",
       email: "admin@example.com",
       password: "12345678",
-      role: "RT",
+      role: "VENDEDOR",
       phone: null,
       active: undefined,
       unitScopeIds: ["unit-1"],
-      sectorScopeIds: undefined
+      sectorScopeIds: undefined,
+      sellerCode: undefined,
+      sellerDisplayName: undefined,
+      salesGroupId: undefined
     });
   });
 
@@ -39,10 +42,10 @@ describe("users service", () => {
         findUnique: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue({
           id: "user-1",
-          name: "RT",
-          email: "rt@example.com",
+          name: "SAC",
+          email: "sac@example.com",
           passwordHash: "secret",
-          role: "RT",
+          role: "SAC",
           phone: null,
           active: true,
           organizationId: "org-1",
@@ -54,22 +57,23 @@ describe("users service", () => {
       },
       unit: { count: vi.fn().mockResolvedValue(1) },
       sector: { count: vi.fn().mockResolvedValue(0) },
+      salesGroup: { findFirst: vi.fn() },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
     const user = await createManagedUser(prisma as never, actor, {
-      name: "RT",
-      email: "rt@example.com",
+      name: "SAC",
+      email: "sac@example.com",
       password: "12345678",
-      role: "RT",
+      role: "SAC",
       unitScopeIds: ["unit-1"]
     });
 
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         organizationId: "org-1",
-        email: "rt@example.com",
-        role: "RT",
+        email: "sac@example.com",
+        role: "SAC",
         unitScopeJson: JSON.stringify(["unit-1"])
       })
     });
@@ -98,6 +102,90 @@ describe("users service", () => {
       })
     ).rejects.toEqual(new UserManagementError("INVALID_INPUT"));
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a seller profile when creating a seller user", async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "seller-user-1",
+          name: "Ana",
+          email: "ana@example.com",
+          passwordHash: "secret",
+          role: "VENDEDOR",
+          phone: "+5583999999999",
+          active: true,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      },
+      salesGroup: { findFirst: vi.fn().mockResolvedValue({ id: "group-1", organizationId: "org-1" }) },
+      sellerProfile: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: "seller-1" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await createManagedUser(prisma as never, actor, {
+      name: "Ana",
+      email: "ana@example.com",
+      password: "12345678",
+      role: "VENDEDOR",
+      phone: "+5583999999999",
+      sellerCode: "VD-004",
+      sellerDisplayName: "Ana Vendas",
+      salesGroupId: "group-1"
+    });
+
+    expect(prisma.sellerProfile.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organizationId: "org-1",
+        userId: "seller-user-1",
+        code: "VD-004",
+        displayName: "Ana Vendas",
+        salesGroupId: "group-1",
+        active: true
+      })
+    });
+  });
+
+  it("assigns a sales group when updating a supervisor", async () => {
+    const prisma = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({ id: "sup-1", role: "SAC", organizationId: "org-1" }),
+        update: vi.fn().mockResolvedValue({
+          id: "sup-1",
+          name: "Supervisor",
+          email: "sup@example.com",
+          passwordHash: "secret",
+          role: "SUPERVISOR",
+          phone: null,
+          active: true,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+      },
+      salesGroup: {
+        findFirst: vi.fn().mockResolvedValue({ id: "group-1", organizationId: "org-1" }),
+        update: vi.fn().mockResolvedValue({ id: "group-1" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await updateManagedUser(prisma as never, actor, "sup-1", { role: "SUPERVISOR", salesGroupId: "group-1" });
+
+    expect(prisma.salesGroup.update).toHaveBeenCalledWith({
+      where: { id: "group-1" },
+      data: { supervisorId: "sup-1" }
+    });
   });
 
   it("does not allow an admin to deactivate itself", async () => {

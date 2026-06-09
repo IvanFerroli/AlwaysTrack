@@ -21,7 +21,11 @@ model Organization {
   notificationTemplates NotificationTemplate[]
   notificationRules     NotificationRule[]
   notificationJobs      NotificationJob[]
+  inAppNotifications    InAppNotification[]
   faqItems              FaqItem[]
+  faqThreads            FaqThread[]
+  faqComments           FaqComment[]
+  faqReactions          FaqReaction[]
   wikiPages             WikiPage[]
   wikiEditRequests      WikiEditRequest[]
   wikiReadReceipts      WikiReadReceipt[]
@@ -109,6 +113,11 @@ model User {
   supervisedSalesGroups SalesGroup[] @relation("SalesGroupSupervisor")
   uploadedSalesDocuments SalesDocument[] @relation("SalesDocumentUploadedBy")
   reviewedSalesDocuments SalesDocument[] @relation("SalesDocumentReviewedBy")
+  faqThreadsAuthored    FaqThread[] @relation("FaqThreadAuthor")
+  faqThreadsPromoted    FaqThread[] @relation("FaqThreadPromoter")
+  faqCommentsAuthored   FaqComment[] @relation("FaqCommentAuthor")
+  faqReactionsAuthored  FaqReaction[] @relation("FaqReactionUser")
+  inAppNotifications    InAppNotification[] @relation("InAppNotificationRecipient")
 
   @@index([organizationId])
   @@index([role])
@@ -552,6 +561,31 @@ model NotificationLog {
   @@index([status])
 }
 
+model InAppNotification {
+  id             String    @id @default(cuid())
+  organizationId String
+  recipientId    String
+  type           String
+  title          String
+  body           String?
+  entityType     String?
+  entityId       String?
+  href           String?
+  dedupeKey      String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  recipient    User         @relation("InAppNotificationRecipient", fields: [recipientId], references: [id])
+
+  @@unique([organizationId, recipientId, dedupeKey])
+  @@index([organizationId])
+  @@index([recipientId])
+  @@index([readAt])
+  @@index([type])
+  @@index([entityType, entityId])
+}
+
 model FaqItem {
   id             String   @id @default(cuid())
   organizationId String
@@ -568,6 +602,80 @@ model FaqItem {
   @@index([organizationId])
   @@index([category])
   @@index([active])
+}
+
+model FaqThread {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  title          String
+  body           String?
+  status         String   @default("OPEN")
+  wikiPageId     String?
+  promotedAt     DateTime?
+  promotedById   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  author       User         @relation("FaqThreadAuthor", fields: [authorId], references: [id])
+  wikiPage     WikiPage?    @relation("FaqThreadWikiPage", fields: [wikiPageId], references: [id])
+  promotedBy   User?        @relation("FaqThreadPromoter", fields: [promotedById], references: [id])
+  comments     FaqComment[]
+  reactions    FaqReaction[]
+
+  @@index([organizationId])
+  @@index([authorId])
+  @@index([status])
+  @@index([wikiPageId])
+  @@index([promotedById])
+  @@index([createdAt])
+}
+
+model FaqComment {
+  id             String   @id @default(cuid())
+  organizationId String
+  threadId       String
+  authorId       String
+  body           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  thread       FaqThread   @relation(fields: [threadId], references: [id])
+  author       User        @relation("FaqCommentAuthor", fields: [authorId], references: [id])
+  reactions    FaqReaction[]
+
+  @@index([organizationId])
+  @@index([threadId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model FaqReaction {
+  id             String   @id @default(cuid())
+  organizationId String
+  threadId       String
+  commentId      String?
+  userId         String
+  targetType     String
+  targetId       String
+  type           String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  thread       FaqThread   @relation(fields: [threadId], references: [id])
+  comment      FaqComment? @relation(fields: [commentId], references: [id])
+  user         User        @relation("FaqReactionUser", fields: [userId], references: [id])
+
+  @@unique([organizationId, targetType, targetId, userId, type])
+  @@index([organizationId])
+  @@index([threadId])
+  @@index([commentId])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([userId])
+  @@index([type])
 }
 
 model WikiPage {
@@ -592,6 +700,7 @@ model WikiPage {
   presences    WikiPresence[]
   revisions    WikiRevision[]
   attachments  WikiAttachment[]
+  faqThreads   FaqThread[] @relation("FaqThreadWikiPage")
 
   @@unique([organizationId, slug])
   @@index([organizationId])

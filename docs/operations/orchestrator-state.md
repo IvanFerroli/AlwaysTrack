@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-06-03
+- last-updated: 2026-06-09
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
@@ -22,14 +22,25 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | 6 | Validar em clone limpo | completed (EXEC-TMP-008: git clone + npm install + npm run setup + npm run check) |
 
 ## Ultimo ciclo executado
-- EXEC-AT-019 (2026-06-03): descontinuacao SyLembra fase 1 com rotas autenticadas legadas opt-in.
+- EXEC-AT-020 (2026-06-04): Google login como entrada principal com OAuth separado de Sheets/importacao.
+- EXEC-AT-021 (2026-06-04): seed/flush local comercial por padrao com fixtures SyLembra default-off.
+- EXEC-AT-022 (2026-06-04): filtro visual por vendedor no ranking e comparacao leve entre snapshots recentes.
+- EXEC-AT-023 (2026-06-04): consolidacoes backend de extratos por vendedor/grupo.
+- EXEC-AT-024 (2026-06-04): smoke/e2e do fluxo comercial com upload XML/PDF ate ranking/extratos.
+- EXEC-AT-025 (2026-06-04): UI de consolidacoes de extratos por vendedor/grupo.
+- EXEC-AT-026 (2026-06-08): fila operacional de aprovacao de notas com filtros por envio/vendedor/status, selecao multipla, select all visivel, acoes em lote de aprovar/rejeitar e comentario auditavel.
+- EXEC-AT-027 (2026-06-08): dedupe interno de pacote deterministico e feedback observavel do reprocessamento.
+- EXEC-AT-028 (2026-06-08): setup do gate de ranking com tres vendedores, endpoint de vendedores e upload administrativo por vendedor.
+- EXEC-AT-029 (2026-06-08): acesso autenticado da Wiki por slug publicado.
+- EXEC-AT-030 (2026-06-08): comentarios/notas de decisao em review Wiki visiveis no historico.
+- EXEC-AT-031 (2026-06-08): `Como usar` comercial e icones `i` contextuais nos fluxos ativos.
+- EXEC-AT-032 (2026-06-09): CRUD administrativo comercial de usuarios/roles em `Usuarios/Times`.
+- EXEC-AT-033 (2026-06-09): FAQ interna em threads e promocao de thread para Wiki com backlink.
+- EXEC-AT-034 (2026-06-09): notificacoes in-app para eventos de notas, Wiki e FAQ.
+- EXEC-AT-035 (2026-06-09): validacao final do ranking e do reprocessamento idempotente sem duplicata falsa.
 
 ## Proximo ciclo a rotar
-- Implementar Google login como entrada principal.
-- Implementar filtro visual por vendedor no ranking e comparacao de snapshots.
-- Executar `AT-027B`: seed comercial sem fixtures SyLembra, help comercial e rotas publicas antigas opt-in/removidas.
-- Implementar consolidacoes de extratos comerciais por vendedor/grupo.
-- Ampliar smoke/e2e do fluxo comercial com upload XML/PDF.
+- Sem backlog ativo recomendado. Acompanhar teste exploratorio com pacote real do usuario se houver novo artefato ou divergencia observada.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid` ate haver upgrade seguro de upstream.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -40,6 +51,52 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 ## Estado dos gates
 | Gate | Resultado | Data |
 | --- | --- | --- |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 17 testes | 2026-06-08 (EXEC-AT-026) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-08 (EXEC-AT-026) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-026) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 18 testes | 2026-06-08 (EXEC-AT-027) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-08 (EXEC-AT-027) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-027) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-027) |
+| npm run prisma:seed | passou — 3 vendedores ativos confirmados | 2026-06-08 (EXEC-AT-028) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 19 testes | 2026-06-08 (EXEC-AT-028) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-08 (EXEC-AT-028) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-028) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-028) |
+| npm run check | passou — 156 testes | 2026-06-08 (pre EXEC-AT-029) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 17 testes | 2026-06-08 (EXEC-AT-029) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-08 (EXEC-AT-029) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-029) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-029) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts | passou — 18 testes | 2026-06-08 (EXEC-AT-030) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-08 (EXEC-AT-030) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-030) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-030) |
+| npm run check | passou — 159 testes | 2026-06-08 (post EXEC-AT-030) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-031) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-08 (EXEC-AT-031) |
+| npm run check | passou — 159 testes | 2026-06-08 (EXEC-AT-031) |
+| npm run test --workspace @alwaystrack/api -- users.service.test.ts | passou — 7 testes | 2026-06-09 (EXEC-AT-032) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-032) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-032) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-032) |
+| npm run check | passou — 161 testes | 2026-06-09 (EXEC-AT-032) |
+| npx prisma db execute --schema services/api/prisma/schema.prisma --file services/api/prisma/migrations/20260609001000_faq_threads/migration.sql | passou — migration FAQ aplicada sem reset local | 2026-06-09 (EXEC-AT-033) |
+| npm run test --workspace @alwaystrack/api -- faq.service.test.ts wiki.service.test.ts | passou — 32 testes | 2026-06-09 (EXEC-AT-033) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-033) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-033) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-033) |
+| npm run check | passou — 167 testes | 2026-06-09 (EXEC-AT-033) |
+| npx prisma db execute --schema services/api/prisma/schema.prisma --file services/api/prisma/migrations/20260609003000_in_app_notifications/migration.sql | passou — migration in-app notifications aplicada sem reset local | 2026-06-09 (EXEC-AT-034) |
+| npm run test --workspace @alwaystrack/api -- notifications.service.test.ts faq.service.test.ts wiki.service.test.ts sales-documents.service.test.ts | passou — 64 testes | 2026-06-09 (EXEC-AT-034) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-034) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-034) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-034) |
+| npm run check | passou — 169 testes | 2026-06-09 (EXEC-AT-034) |
+| npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts | passou — 20 testes | 2026-06-09 (EXEC-AT-035) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-035) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-09 (EXEC-AT-035) |
+| npm run check | passou — 170 testes | 2026-06-09 (EXEC-AT-035) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |
@@ -144,6 +201,14 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-019) |
 | npm run check | passou — 145 testes | 2026-06-03 (EXEC-AT-019) |
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-03 (EXEC-AT-019) |
+| npm run check | passou — 147 testes | 2026-06-04 (batch EXEC-AT-021/022/023) |
+| npm run test --workspace @alwaystrack/api -- main-flow.e2e.test.ts | passou — 2 testes | 2026-06-04 (EXEC-AT-024) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-04 (EXEC-AT-024) |
+| npm run check | passou — 148 testes | 2026-06-04 (batch EXEC-AT-024/025) |
+| npm run test --workspace @alwaystrack/api -- auth.service.test.ts google-login.service.test.ts google-oauth.service.test.ts | passou — 13 testes | 2026-06-04 (EXEC-AT-020) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-04 (EXEC-AT-020) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-04 (EXEC-AT-020) |
+| npm run check | passou — 153 testes | 2026-06-04 (EXEC-AT-020) |
 | git ls-files .tmp-venv-parse/ .openclaw/ | 0 arquivos rastreados | 2026-05-28 |
 | credenciais hardcoded | nenhuma encontrada | 2026-05-28 |
 

@@ -179,7 +179,7 @@ export function OperationalFilters({ fields, onSubmit, submitLabel = "Filtrar" }
 interface OperationalTableProps<T> {
   columns: Array<{
     key: string;
-    header: string;
+    header: ReactNode;
     render: (item: T) => ReactNode;
   }>;
   items: T[];

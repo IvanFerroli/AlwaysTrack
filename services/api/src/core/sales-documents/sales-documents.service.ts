@@ -5,6 +5,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { logEvent } from "../diagnostics/logger.js";
+import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import type { StorageProvider } from "../documents/storage.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 import { extractDanfeDeterministic } from "./danfe-deterministic.js";
@@ -36,6 +37,8 @@ export interface SalesDocumentFilters {
   status?: string;
   sellerProfileId?: string;
   salesGroupId?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface SalesPeriodFilters extends SalesDocumentFilters {
@@ -64,6 +67,7 @@ export interface SalesDocumentReviewInput {
   buyerName?: string | null;
   totalAmountCents?: number | null;
   rejectionReason?: string | null;
+  reviewNote?: string | null;
   items?: Array<{
     sku?: string | null;
     description?: string | null;
@@ -133,6 +137,10 @@ function centsFrom(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
 }
 
+function presentIds(values: Array<string | null | undefined>) {
+  return values.filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
 function confidenceFrom(result: SalesDocumentAiResult) {
   const values = Object.values(result.fields)
     .map((field) => field.confidence)
@@ -184,6 +192,38 @@ function normalizeSalesExtraction(result: SalesDocumentAiResult): SalesDocumentA
       }))
       .filter((item) => item.description && item.quantity && item.totalAmountCents),
     warnings: result.warnings ?? []
+  };
+}
+
+export function uniqueSalesInvoicesByAccessKey(invoices: SalesDocumentAiResult[]) {
+  const seen = new Set<string>();
+  const unique: SalesDocumentAiResult[] = [];
+  let skippedDuplicateAccessKeys = 0;
+
+  for (const invoice of invoices) {
+    const accessKey = digitsOnly(invoice.fields.accessKey.value);
+    if (accessKey && seen.has(accessKey)) {
+      skippedDuplicateAccessKeys += 1;
+      continue;
+    }
+    if (accessKey) seen.add(accessKey);
+    unique.push(invoice);
+  }
+
+  return { invoices: unique, skippedDuplicateAccessKeys };
+}
+
+function extractionSummary(result: SalesDocumentAiResult, source: { provider: string; model?: string }, input: { duplicate: boolean; accessKey: string | null; usedAi: boolean }) {
+  return {
+    provider: source.provider,
+    model: source.model,
+    usedAi: input.usedAi,
+    duplicate: input.duplicate,
+    status: undefined as string | undefined,
+    accessKey: maskedAccessKey(input.accessKey),
+    itemCount: result.items.length,
+    warningCount: result.warnings.length,
+    warnings: result.warnings
   };
 }
 
@@ -317,7 +357,9 @@ export function parseSalesDocumentFilters(query: Record<string, unknown>): Sales
   return {
     status: cleanText(query.status),
     sellerProfileId: cleanText(query.sellerProfileId),
-    salesGroupId: cleanText(query.salesGroupId)
+    salesGroupId: cleanText(query.salesGroupId),
+    from: cleanText(query.from),
+    to: cleanText(query.to)
   };
 }
 
@@ -371,6 +413,7 @@ export function parseSalesDocumentReviewInput(body: unknown): SalesDocumentRevie
     buyerName: cleanText(input.buyerName) ?? null,
     totalAmountCents: typeof input.totalAmountCents === "number" ? input.totalAmountCents : input.totalAmountCents ? Number(input.totalAmountCents) : null,
     rejectionReason: cleanText(input.rejectionReason) ?? null,
+    reviewNote: cleanText(input.reviewNote) ?? null,
     items
   };
 }
@@ -392,9 +435,13 @@ function sellerScopeWhere(actor: CurrentUser): Prisma.SellerProfileWhereInput {
 }
 
 function salesDocumentWhere(actor: CurrentUser, filters: SalesDocumentFilters = {}): Prisma.SalesDocumentWhereInput {
+  const from = dateFromIso(normalizeDate(filters.from));
+  const to = dateFromIso(normalizeDate(filters.to));
+  if (to) to.setUTCHours(23, 59, 59, 999);
   return {
     organizationId: actor.organizationId,
     status: filters.status,
+    createdAt: from || to ? { gte: from, lte: to } : undefined,
     sellerProfileId: filters.sellerProfileId,
     sellerProfile: {
       ...sellerScopeWhere(actor),
@@ -406,8 +453,13 @@ function salesDocumentWhere(actor: CurrentUser, filters: SalesDocumentFilters = 
 function periodDocumentWhere(actor: CurrentUser, filters: SalesPeriodFilters = {}): Prisma.SalesDocumentWhereInput {
   const from = dateFromIso(normalizeDate(filters.from));
   const to = dateFromIso(normalizeDate(filters.to));
+  const baseFilters: SalesDocumentFilters = {
+    status: filters.status,
+    sellerProfileId: filters.sellerProfileId,
+    salesGroupId: filters.salesGroupId
+  };
   return {
-    ...salesDocumentWhere(actor, filters),
+    ...salesDocumentWhere(actor, baseFilters),
     status: "APPROVED",
     issuedAt: from || to ? { gte: from, lte: to } : undefined
   };
@@ -501,6 +553,16 @@ export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUse
   return { items, total };
 }
 
+export async function listSalesSellers(prisma: PrismaClient, actor: CurrentUser) {
+  assertCommercialRole(actor);
+  const items = await prisma.sellerProfile.findMany({
+    where: { ...sellerScopeWhere(actor), active: true },
+    include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } },
+    orderBy: [{ displayName: "asc" }]
+  });
+  return { items, total: items.length };
+}
+
 export async function analyzeSalesDocumentWithAi(
   prisma: PrismaClient,
   storage: StorageProvider,
@@ -561,7 +623,16 @@ export async function analyzeSalesDocumentWithAi(
       durationMs: Date.now() - startedAt
     });
 
-    return { document: updated, duplicate: Boolean(duplicate), warnings: result.warnings };
+    return {
+      document: updated,
+      duplicate: Boolean(duplicate),
+      warnings: result.warnings,
+      extraction: {
+        ...extractionSummary(result, source, { duplicate: Boolean(duplicate), accessKey, usedAi: !deterministicResult }),
+        status: updated.status,
+        itemCount: updated.items.length
+      }
+    };
   } catch (error) {
     await prisma.salesDocument.update({ where: { id: document.id }, data: { status: document.status } });
     await recordAuditLog(prisma, {
@@ -620,7 +691,8 @@ export async function uploadSalesDocument(
   };
 
   const deterministic = await tryDeterministicExtraction({ body: input.body, mimeType: input.mimeType });
-  const deterministicInvoices = deterministic?.invoices.filter(hasOperationalMinimum) ?? [];
+  const deterministicSelection = uniqueSalesInvoicesByAccessKey(deterministic?.invoices.filter(hasOperationalMinimum) ?? []);
+  const deterministicInvoices = deterministicSelection.invoices;
   const documents = [];
 
   if (deterministic && deterministicInvoices.length > 0) {
@@ -630,6 +702,7 @@ export async function uploadSalesDocument(
       provider: deterministic.provider,
       model: deterministic.model,
       invoiceCount: deterministicInvoices.length,
+      skippedDuplicateAccessKeys: deterministicSelection.skippedDuplicateAccessKeys,
       textLength: deterministic.textLength,
       usedAi: false
     });
@@ -661,7 +734,14 @@ export async function uploadSalesDocument(
         action: "sales_document.upload",
         entityType: "SalesDocument",
         entityId: applied.document.id,
-        metadata: { sellerProfileId: seller.id, fileName, mimeType: input.mimeType, size: input.body.length, invoiceIndex: index + 1 }
+        metadata: {
+          sellerProfileId: seller.id,
+          fileName,
+          mimeType: input.mimeType,
+          size: input.body.length,
+          invoiceIndex: index + 1,
+          skippedDuplicateAccessKeys: deterministicSelection.skippedDuplicateAccessKeys
+        }
       });
       documents.push(applied.document);
     }
@@ -675,6 +755,7 @@ export async function uploadSalesDocument(
       size: input.body.length,
       status: documents[0]?.status,
       createdDocuments: documents.length,
+      skippedDuplicateAccessKeys: deterministicSelection.skippedDuplicateAccessKeys,
       extractionMethod: deterministic.provider
     });
 
@@ -789,7 +870,7 @@ export async function reviewSalesDocument(
         issuerName: cleanString(input.issuerName),
         buyerName: cleanString(input.buyerName),
         totalAmountCents: centsFrom(input.totalAmountCents),
-        rejectionReason: status === "APPROVED" ? null : cleanString(input.rejectionReason),
+        rejectionReason: status === "APPROVED" ? null : cleanString(input.rejectionReason) ?? cleanString(input.reviewNote),
         reviewedById: actor.id,
         reviewedAt: new Date()
       },
@@ -809,8 +890,39 @@ export async function reviewSalesDocument(
     action: status === "APPROVED" ? "sales_document.approve" : "sales_document.reject",
     entityType: "SalesDocument",
     entityId: document.id,
-    metadata: { status, itemCount: updated.items.length }
+    metadata: { status, itemCount: updated.items.length, reviewNote: cleanString(input.reviewNote), rejectionReason: cleanString(input.rejectionReason) }
   });
+  const reviewNote = cleanString(input.reviewNote) ?? cleanString(input.rejectionReason);
+  const notificationRecipients = presentIds([updated.uploadedById, updated.sellerProfile?.user?.id]);
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientIds: notificationRecipients,
+    type:
+      status === "APPROVED"
+        ? "sales_document.approved"
+        : status === "DUPLICATE"
+          ? "sales_document.reviewed"
+          : "sales_document.rejected",
+    title: status === "APPROVED" ? "Nota aprovada" : status === "DUPLICATE" ? "Nota revisada" : "Nota rejeitada",
+    body: reviewNote ?? updated.invoiceNumber ?? updated.fileName,
+    entityType: "SalesDocument",
+    entityId: updated.id,
+    href: "/notas",
+    dedupeKey: `sales_document.reviewed:${updated.id}:${updated.status}:${updated.reviewedAt?.toISOString() ?? ""}`
+  });
+  if (reviewNote) {
+    await emitInAppNotifications(prisma, actor.organizationId, {
+      actorId: actor.id,
+      recipientIds: notificationRecipients,
+      type: "sales_document.commented",
+      title: "Comentario na nota",
+      body: reviewNote,
+      entityType: "SalesDocument",
+      entityId: updated.id,
+      href: "/notas",
+      dedupeKey: `sales_document.commented:${updated.id}:${updated.reviewedAt?.toISOString() ?? ""}`
+    });
+  }
 
   logEvent("info", "sales_document.review.complete", {
     documentId: document.id,
@@ -1014,7 +1126,85 @@ export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUse
   return {
     filters,
     summary: { documents: documents.length, totalAmountCents, totalItems },
+    consolidations: buildSalesStatementConsolidations(documents),
     items: documents
+  };
+}
+
+type SalesStatementDocument = Prisma.SalesDocumentGetPayload<{
+  include: { sellerProfile: { include: { salesGroup: true } }; items: true };
+}>;
+
+function buildSalesStatementConsolidations(documents: SalesStatementDocument[]) {
+  const bySeller = new Map<
+    string,
+    {
+      sellerId: string;
+      sellerName: string;
+      groupId: string | null;
+      groupName: string | null;
+      documents: number;
+      quantity: number;
+      totalAmountCents: number;
+    }
+  >();
+  const byGroup = new Map<
+    string,
+    {
+      groupId: string | null;
+      groupName: string;
+      documents: number;
+      sellers: Set<string>;
+      quantity: number;
+      totalAmountCents: number;
+    }
+  >();
+
+  for (const document of documents) {
+    const quantity = document.items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalAmountCents = document.items.reduce((sum, item) => sum + item.totalAmountCents, 0);
+    const groupId = document.sellerProfile.salesGroup?.id ?? null;
+    const groupName = document.sellerProfile.salesGroup?.name ?? null;
+
+    const sellerTotal =
+      bySeller.get(document.sellerProfileId) ??
+      {
+        sellerId: document.sellerProfileId,
+        sellerName: document.sellerProfile.displayName,
+        groupId,
+        groupName,
+        documents: 0,
+        quantity: 0,
+        totalAmountCents: 0
+      };
+    sellerTotal.documents += 1;
+    sellerTotal.quantity += quantity;
+    sellerTotal.totalAmountCents += totalAmountCents;
+    bySeller.set(document.sellerProfileId, sellerTotal);
+
+    const groupKey = groupId ?? "__ungrouped__";
+    const groupTotal =
+      byGroup.get(groupKey) ??
+      {
+        groupId,
+        groupName: groupName ?? "Sem grupo",
+        documents: 0,
+        sellers: new Set<string>(),
+        quantity: 0,
+        totalAmountCents: 0
+      };
+    groupTotal.documents += 1;
+    groupTotal.sellers.add(document.sellerProfileId);
+    groupTotal.quantity += quantity;
+    groupTotal.totalAmountCents += totalAmountCents;
+    byGroup.set(groupKey, groupTotal);
+  }
+
+  return {
+    bySeller: [...bySeller.values()].sort((a, b) => b.totalAmountCents - a.totalAmountCents || a.sellerName.localeCompare(b.sellerName)),
+    byGroup: [...byGroup.values()]
+      .map((group) => ({ ...group, sellers: group.sellers.size }))
+      .sort((a, b) => b.totalAmountCents - a.totalAmountCents || a.groupName.localeCompare(b.groupName))
   };
 }
 

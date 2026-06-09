@@ -22,6 +22,7 @@ import {
   licenseStatuses,
   notificationChannels,
   notificationStatuses,
+  commercialUserRoles,
   userRoles,
   type ApiResult,
   type CurrentUser,
@@ -46,6 +47,7 @@ type ViewKey =
   | "campaigns"
   | "statements"
   | "wiki"
+  | "faq"
   | "users"
   | "audit"
   | "help"
@@ -278,8 +280,26 @@ interface ManagedUserItem {
   organizationId: string;
   unitScopeIds: string[];
   sectorScopeIds: string[];
+  sellerProfile?: {
+    id: string;
+    code: string;
+    displayName: string;
+    email: string | null;
+    phone: string | null;
+    active: boolean;
+    salesGroupId: string | null;
+    salesGroup: { id: string; name: string } | null;
+  } | null;
+  supervisedSalesGroups?: Array<{ id: string; name: string; active: boolean }>;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SalesGroupOption {
+  id: string;
+  name: string;
+  active: boolean;
+  supervisorId?: string | null;
 }
 
 interface ProfessionalSummary {
@@ -348,6 +368,10 @@ interface GoogleIntegrationStatus {
   preferredMode: "oauth" | "service-account" | "unavailable";
   connectedAt: string | null;
   lastUsedAt: string | null;
+}
+
+interface GoogleLoginStatus {
+  configured: boolean;
 }
 
 interface LicenseTypeItem {
@@ -499,6 +523,18 @@ interface NotificationJobItem {
   license: { id: string; number: string | null; licenseType: { name: string } };
 }
 
+interface InAppNotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  href?: string | null;
+  readAt?: string | null;
+  createdAt: string;
+}
+
 interface FaqItem {
   id: string;
   category: string;
@@ -506,6 +542,37 @@ interface FaqItem {
   answer: string;
   order: number;
   active?: boolean;
+}
+
+interface FaqReactionItem {
+  id: string;
+  type: string;
+  targetType: string;
+  targetId: string;
+  userId: string;
+  user: { id: string; name: string };
+}
+
+interface FaqCommentItem {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; name: string; email: string; role: string };
+  reactions: FaqReactionItem[];
+}
+
+interface FaqThreadItem {
+  id: string;
+  title: string;
+  body: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  promotedAt: string | null;
+  author: { id: string; name: string; email: string; role: string };
+  wikiPage: { id: string; slug: string; title: string } | null;
+  comments: FaqCommentItem[];
+  reactions: FaqReactionItem[];
 }
 
 interface SalesDocumentItem {
@@ -527,6 +594,13 @@ interface SalesDocumentItem {
   extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string; extractedJson?: string | null }>;
 }
 
+interface SalesSellerItem {
+  id: string;
+  displayName: string;
+  code: string;
+  salesGroup: { id: string; name: string } | null;
+}
+
 interface SalesDocumentReviewDraft {
   accessKey: string;
   invoiceNumber: string;
@@ -536,7 +610,27 @@ interface SalesDocumentReviewDraft {
   buyerName: string;
   totalAmountCents: string;
   rejectionReason: string;
+  reviewNote: string;
   items: Array<{ id: string; sku: string; description: string; category: string; quantity: string; unitAmountCents: string; totalAmountCents: string }>;
+}
+
+interface SalesDocumentListFilters {
+  status?: string;
+  sellerProfileId?: string;
+  from?: string;
+  to?: string;
+}
+
+interface SalesDocumentExtractionFeedback {
+  provider?: string;
+  model?: string;
+  usedAi?: boolean;
+  duplicate?: boolean;
+  status?: string;
+  accessKey?: string | null;
+  itemCount?: number;
+  warningCount?: number;
+  warnings?: string[];
 }
 
 interface SalesDashboardData {
@@ -604,9 +698,56 @@ interface SalesRankingData {
   total: number;
 }
 
+interface RankingSnapshotPayload {
+  campaign?: SalesCampaignItem | null;
+  items: SalesRankingRow[];
+  total?: number;
+}
+
+interface RankingSnapshotComparisonRow {
+  sellerId: string;
+  sellerName: string;
+  groupName: string | null;
+  previousPosition: number | null;
+  currentPosition: number | null;
+  positionDelta: number | null;
+  previousTotalAmountCents: number;
+  currentTotalAmountCents: number;
+  totalDeltaCents: number;
+  previousQuantity: number;
+  currentQuantity: number;
+  quantityDelta: number;
+  previousDocuments: number;
+  currentDocuments: number;
+  documentsDelta: number;
+}
+
+interface SalesStatementSellerConsolidation {
+  sellerId: string;
+  sellerName: string;
+  groupId: string | null;
+  groupName: string | null;
+  documents: number;
+  quantity: number;
+  totalAmountCents: number;
+}
+
+interface SalesStatementGroupConsolidation {
+  groupId: string | null;
+  groupName: string;
+  documents: number;
+  sellers: number;
+  quantity: number;
+  totalAmountCents: number;
+}
+
 interface SalesStatementData {
   filters?: SalesFilters;
   summary: { documents: number; totalAmountCents: number; totalItems: number };
+  consolidations: {
+    bySeller: SalesStatementSellerConsolidation[];
+    byGroup: SalesStatementGroupConsolidation[];
+  };
   items: SalesDocumentItem[];
 }
 
@@ -650,6 +791,7 @@ const navItems: NavItem[] = [
   { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: ["ADMIN", "GESTOR", "SUPERVISOR"] },
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: ["ADMIN", "GESTOR"] },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
@@ -658,25 +800,21 @@ const navItems: NavItem[] = [
 const helpAnchorIds = new Set([
   "visao-geral",
   "primeiro-acesso",
-  "dashboard",
-  "profissionais",
-  "licencas",
-  "documentos",
-  "upload-publico",
-  "notificacoes",
-  "relatorios",
-  "auditoria",
-  "configuracoes",
+  "dashboard-comercial",
+  "upload-danfe",
+  "status-das-notas",
+  "reprocessamento-ia",
+  "duplicidade-danfe",
+  "aprovacao-de-notas",
+  "ranking",
+  "campanhas",
+  "extratos",
+  "wiki",
+  "faq",
+  "usuarios-times",
   "perfis-e-permissoes",
-  "filtros-e-ids",
-  "cadastro-profissional",
-  "cadastro-licenca",
-  "validacao-documentos",
-  "links-de-upload",
-  "configuracao-usuarios",
-  "configuracao-organizacao",
-  "jobs-notificacao",
-  "importacao-csv",
+  "auditoria",
+  "notificacoes-in-app",
   "glossario",
   "problemas-comuns"
 ]);
@@ -750,6 +888,18 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleConfigured, setGoogleConfigured] = useState(false);
+
+  useEffect(() => {
+    api<GoogleLoginStatus>("/v1/auth/google/status")
+      .then((status) => setGoogleConfigured(status.configured))
+      .catch(() => setGoogleConfigured(false));
+  }, []);
+
+  function expectedAuthOrigin() {
+    return new URL(apiBaseUrl || window.location.origin, window.location.origin).origin;
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -768,6 +918,58 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
     }
   }
 
+  async function startGoogleLogin() {
+    setGoogleLoading(true);
+    setError(null);
+    return new Promise<void>((resolve) => {
+      const popup = window.open("", "alwaystrack-google-login", "popup=yes,width=560,height=720");
+      if (!popup) {
+        window.location.assign(`${apiBaseUrl}/v1/auth/google/start`);
+        setGoogleLoading(false);
+        resolve();
+        return;
+      }
+
+      popup.location.href = `${apiBaseUrl}/v1/auth/google/start`;
+      const timer = window.setInterval(() => {
+        if (popup.closed) {
+          cleanup();
+          setGoogleLoading(false);
+          resolve();
+        }
+      }, 500);
+
+      function cleanup() {
+        window.clearInterval(timer);
+        window.removeEventListener("message", handleMessage);
+      }
+
+      async function handleMessage(event: MessageEvent) {
+        if (event.origin !== expectedAuthOrigin()) return;
+        const payload = event.data as { type?: string; status?: string; message?: string } | null;
+        if (!payload || payload.type !== "alwaystrack-google-login") return;
+        cleanup();
+        if (popup && !popup.closed) {
+          popup.close();
+        }
+        if (payload.status === "success") {
+          try {
+            const result = await api<{ user: CurrentUser }>("/v1/auth/me");
+            onLogin(result.user);
+          } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Falha ao carregar sessão Google.");
+          }
+        } else {
+          setError(payload.message || "Não foi possível concluir o login com Google.");
+        }
+        setGoogleLoading(false);
+        resolve();
+      }
+
+      window.addEventListener("message", handleMessage);
+    });
+  }
+
   return (
     <main className="auth-page">
       <form className="panel login-panel" onSubmit={submit}>
@@ -780,6 +982,12 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
         </div>
         <div>
           <p className="muted">Acesso operacional para notas, ranking, campanhas e extratos comerciais.</p>
+        </div>
+        <button type="button" disabled={!googleConfigured || googleLoading || loading} onClick={() => void startGoogleLogin()}>
+          {googleLoading ? "Conectando..." : "Entrar com Google"}
+        </button>
+        <div className="login-divider">
+          <span>Email e senha</span>
         </div>
         <label>
           Email
@@ -795,7 +1003,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
           />
         </label>
         {error ? <p className="error">{error}</p> : null}
-        <button disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
+        <button className="secondary" disabled={loading || googleLoading}>{loading ? "Entrando..." : "Entrar com senha"}</button>
       </form>
     </main>
   );
@@ -1271,6 +1479,7 @@ function reviewDraftFromDocument(document: SalesDocumentItem): SalesDocumentRevi
     buyerName: document.buyerName ?? "",
     totalAmountCents: moneyInputValue(document.totalAmountCents),
     rejectionReason: document.rejectionReason ?? "Reprovada na revisão manual.",
+    reviewNote: "",
     items:
       document.items.length > 0
         ? document.items.map((item) => ({
@@ -1297,6 +1506,7 @@ function reviewPayloadFromDraft(draft: SalesDocumentReviewDraft, status: "APPROV
     buyerName: draft.buyerName || null,
     totalAmountCents: centsFromMoneyInput(draft.totalAmountCents),
     rejectionReason: status === "REJECTED" ? draft.rejectionReason || "Reprovada na revisão manual." : null,
+    reviewNote: draft.reviewNote || null,
     items: draft.items
       .map((item) => ({
         sku: item.sku || null,
@@ -1327,6 +1537,12 @@ function salesFilterQuery(filters: SalesFilters) {
   return serialized ? `?${serialized}` : "";
 }
 
+function withoutSellerFilter(filters: SalesFilters): SalesFilters {
+  const next = { ...filters };
+  delete next.sellerProfileId;
+  return next;
+}
+
 function campaignDraftFromItem(item?: SalesCampaignItem): SalesCampaignDraft {
   return {
     id: item?.id,
@@ -1352,13 +1568,87 @@ function campaignPayloadFromDraft(draft: SalesCampaignDraft) {
   };
 }
 
-function snapshotTotal(snapshot: RankingSnapshotItem) {
+function numberFromSnapshotValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function parseRankingSnapshot(snapshot: RankingSnapshotItem): RankingSnapshotPayload {
   try {
-    const payload = JSON.parse(snapshot.payloadJson) as { total?: number; items?: unknown[] };
-    return typeof payload.total === "number" ? payload.total : Array.isArray(payload.items) ? payload.items.length : 0;
+    const payload = JSON.parse(snapshot.payloadJson) as { campaign?: SalesCampaignItem | null; total?: number; items?: unknown[] };
+    const items = Array.isArray(payload.items)
+      ? payload.items
+          .map((item, index) => {
+            if (!item || typeof item !== "object") return null;
+            const row = item as Record<string, unknown>;
+            const sellerId = typeof row.sellerId === "string" ? row.sellerId : "";
+            if (!sellerId) return null;
+            return {
+              position: numberFromSnapshotValue(row.position) || index + 1,
+              sellerId,
+              sellerName: typeof row.sellerName === "string" ? row.sellerName : "Vendedor",
+              groupName: typeof row.groupName === "string" ? row.groupName : null,
+              totalAmountCents: numberFromSnapshotValue(row.totalAmountCents),
+              quantity: numberFromSnapshotValue(row.quantity),
+              documents: numberFromSnapshotValue(row.documents)
+            };
+          })
+          .filter((item): item is SalesRankingRow => item !== null)
+      : [];
+    return { campaign: payload.campaign, items, total: typeof payload.total === "number" ? payload.total : items.length };
   } catch {
-    return 0;
+    return { campaign: null, items: [], total: 0 };
   }
+}
+
+function snapshotTotal(snapshot: RankingSnapshotItem) {
+  const payload = parseRankingSnapshot(snapshot);
+  return typeof payload.total === "number" ? payload.total : payload.items.length;
+}
+
+function snapshotLabel(snapshot: RankingSnapshotItem) {
+  return `${snapshot.campaign?.name ?? "Ranking"} - ${formatDateBr(snapshot.createdAt)}`;
+}
+
+function compareRankingSnapshots(previous: RankingSnapshotItem, current: RankingSnapshotItem): RankingSnapshotComparisonRow[] {
+  const previousRows = new Map(parseRankingSnapshot(previous).items.map((item) => [item.sellerId, item]));
+  const currentRows = new Map(parseRankingSnapshot(current).items.map((item) => [item.sellerId, item]));
+  const sellerIds = new Set([...previousRows.keys(), ...currentRows.keys()]);
+
+  return [...sellerIds]
+    .map((sellerId) => {
+      const previousRow = previousRows.get(sellerId);
+      const currentRow = currentRows.get(sellerId);
+      const previousPosition = previousRow?.position ?? null;
+      const currentPosition = currentRow?.position ?? null;
+      return {
+        sellerId,
+        sellerName: currentRow?.sellerName ?? previousRow?.sellerName ?? "Vendedor",
+        groupName: currentRow?.groupName ?? previousRow?.groupName ?? null,
+        previousPosition,
+        currentPosition,
+        positionDelta: previousPosition !== null && currentPosition !== null ? previousPosition - currentPosition : null,
+        previousTotalAmountCents: previousRow?.totalAmountCents ?? 0,
+        currentTotalAmountCents: currentRow?.totalAmountCents ?? 0,
+        totalDeltaCents: (currentRow?.totalAmountCents ?? 0) - (previousRow?.totalAmountCents ?? 0),
+        previousQuantity: previousRow?.quantity ?? 0,
+        currentQuantity: currentRow?.quantity ?? 0,
+        quantityDelta: (currentRow?.quantity ?? 0) - (previousRow?.quantity ?? 0),
+        previousDocuments: previousRow?.documents ?? 0,
+        currentDocuments: currentRow?.documents ?? 0,
+        documentsDelta: (currentRow?.documents ?? 0) - (previousRow?.documents ?? 0)
+      };
+    })
+    .sort((a, b) => (a.currentPosition ?? Number.MAX_SAFE_INTEGER) - (b.currentPosition ?? Number.MAX_SAFE_INTEGER));
+}
+
+function formatSignedNumber(value: number) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function formatPositionDelta(value: number | null) {
+  if (value === null) return "-";
+  if (value === 0) return "0";
+  return value > 0 ? `Subiu ${value}` : `Caiu ${Math.abs(value)}`;
 }
 
 function mergeUniqueGroups(campaigns: SalesCampaignItem[] | null, documents: SalesDocumentItem[] = []) {
@@ -1585,6 +1875,10 @@ function SalesDocumentReviewEditor({
           Motivo se reprovar
           <input value={draft.rejectionReason} onChange={(event) => updateField("rejectionReason", event.target.value)} />
         </label>
+        <label className="full-span">
+          Comentário operacional
+          <textarea rows={3} value={draft.reviewNote} onChange={(event) => updateField("reviewNote", event.target.value)} />
+        </label>
       </div>
       <div className="review-items-toolbar">
         <strong>Itens comerciais</strong>
@@ -1620,18 +1914,36 @@ function SalesDocumentReviewEditor({
 function NotesView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesDocumentItem[]>([]);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, SalesDocumentReviewDraft>>({});
+  const [filters, setFilters] = useState<SalesDocumentListFilters>({});
+  const [sellerOptions, setSellerOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [uploadSellerProfileId, setUploadSellerProfileId] = useState("");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [extractionFeedback, setExtractionFeedback] = useState<Record<string, SalesDocumentExtractionFeedback>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canReview = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(user.role);
+  const pendingReviewItems = useMemo(() => items.filter((item) => item.status === "PENDING_REVIEW"), [items]);
+  const selectedPendingItems = useMemo(
+    () => pendingReviewItems.filter((item) => selectedDocumentIds.includes(item.id)),
+    [pendingReviewItems, selectedDocumentIds]
+  );
+  const selectedInvalidApprovalCount = selectedPendingItems.filter((item) => validReviewItemCount(reviewDrafts[item.id] ?? reviewDraftFromDocument(item)) === 0).length;
+  const allPendingSelected = pendingReviewItems.length > 0 && pendingReviewItems.every((item) => selectedDocumentIds.includes(item.id));
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api<{ items: SalesDocumentItem[]; total: number }>("/v1/sales/documents");
+      const result = await api<{ items: SalesDocumentItem[]; total: number }>(`/v1/sales/documents${salesFilterQuery(filters)}`);
       setItems(result.items);
+      setSelectedDocumentIds((current) => current.filter((id) => result.items.some((item) => item.id === id && item.status === "PENDING_REVIEW")));
+      setSellerOptions((current) => {
+        const next = new Map(current.map((seller) => [seller.id, seller.name]));
+        for (const document of result.items) next.set(document.sellerProfile.id, document.sellerProfile.displayName);
+        return [...next.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+      });
       setReviewDrafts((current) => {
         const next = { ...current };
         for (const document of result.items) {
@@ -1649,7 +1961,21 @@ function NotesView({ user }: { user: CurrentUser }) {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [filters.status, filters.sellerProfileId, filters.from, filters.to]);
+
+  useEffect(() => {
+    api<{ items: SalesSellerItem[]; total: number }>("/v1/sales/sellers")
+      .then((result) => {
+        const sellers = result.items.map((seller) => ({ id: seller.id, name: seller.displayName })).sort((a, b) => a.name.localeCompare(b.name));
+        setSellerOptions((current) => {
+          const next = new Map(current.map((seller) => [seller.id, seller.name]));
+          for (const seller of sellers) next.set(seller.id, seller.name);
+          return [...next.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+        });
+        if (user.role !== "VENDEDOR" && sellers[0]) setUploadSellerProfileId((current) => current || sellers[0].id);
+      })
+      .catch(() => undefined);
+  }, [user.role]);
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1660,7 +1986,9 @@ function NotesView({ user }: { user: CurrentUser }) {
     setError(null);
     try {
       const mimeType = file.type || (file.name.toLowerCase().endsWith(".xml") ? "application/xml" : "application/pdf");
-      await api<{ document: SalesDocumentItem }>(`/v1/sales/documents?fileName=${encodeURIComponent(file.name)}`, {
+      const search = new URLSearchParams({ fileName: file.name });
+      if (user.role !== "VENDEDOR") search.set("sellerProfileId", uploadSellerProfileId);
+      await api<{ document: SalesDocumentItem }>(`/v1/sales/documents?${search.toString()}`, {
         method: "POST",
         headers: { "content-type": mimeType },
         body: await file.arrayBuffer()
@@ -1679,7 +2007,20 @@ function NotesView({ user }: { user: CurrentUser }) {
     setError(null);
     try {
       const query = options.forceAi ? "?forceAi=1" : "";
-      await api<{ document: SalesDocumentItem; warnings: string[] }>(`/v1/sales/documents/${document.id}/analyze${query}`, { method: "POST" });
+      const result = await api<{ document: SalesDocumentItem; warnings: string[]; duplicate?: boolean; extraction?: SalesDocumentExtractionFeedback }>(
+        `/v1/sales/documents/${document.id}/analyze${query}`,
+        { method: "POST" }
+      );
+      setExtractionFeedback((current) => ({
+        ...current,
+        [document.id]: {
+          ...(result.extraction ?? {}),
+          status: result.extraction?.status ?? result.document.status,
+          duplicate: result.duplicate ?? result.extraction?.duplicate,
+          warnings: result.warnings,
+          warningCount: result.warnings.length
+        }
+      }));
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao extrair dados da DANFE.");
@@ -1692,12 +2033,14 @@ function NotesView({ user }: { user: CurrentUser }) {
     setActingId(document.id);
     setError(null);
     const draft = reviewDrafts[document.id] ?? reviewDraftFromDocument(document);
+    const scrollTop = window.scrollY;
     try {
       await api<{ document: SalesDocumentItem }>(`/v1/sales/documents/${document.id}/review`, {
         method: "PATCH",
         body: JSON.stringify(reviewPayloadFromDraft(draft, status))
       });
       await load();
+      window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop }));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao revisar nota.");
     } finally {
@@ -1705,18 +2048,68 @@ function NotesView({ user }: { user: CurrentUser }) {
     }
   }
 
+  function toggleDocumentSelection(document: SalesDocumentItem) {
+    if (document.status !== "PENDING_REVIEW") return;
+    setSelectedDocumentIds((current) => (current.includes(document.id) ? current.filter((id) => id !== document.id) : [...current, document.id]));
+  }
+
+  function toggleAllPendingSelection() {
+    setSelectedDocumentIds((current) => {
+      const pendingIds = pendingReviewItems.map((item) => item.id);
+      if (pendingIds.length === 0) return current;
+      if (pendingIds.every((id) => current.includes(id))) return current.filter((id) => !pendingIds.includes(id));
+      return [...new Set([...current, ...pendingIds])];
+    });
+  }
+
+  async function bulkReview(status: "APPROVED" | "REJECTED") {
+    if (selectedPendingItems.length === 0) return;
+    if (status === "APPROVED" && selectedInvalidApprovalCount > 0) return;
+    setActingId("bulk-review");
+    setError(null);
+    const scrollTop = window.scrollY;
+    try {
+      for (const document of selectedPendingItems) {
+        const draft = reviewDrafts[document.id] ?? reviewDraftFromDocument(document);
+        await api<{ document: SalesDocumentItem }>(`/v1/sales/documents/${document.id}/review`, {
+          method: "PATCH",
+          body: JSON.stringify(reviewPayloadFromDraft(draft, status))
+        });
+      }
+      setSelectedDocumentIds([]);
+      await load();
+      window.requestAnimationFrame(() => window.scrollTo({ top: scrollTop }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao revisar notas em lote.");
+    } finally {
+      setActingId(null);
+    }
+  }
+
   return (
     <div className="content-stack">
-      {user.role === "VENDEDOR" ? (
+      {user.role === "VENDEDOR" || canReview ? (
         <section className="panel form-panel">
           <h2>Enviar DANFE</h2>
           <form onSubmit={upload}>
+            {user.role !== "VENDEDOR" ? (
+              <label>
+                <span className="label-row">Vendedor <InfoTip text="Admin pode enviar a nota em nome do vendedor correto; isso alimenta extratos e ranking." href="#upload-danfe" /></span>
+                <select required value={uploadSellerProfileId} onChange={(event) => setUploadSellerProfileId(event.target.value)}>
+                  {sellerOptions.map((seller) => (
+                    <option key={seller.id} value={seller.id}>
+                      {seller.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label>
-              PDF ou imagem da nota
+              <span className="label-row">PDF ou imagem da nota <InfoTip text="Envie DANFE legivel em PDF, XML ou imagem; a extracao salva itens para revisao." href="#upload-danfe" /></span>
               <input name="danfe" type="file" accept="application/pdf,application/xml,text/xml,.xml,image/jpeg,image/png,image/webp" />
             </label>
             <div className="form-actions">
-              <button disabled={saving}>{saving ? "Enviando..." : "Enviar nota"}</button>
+              <button disabled={saving || (user.role !== "VENDEDOR" && !uploadSellerProfileId)}>{saving ? "Enviando..." : "Enviar nota"}</button>
             </div>
           </form>
         </section>
@@ -1730,15 +2123,106 @@ function NotesView({ user }: { user: CurrentUser }) {
             <h2>DANFEs recebidas</h2>
           </div>
         </div>
+        <div className="operational-filters notes-review-filters">
+          <label>
+            Enviada de
+            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
+          </label>
+          <label>
+            Enviada até
+            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
+          </label>
+          <label>
+            <span className="label-row">Vendedor <InfoTip text="Filtre por vendedor para revisar lote, conferir duplicidades ou validar ranking." href="#aprovacao-de-notas" /></span>
+            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
+              <option value="">Todos</option>
+              {sellerOptions.map((seller) => (
+                <option key={seller.id} value={seller.id}>
+                  {seller.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="label-row">Status <InfoTip text="Status indica a etapa da nota: enviada, extraida, pendente, aprovada, rejeitada ou duplicada." href="#status-das-notas" /></span>
+            <select value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value || undefined }))}>
+              <option value="">Todos</option>
+              <option value="UPLOADED">Enviada</option>
+              <option value="EXTRACTING">Extraindo</option>
+              <option value="PENDING_REVIEW">Pendente</option>
+              <option value="APPROVED">Aprovada</option>
+              <option value="REJECTED">Rejeitada</option>
+              <option value="DUPLICATE">Duplicada</option>
+            </select>
+          </label>
+          <div className="filter-actions">
+            <button className="secondary" type="button" onClick={() => setFilters({})}>
+              Limpar
+            </button>
+          </div>
+        </div>
         {loading ? (
           <OperationalState state="loading" title="Carregando notas" />
         ) : items.length === 0 ? (
           <OperationalState state="empty" title="Nenhuma nota enviada" />
         ) : (
-          <OperationalTable
-            items={items}
-            getRowKey={(item) => item.id}
-            columns={[
+          <>
+            {canReview ? (
+              <div className="bulk-actions-bar">
+                <label className="bulk-select-all">
+                  <input
+                    aria-label="Selecionar todas as notas pendentes visíveis"
+                    checked={allPendingSelected}
+                    disabled={pendingReviewItems.length === 0 || actingId !== null}
+                    type="checkbox"
+                    onChange={toggleAllPendingSelection}
+                  />
+                  Selecionar todas <InfoTip text="Seleciona apenas notas pendentes visiveis para aprovar ou rejeitar em lote." href="#aprovacao-de-notas" />
+                </label>
+                <span>{selectedPendingItems.length} nota(s) selecionada(s)</span>
+                {selectedInvalidApprovalCount > 0 ? <small>{selectedInvalidApprovalCount} sem itens válidos para aprovar</small> : null}
+                <button
+                  className="ghost-button small"
+                  disabled={actingId !== null || selectedPendingItems.length === 0 || selectedInvalidApprovalCount > 0}
+                  type="button"
+                  onClick={() => void bulkReview("APPROVED")}
+                >
+                  Aceitar selecionadas
+                </button>
+                <button
+                  className="ghost-button small danger"
+                  disabled={actingId !== null || selectedPendingItems.length === 0}
+                  type="button"
+                  onClick={() => void bulkReview("REJECTED")}
+                >
+                  Negar selecionadas
+                </button>
+                <button className="secondary small" disabled={selectedPendingItems.length === 0} type="button" onClick={() => setSelectedDocumentIds([])}>
+                  Limpar seleção
+                </button>
+              </div>
+            ) : null}
+            <OperationalTable
+              items={items}
+              getRowKey={(item) => item.id}
+              columns={[
+              ...(canReview
+                ? [
+                    {
+                      key: "select",
+                      header: "",
+                      render: (item: SalesDocumentItem) => (
+                        <input
+                          aria-label={`Selecionar ${item.invoiceNumber ? `NF ${item.invoiceNumber}` : item.fileName}`}
+                          checked={selectedDocumentIds.includes(item.id)}
+                          disabled={item.status !== "PENDING_REVIEW" || actingId !== null}
+                          type="checkbox"
+                          onChange={() => toggleDocumentSelection(item)}
+                        />
+                      )
+                    }
+                  ]
+                : []),
               { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
               { key: "group", header: "Grupo", render: (item) => item.sellerProfile.salesGroup?.name ?? "-" },
               { key: "file", header: "Arquivo", render: (item) => item.fileName },
@@ -1752,23 +2236,65 @@ function NotesView({ user }: { user: CurrentUser }) {
                 render: (item) => (
                   <div className="inline-actions">
                     {item.status === "UPLOADED" ? (
-                      <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item)}>
+                      <button className="ghost-button small" disabled={actingId !== null} onClick={() => analyze(item)}>
                         {actingId === item.id ? "Extraindo..." : "Extrair"}
                       </button>
                     ) : null}
                   {canReview && item.status === "PENDING_REVIEW" ? (
                     <>
-                      <button className="ghost-button small" disabled={actingId === item.id} onClick={() => analyze(item, { forceAi: true })}>
+                      <button
+                        className="ghost-button small"
+                        disabled={actingId !== null || validReviewItemCount(reviewDrafts[item.id] ?? reviewDraftFromDocument(item)) === 0}
+                        onClick={() => review(item, "APPROVED")}
+                      >
+                        Aceitar
+                      </button>
+                      <button className="ghost-button small danger" disabled={actingId !== null} onClick={() => review(item, "REJECTED")}>
+                        Negar
+                      </button>
+                      <button
+                        className="ghost-button small"
+                        type="button"
+                        onClick={() => {
+                          const panel = document.getElementById(`sales-review-${item.id}`) as HTMLDetailsElement | null;
+                          if (panel) panel.open = true;
+                          panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                      >
+                        Revisar
+                      </button>
+                      <button className="ghost-button small" disabled={actingId !== null} onClick={() => analyze(item, { forceAi: true })}>
                         {actingId === item.id ? "Reprocessando..." : "Reprocessar IA"}
                       </button>
+                      <InfoTip text="Forca nova tentativa de extracao por IA e mostra provider, itens, alertas e duplicidade." href="#reprocessamento-ia" />
                     </>
                   ) : null}
                   </div>
                 )
               }
-            ]}
-          />
+              ]}
+            />
+          </>
         )}
+        {Object.entries(extractionFeedback).length > 0 ? (
+          <div className="extraction-feedback-list">
+            {Object.entries(extractionFeedback).map(([documentId, feedback]) => {
+              const document = items.find((item) => item.id === documentId);
+              return (
+                <div className={feedback.duplicate ? "extraction-feedback-card warning" : "extraction-feedback-card"} key={documentId}>
+                  <strong>{document?.invoiceNumber ? `NF ${document.invoiceNumber}` : document?.fileName ?? "Nota reprocessada"}</strong>
+                  <span>Status: {feedback.status ?? "-"}</span>
+                  <span>{feedback.usedAi ? "Origem: IA" : "Origem: determinística"}</span>
+                  <span>{feedback.provider ? `Provider: ${feedback.provider}${feedback.model ? `/${feedback.model}` : ""}` : "Provider: -"}</span>
+                  <span>Itens: {feedback.itemCount ?? 0}</span>
+                  <span>Chave: {feedback.accessKey ?? "-"}</span>
+                  {feedback.duplicate ? <span>Duplicidade real sinalizada <InfoTip text="Duplicidade deve existir contra uma nota ja salva, nao contra itens repetidos no mesmo pacote." href="#duplicidade-danfe" /></span> : null}
+                  {feedback.warnings?.length ? <small>{feedback.warnings.join(" | ")}</small> : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
       {items.some((item) => item.accessKey || item.items.length > 0 || item.extractions?.length) ? (
         <section className="panel extracted-data-panel">
@@ -1782,7 +2308,7 @@ function NotesView({ user }: { user: CurrentUser }) {
             {items
               .filter((item) => item.accessKey || item.items.length > 0 || item.extractions?.length)
               .map((item) => (
-                <details key={item.id} className="extracted-data-card">
+                <details key={item.id} id={`sales-review-${item.id}`} className="extracted-data-card">
                   <summary>
                     <strong>{item.invoiceNumber ? `NF ${item.invoiceNumber}` : item.fileName}</strong>
                     <span>{item.status}</span>
@@ -1823,7 +2349,7 @@ function NotesView({ user }: { user: CurrentUser }) {
                     <SalesDocumentReviewEditor
                       document={item}
                       draft={reviewDrafts[item.id] ?? reviewDraftFromDocument(item)}
-                      disabled={actingId === item.id}
+                      disabled={actingId !== null}
                       onChange={(draft) => setReviewDrafts((current) => ({ ...current, [item.id]: draft }))}
                       onApprove={() => void review(item, "APPROVED")}
                       onReject={() => void review(item, "REJECTED")}
@@ -1838,23 +2364,37 @@ function NotesView({ user }: { user: CurrentUser }) {
   );
 }
 
-function RankingView() {
+function RankingView({ user }: { user: CurrentUser }) {
   const [ranking, setRanking] = useState<SalesRankingData | null>(null);
+  const [sellerRanking, setSellerRanking] = useState<SalesRankingData | null>(null);
   const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
   const [filters, setFilters] = useState<SalesFilters>({});
+  const canFilterSellers = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
   useEffect(() => {
     api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
   }, []);
   useEffect(() => {
     api<SalesRankingData>(`/v1/sales/ranking${salesFilterQuery(filters)}`).then(setRanking).catch(() => setRanking(null));
   }, [filters]);
+  useEffect(() => {
+    if (!canFilterSellers) {
+      setSellerRanking(null);
+      return;
+    }
+    api<SalesRankingData>(`/v1/sales/ranking${salesFilterQuery(withoutSellerFilter(filters))}`)
+      .then(setSellerRanking)
+      .catch(() => setSellerRanking(null));
+  }, [canFilterSellers, filters]);
   const groups = mergeUniqueGroups(campaigns);
+  const sellers = (sellerRanking?.items ?? ranking?.items ?? [])
+    .map((item) => ({ id: item.sellerId, name: item.sellerName }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <div className="content-stack">
       <section className="panel filter-panel">
         <div className="filter-grid">
           <label>
-            Campanha
+            <span className="label-row">Campanha <InfoTip text="Campanha limita o ranking a uma regra comercial e periodo especifico." href="#ranking" /></span>
             <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
               <option value="">Todas</option>
               {(campaigns ?? []).map((campaign) => (
@@ -1875,6 +2415,19 @@ function RankingView() {
               ))}
             </select>
           </label>
+          {canFilterSellers ? (
+            <label>
+              <span className="label-row">Vendedor <InfoTip text="Use para validar um vendedor especifico; limpe para comparar todos." href="#ranking" /></span>
+              <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
+                <option value="">Todos</option>
+                {sellers.map((seller) => (
+                  <option key={seller.id} value={seller.id}>
+                    {seller.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label>
             De
             <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
@@ -1927,8 +2480,20 @@ function CampaignsView({ user }: { user: CurrentUser }) {
   const [draft, setDraft] = useState<SalesCampaignDraft>(() => campaignDraftFromItem());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compareBaseId, setCompareBaseId] = useState("");
+  const [compareCurrentId, setCompareCurrentId] = useState("");
   const canManage = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
   const groups = mergeUniqueGroups(items);
+  const defaultBaseId = snapshots[1]?.id ?? snapshots[0]?.id ?? "";
+  const defaultCurrentId = snapshots[0]?.id ?? "";
+  const selectedBaseId = snapshots.some((item) => item.id === compareBaseId) ? compareBaseId : defaultBaseId;
+  const selectedCurrentId = snapshots.some((item) => item.id === compareCurrentId) ? compareCurrentId : defaultCurrentId;
+  const baseSnapshot = snapshots.find((item) => item.id === selectedBaseId);
+  const currentSnapshot = snapshots.find((item) => item.id === selectedCurrentId);
+  const comparisonRows = useMemo(
+    () => (baseSnapshot && currentSnapshot && baseSnapshot.id !== currentSnapshot.id ? compareRankingSnapshots(baseSnapshot, currentSnapshot) : []),
+    [baseSnapshot, currentSnapshot]
+  );
 
   async function load() {
     const [campaignResult, snapshotResult] = await Promise.all([
@@ -2025,7 +2590,7 @@ function CampaignsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Métrica
+                <span className="label-row">Métrica <InfoTip text="Define como a campanha ordena vendedores: valor vendido, itens ou notas aprovadas." href="#campanhas" /></span>
                 <select value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value }))}>
                   <option value="totalAmountCents">Valor vendido</option>
                   <option value="quantity">Quantidade de itens</option>
@@ -2033,7 +2598,7 @@ function CampaignsView({ user }: { user: CurrentUser }) {
                 </select>
               </label>
               <label>
-                Status
+                <span className="label-row">Status <InfoTip text="Ativa entra na operacao; rascunho, pausada e encerrada ajudam a controlar o ciclo da campanha." href="#campanhas" /></span>
                 <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
                   <option value="ACTIVE">Ativa</option>
                   <option value="DRAFT">Rascunho</option>
@@ -2096,6 +2661,7 @@ function CampaignsView({ user }: { user: CurrentUser }) {
                       <button className="secondary small" type="button" disabled={saving} onClick={() => void snapshotCampaign(item)}>
                         Snapshot
                       </button>
+                      <InfoTip text="Congela o ranking da campanha para comparar posicoes depois." href="#campanhas" />
                       <button className="secondary small" type="button" disabled={saving} onClick={() => void updateStatus(item, item.status === "ACTIVE" ? "PAUSED" : "ACTIVE")}>
                         {item.status === "ACTIVE" ? "Pausar" : "Ativar"}
                       </button>
@@ -2106,6 +2672,64 @@ function CampaignsView({ user }: { user: CurrentUser }) {
               }
             ]}
           />
+        )}
+      </section>
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Comparativo</p>
+            <h2>Snapshots recentes de ranking</h2>
+          </div>
+        </div>
+        {snapshots.length < 2 ? (
+          <OperationalState state="empty" title="Crie ao menos dois snapshots para comparar rankings" />
+        ) : (
+          <>
+            <div className="filter-panel">
+              <div className="filter-grid">
+                <label>
+                  <span className="label-row">Base <InfoTip text="Snapshot antigo usado como ponto de comparacao." href="#campanhas" /></span>
+                  <select value={selectedBaseId} onChange={(event) => setCompareBaseId(event.target.value)}>
+                    {snapshots.map((snapshot) => (
+                      <option key={snapshot.id} value={snapshot.id}>
+                        {snapshotLabel(snapshot)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span className="label-row">Atual <InfoTip text="Snapshot mais recente usado para medir movimento de ranking." href="#campanhas" /></span>
+                  <select value={selectedCurrentId} onChange={(event) => setCompareCurrentId(event.target.value)}>
+                    {snapshots.map((snapshot) => (
+                      <option key={snapshot.id} value={snapshot.id}>
+                        {snapshotLabel(snapshot)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+            {!baseSnapshot || !currentSnapshot || baseSnapshot.id === currentSnapshot.id ? (
+              <OperationalState state="empty" title="Selecione dois snapshots diferentes" />
+            ) : comparisonRows.length === 0 ? (
+              <OperationalState state="empty" title="Nenhum vendedor encontrado nos snapshots selecionados" />
+            ) : (
+              <OperationalTable
+                items={comparisonRows}
+                getRowKey={(item) => item.sellerId}
+                columns={[
+                  { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
+                  { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
+                  { key: "position", header: "Posição", render: (item) => `${item.previousPosition ?? "-"} -> ${item.currentPosition ?? "-"}` },
+                  { key: "movement", header: "Movimento", render: (item) => formatPositionDelta(item.positionDelta) },
+                  { key: "total", header: "Total atual", render: (item) => formatMoneyFromCents(item.currentTotalAmountCents) },
+                  { key: "totalDelta", header: "Variação", render: (item) => formatMoneyFromCents(item.totalDeltaCents) },
+                  { key: "quantityDelta", header: "Itens", render: (item) => `${item.currentQuantity} (${formatSignedNumber(item.quantityDelta)})` },
+                  { key: "documentsDelta", header: "Notas", render: (item) => `${item.currentDocuments} (${formatSignedNumber(item.documentsDelta)})` }
+                ]}
+              />
+            )}
+          </>
         )}
       </section>
       <section className="panel table-panel">
@@ -2157,7 +2781,7 @@ function StatementsView() {
       <section className="panel filter-panel">
         <div className="filter-grid">
           <label>
-            Campanha
+            <span className="label-row">Campanha <InfoTip text="Filtra o extrato pela campanha usada para consolidar notas aprovadas." href="#extratos" /></span>
             <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
               <option value="">Todas</option>
               {(campaigns ?? []).map((campaign) => (
@@ -2168,7 +2792,7 @@ function StatementsView() {
             </select>
           </label>
           <label>
-            Grupo
+            <span className="label-row">Grupo <InfoTip text="Use para conferir consolidado de um time comercial especifico." href="#extratos" /></span>
             <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
               <option value="">Todos</option>
               {groups.map((group) => (
@@ -2179,7 +2803,7 @@ function StatementsView() {
             </select>
           </label>
           <label>
-            Vendedor
+            <span className="label-row">Vendedor <InfoTip text="Use para auditar vendas aprovadas de uma pessoa antes de comparar ranking." href="#extratos" /></span>
             <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
               <option value="">Todos</option>
               {sellers.map((seller) => (
@@ -2209,6 +2833,58 @@ function StatementsView() {
         <MetricCard label="Total vendido" value={statement ? formatMoneyFromCents(statement.summary.totalAmountCents) : "..."} />
         <MetricCard label="Itens" value={statement ? String(statement.summary.totalItems) : "..."} />
       </section>
+      <section className="dashboard-grid">
+        <div className="panel table-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Consolidado</p>
+              <h2>Por vendedor</h2>
+            </div>
+          </div>
+          {!statement ? (
+            <OperationalState state="loading" title="Carregando consolidados" />
+          ) : statement.consolidations.bySeller.length === 0 ? (
+            <OperationalState state="empty" title="Nenhum vendedor no extrato" />
+          ) : (
+            <OperationalTable
+              items={statement.consolidations.bySeller}
+              getRowKey={(item) => item.sellerId}
+              columns={[
+                { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
+                { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
+                { key: "documents", header: "Notas", render: (item) => item.documents },
+                { key: "quantity", header: "Itens", render: (item) => item.quantity },
+                { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
+              ]}
+            />
+          )}
+        </div>
+        <div className="panel table-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Consolidado</p>
+              <h2>Por grupo</h2>
+            </div>
+          </div>
+          {!statement ? (
+            <OperationalState state="loading" title="Carregando consolidados" />
+          ) : statement.consolidations.byGroup.length === 0 ? (
+            <OperationalState state="empty" title="Nenhum grupo no extrato" />
+          ) : (
+            <OperationalTable
+              items={statement.consolidations.byGroup}
+              getRowKey={(item) => item.groupId ?? item.groupName}
+              columns={[
+                { key: "group", header: "Grupo", render: (item) => item.groupName },
+                { key: "sellers", header: "Vendedores", render: (item) => item.sellers },
+                { key: "documents", header: "Notas", render: (item) => item.documents },
+                { key: "quantity", header: "Itens", render: (item) => item.quantity },
+                { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
+              ]}
+            />
+          )}
+        </div>
+      </section>
       <section className="panel table-panel">
         <div className="table-panel-toolbar">
           <div>
@@ -2218,6 +2894,7 @@ function StatementsView() {
           <a className="secondary button-link" href={csvHref}>
             Baixar CSV
           </a>
+          <InfoTip text="Exporta o extrato com os mesmos filtros visiveis na tela." href="#extratos" />
         </div>
         {!statement ? (
           <OperationalState state="loading" title="Carregando extrato" />
@@ -2241,13 +2918,657 @@ function StatementsView() {
   );
 }
 
-function CommercialPlaceholderView({ title, detail }: { title: string; detail: string }) {
+const commercialCreateRoles = ["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"] as const;
+
+function commercialRoleLabel(role: string) {
+  if (role === "VENDEDOR") return "VENDAS";
+  return role;
+}
+
+function UsersTeamsView() {
+  const [users, setUsers] = useState<ManagedUserItem[]>([]);
+  const [salesGroups, setSalesGroups] = useState<SalesGroupOption[]>([]);
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("VENDEDOR");
+  const [sellerCode, setSellerCode] = useState("");
+  const [sellerDisplayName, setSellerDisplayName] = useState("");
+  const [salesGroupId, setSalesGroupId] = useState("");
+  const [editingUserId, setEditingUserId] = useState("");
+  const [editingName, setEditingName] = useState("");
+  const [editingEmail, setEditingEmail] = useState("");
+  const [editingPhone, setEditingPhone] = useState("");
+  const [editingRole, setEditingRole] = useState<UserRole>("VENDEDOR");
+  const [editingSellerCode, setEditingSellerCode] = useState("");
+  const [editingSellerDisplayName, setEditingSellerDisplayName] = useState("");
+  const [editingSalesGroupId, setEditingSalesGroupId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [usersResult, optionsResult] = await Promise.all([
+        api<{ users: ManagedUserItem[] }>("/v1/users"),
+        api<{ salesGroups: SalesGroupOption[]; sellers: SalesSellerItem[] }>("/v1/users/commercial-options")
+      ]);
+      setUsers(usersResult.users);
+      setSalesGroups(optionsResult.salesGroups);
+      setSalesGroupId((current) => current || optionsResult.salesGroups[0]?.id || "");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar usuarios.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar usuario.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function commercialPayload(currentRole: UserRole, input: { sellerCode?: string; sellerDisplayName?: string; salesGroupId?: string }) {
+    return {
+      sellerCode: currentRole === "VENDEDOR" ? input.sellerCode || undefined : undefined,
+      sellerDisplayName: currentRole === "VENDEDOR" ? input.sellerDisplayName || undefined : undefined,
+      salesGroupId: currentRole === "VENDEDOR" || currentRole === "SUPERVISOR" ? input.salesGroupId || null : null
+    };
+  }
+
+  async function createUser(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          email,
+          phone: phone || null,
+          password,
+          role,
+          ...commercialPayload(role, { sellerCode, sellerDisplayName, salesGroupId })
+        })
+      });
+      setName("");
+      setEmail("");
+      setPhone("");
+      setPassword("");
+      setRole("VENDEDOR");
+      setSellerCode("");
+      setSellerDisplayName("");
+    });
+  }
+
+  function startEdit(user: ManagedUserItem) {
+    setEditingUserId(user.id);
+    setEditingName(user.name);
+    setEditingEmail(user.email);
+    setEditingPhone(formatPhoneInput(user.phone ?? ""));
+    setEditingRole(user.role);
+    setEditingSellerCode(user.sellerProfile?.code ?? "");
+    setEditingSellerDisplayName(user.sellerProfile?.displayName ?? user.name);
+    setEditingSalesGroupId(user.sellerProfile?.salesGroupId ?? user.supervisedSalesGroups?.[0]?.id ?? "");
+  }
+
+  function cancelEdit() {
+    setEditingUserId("");
+    setEditingName("");
+    setEditingEmail("");
+    setEditingPhone("");
+    setEditingRole("VENDEDOR");
+    setEditingSellerCode("");
+    setEditingSellerDisplayName("");
+    setEditingSalesGroupId("");
+  }
+
+  async function saveEdit(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api(`/v1/users/${editingUserId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editingName,
+          email: editingEmail,
+          phone: editingPhone || null,
+          role: editingRole,
+          ...commercialPayload(editingRole, {
+            sellerCode: editingSellerCode,
+            sellerDisplayName: editingSellerDisplayName,
+            salesGroupId: editingSalesGroupId
+          })
+        })
+      });
+      cancelEdit();
+    });
+  }
+
+  async function resetPassword(user: ManagedUserItem) {
+    const nextPassword = window.prompt(`Nova senha para ${user.email}`);
+    if (!nextPassword) return;
+    await run(async () => {
+      await api(`/v1/users/${user.id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ password: nextPassword })
+      });
+    });
+  }
+
+  const filteredUsers = users.filter((user) => {
+    const haystack = `${user.name} ${user.email} ${user.sellerProfile?.displayName ?? ""}`.toLowerCase();
+    const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
+    const matchesRole = !roleFilter || user.role === roleFilter;
+    const matchesStatus = !statusFilter || (statusFilter === "ACTIVE" ? user.active : !user.active);
+    const userGroupIds = new Set([user.sellerProfile?.salesGroupId, ...(user.supervisedSalesGroups ?? []).map((group) => group.id)].filter(Boolean));
+    const matchesGroup = !groupFilter || userGroupIds.has(groupFilter);
+    return matchesQuery && matchesRole && matchesStatus && matchesGroup;
+  });
+
+  if (loading) return <OperationalState state="loading" title="Carregando usuarios e times" />;
+
   return (
-    <section className="panel empty-state">
-      <p className="eyebrow">AlwaysTrack Comercial</p>
-      <h2>{title}</h2>
-      <p className="muted">{detail}</p>
-    </section>
+    <div className="content-stack">
+      {error ? <OperationalState state="error" title="Falha em usuarios" detail={error} /> : null}
+      <OperationalFilters
+        fields={[
+          { key: "query", label: "Busca", value: query, placeholder: "Nome, email ou vendedor", help: "Busca usuarios e vinculos comerciais.", helpHref: "#usuarios-times", onChange: setQuery },
+          {
+            key: "role",
+            label: "Funcao",
+            value: roleFilter,
+            type: "select",
+            placeholder: "Todas",
+            options: commercialUserRoles.map((item) => ({ value: item, label: commercialRoleLabel(item) })),
+            help: "Roles comerciais controlam as telas e acoes disponiveis.",
+            helpHref: "#perfis-e-permissoes",
+            onChange: setRoleFilter
+          },
+          {
+            key: "status",
+            label: "Status",
+            value: statusFilter,
+            type: "select",
+            placeholder: "Todos",
+            options: [
+              { value: "ACTIVE", label: "Ativos" },
+              { value: "INACTIVE", label: "Inativos" }
+            ],
+            onChange: setStatusFilter
+          },
+          {
+            key: "group",
+            label: "Grupo",
+            value: groupFilter,
+            type: "select",
+            placeholder: "Todos",
+            options: salesGroups.map((group) => ({ value: group.id, label: group.name })),
+            help: "Filtra vendedores vinculados ao grupo ou supervisores responsaveis por ele.",
+            helpHref: "#usuarios-times",
+            onChange: setGroupFilter
+          }
+        ]}
+        onSubmit={() => undefined}
+      />
+
+      <section className="panel form-panel">
+        <form onSubmit={createUser}>
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Admin</p>
+              <h2>Criar usuario comercial</h2>
+            </div>
+          </div>
+          <div className="form-grid">
+            <label>
+              Nome
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <label>
+              Email
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            </label>
+            <label>
+              Telefone
+              <input inputMode="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} />
+            </label>
+            <label>
+              Senha inicial
+              <input minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            </label>
+            <label>
+              <span className="label-row">Funcao <InfoTip text="Criacao nova aceita ADMIN, SAC, VENDAS e SUPERVISOR." href="#usuarios-times" /></span>
+              <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+                {commercialCreateRoles.map((item) => (
+                  <option key={item} value={item}>
+                    {commercialRoleLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {role === "VENDEDOR" ? (
+              <>
+                <label>
+                  Codigo vendedor
+                  <input value={sellerCode} onChange={(event) => setSellerCode(event.target.value)} placeholder="VD-004" />
+                </label>
+                <label>
+                  Nome comercial
+                  <input value={sellerDisplayName} onChange={(event) => setSellerDisplayName(event.target.value)} placeholder={name || "Nome no ranking"} />
+                </label>
+              </>
+            ) : null}
+            {role === "VENDEDOR" || role === "SUPERVISOR" ? (
+              <label>
+                Grupo comercial
+                <select value={salesGroupId} onChange={(event) => setSalesGroupId(event.target.value)}>
+                  <option value="">Sem grupo</option>
+                  {salesGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <div className="form-actions">
+            <button disabled={saving || !name.trim() || !email.trim() || password.length < 8}>Criar usuario</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel table-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Usuarios/Times</p>
+            <h2>Usuarios comerciais</h2>
+          </div>
+          <span className="status-badge">{filteredUsers.length} usuario(s)</span>
+        </div>
+        {filteredUsers.length === 0 ? (
+          <OperationalState state="empty" title="Nenhum usuario encontrado" />
+        ) : (
+          <OperationalTable
+            items={filteredUsers}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "user", header: "Usuario", render: (item) => `${item.name} (${item.email})` },
+              { key: "role", header: "Funcao", render: (item) => commercialRoleLabel(item.role) },
+              {
+                key: "link",
+                header: "Vinculo comercial",
+                render: (item) =>
+                  item.sellerProfile
+                    ? `${item.sellerProfile.displayName} / ${item.sellerProfile.salesGroup?.name ?? "Sem grupo"}`
+                    : item.supervisedSalesGroups?.length
+                      ? `Supervisor: ${item.supervisedSalesGroups.map((group) => group.name).join(", ")}`
+                      : "-"
+              },
+              { key: "phone", header: "Telefone", render: (item) => item.phone ?? "-" },
+              { key: "status", header: "Status", render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} /> },
+              {
+                key: "actions",
+                header: "Acoes",
+                render: (item) => (
+                  <div className="row-actions">
+                    <button className="secondary small" type="button" onClick={() => startEdit(item)}>
+                      Editar
+                    </button>
+                    <button className="secondary small" type="button" onClick={() => void resetPassword(item)}>
+                      Resetar senha
+                    </button>
+                    <ConfirmButton
+                      disabled={saving}
+                      confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
+                      onConfirm={() =>
+                        void run(async () => {
+                          await api(`/v1/users/${item.id}`, {
+                            method: "PATCH",
+                            body: JSON.stringify({ active: !item.active })
+                          });
+                        })
+                      }
+                    >
+                      {item.active ? "Desativar" : "Reativar"}
+                    </ConfirmButton>
+                  </div>
+                )
+              }
+            ]}
+          />
+        )}
+      </section>
+
+      {editingUserId ? (
+        <section className="panel form-panel">
+          <form onSubmit={saveEdit}>
+            <div className="table-panel-toolbar">
+              <div>
+                <p className="eyebrow">Edicao</p>
+                <h2>Editar usuario</h2>
+              </div>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelEdit}>
+                Cancelar
+              </button>
+            </div>
+            <div className="form-grid">
+              <label>
+                Nome
+                <input value={editingName} onChange={(event) => setEditingName(event.target.value)} />
+              </label>
+              <label>
+                Email
+                <input type="email" value={editingEmail} onChange={(event) => setEditingEmail(event.target.value)} />
+              </label>
+              <label>
+                Telefone
+                <input inputMode="tel" value={editingPhone} onChange={(event) => setEditingPhone(formatPhoneInput(event.target.value))} />
+              </label>
+              <label>
+                Funcao
+                <select value={editingRole} onChange={(event) => setEditingRole(event.target.value as UserRole)}>
+                  {commercialUserRoles.map((item) => (
+                    <option key={item} value={item}>
+                      {commercialRoleLabel(item)}
+                    </option>
+                  ))}
+                  {!commercialUserRoles.includes(editingRole as never) ? <option value={editingRole}>{editingRole}</option> : null}
+                </select>
+              </label>
+              {editingRole === "VENDEDOR" ? (
+                <>
+                  <label>
+                    Codigo vendedor
+                    <input value={editingSellerCode} onChange={(event) => setEditingSellerCode(event.target.value)} />
+                  </label>
+                  <label>
+                    Nome comercial
+                    <input value={editingSellerDisplayName} onChange={(event) => setEditingSellerDisplayName(event.target.value)} />
+                  </label>
+                </>
+              ) : null}
+              {editingRole === "VENDEDOR" || editingRole === "SUPERVISOR" ? (
+                <label>
+                  Grupo comercial
+                  <select value={editingSalesGroupId} onChange={(event) => setEditingSalesGroupId(event.target.value)}>
+                    <option value="">Sem grupo</option>
+                    {salesGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            <div className="form-actions">
+              <button disabled={saving || !editingName.trim() || !editingEmail.trim()}>Salvar usuario</button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function faqReactionCount(reactions: FaqReactionItem[], type: string) {
+  return reactions.filter((reaction) => reaction.type === type).length;
+}
+
+function FaqThreadsView({ user }: { user: CurrentUser }) {
+  const [threads, setThreads] = useState<FaqThreadItem[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [comment, setComment] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canModerate = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
+
+  async function load(nextSelectedId = selectedId) {
+    setLoading(true);
+    setError(null);
+    const search = new URLSearchParams();
+    if (query) search.set("query", query);
+    if (status) search.set("status", status);
+    try {
+      const result = await api<{ items: FaqThreadItem[]; total: number }>(`/v1/faq/threads?${search.toString()}`);
+      setThreads(result.items);
+      const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id ?? "";
+      setSelectedId(nextId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar FAQ.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar FAQ.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createThread(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      const result = await api<{ thread: FaqThreadItem }>("/v1/faq/threads", {
+        method: "POST",
+        body: JSON.stringify({ title, body: body || null })
+      });
+      setTitle("");
+      setBody("");
+      await load(result.thread.id);
+    });
+  }
+
+  async function addComment(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedId) return;
+    await run(async () => {
+      await api<{ thread: FaqThreadItem }>(`/v1/faq/threads/${selectedId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ body: comment })
+      });
+      setComment("");
+      await load(selectedId);
+    });
+  }
+
+  async function setReaction(targetType: "THREAD" | "COMMENT", targetId: string, type: string, active = true) {
+    if (!selectedId) return;
+    await run(async () => {
+      await api<{ thread: FaqThreadItem }>(`/v1/faq/threads/${selectedId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ targetType, targetId, type, active })
+      });
+      await load(selectedId);
+    });
+  }
+
+  async function updateStatus(nextStatus: string) {
+    if (!selectedId) return;
+    await run(async () => {
+      await api<{ thread: FaqThreadItem }>(`/v1/faq/threads/${selectedId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus })
+      });
+      await load(selectedId);
+    });
+  }
+
+  async function promoteToWiki() {
+    if (!selectedId) return;
+    await run(async () => {
+      await api<{ thread: FaqThreadItem }>(`/v1/faq/threads/${selectedId}/promote-to-wiki`, { method: "POST" });
+      await load(selectedId);
+    });
+  }
+
+  const selected = threads.find((thread) => thread.id === selectedId) ?? null;
+  const statusOptions = [
+    { value: "OPEN", label: "Aberta" },
+    { value: "ANSWERED", label: "Respondida" },
+    { value: "RESOLVED", label: "Resolvida" },
+    { value: "ARCHIVED", label: "Arquivada" }
+  ];
+
+  return (
+    <div className="content-stack">
+      <OperationalFilters
+        fields={[
+          { key: "query", label: "Busca", value: query, placeholder: "Pergunta, resposta ou autor", help: "Busca em titulo, corpo e comentarios da FAQ.", helpHref: "#faq", onChange: setQuery },
+          { key: "status", label: "Status", value: status, type: "select", placeholder: "Todos", options: statusOptions, help: "Estado operacional da thread.", helpHref: "#faq", onChange: setStatus }
+        ]}
+        onSubmit={() => void load()}
+      />
+      {error ? <OperationalState state="error" title="Falha na FAQ" detail={error} /> : null}
+      <section className="panel form-panel">
+        <form onSubmit={createThread}>
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">FAQ</p>
+              <h2>Nova pergunta</h2>
+            </div>
+          </div>
+          <label>
+            Pergunta
+            <input value={title} onChange={(event) => setTitle(event.target.value)} />
+          </label>
+          <label>
+            Contexto
+            <textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
+          </label>
+          <div className="form-actions">
+            <button disabled={saving || !title.trim()}>Publicar pergunta</button>
+          </div>
+        </form>
+      </section>
+      <div className="wiki-layout">
+        <section className="panel table-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Threads</p>
+              <h2>Perguntas</h2>
+            </div>
+          </div>
+          {loading ? (
+            <OperationalState state="loading" title="Carregando threads" />
+          ) : threads.length === 0 ? (
+            <OperationalState state="empty" title="Nenhuma pergunta encontrada" />
+          ) : (
+            <div className="wiki-page-list">
+              {threads.map((thread) => (
+                <button className={selectedId === thread.id ? "wiki-page-button active" : "wiki-page-button"} key={thread.id} type="button" onClick={() => setSelectedId(thread.id)}>
+                  <strong>{thread.title}</strong>
+                  <span>{thread.status} / {thread.comments.length} resposta(s)</span>
+                  <small>{thread.author.name} em {formatDateBr(thread.createdAt)}</small>
+                  {thread.wikiPage ? <small>Wiki: /{thread.wikiPage.slug}</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+        <section className="panel wiki-reader-panel">
+          {selected ? (
+            <>
+              <div className="detail-header">
+                <div>
+                  <p className="eyebrow">{selected.status}</p>
+                  <h2>{selected.title}</h2>
+                  <p className="muted">{selected.author.name} em {formatDateTimeBr(selected.createdAt)}</p>
+                </div>
+                <div className="row-actions">
+                  {selected.wikiPage ? (
+                    <button className="secondary" type="button" onClick={() => window.location.assign(wikiPathForSlug(selected.wikiPage!.slug))}>
+                      Abrir Wiki
+                    </button>
+                  ) : null}
+                  {canModerate ? (
+                    <>
+                      <select value={selected.status} onChange={(event) => void updateStatus(event.target.value)}>
+                        {statusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="secondary" disabled={saving || Boolean(selected.wikiPage)} type="button" onClick={() => void promoteToWiki()}>
+                        Promover para Wiki
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              {selected.body ? <p>{selected.body}</p> : null}
+              <div className="row-actions">
+                <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("THREAD", selected.id, "SAME_DOUBT")}>
+                  Tambem tenho ({faqReactionCount(selected.reactions, "SAME_DOUBT")})
+                </button>
+                <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("THREAD", selected.id, "HELPFUL")}>
+                  Util ({faqReactionCount(selected.reactions, "HELPFUL")})
+                </button>
+              </div>
+              {selected.wikiPage ? (
+                <OperationalState state="success" title="Promovida para Wiki" detail={`/${selected.wikiPage.slug}`} />
+              ) : null}
+              <div className="help-section-grid">
+                {selected.comments.map((item) => (
+                  <article className="panel help-card" key={item.id}>
+                    <p className="eyebrow">{item.author.name} / {formatDateTimeBr(item.createdAt)}</p>
+                    <p>{item.body}</p>
+                    <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("COMMENT", item.id, "THANKS")}>
+                      Obrigado ({faqReactionCount(item.reactions, "THANKS")})
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <form className="wiki-edit-form" onSubmit={addComment}>
+                <h3>Responder</h3>
+                <textarea rows={4} value={comment} onChange={(event) => setComment(event.target.value)} />
+                <div className="form-actions">
+                  <button disabled={saving || !comment.trim()}>Publicar resposta</button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <OperationalState state="empty" title="Selecione uma pergunta" />
+          )}
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -5749,10 +7070,27 @@ function PublicFaqView() {
   );
 }
 
-function WikiView({ user }: { user: CurrentUser }) {
+function wikiSlugFromPath(pathname = window.location.pathname) {
+  if (pathname === "/wiki") return "";
+  if (!pathname.startsWith("/wiki/")) return "";
+  const slug = pathname.slice("/wiki/".length).split("/")[0] ?? "";
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
+function wikiPathForSlug(slug: string) {
+  return `/wiki/${encodeURIComponent(slug)}`;
+}
+
+function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug?: string }) {
   const [pages, setPages] = useState<WikiPageSummary[]>([]);
   const [requests, setRequests] = useState<WikiEditRequestItem[]>([]);
+  const [reviewedRequests, setReviewedRequests] = useState<WikiEditRequestItem[]>([]);
   const [selected, setSelected] = useState<WikiPageDetail | null>(null);
+  const [pendingSlug, setPendingSlug] = useState(initialSlug ?? "");
   const [query, setQuery] = useState("");
   const [pageStatus, setPageStatus] = useState("ACTIVE");
   const [selectedTag, setSelectedTag] = useState("");
@@ -5783,15 +7121,31 @@ function WikiView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ items: WikiPageSummary[]; total: number }>(`/v1/wiki/pages?${search.toString()}`);
       setPages(result.items);
-      const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
-      if (nextId) {
-        await openPage(nextId, false);
+      const slugToOpen = pendingSlug;
+      const slugMatch = slugToOpen ? result.items.find((item) => item.slug === slugToOpen) : null;
+      if (slugToOpen) {
+        if (slugMatch) {
+          await openPage(slugMatch.id, false);
+        } else {
+          await openPageBySlug(slugToOpen, false);
+        }
       } else {
-        setSelected(null);
+        const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
+        if (nextId) {
+          await openPage(nextId, false);
+        } else {
+          setSelected(null);
+        }
       }
+      if (slugToOpen) setPendingSlug("");
       if (user.role === "ADMIN") {
-        const queue = await api<{ items: WikiEditRequestItem[]; total: number }>("/v1/wiki/edit-requests?status=PENDING");
+        const [queue, approved, rejected] = await Promise.all([
+          api<{ items: WikiEditRequestItem[]; total: number }>("/v1/wiki/edit-requests?status=PENDING"),
+          api<{ items: WikiEditRequestItem[]; total: number }>("/v1/wiki/edit-requests?status=APPROVED"),
+          api<{ items: WikiEditRequestItem[]; total: number }>("/v1/wiki/edit-requests?status=REJECTED")
+        ]);
         setRequests(queue.items);
+        setReviewedRequests([...approved.items, ...rejected.items].sort((a, b) => String(b.reviewedAt ?? b.createdAt).localeCompare(String(a.reviewedAt ?? a.createdAt))).slice(0, 12));
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar wiki.");
@@ -5800,17 +7154,31 @@ function WikiView({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function openPage(pageId: string, markRead = true) {
-    const result = await api<{ page: WikiPageDetail }>(`/v1/wiki/pages/${pageId}`);
-    setSelected(result.page);
-    setEditTitle(result.page.title);
-    setEditSlug(result.page.slug);
-    setEditContent(result.page.content);
+  function applySelectedPage(page: WikiPageDetail, updateUrl = true) {
+    setSelected(page);
+    setEditTitle(page.title);
+    setEditSlug(page.slug);
+    setEditContent(page.content);
     setSelectedRevisionVersion(null);
     setDraftMessage(null);
+    if (updateUrl) window.history.replaceState(null, "", wikiPathForSlug(page.slug));
+  }
+
+  async function openPage(pageId: string, markRead = true, updateUrl = true) {
+    const result = await api<{ page: WikiPageDetail }>(`/v1/wiki/pages/${pageId}`);
+    applySelectedPage(result.page, updateUrl);
     if (markRead && result.page.active) {
       await api(`/v1/wiki/pages/${pageId}/read`, { method: "POST", body: JSON.stringify({}) });
       await api(`/v1/wiki/pages/${pageId}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) });
+    }
+  }
+
+  async function openPageBySlug(slug: string, markRead = true) {
+    const result = await api<{ page: WikiPageDetail }>(`/v1/wiki/pages/by-slug/${encodeURIComponent(slug)}`);
+    applySelectedPage(result.page, true);
+    if (markRead && result.page.active) {
+      await api(`/v1/wiki/pages/${result.page.id}/read`, { method: "POST", body: JSON.stringify({}) });
+      await api(`/v1/wiki/pages/${result.page.id}/presence`, { method: "POST", body: JSON.stringify({ mode: "READING" }) });
     }
   }
 
@@ -5970,6 +7338,7 @@ function WikiView({ user }: { user: CurrentUser }) {
   const selectedRequest =
     (selectedRequestId ? requests.find((request) => request.id === selectedRequestId) ?? selected?.editRequests.find((request) => request.id === selectedRequestId) : null) ??
     null;
+  const reviewedForSelected = selected?.editRequests.filter((request) => request.status !== "PENDING") ?? [];
 
   return (
     <div className="content-stack">
@@ -5980,6 +7349,8 @@ function WikiView({ user }: { user: CurrentUser }) {
             label: "Busca",
             value: query,
             placeholder: "Titulo, slug ou conteudo",
+            help: "Busca paginas por titulo, slug ou conteudo publicado.",
+            helpHref: "#wiki",
             onChange: setQuery
           },
           ...(user.role === "ADMIN"
@@ -5995,6 +7366,8 @@ function WikiView({ user }: { user: CurrentUser }) {
                     { value: "ARCHIVED", label: "Arquivadas" },
                     { value: "ALL", label: "Todas" }
                   ],
+                  help: "Admin pode incluir paginas arquivadas para consulta ou restauracao.",
+                  helpHref: "#wiki",
                   onChange: setPageStatus
                 }
               ]
@@ -6078,7 +7451,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                 <input value={title} onChange={(event) => setTitle(event.target.value)} />
               </label>
               <label>
-                Slug opcional
+                <span className="label-row">Slug opcional <InfoTip text="Slug vira o endereco /wiki/slug-da-pagina; use texto curto e estavel." href="#wiki" /></span>
                 <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="primeiros-passos" />
               </label>
               <div className="full-span">
@@ -6210,6 +7583,19 @@ function WikiView({ user }: { user: CurrentUser }) {
               {pendingForSelected.length ? (
                 <OperationalState state="success" title={`${pendingForSelected.length} requisicao(oes) pendente(s) nesta pagina`} />
               ) : null}
+              {reviewedForSelected.length ? (
+                <div className="wiki-decision-history">
+                  <strong>Decisoes das suas propostas</strong>
+                  {reviewedForSelected.map((request) => (
+                    <div key={request.id}>
+                      <span>{request.status}</span>
+                      <span>{request.reviewer?.name ?? "Revisor"}</span>
+                      <span>{formatDateTimeBr(request.reviewedAt)}</span>
+                      <p>{request.decisionNote || "Sem comentario de decisao."}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {selected.active ? (
                 <form className="wiki-edit-form" onSubmit={user.role === "ADMIN" ? publishEdit : requestEdit}>
                   <h3>{user.role === "ADMIN" ? "Editar e publicar" : "Sugerir alteracao"}</h3>
@@ -6220,7 +7606,7 @@ function WikiView({ user }: { user: CurrentUser }) {
                   </label>
                   {user.role === "ADMIN" ? (
                     <label>
-                      Slug
+                      <span className="label-row">Slug <InfoTip text="Alterar slug muda o link compartilhavel da pagina." href="#wiki" /></span>
                       <input value={editSlug} onChange={(event) => setEditSlug(event.target.value)} />
                     </label>
                   ) : null}
@@ -6253,7 +7639,7 @@ function WikiView({ user }: { user: CurrentUser }) {
               <h2>Requisicoes pendentes</h2>
             </div>
             <label className="decision-note-field">
-              Nota da decisao
+              <span className="label-row">Nota da decisao <InfoTip text="Comentario fica no historico para explicar aprovacoes e reprovacoes de propostas." href="#wiki" /></span>
               <input value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} />
             </label>
           </div>
@@ -6310,6 +7696,23 @@ function WikiView({ user }: { user: CurrentUser }) {
                   }
                 ]}
               />
+              {reviewedRequests.length ? (
+                <div className="wiki-decision-history">
+                  <strong>Historico recente de decisoes</strong>
+                  <OperationalTable
+                    items={reviewedRequests}
+                    getRowKey={(item) => item.id}
+                    columns={[
+                      { key: "page", header: "Pagina", render: (item) => item.page.title },
+                      { key: "status", header: "Status", render: (item) => item.status },
+                      { key: "author", header: "Autor", render: (item) => item.author.name },
+                      { key: "reviewer", header: "Revisor", render: (item) => item.reviewer?.name ?? "-" },
+                      { key: "reviewedAt", header: "Decidida", render: (item) => formatDateTimeBr(item.reviewedAt) },
+                      { key: "note", header: "Comentario", render: (item) => item.decisionNote || "Sem comentario" }
+                    ]}
+                  />
+                </div>
+              ) : null}
             </>
           )}
         </section>
@@ -6324,231 +7727,191 @@ function HelpView({ user }: { user: CurrentUser }) {
       id: "visao-geral",
       title: "Visão geral",
       who: "Todos os perfis",
-      text: "Use o AlwaysTrack para acompanhar profissionais, licenças, documentos, notificações e evidências de auditoria em uma rotina única.",
-      steps: ["Entre no sistema.", "Confira o Dashboard.", "Aja primeiro sobre vencimentos, documentos pendentes e falhas."],
-      check: "Confirme unidade, setor, RT responsável e período antes de confiar no resultado filtrado.",
-      common: "Se algo não aparecer, limpe filtros por ID e tente uma busca por nome ou CPF.",
-      support: "Procure suporte se dados locais sumirem ou se uma tela falhar mesmo sem filtros."
+      text: "Use o AlwaysTrack para transformar DANFEs em vendas revisadas, ranking, campanhas, extratos, Wiki e auditoria.",
+      steps: ["Envie ou receba DANFEs.", "Extraia os dados.", "Revise pendências.", "Acompanhe ranking, extratos e trilha de eventos."],
+      check: "Confira vendedor, status, período e campanha antes de tirar conclusão operacional.",
+      common: "Filtro restrito ou nota ainda pendente pode fazer ranking e extratos parecerem vazios.",
+      support: "Procure suporte se uma tela falhar mesmo sem filtros ou se uma nota sumir depois do envio."
     },
     {
       id: "primeiro-acesso",
       title: "Primeiro acesso",
-      who: "Admin libera usuários; RT e Supervisor entram com acesso já criado.",
-      text: "A conta determina quais telas e registros você enxerga. Admin vê a operação completa; RT e Supervisor veem apenas o escopo permitido.",
+      who: "Admin cria acessos; demais perfis entram com convite ou usuário já criado.",
+      text: "A função do usuário define telas, ações e escopo. Admin opera tudo; vendedor enxerga a própria rotina; supervisor acompanha time.",
       steps: ["Acesse com email e senha.", "Confira seu perfil no topo da página.", "Use Sair quando terminar em computador compartilhado."],
       check: "Antes de operar, confirme se o perfil exibido combina com sua função.",
       common: "Senha incorreta ou usuário inativo impedem entrada.",
-      support: "Peça ajuda ao Admin se sua unidade, setor ou perfil estiver incorreto."
+      support: "Peça ajuda ao Admin se sua função, vendedor vinculado ou grupo comercial estiver incorreto."
     },
     {
-      id: "dashboard",
-      title: "Dashboard",
+      id: "dashboard-comercial",
+      title: "Dashboard comercial",
       who: "Todos os perfis",
-      text: "Mostra o estado do dia: licenças vencendo, documentos aguardando validação e notificações com problema.",
-      steps: ["Leia os cards de resumo.", "Abra a lista indicada pelo atalho.", "Resolva primeiro itens vencidos, pendentes ou com falha."],
+      text: "Mostra o pulso da operação: vendas, notas pendentes, ranking do dia e sinais de atenção.",
+      steps: ["Leia os cards de resumo.", "Abra a tela indicada pelo atalho.", "Resolva primeiro notas pendentes, duplicadas ou rejeitadas."],
       check: "Confira se os números fazem sentido para seu escopo de acesso.",
-      common: "Números zerados podem ser normais em usuário sem escopo ou filtro muito restrito.",
+      common: "Notas ainda não aprovadas não entram como venda consolidada.",
       support: "Acione suporte se houver erro de carregamento ou contagem muito diferente do relatório."
     },
     {
-      id: "profissionais",
-      title: "Profissionais",
-      who: "Admin cadastra; RT e Supervisor consultam conforme escopo.",
-      text: "Centraliza dados do profissional, vínculo com unidade/setor, usuário de acesso e RT responsável.",
-      steps: ["Busque por nome, CPF, email ou cargo.", "Admin pode cadastrar ou editar.", "Revise vínculos antes de criar licenças."],
-      check: "CPF, email, unidade, setor, situação ativa e RT responsável devem estar corretos.",
-      common: "Usuário vinculado é opcional; use apenas se o profissional também acessar o sistema.",
-      support: "Peça suporte se houver duplicidade de CPF/email ou vínculo que você não consegue ajustar."
+      id: "upload-danfe",
+      title: "Upload de DANFE",
+      who: "Vendedor envia a propria nota; Admin/Gestor pode enviar por vendedor.",
+      text: "DANFE pode chegar como PDF, XML ou imagem legivel. O vendedor escolhido no upload alimenta ranking e extratos.",
+      steps: ["Escolha o vendedor quando seu perfil permitir.", "Anexe o arquivo correto.", "Envie e aguarde a extracao.", "Revise o status na lista."],
+      check: "Vendedor, arquivo e nota precisam bater antes de enviar.",
+      common: "Enviar a nota no vendedor errado contamina ranking e exige correcao operacional.",
+      support: "Chame suporte se o upload retornar erro tecnico ou se o arquivo valido nao gerar nota."
     },
     {
-      id: "licencas",
-      title: "Licenças",
-      who: "Admin cria; RT e Supervisor acompanham.",
-      text: "Controla tipo, número, validade, status e documentos relacionados a cada profissional.",
-      steps: ["Filtre por profissional, status ou tipo.", "Confira vencimento e status.", "Use link de upload quando faltar documento."],
-      check: "Tipo, número, validade e profissional precisam bater com o documento recebido.",
-      common: "Status técnico como REGULAR, EXPIRING ou EXPIRED aparece em filtros avançados.",
-      support: "Procure suporte se uma licença não muda de status depois de aprovar documento correto."
+      id: "status-das-notas",
+      title: "Status das notas",
+      who: "Todos que acompanham DANFEs",
+      text: "O status mostra a etapa da nota: enviada, extraindo, pendente de revisão, aprovada, rejeitada ou duplicada.",
+      steps: ["Filtre por status.", "Abra a nota pendente.", "Confira dados extraidos.", "Aprove, rejeite, revise ou reprocesse quando necessario."],
+      check: "Apenas nota aprovada deve contar em ranking e extrato.",
+      common: "PENDING_REVIEW quer dizer que a nota ainda precisa de decisão humana.",
+      support: "Procure suporte se o status travar em extracao ou se uma duplicidade parecer falsa."
     },
     {
-      id: "documentos",
-      title: "Documentos",
-      who: "Admin e RT validam; Supervisor consulta.",
-      text: "Lista uploads enviados para comprovar licença. UPLOADED significa aguardando decisão.",
-      steps: ["Abra a linha pendente.", "Baixe o arquivo.", "Aprove se estiver correto ou recuse com motivo claro."],
-      check: "Confira nome, número da licença, validade, legibilidade e profissional antes de aprovar.",
-      common: "Recusa sem motivo atrasa correção; escreva uma orientação simples para o profissional.",
-      support: "Chame suporte se o arquivo não baixar, vier corrompido ou aparecer ligado ao profissional errado."
+      id: "reprocessamento-ia",
+      title: "Reprocessamento por IA",
+      who: "Admin, Gestor, SAC e Financeiro",
+      text: "Reprocessar IA força nova tentativa de leitura e mostra origem, provider, modelo, itens, alertas e chave mascarada.",
+      steps: ["Clique em Reprocessar IA.", "Leia o card de feedback.", "Confira warnings.", "Revise ou corrija antes de aprovar."],
+      check: "Nao aprove se a IA nao retornou itens validos ou se a chave/numero nao batem.",
+      common: "Reprocessar sem feedback era um problema; agora a tela deve mostrar saida ou erro.",
+      support: "Acione suporte se nao aparecer resultado, erro, provider ou warning depois do reprocessamento."
     },
     {
-      id: "upload-publico",
-      title: "Upload público",
-      who: "Admin e RT geram link; profissional usa sem entrar no sistema.",
-      text: "O link temporário permite enviar documento de uma licença específica. Envie somente ao profissional correto.",
-      steps: ["Gere o link na licença.", "Compartilhe pelo canal combinado.", "Depois acompanhe o documento na tela Documentos."],
-      check: "Verifique profissional, licença e prazo do link antes de enviar.",
-      common: "Link expirado exige gerar um novo. Link trocado faz upload cair na licença errada.",
-      support: "Peça suporte se o profissional não consegue abrir o link ou se o upload não aparece."
+      id: "duplicidade-danfe",
+      title: "Duplicidade de DANFE",
+      who: "Revisores e Admin",
+      text: "Duplicidade deve indicar uma nota já existente na base, não repetição interna de um mesmo pacote extraido.",
+      steps: ["Confira NF e chave de acesso.", "Compare vendedor e arquivo.", "Se for duplicidade real, mantenha sinalizada.", "Se parecer falsa, reprocesse e reporte."],
+      check: "Base limpa com pacote gerado pelo sistema nao deveria criar duplicata falsa.",
+      common: "Mesmo arquivo com varias linhas da mesma nota nao deve virar varias notas duplicadas.",
+      support: "Chame suporte com nome do arquivo, NF e horario se uma duplicidade falsa aparecer."
     },
     {
-      id: "notificacoes",
-      title: "Notificações",
-      who: "Admin configura; demais perfis acompanham impactos.",
-      text: "Regras criam avisos antes e depois do vencimento. Nos ultimos avisos, marque Notificar RT para copiar o responsavel tecnico junto com o profissional.",
-      steps: ["Configure avisos iniciais apenas para o profissional.", "Crie o ultimo aviso com Notificar RT marcado.", "Use template Meta aprovado apenas quando o envio real estiver pronto."],
-      check: "Confirme dias, repetição, template, telefone do RT e se o ambiente está em teste ou Meta real.",
-      common: "Template errado ou credencial ausente gera falha de envio; não coloque tokens em telas, docs ou git.",
-      support: "Procure suporte ao trocar de fake para Meta real, validar webhook ou investigar falhas repetidas."
+      id: "aprovacao-de-notas",
+      title: "Aprovação de notas",
+      who: "Admin, Gestor, SAC e Financeiro",
+      text: "Aprovacao libera a nota para ranking e extratos. Rejeicao deve explicar o motivo. Revisao permite ajustar dados antes da decisao.",
+      steps: ["Filtre pendentes.", "Selecione uma ou varias notas.", "Revise itens e total.", "Aprove ou rejeite com comentario quando fizer sentido."],
+      check: "Aprovacao exige ao menos um item comercial valido.",
+      common: "Aprovar em lote sem revisar vendedor, NF e itens pode distorcer ranking.",
+      support: "Procure suporte se aprovar/rejeitar mover a tela de forma estranha ou nao registrar auditoria."
     },
     {
-      id: "relatorios",
-      title: "Relatórios",
-      who: "Todos conforme permissão",
-      text: "Ajuda a conferir operação por período, unidade, setor, RT, status e canal.",
-      steps: ["Escolha o relatório.", "Informe período e filtros necessários.", "Exporte CSV para análise externa quando preciso."],
-      check: "Período, escopo e status precisam estar corretos antes de comparar números.",
-      common: "Filtro por ID vazio mostra mais dados; filtro errado pode parecer falta de informação.",
-      support: "Acione suporte se o CSV não exporta ou diverge claramente da tela."
+      id: "ranking",
+      title: "Ranking",
+      who: "Admin, Gestor, Supervisor e Vendedor",
+      text: "Ranking ordena vendedores com base em notas aprovadas e filtros de campanha, grupo, vendedor e periodo.",
+      steps: ["Escolha campanha ou periodo.", "Limpe vendedor para comparar todos.", "Confira total, itens e notas.", "Valide com extratos quando houver duvida."],
+      check: "Ranking so e confiavel depois de subir e aprovar notas de mais de um vendedor.",
+      common: "Sem notas aprovadas, ranking vazio e esperado.",
+      support: "Acione suporte se extrato aprovado divergir claramente do ranking."
+    },
+    {
+      id: "campanhas",
+      title: "Campanhas",
+      who: "Admin, Gestor e Supervisor",
+      text: "Campanhas definem periodo, grupo, metrica e status usados para disputar ranking e gerar snapshots.",
+      steps: ["Crie ou edite campanha.", "Escolha metrica.", "Defina periodo.", "Ative quando a regra estiver pronta.", "Crie snapshots para comparar depois."],
+      check: "Periodo e metrica precisam refletir a regra comercial combinada.",
+      common: "Snapshot congelado nao muda quando novas notas entram; ele serve para comparacao historica.",
+      support: "Procure suporte se snapshot nao refletir o ranking no momento em que foi criado."
+    },
+    {
+      id: "extratos",
+      title: "Extratos",
+      who: "Todos conforme permissao",
+      text: "Extratos consolidam notas aprovadas por vendedor e grupo, com CSV usando os mesmos filtros da tela.",
+      steps: ["Escolha campanha, grupo, vendedor ou periodo.", "Confira cards de resumo.", "Compare consolidado por vendedor e grupo.", "Baixe CSV se precisar analisar fora do sistema."],
+      check: "Use o mesmo periodo do ranking quando for reconciliar numeros.",
+      common: "Nota pendente ou rejeitada nao aparece no extrato.",
+      support: "Acione suporte se CSV e tela divergirem com os mesmos filtros."
+    },
+    {
+      id: "wiki",
+      title: "Wiki",
+      who: "Todos leem; Admin publica e revisa",
+      text: "Wiki guarda procedimentos publicados por slug. Usuarios podem sugerir alteracoes; Admin aprova, rejeita e comenta a decisao.",
+      steps: ["Busque por titulo, slug ou conteudo.", "Abra a pagina.", "Use o link /wiki/slug para compartilhar.", "Sugira alteracao ou publique nova versao conforme permissao."],
+      check: "Slug deve ser curto, estavel e nao colidir com outra pagina.",
+      common: "Pagina arquivada fica fora da lista padrao para usuarios comuns.",
+      support: "Procure suporte se uma pagina publicada nao abrir pelo slug."
+    },
+    {
+      id: "faq",
+      title: "FAQ",
+      who: "Todos perguntam; perfis superiores organizam conhecimento",
+      text: "A FAQ planejada vai permitir perguntas em threads com respostas, comentarios, reacoes e promocao para a Wiki.",
+      steps: ["Abra uma pergunta.", "Responda na thread.", "Reaja quando uma resposta ajudar.", "Perfil superior pode transformar a pergunta em secao da Wiki."],
+      check: "FAQ continua existindo mesmo quando uma resposta vira Wiki; o link deve apontar para a secao criada.",
+      common: "Pergunta operacional recorrente nao deve ficar perdida em conversa solta.",
+      support: "Procure suporte se o vinculo FAQ -> Wiki nao aparecer depois da promocao."
+    },
+    {
+      id: "usuarios-times",
+      title: "Usuarios e times",
+      who: "Admin e Gestor",
+      text: "Usuarios/Times deve criar acessos comerciais e vincular vendedor, supervisor, SAC e Admin aos escopos corretos.",
+      steps: ["Crie usuario.", "Escolha funcao.", "Vincule SellerProfile quando for vendedor.", "Associe supervisor a grupo quando necessario."],
+      check: "Email, funcao e vinculo comercial precisam estar corretos antes de liberar acesso.",
+      common: "Usuario vendedor sem SellerProfile nao alimenta a propria operacao corretamente.",
+      support: "Chame suporte se nao conseguir corrigir funcao ou vinculo comercial."
+    },
+    {
+      id: "perfis-e-permissoes",
+      title: "Perfis e permissoes",
+      who: "Todos precisam entender seu alcance",
+      text: "ADMIN opera tudo; SAC e FINANCEIRO revisam notas conforme regra; VENDEDOR envia e acompanha; SUPERVISOR acompanha time.",
+      steps: ["Confira seu perfil no topo.", "Use filtros do seu escopo.", "Peça ajuste se registros esperados nao aparecerem."],
+      check: "Antes de concluir que falta dado, confirme se voce tem permissao para ver ou agir.",
+      common: "Supervisor sem grupo ou vendedor sem perfil comercial pode ver menos que o esperado.",
+      support: "Acione Admin ou suporte para corrigir perfil, usuario vinculado ou escopo."
     },
     {
       id: "auditoria",
       title: "Auditoria",
-      who: "Admin acompanha eventos sensíveis.",
-      text: "Registra ações importantes, quem executou, quando ocorreu e qual registro foi afetado.",
-      steps: ["Filtre por ação, entidade, registro, usuário ou período.", "Abra o evento.", "Compare metadados com a alteração esperada."],
-      check: "Use IDs com cuidado: ID é identificador interno do registro, não CPF nem número de licença.",
-      common: "Ação técnica como auth.login descreve o evento gravado pelo sistema.",
-      support: "Procure suporte se faltar evento de uma ação crítica ou se metadados parecerem inconsistentes."
+      who: "Admin acompanha eventos sensiveis",
+      text: "Auditoria registra acoes importantes, quem executou, quando ocorreu e qual registro foi afetado.",
+      steps: ["Filtre por acao, entidade, registro, usuario ou periodo.", "Abra o evento.", "Compare metadados com a alteracao esperada."],
+      check: "ID e identificador interno do registro, nao NF nem email.",
+      common: "Acao tecnica como auth.login descreve o evento gravado pelo sistema.",
+      support: "Procure suporte se faltar evento de aprovacao, rejeicao, reprocessamento ou publicacao."
     },
     {
-      id: "configuracoes",
-      title: "Configurações",
-      who: "Admin",
-      text: "Mantém usuários, organização, tipos de licença, FAQ e regras operacionais alinhados à rotina.",
-      steps: ["Altere uma configuração por vez.", "Salve.", "Volte à tela afetada para conferir o efeito."],
-      check: "Evite inativar usuário, unidade, setor ou tipo de licença que ainda esteja em uso.",
-      common: "Mudanças de regra podem afetar notificações futuras, não necessariamente as já criadas.",
-      support: "Peça suporte antes de mudanças grandes em produção ou ativação de Meta real."
-    },
-    {
-      id: "perfis-e-permissoes",
-      title: "Perfis e permissões",
-      who: "Admin gerencia; todos precisam entender seu alcance.",
-      text: "Admin opera tudo; RT acompanha profissionais sob sua responsabilidade; Supervisor consulta o escopo de unidade ou setor.",
-      steps: ["Confira seu perfil no topo.", "Use filtros do seu escopo.", "Peça ajuste se registros esperados não aparecerem."],
-      check: "Antes de concluir que falta dado, confirme se você tem permissão para vê-lo.",
-      common: "RT sem vínculo ou Supervisor sem unidade/setor pode enxergar menos do que espera.",
-      support: "Acione Admin ou suporte para corrigir perfil, usuário vinculado ou escopo."
-    },
-    {
-      id: "filtros-e-ids",
-      title: "Filtros e IDs",
-      who: "Todos que usam filtros avançados",
-      text: "ID é identificador interno do sistema. Use quando a busca por texto não for suficiente ou quando suporte pedir um registro exato.",
-      steps: ["Prefira busca por nome, CPF, email ou número.", "Use ID apenas quando souber o valor correto.", "Remova o ID para voltar a uma busca ampla."],
-      check: "Não confunda ID interno com CPF, número de licença, telefone ou WABA ID.",
-      common: "Um caractere errado no ID pode zerar a lista.",
-      support: "Peça suporte se você precisa de um ID e não sabe onde encontrá-lo."
-    },
-    {
-      id: "cadastro-profissional",
-      title: "Cadastro de profissional",
-      who: "Admin",
-      text: "Cria a pessoa acompanhada pela operação. Unidade, setor e RT definem onde ela aparece e quem acompanha suas pendências.",
-      steps: ["Preencha nome, CPF, email e telefone.", "Escolha unidade e setor corretos.", "Vincule RT e usuário apenas quando fizer sentido."],
-      check: "Confira CPF, email, unidade, setor e duplicidade antes de criar.",
-      common: "Vincular unidade ou setor errado faz o profissional sumir para quem deveria acompanhá-lo.",
-      support: "Peça suporte se existir duplicidade de CPF/email ou se o profissional precisar mudar de escopo."
-    },
-    {
-      id: "cadastro-licenca",
-      title: "Cadastro de licença",
-      who: "Admin",
-      text: "Registra a licença que será acompanhada por vencimento, documento e notificação.",
-      steps: ["Escolha profissional e tipo.", "Copie número, emissor, UF e datas do documento.", "Revise status e observações antes de salvar."],
-      check: "Profissional, tipo, número, emissor, UF, emissão e vencimento devem bater com o documento.",
-      common: "Data de vencimento errada altera dashboard, relatórios e notificações.",
-      support: "Procure suporte se o status não recalcular como esperado ou se o tipo de licença estiver faltando."
-    },
-    {
-      id: "validacao-documentos",
-      title: "Validação de documentos",
-      who: "Admin e RT",
-      text: "Aprovação transforma o upload em evidência aceita; recusa devolve correção para o profissional.",
-      steps: ["Baixe e abra o arquivo.", "Confira profissional, licença, número, validade e legibilidade.", "Aprove se estiver correto ou recuse com motivo objetivo."],
-      check: "Nunca aprove documento ilegível, vencido, de outra pessoa ou de outra licença.",
-      common: "Motivo de recusa genérico atrasa a regularização; diga exatamente o que precisa corrigir.",
-      support: "Acione suporte se o arquivo não abrir, parecer adulterado ou estiver ligado ao registro errado."
-    },
-    {
-      id: "links-de-upload",
-      title: "Links de upload",
-      who: "Admin e RT geram; profissional envia",
-      text: "Link de upload é temporário e vale para uma licença específica. Ele não deve ser reaproveitado para outra pessoa.",
-      steps: ["Gere o link na linha da licença.", "Envie apenas ao profissional correto.", "Acompanhe o novo documento em Documentos."],
-      check: "Confirme profissional, licença e prazo antes de compartilhar.",
-      common: "Link expirado ou enviado para pessoa errada exige gerar outro link.",
-      support: "Peça suporte se o profissional não conseguir anexar PDF/imagem ou se o upload não aparecer."
-    },
-    {
-      id: "configuracao-usuarios",
-      title: "Configuração de usuários",
-      who: "Admin",
-      text: "Usuários controlam acesso. Perfil e escopo definem o que cada pessoa enxerga e pode fazer.",
-      steps: ["Crie nome, email e senha inicial.", "Escolha perfil.", "Marque unidades e setores para RT ou Supervisor."],
-      check: "Senha inicial deve ter no mínimo 8 caracteres e ser compartilhada por canal seguro.",
-      common: "RT ou Supervisor sem escopo vê menos dados do que espera.",
-      support: "Acione suporte para corrigir acesso, resetar usuário crítico ou investigar visibilidade indevida."
-    },
-    {
-      id: "configuracao-organizacao",
-      title: "Configuração da organização",
-      who: "Admin",
-      text: "Organização, unidades e setores sustentam filtros, relatórios, escopos e cadastros.",
-      steps: ["Mantenha nome e documento institucional.", "Cadastre unidades.", "Cadastre setores dentro da unidade correta."],
-      check: "Antes de desativar algo, confira se há usuários, profissionais ou licenças dependentes.",
-      common: "Setor criado na unidade errada confunde filtros e permissões.",
-      support: "Procure suporte antes de reestruturar unidades ou desativar organização em ambiente real."
-    },
-    {
-      id: "jobs-notificacao",
-      title: "Jobs de notificação",
-      who: "Admin",
-      text: "Criar jobs monta pendências de aviso. Regra com Notificar RT gera um job para o profissional e outro para o RT quando ambos têm telefone.",
-      steps: ["Configure template e regra.", "Use Criar jobs para gerar pendências.", "Revise destinos e processe pelo provider configurado."],
-      check: "Confirme dias, repetição, RT, template, telefone do RT e ambiente antes de processar.",
-      common: "Provider fake não envia mensagem real; falhas de Meta real podem envolver template, credencial ou webhook.",
-      support: "Chame suporte para troca de fake para Meta real, falhas repetidas ou dúvidas sobre credenciais."
-    },
-    {
-      id: "importacao-csv",
-      title: "Importação CSV",
-      who: "Admin",
-      text: "Permite carregar profissionais e licenças em massa usando o modelo oficial. Use uma linha por licença.",
-      steps: ["Baixe o modelo.", "Preencha no Excel ou Google Sheets e exporte como CSV.", "Valide o arquivo.", "Confirme a importação apenas quando não houver erros."],
-      check: "Unidade, setor, RT, tipo de licença, datas e CPF precisam estar corretos antes de confirmar.",
-      common: "Erro de cabeçalho ou data geralmente vem de arquivo fora do modelo ou data diferente de YYYY-MM-DD.",
-      support: "Procure suporte se a planilha real tiver colunas extras, tipos de licença faltando ou muitos erros de referência."
+      id: "notificacoes-in-app",
+      title: "Notificacoes in-app",
+      who: "Todos recebem eventos relevantes",
+      text: "O centro de notificacoes planejado deve avisar sobre notas aprovadas, rejeitadas, comentadas, revisadas, Wiki e FAQ.",
+      steps: ["Abra o sino ou centro de notificacoes.", "Leia itens novos.", "Siga o link para o registro.", "Marque como lido quando resolver."],
+      check: "Notificacao deve apontar para a nota, Wiki ou thread correta.",
+      common: "Evento sem link de destino vira ruido operacional.",
+      support: "Procure suporte se aprovacoes, rejeicoes ou comentarios nao gerarem notificacao."
     },
     {
       id: "glossario",
       title: "Glossário rápido",
       who: "Todos os perfis",
-      text: "Alguns termos são internos do sistema e aparecem em filtros, relatórios e auditoria.",
-      steps: ["ID é identificador interno.", "RT é responsável técnico.", "Job é uma pendência de processamento.", "Escopo é o conjunto de dados que um usuário pode ver."],
-      check: "Não confunda ID interno com CPF, telefone, número de licença ou credencial Meta.",
-      common: "Status técnico ajuda em filtros, mas a decisão operacional deve considerar o contexto do registro.",
+      text: "Alguns termos aparecem em filtros, tabelas e auditoria.",
+      steps: ["DANFE e o documento auxiliar da NF-e.", "Chave de acesso identifica a nota.", "Snapshot congela ranking.", "Slug e o caminho amigavel da Wiki.", "Escopo e o conjunto de dados que o usuario pode ver."],
+      check: "Nao confunda ID interno com NF, chave de acesso, email ou credencial.",
+      common: "Status tecnico ajuda em filtros, mas a decisao operacional deve considerar a nota real.",
       support: "Peça suporte quando um termo técnico bloquear uma decisão operacional."
     },
     {
       id: "problemas-comuns",
       title: "Problemas comuns",
       who: "Todos os perfis",
-      text: "A maioria dos bloqueios vem de filtro restrito, perfil sem escopo, documento incorreto, link expirado ou notificação em modo de teste.",
-      steps: ["Limpe filtros.", "Recarregue a tela.", "Confira perfil e escopo.", "Leia a mensagem de erro antes de tentar novamente."],
-      check: "Nunca cole tokens, secrets ou credenciais Meta em chamados, documentos ou campos do sistema.",
-      common: "Provider fake não envia mensagem real; ele só simula a operação para validação local.",
-      support: "Procure suporte se o erro persistir, se envolver credenciais Meta ou se impactar operação real."
+      text: "A maioria dos bloqueios vem de filtro restrito, nota pendente, vendedor errado, duplicidade falsa ou permissao insuficiente.",
+      steps: ["Limpe filtros.", "Recarregue a tela.", "Confira perfil e escopo.", "Leia a mensagem de erro.", "Tente reproduzir com um registro especifico."],
+      check: "Nunca cole tokens, secrets, credenciais Google ou dados sensiveis em campos do sistema.",
+      common: "Ranking e extrato vazios normalmente indicam falta de nota aprovada no periodo.",
+      support: "Procure suporte se o erro persistir, envolver credenciais ou impactar a operacao real."
     }
   ];
 
@@ -6596,11 +7959,87 @@ function HelpView({ user }: { user: CurrentUser }) {
   );
 }
 
+function NotificationCenter({ onNavigate }: { onNavigate: (href?: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<InAppNotificationItem[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  async function loadNotifications() {
+    setLoading(true);
+    try {
+      const result = await api<{ items: InAppNotificationItem[]; unread: number }>("/v1/in-app-notifications");
+      setItems(result.items);
+      setUnread(result.unread);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadNotifications();
+  }, []);
+
+  async function markRead(item: InAppNotificationItem) {
+    if (!item.readAt) {
+      await api(`/v1/in-app-notifications/${item.id}/read`, { method: "POST" });
+      await loadNotifications();
+    }
+  }
+
+  async function markAllRead() {
+    await api("/v1/in-app-notifications/read-all", { method: "POST" });
+    await loadNotifications();
+  }
+
+  async function openNotification(item: InAppNotificationItem) {
+    await markRead(item);
+    setOpen(false);
+    onNavigate(item.href);
+  }
+
+  return (
+    <div className="notification-center">
+      <button className="notification-trigger secondary" type="button" onClick={() => {
+        setOpen((current) => !current);
+        void loadNotifications();
+      }} title="Notificações">
+        <Icon name="bell" />
+        {unread > 0 ? <span>{unread > 9 ? "9+" : unread}</span> : null}
+      </button>
+      {open ? (
+        <div className="notification-popover">
+          <div className="notification-popover-header">
+            <strong>Notificações</strong>
+            <button className="link-button" disabled={unread === 0} type="button" onClick={() => void markAllRead()}>
+              Marcar lidas
+            </button>
+          </div>
+          {loading && items.length === 0 ? <p className="muted">Carregando...</p> : null}
+          {!loading && items.length === 0 ? <p className="muted">Nenhuma notificação</p> : null}
+          <div className="notification-list">
+            {items.map((item) => (
+              <button className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} type="button" onClick={() => void openNotification(item)}>
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>{formatDateTimeBr(item.createdAt)} / {item.type}</small>
+                </span>
+                {item.body ? <em>{item.body}</em> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const initialHelpId = window.location.hash.replace("#", "");
+  const initialWikiSlug = wikiSlugFromPath();
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
-  const startsInWiki = window.location.pathname === "/wiki" && visibleNav.some((item) => item.key === "wiki");
+  const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
   const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
@@ -6629,7 +8068,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
     clearHelpHash();
     if (key === "wiki") {
       window.history.replaceState(null, "", "/wiki");
-    } else if (window.location.pathname === "/wiki") {
+    } else if (window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/")) {
       window.history.replaceState(null, "", "/");
     }
     setActiveView(key);
@@ -6638,6 +8077,27 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
   async function logout() {
     await api("/v1/auth/logout", { method: "POST" });
     onLogout();
+  }
+
+  function openNotificationHref(href?: string | null) {
+    if (!href) return;
+    if (href.startsWith("/wiki/")) {
+      window.location.assign(href);
+      return;
+    }
+    if (href === "/wiki") {
+      openView("wiki");
+      return;
+    }
+    if (href === "/faq") {
+      openView("faq");
+      return;
+    }
+    if (href === "/notas") {
+      openView("notes");
+      return;
+    }
+    window.location.assign(href);
   }
 
   useEffect(() => {
@@ -6721,6 +8181,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
             </nav>
           </div>
           <div className="topbar-account user-actions">
+            <NotificationCenter onNavigate={openNotificationHref} />
             <span>{user.name}</span>
             <button className="secondary" onClick={logout}>
               <Icon name="logout" /> Sair
@@ -6730,13 +8191,13 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         {activeItem.key === "notes" ? (
           <NotesView user={user} />
         ) : activeItem.key === "ranking" ? (
-          <RankingView />
+          <RankingView user={user} />
         ) : activeItem.key === "campaigns" ? (
           <CampaignsView user={user} />
         ) : activeItem.key === "statements" ? (
           <StatementsView />
         ) : activeItem.key === "users" ? (
-          <CommercialPlaceholderView title="Usuários, vendedores e times" detail="O seed já cria SAC, financeiro, vendedor e grupo comercial. O CRUD administrativo entra no próximo lote." />
+          <UsersTeamsView />
         ) : activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
         ) : activeItem.key === "dashboard" ? (
@@ -6748,7 +8209,9 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
         ) : activeItem.key === "reports" ? (
           <ReportsView />
         ) : activeItem.key === "wiki" ? (
-          <WikiView user={user} />
+          <WikiView user={user} initialSlug={initialWikiSlug} />
+        ) : activeItem.key === "faq" ? (
+          <FaqThreadsView user={user} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (

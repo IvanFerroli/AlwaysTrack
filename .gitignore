@@ -8,5 +8,6 @@ dist/
 .openclaw/
 .tmp-venv-parse/
 services/api/prisma/dev.db
+services/api/prisma/dev.db.backup-*
 services/api/.storage/
 .storage/

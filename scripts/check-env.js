@@ -35,7 +35,11 @@ const optional = [
   "META_WHATSAPP_SMOKE_TEMPLATE",
   "META_WHATSAPP_SMOKE_TEMPLATE_LANGUAGE",
   "SUPPORT_PHONE",
-  "NOTIFICATION_JOB_LIMIT"
+  "NOTIFICATION_JOB_LIMIT",
+  "GOOGLE_LOGIN_CLIENT_ID",
+  "GOOGLE_LOGIN_CLIENT_SECRET",
+  "GOOGLE_LOGIN_REDIRECT_URI",
+  "GOOGLE_LOGIN_ALLOWED_DOMAINS"
 ];
 
 const missing = required.filter((key) => !process.env[key] || process.env[key] === "change-me-in-production");

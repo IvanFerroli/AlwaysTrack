@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-mvp
 - owner: runtime-builder
-- last-updated: 2026-06-03
+- last-updated: 2026-06-04
 - source-of-truth: docs/tasks/TASK-AT-019-ranking-campaigns-mvp.md
 
 ## Objetivo
@@ -16,9 +16,11 @@ Exibir ranking comercial e campanhas iniciais com base em notas aprovadas.
 - Filtros tecnicos por periodo, vendedor, grupo e campanha.
 - Tela de Ranking usando endpoint dedicado.
 - Tela de Ranking agora expoe filtros visuais por campanha, grupo e periodo.
+- Tela de Ranking agora expoe filtro visual por vendedor para perfis com escopo amplo.
 - Tela de Campanhas read-only usando campanhas seedadas/cadastradas.
 - CRUD MVP de campanhas para admin/gestor/supervisor.
 - Tela de Campanhas permite criar, editar, ativar/pausar e gerar snapshot de ranking.
+- Tela de Campanhas exibe comparativo leve entre snapshots recentes.
 - Endpoint `POST /v1/sales/campaigns`.
 - Endpoint `PATCH /v1/sales/campaigns/:campaignId`.
 - Endpoint `POST /v1/sales/campaigns/:campaignId/snapshots`.
@@ -33,5 +35,5 @@ Exibir ranking comercial e campanhas iniciais com base em notas aprovadas.
 - Snapshot registra ranking calculado no momento da acao.
 
 ## Residual
-- Falta filtro visual por vendedor no ranking.
-- Falta tela analitica para comparar snapshots historicos.
+- Opcoes do filtro de vendedor ainda dependem do ranking retornado pelos filtros atuais; falta endpoint dedicado de vendedores para popular o seletor de forma independente.
+- Comparacao de snapshots ainda e leve, limitada aos snapshots recentes retornados pela API, e sem teste visual automatizado.

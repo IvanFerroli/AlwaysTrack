@@ -50,6 +50,19 @@ export interface ManualLicenseNotificationInput {
   force?: boolean;
 }
 
+export interface InAppNotificationInput {
+  recipientIds?: string[];
+  recipientRoles?: string[];
+  actorId?: string;
+  type: string;
+  title: string;
+  body?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  href?: string | null;
+  dedupeKey?: string | null;
+}
+
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -173,6 +186,92 @@ export function parseManualLicenseNotificationInput(payload: unknown): ManualLic
     processNow: cleanBoolean(input.processNow),
     force: cleanBoolean(input.force)
   };
+}
+
+function uniqueTexts(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => typeof value === "string" && value.trim().length > 0)));
+}
+
+export async function emitInAppNotifications(prisma: PrismaClient, organizationId: string, input: InAppNotificationInput) {
+  const recipientIds = uniqueTexts(input.recipientIds ?? []);
+  const recipientRoles = uniqueTexts(input.recipientRoles ?? []);
+  if (recipientIds.length === 0 && recipientRoles.length === 0) return [];
+  const maybePrisma = prisma as PrismaClient & { user?: PrismaClient["user"]; inAppNotification?: PrismaClient["inAppNotification"] };
+  if (!maybePrisma.user || !maybePrisma.inAppNotification) return [];
+
+  const recipients = await maybePrisma.user.findMany({
+    where: {
+      organizationId,
+      active: true,
+      OR: [
+        recipientIds.length > 0 ? { id: { in: recipientIds } } : undefined,
+        recipientRoles.length > 0 ? { role: { in: recipientRoles } } : undefined
+      ].filter(Boolean) as Prisma.UserWhereInput[]
+    },
+    select: { id: true }
+  });
+  const ids = recipients.map((recipient) => recipient.id).filter((id) => id !== input.actorId);
+  const created = [];
+  for (const recipientId of uniqueTexts(ids)) {
+    const data = {
+      organizationId,
+      recipientId,
+      type: input.type,
+      title: input.title,
+      body: input.body ?? null,
+      entityType: input.entityType ?? null,
+      entityId: input.entityId ?? null,
+      href: input.href ?? null,
+      dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${recipientId}` : null
+    };
+    if (data.dedupeKey) {
+      created.push(
+        await maybePrisma.inAppNotification.upsert({
+          where: { organizationId_recipientId_dedupeKey: { organizationId, recipientId, dedupeKey: data.dedupeKey } },
+          create: data,
+          update: {
+            title: data.title,
+            body: data.body,
+            href: data.href,
+            readAt: null,
+            createdAt: new Date()
+          }
+        })
+      );
+    } else {
+      created.push(await maybePrisma.inAppNotification.create({ data }));
+    }
+  }
+  return created;
+}
+
+export async function listInAppNotifications(prisma: PrismaClient, actor: CurrentUser) {
+  const [items, unread] = await Promise.all([
+    prisma.inAppNotification.findMany({
+      where: { organizationId: actor.organizationId, recipientId: actor.id },
+      orderBy: { createdAt: "desc" },
+      take: 30
+    }),
+    prisma.inAppNotification.count({ where: { organizationId: actor.organizationId, recipientId: actor.id, readAt: null } })
+  ]);
+  return { items, unread };
+}
+
+export async function markInAppNotificationRead(prisma: PrismaClient, actor: CurrentUser, notificationId: string) {
+  const notification = await prisma.inAppNotification.findFirst({
+    where: { id: notificationId, organizationId: actor.organizationId, recipientId: actor.id }
+  });
+  if (!notification) throw new NotificationError("NOT_FOUND");
+  const item = await prisma.inAppNotification.update({ where: { id: notification.id }, data: { readAt: new Date() } });
+  return { notification: item };
+}
+
+export async function markAllInAppNotificationsRead(prisma: PrismaClient, actor: CurrentUser) {
+  const result = await prisma.inAppNotification.updateMany({
+    where: { organizationId: actor.organizationId, recipientId: actor.id, readAt: null },
+    data: { readAt: new Date() }
+  });
+  return { updated: result.count };
 }
 
 function normalizeRecipientPhone(value: string | null | undefined) {

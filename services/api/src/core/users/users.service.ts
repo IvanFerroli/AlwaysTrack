@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { userRoles, type UserRole } from "@alwaystrack/shared";
+import { commercialUserRoles, userRoles, type UserRole } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { hashPassword } from "../auth/password.js";
 import { parseScopeIds } from "../auth/scope.js";
@@ -24,6 +24,9 @@ export interface UserManagementInput {
   active?: boolean;
   unitScopeIds?: string[];
   sectorScopeIds?: string[];
+  sellerCode?: string;
+  sellerDisplayName?: string;
+  salesGroupId?: string | null;
 }
 
 function cleanText(value: unknown) {
@@ -52,6 +55,15 @@ function cleanRole(value: unknown) {
   return typeof value === "string" && userRoles.includes(value as UserRole) ? (value as UserRole) : undefined;
 }
 
+function cleanCommercialCreateRole(value: unknown) {
+  const role = cleanRole(value);
+  return role && ["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"].includes(role) ? role : undefined;
+}
+
+function isCommercialRole(role: string): role is UserRole {
+  return commercialUserRoles.includes(role as (typeof commercialUserRoles)[number]);
+}
+
 function cleanPassword(value: unknown) {
   const password = cleanText(value);
   return password && password.length >= 8 ? password : undefined;
@@ -77,11 +89,14 @@ export function parseCreateUserInput(payload: unknown): UserManagementInput {
     name: cleanText(input.name),
     email: cleanText(input.email)?.toLowerCase(),
     password: cleanPassword(input.password),
-    role: cleanRole(input.role),
+    role: cleanCommercialCreateRole(input.role),
     phone: cleanOptionalText(input.phone),
     active: cleanBoolean(input.active),
     unitScopeIds: cleanScopeIds(input.unitScopeIds),
-    sectorScopeIds: cleanScopeIds(input.sectorScopeIds)
+    sectorScopeIds: cleanScopeIds(input.sectorScopeIds),
+    sellerCode: cleanText(input.sellerCode),
+    sellerDisplayName: cleanText(input.sellerDisplayName),
+    salesGroupId: cleanOptionalText(input.salesGroupId)
   };
 }
 
@@ -94,7 +109,10 @@ export function parseUpdateUserInput(payload: unknown): UserManagementInput {
     phone: cleanOptionalText(input.phone),
     active: cleanBoolean(input.active),
     unitScopeIds: cleanScopeIds(input.unitScopeIds),
-    sectorScopeIds: cleanScopeIds(input.sectorScopeIds)
+    sectorScopeIds: cleanScopeIds(input.sectorScopeIds),
+    sellerCode: cleanText(input.sellerCode),
+    sellerDisplayName: cleanText(input.sellerDisplayName),
+    salesGroupId: cleanOptionalText(input.salesGroupId)
   };
 }
 
@@ -140,21 +158,94 @@ async function ensureScopesBelongToOrganization(
   }
 }
 
+async function ensureSalesGroupBelongsToOrganization(prisma: PrismaClient, actor: ActorContext, salesGroupId: string | null | undefined) {
+  if (!salesGroupId) return;
+  const group = await prisma.salesGroup.findFirst({ where: { id: salesGroupId, organizationId: actor.organizationId } });
+  if (!group) throw new UserManagementError("INVALID_INPUT");
+}
+
+function defaultSellerCode(input: UserManagementInput, userId: string) {
+  return (input.sellerCode ?? input.email?.split("@")[0] ?? userId).replace(/[^\w.-]/g, "-").slice(0, 40);
+}
+
+async function syncCommercialLinks(prisma: PrismaClient, actor: ActorContext, user: { id: string; name: string; email: string; phone: string | null; role: string }, input: UserManagementInput) {
+  await ensureSalesGroupBelongsToOrganization(prisma, actor, input.salesGroupId);
+
+  if (user.role === "VENDEDOR") {
+    const existingSeller = await prisma.sellerProfile.findFirst({
+      where: { organizationId: actor.organizationId, OR: [{ userId: user.id }, { code: defaultSellerCode(input, user.id) }] }
+    });
+    const sellerData = {
+      userId: user.id,
+      salesGroupId: input.salesGroupId ?? existingSeller?.salesGroupId ?? null,
+      displayName: input.sellerDisplayName ?? user.name,
+      email: user.email,
+      phone: user.phone,
+      active: true
+    };
+    if (existingSeller) {
+      await prisma.sellerProfile.update({
+        where: { id: existingSeller.id },
+        data: sellerData
+      });
+    } else {
+      await prisma.sellerProfile.create({
+        data: {
+          organizationId: actor.organizationId,
+          code: defaultSellerCode(input, user.id),
+          ...sellerData
+        }
+      });
+    }
+  }
+
+  if (user.role === "SUPERVISOR" && input.salesGroupId) {
+    await prisma.salesGroup.update({
+      where: { id: input.salesGroupId },
+      data: { supervisorId: user.id }
+    });
+  }
+}
+
 export async function listManagedUsers(prisma: PrismaClient, actor: ActorContext) {
   const users = await prisma.user.findMany({
     where: { organizationId: actor.organizationId },
+    include: {
+      sellerProfile: { include: { salesGroup: true } },
+      supervisedSalesGroups: true
+    },
     orderBy: [{ active: "desc" }, { role: "asc" }, { name: "asc" }]
   });
 
   return users.map(sanitizeUser);
 }
 
+export async function listCommercialUserOptions(prisma: PrismaClient, actor: ActorContext) {
+  const [salesGroups, sellers] = await Promise.all([
+    prisma.salesGroup.findMany({
+      where: { organizationId: actor.organizationId },
+      orderBy: [{ active: "desc" }, { name: "asc" }]
+    }),
+    prisma.sellerProfile.findMany({
+      where: { organizationId: actor.organizationId },
+      include: { salesGroup: true },
+      orderBy: [{ active: "desc" }, { displayName: "asc" }]
+    })
+  ]);
+
+  return { salesGroups, sellers };
+}
+
 export async function createManagedUser(prisma: PrismaClient, actor: ActorContext, input: UserManagementInput) {
   if (!input.name || !input.email || !input.password || !input.role) {
     throw new UserManagementError("INVALID_INPUT");
   }
+  if (!["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"].includes(input.role)) {
+    throw new UserManagementError("INVALID_INPUT");
+  }
 
   await ensureEmailAvailable(prisma, input.email);
+  await ensureSalesGroupBelongsToOrganization(prisma, actor, input.salesGroupId);
   await ensureScopesBelongToOrganization(prisma, actor, input.role, input.unitScopeIds, input.sectorScopeIds);
 
   const user = await prisma.user.create({
@@ -170,6 +261,8 @@ export async function createManagedUser(prisma: PrismaClient, actor: ActorContex
       sectorScopeJson: serializeScopeIds(input.role, input.sectorScopeIds)
     }
   });
+
+  await syncCommercialLinks(prisma, actor, user, input);
 
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
@@ -201,7 +294,10 @@ export async function updateManagedUser(
     input.phone === undefined &&
     input.active === undefined &&
     input.unitScopeIds === undefined &&
-    input.sectorScopeIds === undefined
+    input.sectorScopeIds === undefined &&
+    input.sellerCode === undefined &&
+    input.sellerDisplayName === undefined &&
+    input.salesGroupId === undefined
   ) {
     throw new UserManagementError("INVALID_INPUT");
   }
@@ -211,13 +307,14 @@ export async function updateManagedUser(
   }
 
   const role = input.role ?? (existing.role as UserRole);
-  if (!userRoles.includes(role)) {
+  if (!isCommercialRole(role)) {
     throw new UserManagementError("INVALID_INPUT");
   }
 
   if (input.email) {
     await ensureEmailAvailable(prisma, input.email, userId);
   }
+  await ensureSalesGroupBelongsToOrganization(prisma, actor, input.salesGroupId);
   await ensureScopesBelongToOrganization(prisma, actor, role, input.unitScopeIds, input.sectorScopeIds);
 
   const user = await prisma.user.update({
@@ -234,6 +331,8 @@ export async function updateManagedUser(
     }
   });
 
+  await syncCommercialLinks(prisma, actor, user, input);
+
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
@@ -247,7 +346,10 @@ export async function updateManagedUser(
       phone: input.phone,
       active: input.active,
       unitScopeIds: input.unitScopeIds,
-      sectorScopeIds: input.sectorScopeIds
+      sectorScopeIds: input.sectorScopeIds,
+      sellerCode: input.sellerCode,
+      sellerDisplayName: input.sellerDisplayName,
+      salesGroupId: input.salesGroupId
     }
   });
 

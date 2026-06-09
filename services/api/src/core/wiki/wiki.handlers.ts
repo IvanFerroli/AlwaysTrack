@@ -7,6 +7,7 @@ import {
   createWikiEditRequest,
   createWikiPage,
   getWikiPage,
+  getWikiPageBySlug,
   heartbeatWikiPresence,
   getWikiAttachmentFile,
   listWikiEditRequests,
@@ -60,6 +61,14 @@ export async function listWikiPagesHandler(request: Request, response: Response)
 export async function getWikiPageHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await getWikiPage(prisma, actorFrom(request), routeParam(request.params.pageId)));
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function getWikiPageBySlugHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await getWikiPageBySlug(prisma, actorFrom(request), routeParam(request.params.slug)));
   } catch (error) {
     return sendWikiError(response, error);
   }

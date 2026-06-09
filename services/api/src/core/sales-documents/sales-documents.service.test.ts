@@ -7,11 +7,14 @@ import {
   createSalesCampaign,
   getSalesDashboard,
   getSalesRanking,
+  getSalesStatements,
   listSalesDocuments,
+  listSalesSellers,
   parseSalesCampaignInput,
   parseSalesDocumentReviewInput,
   parseSalesDocumentUploadInput,
   reviewSalesDocument,
+  uniqueSalesInvoicesByAccessKey,
   uploadSalesDocument
 } from "./sales-documents.service.js";
 
@@ -140,6 +143,7 @@ INFORMAÇÕES COMPLEMENTARES
       parseSalesDocumentReviewInput({
         status: "APPROVED",
         accessKey: " 3526 0500 ",
+        reviewNote: " Conferido pelo financeiro ",
         items: [{ description: "Whey", quantity: "2", totalAmountCents: "15990" }]
       })
     ).toEqual({
@@ -152,6 +156,7 @@ INFORMAÇÕES COMPLEMENTARES
       buyerName: null,
       totalAmountCents: null,
       rejectionReason: null,
+      reviewNote: "Conferido pelo financeiro",
       items: [{ sku: null, description: "Whey", category: null, quantity: 2, unitAmountCents: null, totalAmountCents: 15990 }]
     });
   });
@@ -178,6 +183,33 @@ INFORMAÇÕES COMPLEMENTARES
     });
   });
 
+  it("deduplicates repeated access keys inside the same deterministic package", () => {
+    const baseInvoice = {
+      documentKind: "DANFE",
+      rawText: "raw",
+      fields: {
+        accessKey: { value: "3526 0500 0000 0000 0100 5500 1000 0000 0110 0000 0010", confidence: 0.99, evidence: null },
+        invoiceNumber: { value: "1", confidence: 0.9, evidence: null },
+        series: { value: "1", confidence: 0.9, evidence: null },
+        issuedAt: { value: "2026-05-22", confidence: 0.9, evidence: null },
+        issuerName: { value: "Suplementos LTDA", confidence: 0.8, evidence: null },
+        buyerName: { value: "Cliente", confidence: 0.8, evidence: null },
+        totalAmountCents: { value: 15990, confidence: 0.9, evidence: null }
+      },
+      items: [{ sku: "WHEY", description: "Whey", category: "Proteina", quantity: 1, unitAmountCents: 15990, totalAmountCents: 15990 }],
+      warnings: []
+    };
+
+    const result = uniqueSalesInvoicesByAccessKey([
+      baseInvoice,
+      { ...baseInvoice, fields: { ...baseInvoice.fields, invoiceNumber: { value: "1 copia", confidence: 0.9, evidence: null } } },
+      { ...baseInvoice, fields: { ...baseInvoice.fields, accessKey: { value: "35260500000000000100550010000000021000000020", confidence: 0.99, evidence: null } } }
+    ]);
+
+    expect(result.skippedDuplicateAccessKeys).toBe(1);
+    expect(result.invoices).toHaveLength(2);
+  });
+
   it("lists documents scoped to the logged seller", async () => {
     const prisma = {
       salesDocument: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
@@ -191,6 +223,48 @@ INFORMAÇÕES COMPLEMENTARES
           organizationId: "org-1",
           sellerProfile: expect.objectContaining({ userId: "seller-user-1" })
         })
+      })
+    );
+  });
+
+  it("lists documents with operational queue filters", async () => {
+    const prisma = {
+      salesDocument: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
+    };
+
+    await listSalesDocuments(prisma as never, admin, {
+      status: "PENDING_REVIEW",
+      sellerProfileId: "seller-1",
+      from: "2026-06-01",
+      to: "2026-06-08"
+    });
+
+    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          status: "PENDING_REVIEW",
+          sellerProfileId: "seller-1",
+          createdAt: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) }),
+          sellerProfile: expect.objectContaining({ organizationId: "org-1" })
+        })
+      })
+    );
+  });
+
+  it("lists active sellers in the commercial scope", async () => {
+    const prisma = {
+      sellerProfile: { findMany: vi.fn().mockResolvedValue([{ id: "seller-1", displayName: "Ana", active: true }]) }
+    };
+
+    const result = await listSalesSellers(prisma as never, admin);
+
+    expect(result.total).toBe(1);
+    expect(prisma.sellerProfile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ organizationId: "org-1", active: true }),
+        include: expect.objectContaining({ salesGroup: true }),
+        orderBy: [{ displayName: "asc" }]
       })
     );
   });
@@ -296,6 +370,15 @@ INFORMAÇÕES COMPLEMENTARES
     const result = await analyzeSalesDocumentWithAi(prisma as never, storage, provider, seller, "doc-1");
 
     expect(result.document.status).toBe("PENDING_REVIEW");
+    expect(result.extraction).toMatchObject({
+      provider: "fake-sales",
+      model: "test",
+      usedAi: true,
+      duplicate: false,
+      status: "PENDING_REVIEW",
+      itemCount: 1,
+      warningCount: 0
+    });
     expect(prisma.salesDocumentExtraction.create).toHaveBeenCalled();
     expect(prisma.salesItem.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ description: "Whey" })] }));
   });
@@ -329,6 +412,78 @@ INFORMAÇÕES COMPLEMENTARES
     });
   });
 
+  it("reprocesses the same document access key without marking itself as duplicate", async () => {
+    const accessKey = "35260500000000000100550010000000011000000010";
+    const prisma = {
+      salesDocument: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: "doc-1",
+            organizationId: "org-1",
+            sellerProfileId: "seller-1",
+            uploadedById: "seller-user-1",
+            fileKey: "doc-1.pdf",
+            fileName: "danfe.pdf",
+            mimeType: "application/pdf",
+            size: 3,
+            status: "PENDING_REVIEW",
+            accessKey,
+            sellerProfile: { displayName: "Ana", user: { id: "seller-user-1" } },
+            uploadedBy: {},
+            reviewedBy: null,
+            items: [],
+            extractions: []
+          })
+          .mockResolvedValueOnce(null),
+        update: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "doc-1", status: "EXTRACTING" })
+          .mockResolvedValueOnce({
+            id: "doc-1",
+            status: "PENDING_REVIEW",
+            accessKey,
+            items: [{ id: "item-1" }]
+          })
+      },
+      salesDocumentExtraction: { create: vi.fn().mockResolvedValue({ id: "ext-1" }) },
+      salesItem: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) },
+      $transaction: vi.fn(async (callback) => callback(prisma))
+    };
+    const storage = { get: vi.fn().mockResolvedValue({ body: Buffer.from("pdf"), mimeType: "application/pdf" }), put: vi.fn() };
+    const provider = {
+      provider: "fake-sales",
+      model: "test",
+      analyze: vi.fn(),
+      analyzeSalesDocument: vi.fn().mockResolvedValue({
+        documentKind: "DANFE",
+        rawText: "raw",
+        fields: {
+          accessKey: { value: accessKey, confidence: 0.99, evidence: null },
+          invoiceNumber: { value: "1", confidence: 0.9, evidence: null },
+          series: { value: "1", confidence: 0.9, evidence: null },
+          issuedAt: { value: "2026-05-22", confidence: 0.9, evidence: null },
+          issuerName: { value: "Suplementos LTDA", confidence: 0.8, evidence: null },
+          buyerName: { value: "Cliente", confidence: 0.8, evidence: null },
+          totalAmountCents: { value: 15990, confidence: 0.9, evidence: null }
+        },
+        items: [{ sku: "WHEY", description: "Whey", category: "Proteina", quantity: 1, unitAmountCents: 15990, totalAmountCents: 15990 }],
+        warnings: []
+      })
+    };
+
+    const result = await analyzeSalesDocumentWithAi(prisma as never, storage, provider, seller, "doc-1", { forceAi: true });
+
+    expect(result.duplicate).toBe(false);
+    expect(result.document.status).toBe("PENDING_REVIEW");
+    expect(prisma.salesDocument.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: expect.objectContaining({ accessKey, id: { not: "doc-1" } }) })
+    );
+    expect(prisma.salesDocument.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ accessKey, status: "PENDING_REVIEW" }) }));
+  });
+
 
   it("approves a reviewed DANFE and replaces commercial items", async () => {
     const prisma = {
@@ -353,12 +508,22 @@ INFORMAÇÕES COMPLEMENTARES
 
     await reviewSalesDocument(prisma as never, admin, "doc-1", {
       status: "APPROVED",
+      reviewNote: "Conferido e aceito.",
       totalAmountCents: 15990,
       items: [{ description: "Whey", quantity: 1, totalAmountCents: 15990 }]
     });
 
     expect(prisma.salesDocument.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "APPROVED", reviewedById: "admin-1" }) }));
     expect(prisma.salesItem.createMany).toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "sales_document.approve",
+          entityType: "SalesDocument",
+          metadataJson: expect.stringContaining("Conferido e aceito.")
+        })
+      })
+    );
   });
 
   it("builds commercial dashboard metrics from approved items", async () => {
@@ -399,6 +564,27 @@ INFORMAÇÕES COMPLEMENTARES
             totalAmountCents: 20000,
             quantity: 2,
             sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+          },
+          {
+            salesDocumentId: "doc-2",
+            sellerProfileId: "seller-2",
+            totalAmountCents: 45000,
+            quantity: 3,
+            sellerProfile: { displayName: "Bruno", salesGroup: { name: "Norte" } }
+          },
+          {
+            salesDocumentId: "doc-3",
+            sellerProfileId: "seller-3",
+            totalAmountCents: 45000,
+            quantity: 1,
+            sellerProfile: { displayName: "Carla", salesGroup: { name: "Sul" } }
+          },
+          {
+            salesDocumentId: "doc-4",
+            sellerProfileId: "seller-3",
+            totalAmountCents: 5000,
+            quantity: 1,
+            sellerProfile: { displayName: "Carla", salesGroup: { name: "Sul" } }
           }
         ])
       }
@@ -407,7 +593,115 @@ INFORMAÇÕES COMPLEMENTARES
     const ranking = await getSalesRanking(prisma as never, admin, {});
 
     expect(ranking.items).toEqual([
-      { position: 1, sellerId: "seller-1", sellerName: "Ana", groupName: "Norte", totalAmountCents: 20000, quantity: 2, documents: 1 }
+      { position: 1, sellerId: "seller-3", sellerName: "Carla", groupName: "Sul", totalAmountCents: 50000, quantity: 2, documents: 2 },
+      { position: 2, sellerId: "seller-2", sellerName: "Bruno", groupName: "Norte", totalAmountCents: 45000, quantity: 3, documents: 1 },
+      { position: 3, sellerId: "seller-1", sellerName: "Ana", groupName: "Norte", totalAmountCents: 20000, quantity: 2, documents: 1 }
+    ]);
+    expect(prisma.salesItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ salesDocument: expect.objectContaining({ status: "APPROVED" }) }) })
+    );
+  });
+
+  it("builds approved statement consolidations by seller and group", async () => {
+    const issuedAt = new Date("2026-06-10T00:00:00.000Z");
+    const prisma = {
+      salesDocument: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "doc-1",
+            sellerProfileId: "seller-1",
+            issuedAt,
+            totalAmountCents: null,
+            sellerProfile: { displayName: "Ana", salesGroup: { id: "group-1", name: "Norte" } },
+            items: [
+              { quantity: 2, totalAmountCents: 15000 },
+              { quantity: 1, totalAmountCents: 5000 }
+            ]
+          },
+          {
+            id: "doc-2",
+            sellerProfileId: "seller-1",
+            issuedAt,
+            totalAmountCents: 7000,
+            sellerProfile: { displayName: "Ana", salesGroup: { id: "group-1", name: "Norte" } },
+            items: [{ quantity: 1, totalAmountCents: 7000 }]
+          },
+          {
+            id: "doc-3",
+            sellerProfileId: "seller-2",
+            issuedAt,
+            totalAmountCents: 12000,
+            sellerProfile: { displayName: "Bia", salesGroup: { id: "group-1", name: "Norte" } },
+            items: [{ quantity: 3, totalAmountCents: 12000 }]
+          },
+          {
+            id: "doc-4",
+            sellerProfileId: "seller-3",
+            issuedAt,
+            totalAmountCents: 18000,
+            sellerProfile: { displayName: "Lia", salesGroup: { id: "group-2", name: "Sul" } },
+            items: [{ quantity: 2, totalAmountCents: 18000 }]
+          }
+        ])
+      }
+    };
+
+    const statements = await getSalesStatements(prisma as never, admin, { from: "2026-06-01", to: "2026-06-30" });
+
+    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          status: "APPROVED",
+          issuedAt: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) }),
+          sellerProfile: expect.objectContaining({ organizationId: "org-1" })
+        })
+      })
+    );
+    expect(statements.summary).toEqual({ documents: 4, totalAmountCents: 57000, totalItems: 9 });
+    expect(statements.consolidations.bySeller).toEqual([
+      { sellerId: "seller-1", sellerName: "Ana", groupId: "group-1", groupName: "Norte", documents: 2, quantity: 4, totalAmountCents: 27000 },
+      { sellerId: "seller-3", sellerName: "Lia", groupId: "group-2", groupName: "Sul", documents: 1, quantity: 2, totalAmountCents: 18000 },
+      { sellerId: "seller-2", sellerName: "Bia", groupId: "group-1", groupName: "Norte", documents: 1, quantity: 3, totalAmountCents: 12000 }
+    ]);
+    expect(statements.consolidations.byGroup).toEqual([
+      { groupId: "group-1", groupName: "Norte", documents: 3, sellers: 2, quantity: 7, totalAmountCents: 39000 },
+      { groupId: "group-2", groupName: "Sul", documents: 1, sellers: 1, quantity: 2, totalAmountCents: 18000 }
+    ]);
+  });
+
+  it("keeps statement consolidations scoped to the logged seller", async () => {
+    const prisma = {
+      salesDocument: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "doc-1",
+            sellerProfileId: "seller-1",
+            issuedAt: new Date("2026-06-10T00:00:00.000Z"),
+            totalAmountCents: 15000,
+            sellerProfile: { displayName: "Ana", salesGroup: { id: "group-1", name: "Norte" } },
+            items: [{ quantity: 2, totalAmountCents: 15000 }]
+          }
+        ])
+      }
+    };
+
+    const statements = await getSalesStatements(prisma as never, seller, {});
+
+    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          status: "APPROVED",
+          sellerProfile: expect.objectContaining({ organizationId: "org-1", userId: "seller-user-1" })
+        })
+      })
+    );
+    expect(statements.consolidations.bySeller).toEqual([
+      { sellerId: "seller-1", sellerName: "Ana", groupId: "group-1", groupName: "Norte", documents: 1, quantity: 2, totalAmountCents: 15000 }
+    ]);
+    expect(statements.consolidations.byGroup).toEqual([
+      { groupId: "group-1", groupName: "Norte", documents: 1, sellers: 1, quantity: 2, totalAmountCents: 15000 }
     ]);
   });
 

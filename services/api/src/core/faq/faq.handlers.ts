@@ -3,13 +3,23 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
   buildPublicHelpLink,
+  addFaqComment,
+  createFaqThread,
   createFaqItem,
   FaqError,
   listFaqItems,
+  listFaqThreads,
   listPublicFaqItems,
+  parseFaqCommentInput,
   parseFaqFilters,
   parseFaqInput,
   parsePublicHelpInput,
+  parseFaqReactionInput,
+  parseFaqThreadFilters,
+  parseFaqThreadInput,
+  promoteFaqThreadToWiki,
+  setFaqReaction,
+  updateFaqThreadStatus,
   updateFaqItem
 } from "./faq.service.js";
 
@@ -73,6 +83,59 @@ export async function updateFaqItemHandler(request: Request, response: Response)
       parseFaqInput(request.body)
     );
     return sendOk(response, { faqItem });
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function listFaqThreadsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listFaqThreads(prisma, actorFrom(request), parseFaqThreadFilters(request.query)));
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function createFaqThreadHandler(request: Request, response: Response) {
+  try {
+    const thread = await createFaqThread(prisma, actorFrom(request), parseFaqThreadInput(request.body));
+    return sendOk(response, { thread }, 201);
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function addFaqCommentHandler(request: Request, response: Response) {
+  try {
+    const thread = await addFaqComment(prisma, actorFrom(request), routeParam(request.params.threadId), parseFaqCommentInput(request.body));
+    return sendOk(response, { thread });
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function updateFaqThreadStatusHandler(request: Request, response: Response) {
+  try {
+    const thread = await updateFaqThreadStatus(prisma, actorFrom(request), routeParam(request.params.threadId), parseFaqThreadInput(request.body));
+    return sendOk(response, { thread });
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function setFaqReactionHandler(request: Request, response: Response) {
+  try {
+    const thread = await setFaqReaction(prisma, actorFrom(request), routeParam(request.params.threadId), parseFaqReactionInput(request.body));
+    return sendOk(response, { thread });
+  } catch (error) {
+    return sendFaqError(response, error);
+  }
+}
+
+export async function promoteFaqThreadToWikiHandler(request: Request, response: Response) {
+  try {
+    const thread = await promoteFaqThreadToWiki(prisma, actorFrom(request), routeParam(request.params.threadId));
+    return sendOk(response, { thread });
   } catch (error) {
     return sendFaqError(response, error);
   }

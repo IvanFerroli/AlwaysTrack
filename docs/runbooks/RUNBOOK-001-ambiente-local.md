@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: ops-builder
-- last-updated: 2026-05-29
+- last-updated: 2026-06-04
 - source-of-truth: docs/runbooks/RUNBOOK-001-ambiente-local.md
 
 ## Objetivo
@@ -37,9 +37,12 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 
 ## Seed local
 - `npm run setup` alinha o banco local e aplica o seed idempotente.
+- Por padrao, o seed local cria uma demo comercial: admin, SAC, financeiro, vendedor, supervisor comercial, grupo de vendas, nota fiscal aprovada, campanha e wiki.
 - `SEED_ORGANIZATION_ID` e `SEED_ORGANIZATION_NAME` definem a organizacao criada pelo seed idempotente.
-- `SEED_ADMIN_PASSWORD`, `SEED_RT_PASSWORD`, `SEED_SUPERVISOR_PASSWORD` e `SEED_UPLOAD_TOKEN` fixam credenciais locais; se vazios, o seed imprime valores temporarios.
-- `npm run db:flush:local` reseta o banco local, limpa o storage privado e recria uma organizacao minima com um admin.
+- `SEED_ADMIN_PASSWORD`, `SEED_SAC_PASSWORD`, `SEED_FINANCEIRO_PASSWORD`, `SEED_SELLER_PASSWORD` e `SEED_SUPERVISOR_PASSWORD` fixam credenciais comerciais locais; se vazios, o seed imprime valores temporarios.
+- `ENABLE_LEGACY_SYLEMBRA=true` reativa fixtures antigas de RT, unidades/setores, profissionais, licencas, documentos, upload publico e notificacoes de licenca. Sem essa flag, elas ficam desligadas.
+- Com legado ativo, `SEED_RT_PASSWORD` e `SEED_UPLOAD_TOKEN` fixam a senha do RT e o token publico antigos.
+- `npm run db:flush:local` reseta o banco local, limpa o storage privado e recria uma organizacao minima com um admin. Templates/regras antigas de licenca so sao recriadas com `ENABLE_LEGACY_SYLEMBRA=true`.
 - `db:flush:demo` continua como alias legado para compatibilidade operacional.
 - `FLUSH_LOCAL_*` controla o flush local; `FLUSH_DEMO_*` ainda e aceito como fallback legado.
 
@@ -50,6 +53,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `APP_NAME` afeta mensagens geradas pela API; `VITE_APP_NAME` afeta titulo, manifest e marca visivel da web.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
+- Login Google local usa `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET` e `GOOGLE_LOGIN_REDIRECT_URI` quando configurado; sem essas envs, a tela mantém o fallback de email/senha.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.

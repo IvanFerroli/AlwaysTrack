@@ -7,6 +7,7 @@ process.env.DATABASE_URL ??= "file:./dev.db";
 
 const prisma = new PrismaClient();
 const now = new Date();
+const enableLegacySylembra = process.env.ENABLE_LEGACY_SYLEMBRA === "true";
 
 function addDays(days: number) {
   const next = new Date(now);
@@ -164,23 +165,65 @@ async function ensureAuditLog(input: {
   });
 }
 
+async function ensureSellerProfile(input: {
+  organizationId: string;
+  userId: string;
+  salesGroupId: string;
+  code: string;
+  displayName: string;
+  email: string;
+  phone: string | null;
+  monthlyGoalCents: number;
+}) {
+  const existing = await prisma.sellerProfile.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      OR: [{ code: input.code }, { userId: input.userId }]
+    }
+  });
+
+  if (existing) {
+    return prisma.sellerProfile.update({
+      where: { id: existing.id },
+      data: {
+        userId: input.userId,
+        salesGroupId: input.salesGroupId,
+        code: input.code,
+        displayName: input.displayName,
+        email: input.email,
+        phone: input.phone,
+        active: true,
+        monthlyGoalCents: input.monthlyGoalCents
+      }
+    });
+  }
+
+  return prisma.sellerProfile.create({
+    data: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      salesGroupId: input.salesGroupId,
+      code: input.code,
+      displayName: input.displayName,
+      email: input.email,
+      phone: input.phone,
+      monthlyGoalCents: input.monthlyGoalCents
+    }
+  });
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
-  const licenseTypeName = "Registro profissional padrão";
-  const licenseTypeDescription = "Registro profissional usado no seed local do AlwaysTrack.";
   const adminPassword = seedSecret("SEED_ADMIN_PASSWORD");
   const sacPassword = seedSecret("SEED_SAC_PASSWORD");
   const financeiroPassword = seedSecret("SEED_FINANCEIRO_PASSWORD");
   const sellerPassword = seedSecret("SEED_SELLER_PASSWORD");
-  const rtPassword = seedSecret("SEED_RT_PASSWORD");
   const supervisorPassword = seedSecret("SEED_SUPERVISOR_PASSWORD");
-  const uploadToken = seedSecret("SEED_UPLOAD_TOKEN");
   const adminPasswordHash = await hashPassword(adminPassword);
   const sacPasswordHash = await hashPassword(sacPassword);
   const financeiroPasswordHash = await hashPassword(financeiroPassword);
   const sellerPasswordHash = await hashPassword(sellerPassword);
-  const rtPasswordHash = await hashPassword(rtPassword);
   const supervisorPasswordHash = await hashPassword(supervisorPassword);
 
   const organization = await prisma.organization.upsert({
@@ -245,54 +288,6 @@ async function main() {
     });
   }
 
-  const rt = await prisma.user.upsert({
-    where: { email: "rt@example.com" },
-    update: {
-      name: "RT Demo",
-      passwordHash: rtPasswordHash,
-      role: "RT",
-      phone: "+5511999990001",
-      active: true,
-      organizationId: organization.id
-    },
-    create: {
-      name: "RT Demo",
-      email: "rt@example.com",
-      passwordHash: rtPasswordHash,
-      role: "RT",
-      phone: "+5511999990001",
-      organizationId: organization.id
-    }
-  });
-
-  const unit = await prisma.unit.upsert({
-    where: {
-      organizationId_name: {
-        organizationId: organization.id,
-        name: "Unidade Demo"
-      }
-    },
-    update: { active: true },
-    create: {
-      organizationId: organization.id,
-      name: "Unidade Demo"
-    }
-  });
-
-  const sector = await prisma.sector.upsert({
-    where: {
-      unitId_name: {
-        unitId: unit.id,
-        name: "Setor Demo"
-      }
-    },
-    update: { active: true },
-    create: {
-      unitId: unit.id,
-      name: "Setor Demo"
-    }
-  });
-
   const supervisor = await prisma.user.upsert({
     where: { email: "supervisor@example.com" },
     update: {
@@ -302,8 +297,8 @@ async function main() {
       phone: "+5511999990002",
       active: true,
       organizationId: organization.id,
-      unitScopeJson: JSON.stringify([unit.id]),
-      sectorScopeJson: JSON.stringify([sector.id])
+      unitScopeJson: null,
+      sectorScopeJson: null
     },
     create: {
       name: "Supervisor Demo",
@@ -311,9 +306,7 @@ async function main() {
       passwordHash: supervisorPasswordHash,
       role: "SUPERVISOR",
       phone: "+5511999990002",
-      organizationId: organization.id,
-      unitScopeJson: JSON.stringify([unit.id]),
-      sectorScopeJson: JSON.stringify([sector.id])
+      organizationId: organization.id
     }
   });
 
@@ -382,33 +375,52 @@ async function main() {
     }
   });
 
-  const sellerProfile = await prisma.sellerProfile.upsert({
-    where: {
-      organizationId_code: {
-        organizationId: organization.id,
-        code: "VD-001"
-      }
-    },
-    update: {
-      userId: sellerUser.id,
-      salesGroupId: salesGroup.id,
-      displayName: "Vendedor Demo",
-      email: sellerUser.email,
-      phone: sellerUser.phone,
-      active: true,
-      monthlyGoalCents: 2500000
-    },
-    create: {
-      organizationId: organization.id,
-      userId: sellerUser.id,
-      salesGroupId: salesGroup.id,
-      code: "VD-001",
-      displayName: "Vendedor Demo",
-      email: sellerUser.email,
-      phone: sellerUser.phone,
-      monthlyGoalCents: 2500000
-    }
+  const sellerProfile = await ensureSellerProfile({
+    organizationId: organization.id,
+    userId: sellerUser.id,
+    salesGroupId: salesGroup.id,
+    code: "VD-001",
+    displayName: "Vendedor Demo",
+    email: sellerUser.email,
+    phone: sellerUser.phone,
+    monthlyGoalCents: 2500000
   });
+
+  for (const extraSeller of [
+    { email: "vendedor2@example.com", name: "Vendedor Demo 2", code: "VD-002", phone: "+5511999992002", monthlyGoalCents: 2200000 },
+    { email: "vendedor3@example.com", name: "Vendedor Demo 3", code: "VD-003", phone: "+5511999992003", monthlyGoalCents: 2000000 }
+  ]) {
+    const user = await prisma.user.upsert({
+      where: { email: extraSeller.email },
+      update: {
+        name: extraSeller.name,
+        passwordHash: sellerPasswordHash,
+        role: "VENDEDOR",
+        phone: extraSeller.phone,
+        active: true,
+        organizationId: organization.id
+      },
+      create: {
+        name: extraSeller.name,
+        email: extraSeller.email,
+        passwordHash: sellerPasswordHash,
+        role: "VENDEDOR",
+        phone: extraSeller.phone,
+        organizationId: organization.id
+      }
+    });
+
+    await ensureSellerProfile({
+      organizationId: organization.id,
+      userId: user.id,
+      salesGroupId: salesGroup.id,
+      code: extraSeller.code,
+      displayName: extraSeller.name,
+      email: user.email,
+      phone: user.phone,
+      monthlyGoalCents: extraSeller.monthlyGoalCents
+    });
+  }
 
   const approvedSalesDocument = await prisma.salesDocument.upsert({
     where: {
@@ -515,6 +527,69 @@ async function main() {
       endsAt: new Date(Date.UTC(2026, 4, 31))
     }
   });
+
+  if (enableLegacySylembra) {
+    const licenseTypeName = "Registro profissional padrão";
+    const licenseTypeDescription = "Registro profissional usado no seed local do AlwaysTrack.";
+    const rtPassword = seedSecret("SEED_RT_PASSWORD");
+    const uploadToken = seedSecret("SEED_UPLOAD_TOKEN");
+    const rtPasswordHash = await hashPassword(rtPassword);
+
+    const rt = await prisma.user.upsert({
+      where: { email: "rt@example.com" },
+      update: {
+        name: "RT Demo",
+        passwordHash: rtPasswordHash,
+        role: "RT",
+        phone: "+5511999990001",
+        active: true,
+        organizationId: organization.id
+      },
+      create: {
+        name: "RT Demo",
+        email: "rt@example.com",
+        passwordHash: rtPasswordHash,
+        role: "RT",
+        phone: "+5511999990001",
+        organizationId: organization.id
+      }
+    });
+
+    const unit = await prisma.unit.upsert({
+      where: {
+        organizationId_name: {
+          organizationId: organization.id,
+          name: "Unidade Demo"
+        }
+      },
+      update: { active: true },
+      create: {
+        organizationId: organization.id,
+        name: "Unidade Demo"
+      }
+    });
+
+    const sector = await prisma.sector.upsert({
+      where: {
+        unitId_name: {
+          unitId: unit.id,
+          name: "Setor Demo"
+        }
+      },
+      update: { active: true },
+      create: {
+        unitId: unit.id,
+        name: "Setor Demo"
+      }
+    });
+
+    await prisma.user.update({
+      where: { id: supervisor.id },
+      data: {
+        unitScopeJson: JSON.stringify([unit.id]),
+        sectorScopeJson: JSON.stringify([sector.id])
+      }
+    });
 
   const licenseType = await prisma.licenseType.upsert({
     where: {
@@ -954,6 +1029,10 @@ async function main() {
     metadata: { source: "local-seed", licenseId: expiringLicense.id }
   });
 
+    console.log(`- Legacy RT: rt@example.com / ${rtPassword}`);
+    console.log(`- Public upload token: ${uploadToken}`);
+  }
+
   console.log("Local seed ready:");
   console.log(`- Organization: ${organization.id} / ${organization.name}`);
   console.log(`- Admin: admin@example.com / ${adminPassword}`);
@@ -961,9 +1040,10 @@ async function main() {
   console.log(`- Financeiro: financeiro@example.com / ${financeiroPassword}`);
   console.log(`- Vendedor: vendedor@example.com / ${sellerPassword}`);
   console.log(`- Supervisor: supervisor@example.com / ${supervisorPassword}`);
-  console.log(`- Legacy RT: rt@example.com / ${rtPassword}`);
-  console.log(`- Public upload token: ${uploadToken}`);
-  console.log("- Set SEED_ORGANIZATION_ID, SEED_ORGANIZATION_NAME, SEED_ADMIN_PASSWORD, SEED_SAC_PASSWORD, SEED_FINANCEIRO_PASSWORD, SEED_SELLER_PASSWORD, SEED_SUPERVISOR_PASSWORD and SEED_UPLOAD_TOKEN for stable local seed data.");
+  if (!enableLegacySylembra) {
+    console.log("- Legacy SyLembra fixtures are disabled by default. Set ENABLE_LEGACY_SYLEMBRA=true to seed RT, licenses, documents, upload token and license notifications.");
+  }
+  console.log("- Set SEED_ORGANIZATION_ID, SEED_ORGANIZATION_NAME, SEED_ADMIN_PASSWORD, SEED_SAC_PASSWORD, SEED_FINANCEIRO_PASSWORD, SEED_SELLER_PASSWORD and SEED_SUPERVISOR_PASSWORD for stable local seed data.");
   console.log("- Notifications use NOTIFICATION_PROVIDER=fake until Meta envs are configured.");
 }
 

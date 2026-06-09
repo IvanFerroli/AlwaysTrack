@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-partial
 - owner: product-builder
-- last-updated: 2026-06-03
+- last-updated: 2026-06-04
 - source-of-truth: docs/tasks/TASK-AT-027-decommission-sylembra-legacy.md
 
 ## Objetivo
@@ -21,8 +21,8 @@ Descontinuar o legado SyLembra/licencas/compliance sem quebrar o produto comerci
 - Ajuda: `HelpView` ainda documenta profissionais, licencas, documentos, upload publico, notificacoes e relatorios antigos; hoje nao aparece no menu porque `help` nao entra em `visibleNav`, mas os textos seguem no codigo.
 - API: rotas autenticadas de profissionais, licencas, documentos antigos, notificacoes de licenca e relatorios antigos ficaram atras de `ENABLE_LEGACY_SYLEMBRA=true`.
 - API publica: rotas antigas de upload publico, FAQ publica e help publico tambem ficaram atras de `ENABLE_LEGACY_SYLEMBRA=true`.
-- Seed local: `services/api/prisma/seed.ts` ainda cria RT, supervisor, unidade/setor, profissionais, licencas, documentos, templates/regras de notificacao e jobs do dominio antigo, alem do seed comercial.
-- Flush local: `scripts/flush-local-demo.js` mantem templates/regras de notificacao de licencas e fallback `FLUSH_DEMO_*`; `package.json` ainda tem alias `db:flush:demo`.
+- Seed local: `services/api/prisma/seed.ts` agora cria demo comercial por padrao; RT, unidade/setor, profissionais, licencas, documentos, upload token e notificacoes antigas ficam opt-in via `ENABLE_LEGACY_SYLEMBRA=true`.
+- Flush local: `scripts/flush-local-demo.js` agora recria somente organizacao/admin por padrao; templates/regras antigas de licenca ficam opt-in via `ENABLE_LEGACY_SYLEMBRA=true`. Fallback `FLUSH_DEMO_*` e alias `db:flush:demo` seguem por compatibilidade.
 - Jobs/scripts: `package.json` e `services/api/package.json` ainda expõem `job:notifications`; `services/api/src/jobs/notifications.ts` segue ativo.
 - Docs operacionais: `docs/runbooks/RUNBOOK-001-ambiente-local.md` ainda documenta alias/fallback legado por compatibilidade.
 
@@ -40,6 +40,12 @@ Descontinuar o legado SyLembra/licencas/compliance sem quebrar o produto comerci
 - Rotas autenticadas do vertical antigo colocadas atras da flag de legado.
 - Rotas publicas antigas de upload/FAQ/help colocadas atras da flag de legado.
 - Rotas da Wiki deixaram de aceitar `RT` como papel comercial ativo por padrao.
+
+## Entregue em AT-027B
+- `npm run setup` deixou de criar fixtures SyLembra por padrao: sem RT, unidades/setores, profissionais, licencas, documentos, upload token ou jobs/templates/regras antigas.
+- `ENABLE_LEGACY_SYLEMBRA=true` preserva o caminho opt-in para semear o pacote antigo quando necessario.
+- `npm run db:flush:local` deixou de reinstalar templates/regras antigas de licenca por padrao.
+- Runbook local atualizado com o contrato comercial default e os knobs legados restantes.
 
 ## Criterios de aceite
 - Login, navegacao e docs de uso nao mencionam licencas, RT, COREN, vencimentos, regularizacao ou profissionais como operacao principal.

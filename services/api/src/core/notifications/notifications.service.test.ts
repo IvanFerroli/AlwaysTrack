@@ -4,7 +4,11 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import {
   createNotificationRule,
   createNotificationTemplate,
+  emitInAppNotifications,
   handleMetaWebhook,
+  listInAppNotifications,
+  markAllInAppNotificationsRead,
+  markInAppNotificationRead,
   NotificationError,
   parseNotificationRuleInput,
   parseNotificationTemplateInput,
@@ -79,6 +83,70 @@ describe("notifications service", () => {
 
     expect(prisma.notificationRule.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", templateKey: "venc" }) })
+    );
+  });
+
+  it("emits in-app notifications with tenant recipients and dedupe", async () => {
+    const prisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([{ id: "admin-1" }, { id: "seller-1" }, { id: "supervisor-1" }])
+      },
+      inAppNotification: {
+        upsert: vi.fn().mockImplementation(({ create }) => Promise.resolve({ id: `notif-${create.recipientId}`, ...create }))
+      }
+    };
+
+    const result = await emitInAppNotifications(prisma as never, "org-1", {
+      actorId: "admin-1",
+      recipientIds: ["seller-1"],
+      recipientRoles: ["SUPERVISOR"],
+      type: "faq.thread.created",
+      title: "Nova pergunta",
+      entityType: "FaqThread",
+      entityId: "thread-1",
+      href: "/faq",
+      dedupeKey: "faq.thread.created:thread-1"
+    });
+
+    expect(result).toHaveLength(2);
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ organizationId: "org-1", active: true }) })
+    );
+    expect(prisma.inAppNotification.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          organizationId: "org-1",
+          recipientId: "seller-1",
+          type: "faq.thread.created",
+          dedupeKey: "faq.thread.created:thread-1:seller-1"
+        })
+      })
+    );
+  });
+
+  it("lists and marks in-app notifications as read", async () => {
+    const prisma = {
+      inAppNotification: {
+        findMany: vi.fn().mockResolvedValue([{ id: "notif-1", recipientId: "admin-1", readAt: null }]),
+        count: vi.fn().mockResolvedValue(1),
+        findFirst: vi.fn().mockResolvedValue({ id: "notif-1", recipientId: "admin-1", readAt: null }),
+        update: vi.fn().mockResolvedValue({ id: "notif-1", readAt: new Date("2026-06-09T00:00:00.000Z") }),
+        updateMany: vi.fn().mockResolvedValue({ count: 3 })
+      }
+    };
+
+    await expect(listInAppNotifications(prisma as never, admin)).resolves.toEqual({
+      items: [{ id: "notif-1", recipientId: "admin-1", readAt: null }],
+      unread: 1
+    });
+    await markInAppNotificationRead(prisma as never, admin, "notif-1");
+    await expect(markAllInAppNotificationsRead(prisma as never, admin)).resolves.toEqual({ updated: 3 });
+
+    expect(prisma.inAppNotification.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ organizationId: "org-1", recipientId: "admin-1" }) })
+    );
+    expect(prisma.inAppNotification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ readAt: null }) })
     );
   });
 
