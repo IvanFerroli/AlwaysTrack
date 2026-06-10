@@ -80,6 +80,18 @@ export interface SalesRankingData {
   total: number;
 }
 
+export interface SalesFilters {
+  campaignId?: string;
+  from?: string;
+  to?: string;
+  salesGroupId?: string;
+  sellerProfileId?: string;
+}
+
+export interface SalesGroupSource {
+  sellerProfile: { salesGroup: { id: string; name: string } | null };
+}
+
 export interface RankingSnapshotPayload {
   campaign?: SalesCampaignItem | null;
   items: SalesRankingRow[];
@@ -110,6 +122,36 @@ function formatDateBr(value: string | null | undefined) {
   if (match) return `${match[3]}/${match[2]}/${match[1]}`;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString("pt-BR");
+}
+
+export function formatMoneyFromCents(value: number | null | undefined) {
+  return ((value ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function salesFilterQuery(filters: SalesFilters) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) query.set(key, value);
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
+export function withoutSellerFilter(filters: SalesFilters): SalesFilters {
+  const next = { ...filters };
+  delete next.sellerProfileId;
+  return next;
+}
+
+export function mergeUniqueGroups(campaigns: SalesCampaignItem[] | null, documents: SalesGroupSource[] = []) {
+  const groups = new Map<string, string>();
+  for (const campaign of campaigns ?? []) {
+    if (campaign.salesGroup) groups.set(campaign.salesGroup.id, campaign.salesGroup.name);
+  }
+  for (const document of documents) {
+    if (document.sellerProfile.salesGroup) groups.set(document.sellerProfile.salesGroup.id, document.sellerProfile.salesGroup.name);
+  }
+  return [...groups.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function numberFromSnapshotValue(value: unknown) {

@@ -41,10 +41,14 @@ import {
   StatusBadge
 } from "./components/operational";
 import {
+  formatMoneyFromCents,
+  mergeUniqueGroups,
+  salesFilterQuery,
   type SalesCampaignItem,
-  type SalesRankingData
+  type SalesFilters
 } from "./sales";
 import { CampaignsView } from "./views/campaigns";
+import { RankingView } from "./views/ranking";
 import "./styles.css";
 
 type ViewKey =
@@ -683,14 +687,6 @@ interface SalesStatementData {
     byGroup: SalesStatementGroupConsolidation[];
   };
   items: SalesDocumentItem[];
-}
-
-interface SalesFilters {
-  campaignId?: string;
-  from?: string;
-  to?: string;
-  salesGroupId?: string;
-  sellerProfileId?: string;
 }
 
 type ReportKey =
@@ -1341,10 +1337,6 @@ function WikiMarkdownEditor({
   );
 }
 
-function formatMoneyFromCents(value: number | null | undefined) {
-  return ((value ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 function moneyInputValue(value: number | null | undefined) {
   return value === null || value === undefined ? "" : (value / 100).toFixed(2);
 }
@@ -1422,21 +1414,6 @@ function formatPercent(value: number | null | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
 }
 
-function salesFilterQuery(filters: SalesFilters) {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value) query.set(key, value);
-  }
-  const serialized = query.toString();
-  return serialized ? `?${serialized}` : "";
-}
-
-function withoutSellerFilter(filters: SalesFilters): SalesFilters {
-  const next = { ...filters };
-  delete next.sellerProfileId;
-  return next;
-}
-
 function formatSignedNumber(value: number) {
   return value > 0 ? `+${value}` : String(value);
 }
@@ -1445,17 +1422,6 @@ function formatPositionDelta(value: number | null) {
   if (value === null) return "-";
   if (value === 0) return "0";
   return value > 0 ? `Subiu ${value}` : `Caiu ${Math.abs(value)}`;
-}
-
-function mergeUniqueGroups(campaigns: SalesCampaignItem[] | null, documents: SalesDocumentItem[] = []) {
-  const groups = new Map<string, string>();
-  for (const campaign of campaigns ?? []) {
-    if (campaign.salesGroup) groups.set(campaign.salesGroup.id, campaign.salesGroup.name);
-  }
-  for (const document of documents) {
-    if (document.sellerProfile.salesGroup) groups.set(document.sellerProfile.salesGroup.id, document.sellerProfile.salesGroup.name);
-  }
-  return [...groups.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
@@ -2156,116 +2122,6 @@ function NotesView({ user }: { user: CurrentUser }) {
           </div>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function RankingView({ user }: { user: CurrentUser }) {
-  const [ranking, setRanking] = useState<SalesRankingData | null>(null);
-  const [sellerRanking, setSellerRanking] = useState<SalesRankingData | null>(null);
-  const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
-  const [filters, setFilters] = useState<SalesFilters>({});
-  const canFilterSellers = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
-  useEffect(() => {
-    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
-  }, []);
-  useEffect(() => {
-    api<SalesRankingData>(`/v1/sales/ranking${salesFilterQuery(filters)}`).then(setRanking).catch(() => setRanking(null));
-  }, [filters]);
-  useEffect(() => {
-    if (!canFilterSellers) {
-      setSellerRanking(null);
-      return;
-    }
-    api<SalesRankingData>(`/v1/sales/ranking${salesFilterQuery(withoutSellerFilter(filters))}`)
-      .then(setSellerRanking)
-      .catch(() => setSellerRanking(null));
-  }, [canFilterSellers, filters]);
-  const groups = mergeUniqueGroups(campaigns);
-  const sellers = (sellerRanking?.items ?? ranking?.items ?? [])
-    .map((item) => ({ id: item.sellerId, name: item.sellerName }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return (
-    <div className="content-stack">
-      <section className="panel filter-panel">
-        <div className="filter-grid">
-          <label>
-            <span className="label-row">Campanha <InfoTip text="Campanha limita o ranking a uma regra comercial e periodo especifico." href="#ranking" /></span>
-            <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
-              <option value="">Todas</option>
-              {(campaigns ?? []).map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Grupo
-            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
-              <option value="">Todos</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {canFilterSellers ? (
-            <label>
-              <span className="label-row">Vendedor <InfoTip text="Use para validar um vendedor especifico; limpe para comparar todos." href="#ranking" /></span>
-              <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
-                <option value="">Todos</option>
-                {sellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <label>
-            De
-            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
-          </label>
-          <label>
-            Até
-            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
-          </label>
-        </div>
-        <div className="form-actions">
-          <button className="secondary" type="button" onClick={() => setFilters({})}>
-            Limpar filtros
-          </button>
-        </div>
-      </section>
-      <section className="panel table-panel">
-        <div className="table-panel-toolbar">
-          <div>
-            <p className="eyebrow">Ranking</p>
-            <h2>Vendedores por venda aprovada</h2>
-          </div>
-          {ranking?.campaign ? <span className="status-badge">{ranking.campaign.name}</span> : null}
-        </div>
-        {!ranking ? (
-          <OperationalState state="loading" title="Carregando ranking" />
-        ) : ranking.items.length === 0 ? (
-          <OperationalState state="empty" title="Ainda não há ranking" />
-        ) : (
-          <OperationalTable
-            items={ranking.items}
-            getRowKey={(item) => item.sellerId}
-            columns={[
-              { key: "position", header: "#", render: (item) => item.position },
-              { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
-              { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
-              { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-              { key: "quantity", header: "Itens", render: (item) => item.quantity },
-              { key: "documents", header: "Notas", render: (item) => item.documents }
-            ]}
-          />
-        )}
-      </section>
     </div>
   );
 }
