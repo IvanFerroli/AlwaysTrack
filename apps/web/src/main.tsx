@@ -40,6 +40,21 @@ import {
   PaginationSummary,
   StatusBadge
 } from "./components/operational";
+import {
+  campaignDraftFromItem,
+  campaignPayloadFromDraft,
+  compareRankingSnapshots,
+  queueJobStatusLabel,
+  queueJobStatusTone,
+  snapshotLabel,
+  snapshotTotal,
+  type QueueJobResult,
+  type QueueJobStatus,
+  type RankingSnapshotItem,
+  type SalesCampaignDraft,
+  type SalesCampaignItem,
+  type SalesRankingData
+} from "./sales";
 import "./styles.css";
 
 type ViewKey =
@@ -649,112 +664,6 @@ interface SalesDashboardData {
     topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;
     groups: Array<{ groupName: string; totalAmountCents: number; quantity: number }>;
   };
-}
-
-interface SalesCampaignItem {
-  id: string;
-  name: string;
-  description: string | null;
-  metric: string;
-  status: string;
-  startsAt: string;
-  endsAt: string;
-  salesGroup: { id: string; name: string } | null;
-}
-
-interface RankingSnapshotItem {
-  id: string;
-  periodStart: string;
-  periodEnd: string;
-  scopeType: string;
-  scopeId: string | null;
-  payloadJson: string;
-  createdAt: string;
-  campaign: SalesCampaignItem | null;
-}
-
-interface QueueJobStatus {
-  id: string;
-  name: string;
-  driver: "inline" | "bullmq";
-  dedupeKey: string;
-  status:
-    | "not_tracked"
-    | "waiting"
-    | "waiting-children"
-    | "active"
-    | "completed"
-    | "failed"
-    | "delayed"
-    | "prioritized"
-    | "paused"
-    | "unknown"
-    | "not_found"
-    | "unavailable";
-  attemptsMade?: number;
-  failedReason?: string;
-  finishedAt?: string;
-  processedAt?: string;
-  timestamp?: string;
-}
-
-interface QueueJobResult {
-  id: string;
-  name: string;
-  status: "completed" | "queued";
-  driver: "inline" | "bullmq";
-  dedupeKey: string;
-}
-
-interface SalesCampaignDraft {
-  id?: string;
-  name: string;
-  description: string;
-  metric: string;
-  status: string;
-  startsAt: string;
-  endsAt: string;
-  salesGroupId: string;
-}
-
-interface SalesRankingRow {
-  position: number;
-  sellerId: string;
-  sellerName: string;
-  groupName: string | null;
-  totalAmountCents: number;
-  quantity: number;
-  documents: number;
-}
-
-interface SalesRankingData {
-  campaign: SalesCampaignItem | null;
-  items: SalesRankingRow[];
-  total: number;
-}
-
-interface RankingSnapshotPayload {
-  campaign?: SalesCampaignItem | null;
-  items: SalesRankingRow[];
-  total?: number;
-}
-
-interface RankingSnapshotComparisonRow {
-  sellerId: string;
-  sellerName: string;
-  groupName: string | null;
-  previousPosition: number | null;
-  currentPosition: number | null;
-  positionDelta: number | null;
-  previousTotalAmountCents: number;
-  currentTotalAmountCents: number;
-  totalDeltaCents: number;
-  previousQuantity: number;
-  currentQuantity: number;
-  quantityDelta: number;
-  previousDocuments: number;
-  currentDocuments: number;
-  documentsDelta: number;
 }
 
 interface SalesStatementSellerConsolidation {
@@ -1540,130 +1449,6 @@ function withoutSellerFilter(filters: SalesFilters): SalesFilters {
   const next = { ...filters };
   delete next.sellerProfileId;
   return next;
-}
-
-function campaignDraftFromItem(item?: SalesCampaignItem): SalesCampaignDraft {
-  return {
-    id: item?.id,
-    name: item?.name ?? "",
-    description: item?.description ?? "",
-    metric: item?.metric ?? "totalAmountCents",
-    status: item?.status ?? "ACTIVE",
-    startsAt: item?.startsAt ? item.startsAt.slice(0, 10) : "",
-    endsAt: item?.endsAt ? item.endsAt.slice(0, 10) : "",
-    salesGroupId: item?.salesGroup?.id ?? ""
-  };
-}
-
-function campaignPayloadFromDraft(draft: SalesCampaignDraft) {
-  return {
-    name: draft.name,
-    description: draft.description || null,
-    metric: draft.metric,
-    status: draft.status,
-    startsAt: draft.startsAt,
-    endsAt: draft.endsAt,
-    salesGroupId: draft.salesGroupId || null
-  };
-}
-
-function numberFromSnapshotValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function parseRankingSnapshot(snapshot: RankingSnapshotItem): RankingSnapshotPayload {
-  try {
-    const payload = JSON.parse(snapshot.payloadJson) as { campaign?: SalesCampaignItem | null; total?: number; items?: unknown[] };
-    const items = Array.isArray(payload.items)
-      ? payload.items
-          .map((item, index) => {
-            if (!item || typeof item !== "object") return null;
-            const row = item as Record<string, unknown>;
-            const sellerId = typeof row.sellerId === "string" ? row.sellerId : "";
-            if (!sellerId) return null;
-            return {
-              position: numberFromSnapshotValue(row.position) || index + 1,
-              sellerId,
-              sellerName: typeof row.sellerName === "string" ? row.sellerName : "Vendedor",
-              groupName: typeof row.groupName === "string" ? row.groupName : null,
-              totalAmountCents: numberFromSnapshotValue(row.totalAmountCents),
-              quantity: numberFromSnapshotValue(row.quantity),
-              documents: numberFromSnapshotValue(row.documents)
-            };
-          })
-          .filter((item): item is SalesRankingRow => item !== null)
-      : [];
-    return { campaign: payload.campaign, items, total: typeof payload.total === "number" ? payload.total : items.length };
-  } catch {
-    return { campaign: null, items: [], total: 0 };
-  }
-}
-
-function snapshotTotal(snapshot: RankingSnapshotItem) {
-  const payload = parseRankingSnapshot(snapshot);
-  return typeof payload.total === "number" ? payload.total : payload.items.length;
-}
-
-function snapshotLabel(snapshot: RankingSnapshotItem) {
-  return `${snapshot.campaign?.name ?? "Ranking"} - ${formatDateBr(snapshot.createdAt)}`;
-}
-
-function queueJobStatusLabel(status: QueueJobStatus) {
-  if (status.driver === "inline" && status.status === "not_tracked") return "Executado inline";
-  const labels: Record<QueueJobStatus["status"], string> = {
-    active: "Processando",
-    completed: "Concluído",
-    delayed: "Agendado",
-    failed: "Falhou",
-    not_found: "Não encontrado",
-    not_tracked: "Sem rastreio",
-    paused: "Pausado",
-    prioritized: "Priorizado",
-    unavailable: "Fila indisponível",
-    unknown: "Desconhecido",
-    waiting: "Na fila",
-    "waiting-children": "Aguardando dependências"
-  };
-  return labels[status.status];
-}
-
-function queueJobStatusTone(status: QueueJobStatus) {
-  if (status.status === "failed" || status.status === "unavailable") return "rejected";
-  if (status.status === "completed" || status.status === "not_tracked") return "approved";
-  if (status.status === "active") return "pending_review";
-  return "uploaded";
-}
-
-function compareRankingSnapshots(previous: RankingSnapshotItem, current: RankingSnapshotItem): RankingSnapshotComparisonRow[] {
-  const previousRows = new Map(parseRankingSnapshot(previous).items.map((item) => [item.sellerId, item]));
-  const currentRows = new Map(parseRankingSnapshot(current).items.map((item) => [item.sellerId, item]));
-  const sellerIds = new Set([...previousRows.keys(), ...currentRows.keys()]);
-
-  return [...sellerIds]
-    .map((sellerId) => {
-      const previousRow = previousRows.get(sellerId);
-      const currentRow = currentRows.get(sellerId);
-      const previousPosition = previousRow?.position ?? null;
-      const currentPosition = currentRow?.position ?? null;
-      return {
-        sellerId,
-        sellerName: currentRow?.sellerName ?? previousRow?.sellerName ?? "Vendedor",
-        groupName: currentRow?.groupName ?? previousRow?.groupName ?? null,
-        previousPosition,
-        currentPosition,
-        positionDelta: previousPosition !== null && currentPosition !== null ? previousPosition - currentPosition : null,
-        previousTotalAmountCents: previousRow?.totalAmountCents ?? 0,
-        currentTotalAmountCents: currentRow?.totalAmountCents ?? 0,
-        totalDeltaCents: (currentRow?.totalAmountCents ?? 0) - (previousRow?.totalAmountCents ?? 0),
-        previousQuantity: previousRow?.quantity ?? 0,
-        currentQuantity: currentRow?.quantity ?? 0,
-        quantityDelta: (currentRow?.quantity ?? 0) - (previousRow?.quantity ?? 0),
-        previousDocuments: previousRow?.documents ?? 0,
-        currentDocuments: currentRow?.documents ?? 0,
-        documentsDelta: (currentRow?.documents ?? 0) - (previousRow?.documents ?? 0)
-      };
-    })
-    .sort((a, b) => (a.currentPosition ?? Number.MAX_SAFE_INTEGER) - (b.currentPosition ?? Number.MAX_SAFE_INTEGER));
 }
 
 function formatSignedNumber(value: number) {

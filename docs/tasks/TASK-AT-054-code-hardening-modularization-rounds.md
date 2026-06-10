@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-partial
 - owner: olympus_taskyfier
-- last-updated: 2026-06-09
+- last-updated: 2026-06-10
 - source-of-truth: docs/tasks/TASK-AT-054-code-hardening-modularization-rounds.md
 
 ## Modo
@@ -54,6 +54,7 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 - Rodada 1 concluida com inventario de hotspots em `docs/architecture/hardening-hotspots-2026-06-09.md`.
 - Rodada 2 iniciada com extracao do cliente API web para `apps/web/src/api.ts`.
 - Rodada 2 continuada com extracao da marca/logo para `apps/web/src/components/brand.tsx`.
+- Rodada 2 continuada com extracao de tipos/helpers comerciais de campanhas, ranking snapshots e status de jobs para `apps/web/src/sales.ts`.
 - Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
 - Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
 
