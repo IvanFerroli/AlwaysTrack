@@ -53,6 +53,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-048 (2026-06-10): views de FAQ e Auditoria extraidas para `apps/web/src/views/faq.tsx` e `apps/web/src/views/audit.tsx`.
 - EXEC-AT-049 (2026-06-10): view de Usuarios/Times extraida para `apps/web/src/views/users-teams.tsx`.
 - EXEC-AT-050 (2026-06-10): view de Notas extraida para `apps/web/src/views/notes.tsx`.
+- EXEC-AT-051 (2026-06-10): view Como usar extraida para `apps/web/src/views/help.tsx`.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
@@ -60,7 +61,7 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e regressao API, ainda com pendencia de navegador para DANFE/review Wiki.
 - `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
 - `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; status observavel do job piloto adicionado no `EXEC-AT-042` e conectado na UI no `EXEC-AT-043`.
-- `TASK-AT-054` avançou com novo modulo comercial frontend no `EXEC-AT-044`, extracao da view de Campanhas no `EXEC-AT-045`, extracao da view de Ranking no `EXEC-AT-046`, extracao das views de Dashboard/Extratos no `EXEC-AT-047`, extracao das views de FAQ/Auditoria no `EXEC-AT-048`, extracao da view de Usuarios/Times no `EXEC-AT-049` e extracao da view de Notas no `EXEC-AT-050`.
+- `TASK-AT-054` avançou com novo modulo comercial frontend no `EXEC-AT-044`, extracao da view de Campanhas no `EXEC-AT-045`, extracao da view de Ranking no `EXEC-AT-046`, extracao das views de Dashboard/Extratos no `EXEC-AT-047`, extracao das views de FAQ/Auditoria no `EXEC-AT-048`, extracao da view de Usuarios/Times no `EXEC-AT-049`, extracao da view de Notas no `EXEC-AT-050` e extracao da view Como usar no `EXEC-AT-051`.
 - Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real e continuar modularizacao por dominio.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
@@ -185,6 +186,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-050) |
 | npm run test:all | passou — 28 arquivos, 174 testes + TypeDoc | 2026-06-10 (EXEC-AT-050) |
 | npm run repo:hygiene | passou | 2026-06-10 (EXEC-AT-050) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-051) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-051) |
+| npm run test:all | passou — 28 arquivos, 174 testes + TypeDoc | 2026-06-10 (EXEC-AT-051) |
+| npm run repo:hygiene | passou | 2026-06-10 (EXEC-AT-051) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |
