@@ -42,13 +42,17 @@ import {
 } from "./components/operational";
 import {
   formatMoneyFromCents,
-  mergeUniqueGroups,
   salesFilterQuery,
-  type SalesCampaignItem,
-  type SalesFilters
+  type SalesDocumentExtractionFeedback,
+  type SalesDocumentItem,
+  type SalesDocumentListFilters,
+  type SalesDocumentReviewDraft,
+  type SalesSellerItem
 } from "./sales";
 import { CampaignsView } from "./views/campaigns";
+import { DashboardView } from "./views/dashboard";
 import { RankingView } from "./views/ranking";
+import { StatementsView } from "./views/statements";
 import "./styles.css";
 
 type ViewKey =
@@ -586,109 +590,6 @@ interface FaqThreadItem {
   reactions: FaqReactionItem[];
 }
 
-interface SalesDocumentItem {
-  id: string;
-  fileName: string;
-  status: string;
-  accessKey: string | null;
-  invoiceNumber: string | null;
-  series: string | null;
-  issuedAt: string | null;
-  issuerName: string | null;
-  buyerName: string | null;
-  totalAmountCents: number | null;
-  extractionConfidence?: number | null;
-  rejectionReason?: string | null;
-  createdAt: string;
-  sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
-  items: Array<{ id: string; sku?: string | null; description: string; category?: string | null; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
-  extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string; extractedJson?: string | null }>;
-}
-
-interface SalesSellerItem {
-  id: string;
-  displayName: string;
-  code: string;
-  salesGroup: { id: string; name: string } | null;
-}
-
-interface SalesDocumentReviewDraft {
-  accessKey: string;
-  invoiceNumber: string;
-  series: string;
-  issuedAt: string;
-  issuerName: string;
-  buyerName: string;
-  totalAmountCents: string;
-  rejectionReason: string;
-  reviewNote: string;
-  items: Array<{ id: string; sku: string; description: string; category: string; quantity: string; unitAmountCents: string; totalAmountCents: string }>;
-}
-
-interface SalesDocumentListFilters {
-  status?: string;
-  sellerProfileId?: string;
-  from?: string;
-  to?: string;
-}
-
-interface SalesDocumentExtractionFeedback {
-  provider?: string;
-  model?: string;
-  usedAi?: boolean;
-  duplicate?: boolean;
-  status?: string;
-  accessKey?: string | null;
-  itemCount?: number;
-  warningCount?: number;
-  warnings?: string[];
-}
-
-interface SalesDashboardData {
-  metrics: {
-    totalDocuments: number;
-    pendingDocuments: number;
-    approvedDocuments: number;
-    rejectedDocuments: number;
-    activeSellers: number;
-    totalAmountCents: number;
-  };
-  queues: {
-    pendingDocuments: SalesDocumentItem[];
-    topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;
-    groups: Array<{ groupName: string; totalAmountCents: number; quantity: number }>;
-  };
-}
-
-interface SalesStatementSellerConsolidation {
-  sellerId: string;
-  sellerName: string;
-  groupId: string | null;
-  groupName: string | null;
-  documents: number;
-  quantity: number;
-  totalAmountCents: number;
-}
-
-interface SalesStatementGroupConsolidation {
-  groupId: string | null;
-  groupName: string;
-  documents: number;
-  sellers: number;
-  quantity: number;
-  totalAmountCents: number;
-}
-
-interface SalesStatementData {
-  filters?: SalesFilters;
-  summary: { documents: number; totalAmountCents: number; totalItems: number };
-  consolidations: {
-    bySeller: SalesStatementSellerConsolidation[];
-    byGroup: SalesStatementGroupConsolidation[];
-  };
-  items: SalesDocumentItem[];
-}
-
 type ReportKey =
   | "licensesExpired"
   | "licensesExpiring"
@@ -906,15 +807,6 @@ function PlaceholderView({ item }: { item: NavItem }) {
       <h2>{item.description}</h2>
       <p className="muted">Módulo reservado no shell. A implementação funcional entra nas próximas tasks do roadmap.</p>
     </section>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
@@ -1422,128 +1314,6 @@ function formatPositionDelta(value: number | null) {
   if (value === null) return "-";
   if (value === 0) return "0";
   return value > 0 ? `Subiu ${value}` : `Caiu ${Math.abs(value)}`;
-}
-
-function DashboardView({ onOpen }: { onOpen: (view: ViewKey) => void }) {
-  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      setDashboard(await api<SalesDashboardData>("/v1/sales/dashboard"));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
-  if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
-  if (!dashboard) return <OperationalState state="empty" title="Dashboard indisponível" />;
-
-  return (
-    <div className="content-stack">
-      <section className="metrics-grid">
-        <MetricCard label="Notas enviadas" value={dashboard.metrics.totalDocuments} />
-        <MetricCard label="Pendentes" value={dashboard.metrics.pendingDocuments} />
-        <MetricCard label="Aprovadas" value={dashboard.metrics.approvedDocuments} />
-        <MetricCard label="Recusadas/Duplicadas" value={dashboard.metrics.rejectedDocuments} />
-        <MetricCard label="Vendedores ativos" value={dashboard.metrics.activeSellers} />
-      </section>
-
-      <section className="panel action-center-panel">
-        <div className="table-panel-toolbar">
-          <div>
-            <p className="eyebrow">Central de ações</p>
-            <h2>Prioridades comerciais</h2>
-          </div>
-        </div>
-        <div className="action-center-grid">
-          <button type="button" onClick={() => onOpen("notes")}>
-            <strong>{dashboard.metrics.pendingDocuments}</strong>
-            <span>nota(s) aguardando revisão</span>
-          </button>
-          <button type="button" onClick={() => onOpen("ranking")}>
-            <strong>{dashboard.queues.topSellers.length}</strong>
-            <span>vendedor(es) no ranking</span>
-          </button>
-          <button type="button" onClick={() => onOpen("statements")}>
-            <strong>{formatMoneyFromCents(dashboard.metrics.totalAmountCents)}</strong>
-            <span>em vendas aprovadas</span>
-          </button>
-          <button type="button" onClick={() => onOpen("wiki")}>
-            <strong>Wiki</strong>
-            <span>procedimentos do SAC, financeiro e vendas</span>
-          </button>
-        </div>
-      </section>
-
-      <section className="dashboard-grid">
-        <div className="panel table-panel">
-          <h2>Notas pendentes</h2>
-          {dashboard.queues.pendingDocuments.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma nota pendente" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.pendingDocuments}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
-                { key: "file", header: "Arquivo", render: (item) => item.fileName },
-                { key: "status", header: "Status", render: (item) => item.status },
-                { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("notes")}>Revisar</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Top vendedores</h2>
-          {dashboard.queues.topSellers.length === 0 ? (
-            <OperationalState state="empty" title="Ranking sem vendas aprovadas" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.topSellers}
-              getRowKey={(item) => item.sellerId}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
-                { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
-                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Grupos</h2>
-          {dashboard.queues.groups.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum grupo com venda aprovada" />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.groups}
-              getRowKey={(item) => item.groupName}
-              columns={[
-                { key: "group", header: "Grupo", render: (item) => item.groupName },
-                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity }
-              ]}
-            />
-          )}
-        </div>
-      </section>
-    </div>
-  );
-
 }
 
 function SalesDocumentReviewEditor({
@@ -2122,165 +1892,6 @@ function NotesView({ user }: { user: CurrentUser }) {
           </div>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function StatementsView() {
-  const [statement, setStatement] = useState<SalesStatementData | null>(null);
-  const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
-  const [referenceDocuments, setReferenceDocuments] = useState<SalesDocumentItem[]>([]);
-  const [filters, setFilters] = useState<SalesFilters>({});
-  useEffect(() => {
-    api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
-    api<{ items: SalesDocumentItem[] }>("/v1/sales/documents").then((result) => setReferenceDocuments(result.items)).catch(() => setReferenceDocuments([]));
-  }, []);
-  useEffect(() => {
-    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery(filters)}`).then(setStatement).catch(() => setStatement(null));
-  }, [filters]);
-  const groups = mergeUniqueGroups(campaigns, referenceDocuments);
-  const sellers = [...new Map(referenceDocuments.map((item) => [item.sellerProfile.id, item.sellerProfile.displayName])).entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const csvHref = `${apiBaseUrl}/v1/sales/statements.csv${salesFilterQuery(filters)}`;
-  return (
-    <div className="content-stack">
-      <section className="panel filter-panel">
-        <div className="filter-grid">
-          <label>
-            <span className="label-row">Campanha <InfoTip text="Filtra o extrato pela campanha usada para consolidar notas aprovadas." href="#extratos" /></span>
-            <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
-              <option value="">Todas</option>
-              {(campaigns ?? []).map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="label-row">Grupo <InfoTip text="Use para conferir consolidado de um time comercial especifico." href="#extratos" /></span>
-            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
-              <option value="">Todos</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="label-row">Vendedor <InfoTip text="Use para auditar vendas aprovadas de uma pessoa antes de comparar ranking." href="#extratos" /></span>
-            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
-              <option value="">Todos</option>
-              {sellers.map((seller) => (
-                <option key={seller.id} value={seller.id}>
-                  {seller.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            De
-            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
-          </label>
-          <label>
-            Até
-            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
-          </label>
-        </div>
-        <div className="form-actions">
-          <button className="secondary" type="button" onClick={() => setFilters({})}>
-            Limpar filtros
-          </button>
-        </div>
-      </section>
-      <section className="metric-grid">
-        <MetricCard label="Notas aprovadas" value={statement ? String(statement.summary.documents) : "..."} />
-        <MetricCard label="Total vendido" value={statement ? formatMoneyFromCents(statement.summary.totalAmountCents) : "..."} />
-        <MetricCard label="Itens" value={statement ? String(statement.summary.totalItems) : "..."} />
-      </section>
-      <section className="dashboard-grid">
-        <div className="panel table-panel">
-          <div className="table-panel-toolbar">
-            <div>
-              <p className="eyebrow">Consolidado</p>
-              <h2>Por vendedor</h2>
-            </div>
-          </div>
-          {!statement ? (
-            <OperationalState state="loading" title="Carregando consolidados" />
-          ) : statement.consolidations.bySeller.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum vendedor no extrato" />
-          ) : (
-            <OperationalTable
-              items={statement.consolidations.bySeller}
-              getRowKey={(item) => item.sellerId}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
-                { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
-                { key: "documents", header: "Notas", render: (item) => item.documents },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity },
-                { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
-              ]}
-            />
-          )}
-        </div>
-        <div className="panel table-panel">
-          <div className="table-panel-toolbar">
-            <div>
-              <p className="eyebrow">Consolidado</p>
-              <h2>Por grupo</h2>
-            </div>
-          </div>
-          {!statement ? (
-            <OperationalState state="loading" title="Carregando consolidados" />
-          ) : statement.consolidations.byGroup.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum grupo no extrato" />
-          ) : (
-            <OperationalTable
-              items={statement.consolidations.byGroup}
-              getRowKey={(item) => item.groupId ?? item.groupName}
-              columns={[
-                { key: "group", header: "Grupo", render: (item) => item.groupName },
-                { key: "sellers", header: "Vendedores", render: (item) => item.sellers },
-                { key: "documents", header: "Notas", render: (item) => item.documents },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity },
-                { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
-              ]}
-            />
-          )}
-        </div>
-      </section>
-      <section className="panel table-panel">
-        <div className="table-panel-toolbar">
-          <div>
-            <p className="eyebrow">Extratos</p>
-            <h2>Notas aprovadas</h2>
-          </div>
-          <a className="secondary button-link" href={csvHref}>
-            Baixar CSV
-          </a>
-          <InfoTip text="Exporta o extrato com os mesmos filtros visiveis na tela." href="#extratos" />
-        </div>
-        {!statement ? (
-          <OperationalState state="loading" title="Carregando extrato" />
-        ) : statement.items.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" />
-        ) : (
-          <OperationalTable
-            items={statement.items}
-            getRowKey={(item) => item.id}
-            columns={[
-              { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
-              { key: "group", header: "Grupo", render: (item) => item.sellerProfile.salesGroup?.name ?? "-" },
-              { key: "invoice", header: "NF", render: (item) => item.invoiceNumber ?? "-" },
-              { key: "date", header: "Emissão", render: (item) => formatDateBr(item.issuedAt) },
-              { key: "total", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) }
-            ]}
-          />
-        )}
-      </section>
     </div>
   );
 }

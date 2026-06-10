@@ -68,10 +68,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 49. `EXEC-AT-044`: extracao de contratos/helpers comerciais frontend para `apps/web/src/sales.ts` (`TASK-AT-054`). Status: completed.
 50. `EXEC-AT-045`: extracao da view de Campanhas para `apps/web/src/views/campaigns.tsx` (`TASK-AT-054`). Status: completed.
 51. `EXEC-AT-046`: extracao da view de Ranking para `apps/web/src/views/ranking.tsx` (`TASK-AT-054`). Status: completed.
+52. `EXEC-AT-047`: extracao das views de Dashboard e Extratos para `apps/web/src/views/dashboard.tsx` e `apps/web/src/views/statements.tsx` (`TASK-AT-054`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-049-playwright-e2e-regression-suite.md`: completar fluxos de navegador para upload/review DANFE e review Wiki.
 2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: validar BullMQ com Redis real em stage/CI dedicado.
-3. `TASK-AT-054-code-hardening-modularization-rounds.md`: extrair Notas/Extratos ou outras views por dominio de `apps/web/src/main.tsx`.
+3. `TASK-AT-054-code-hardening-modularization-rounds.md`: extrair Notas/FAQ/Wiki/Usuarios ou outras views por dominio de `apps/web/src/main.tsx`.
 4. `TASK-AT-053-observability-profiling-and-query-optimization.md`: aplicar otimizacao comprovada por metricas.
 5. `TASK-AT-051-load-performance-1000-users-gate.md`: rodar `perf:1000` em stage/producao-like e produzir relatorio.

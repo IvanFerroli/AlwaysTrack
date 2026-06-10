@@ -92,6 +92,109 @@ export interface SalesGroupSource {
   sellerProfile: { salesGroup: { id: string; name: string } | null };
 }
 
+export interface SalesDocumentItem {
+  id: string;
+  fileName: string;
+  status: string;
+  accessKey: string | null;
+  invoiceNumber: string | null;
+  series: string | null;
+  issuedAt: string | null;
+  issuerName: string | null;
+  buyerName: string | null;
+  totalAmountCents: number | null;
+  extractionConfidence?: number | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
+  items: Array<{ id: string; sku?: string | null; description: string; category?: string | null; quantity: number; unitAmountCents?: number | null; totalAmountCents: number }>;
+  extractions?: Array<{ id: string; provider: string; confidence: number | null; createdAt: string; extractedJson?: string | null }>;
+}
+
+export interface SalesSellerItem {
+  id: string;
+  displayName: string;
+  code: string;
+  salesGroup: { id: string; name: string } | null;
+}
+
+export interface SalesDocumentReviewDraft {
+  accessKey: string;
+  invoiceNumber: string;
+  series: string;
+  issuedAt: string;
+  issuerName: string;
+  buyerName: string;
+  totalAmountCents: string;
+  rejectionReason: string;
+  reviewNote: string;
+  items: Array<{ id: string; sku: string; description: string; category: string; quantity: string; unitAmountCents: string; totalAmountCents: string }>;
+}
+
+export interface SalesDocumentListFilters {
+  status?: string;
+  sellerProfileId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface SalesDocumentExtractionFeedback {
+  provider?: string;
+  model?: string;
+  usedAi?: boolean;
+  duplicate?: boolean;
+  status?: string;
+  accessKey?: string | null;
+  itemCount?: number;
+  warningCount?: number;
+  warnings?: string[];
+}
+
+export interface SalesDashboardData {
+  metrics: {
+    totalDocuments: number;
+    pendingDocuments: number;
+    approvedDocuments: number;
+    rejectedDocuments: number;
+    activeSellers: number;
+    totalAmountCents: number;
+  };
+  queues: {
+    pendingDocuments: SalesDocumentItem[];
+    topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;
+    groups: Array<{ groupName: string; totalAmountCents: number; quantity: number }>;
+  };
+}
+
+export interface SalesStatementSellerConsolidation {
+  sellerId: string;
+  sellerName: string;
+  groupId: string | null;
+  groupName: string | null;
+  documents: number;
+  quantity: number;
+  totalAmountCents: number;
+}
+
+export interface SalesStatementGroupConsolidation {
+  groupId: string | null;
+  groupName: string;
+  documents: number;
+  sellers: number;
+  quantity: number;
+  totalAmountCents: number;
+}
+
+export interface SalesStatementData {
+  filters?: SalesFilters;
+  summary: { documents: number; totalAmountCents: number; totalItems: number };
+  consolidations: {
+    bySeller: SalesStatementSellerConsolidation[];
+    byGroup: SalesStatementGroupConsolidation[];
+  };
+  items: SalesDocumentItem[];
+}
+
 export interface RankingSnapshotPayload {
   campaign?: SalesCampaignItem | null;
   items: SalesRankingRow[];
@@ -116,7 +219,7 @@ export interface RankingSnapshotComparisonRow {
   documentsDelta: number;
 }
 
-function formatDateBr(value: string | null | undefined) {
+export function formatDateBr(value: string | null | undefined) {
   if (!value) return "-";
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (match) return `${match[3]}/${match[2]}/${match[1]}`;
