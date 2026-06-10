@@ -673,6 +673,39 @@ interface RankingSnapshotItem {
   campaign: SalesCampaignItem | null;
 }
 
+interface QueueJobStatus {
+  id: string;
+  name: string;
+  driver: "inline" | "bullmq";
+  dedupeKey: string;
+  status:
+    | "not_tracked"
+    | "waiting"
+    | "waiting-children"
+    | "active"
+    | "completed"
+    | "failed"
+    | "delayed"
+    | "prioritized"
+    | "paused"
+    | "unknown"
+    | "not_found"
+    | "unavailable";
+  attemptsMade?: number;
+  failedReason?: string;
+  finishedAt?: string;
+  processedAt?: string;
+  timestamp?: string;
+}
+
+interface QueueJobResult {
+  id: string;
+  name: string;
+  status: "completed" | "queued";
+  driver: "inline" | "bullmq";
+  dedupeKey: string;
+}
+
 interface SalesCampaignDraft {
   id?: string;
   name: string;
@@ -1575,6 +1608,32 @@ function snapshotLabel(snapshot: RankingSnapshotItem) {
   return `${snapshot.campaign?.name ?? "Ranking"} - ${formatDateBr(snapshot.createdAt)}`;
 }
 
+function queueJobStatusLabel(status: QueueJobStatus) {
+  if (status.driver === "inline" && status.status === "not_tracked") return "Executado inline";
+  const labels: Record<QueueJobStatus["status"], string> = {
+    active: "Processando",
+    completed: "Concluído",
+    delayed: "Agendado",
+    failed: "Falhou",
+    not_found: "Não encontrado",
+    not_tracked: "Sem rastreio",
+    paused: "Pausado",
+    prioritized: "Priorizado",
+    unavailable: "Fila indisponível",
+    unknown: "Desconhecido",
+    waiting: "Na fila",
+    "waiting-children": "Aguardando dependências"
+  };
+  return labels[status.status];
+}
+
+function queueJobStatusTone(status: QueueJobStatus) {
+  if (status.status === "failed" || status.status === "unavailable") return "rejected";
+  if (status.status === "completed" || status.status === "not_tracked") return "approved";
+  if (status.status === "active") return "pending_review";
+  return "uploaded";
+}
+
 function compareRankingSnapshots(previous: RankingSnapshotItem, current: RankingSnapshotItem): RankingSnapshotComparisonRow[] {
   const previousRows = new Map(parseRankingSnapshot(previous).items.map((item) => [item.sellerId, item]));
   const currentRows = new Map(parseRankingSnapshot(current).items.map((item) => [item.sellerId, item]));
@@ -2443,6 +2502,7 @@ function RankingView({ user }: { user: CurrentUser }) {
 function CampaignsView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesCampaignItem[] | null>(null);
   const [snapshots, setSnapshots] = useState<RankingSnapshotItem[]>([]);
+  const [snapshotJobs, setSnapshotJobs] = useState<Record<string, QueueJobStatus>>({});
   const [draft, setDraft] = useState<SalesCampaignDraft>(() => campaignDraftFromItem());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2468,6 +2528,12 @@ function CampaignsView({ user }: { user: CurrentUser }) {
     ]);
     setItems(campaignResult.items);
     setSnapshots(snapshotResult.items);
+  }
+
+  async function loadSnapshotJobStatus(campaignId: string) {
+    const result = await api<{ job: QueueJobStatus }>(`/v1/sales/campaigns/${campaignId}/snapshots/job`);
+    setSnapshotJobs((current) => ({ ...current, [campaignId]: result.job }));
+    return result.job;
   }
 
   useEffect(() => {
@@ -2514,8 +2580,21 @@ function CampaignsView({ user }: { user: CurrentUser }) {
     setSaving(true);
     setError(null);
     try {
-      await api<{ snapshot: RankingSnapshotItem }>(`/v1/sales/campaigns/${item.id}/snapshots`, { method: "POST" });
+      const result = await api<{ snapshot?: RankingSnapshotItem; job: QueueJobResult }>(`/v1/sales/campaigns/${item.id}/snapshots`, { method: "POST" });
+      setSnapshotJobs((current) => ({
+        ...current,
+        [item.id]: {
+          id: result.job.id,
+          name: result.job.name,
+          driver: result.job.driver,
+          dedupeKey: result.job.dedupeKey,
+          status: result.job.status === "queued" ? "waiting" : "not_tracked"
+        }
+      }));
       await load();
+      if (result.job.status === "queued") {
+        await loadSnapshotJobStatus(item.id);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao congelar ranking.");
     } finally {
@@ -2628,6 +2707,16 @@ function CampaignsView({ user }: { user: CurrentUser }) {
                         Snapshot
                       </button>
                       <InfoTip text="Congela o ranking da campanha para comparar posicoes depois." href="#campanhas" />
+                      {snapshotJobs[item.id] ? (
+                        <>
+                          <span className={`status-badge document ${queueJobStatusTone(snapshotJobs[item.id])}`}>
+                            {queueJobStatusLabel(snapshotJobs[item.id])}
+                          </span>
+                          <button className="secondary small" type="button" disabled={saving} onClick={() => void loadSnapshotJobStatus(item.id)}>
+                            Atualizar job
+                          </button>
+                        </>
+                      ) : null}
                       <button className="secondary small" type="button" disabled={saving} onClick={() => void updateStatus(item, item.status === "ACTIVE" ? "PAUSED" : "ACTIVE")}>
                         {item.status === "ACTIVE" ? "Pausar" : "Ativar"}
                       </button>

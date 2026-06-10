@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-06-09
+- last-updated: 2026-06-10
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
@@ -45,14 +45,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-040 (2026-06-09): polimento visual de logo e overflow de botoes/listas na Wiki/FAQ.
 - EXEC-AT-041 (2026-06-09): regressao Playwright API para FAQ->Wiki, notificacoes e criacao/listagem de usuario.
 - EXEC-AT-042 (2026-06-09): status observavel para job piloto BullMQ/inline de snapshots de ranking.
+- EXEC-AT-043 (2026-06-10): UI de Campanhas conectada ao status observavel do job de snapshots de ranking.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
 - `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e regressao API, ainda com pendencia de navegador para DANFE/review Wiki.
 - `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
-- `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; status observavel do job piloto adicionado no `EXEC-AT-042`.
-- Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real, conectar status de jobs na UI e continuar modularizacao por dominio.
+- `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; status observavel do job piloto adicionado no `EXEC-AT-042` e conectado na UI no `EXEC-AT-043`.
+- Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real e continuar modularizacao por dominio.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -144,6 +145,10 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-09 (EXEC-AT-042) |
 | npm run test:all | passou — 28 arquivos, 174 testes + TypeDoc | 2026-06-09 (EXEC-AT-042) |
 | npm run repo:hygiene | passou | 2026-06-09 (EXEC-AT-042) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-043) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-043) |
+| npm run test:all | passou — 28 arquivos, 174 testes + TypeDoc | 2026-06-10 (EXEC-AT-043) |
+| npm run repo:hygiene | passou | 2026-06-10 (EXEC-AT-043) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

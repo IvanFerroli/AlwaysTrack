@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-partial
 - owner: olympus_taskyfier
-- last-updated: 2026-06-09
+- last-updated: 2026-06-10
 - source-of-truth: docs/tasks/TASK-AT-052-bullmq-background-jobs-backpressure.md
 
 ## Modo
@@ -58,7 +58,8 @@ Fluxos como extracao/reprocessamento de DANFE, notificacoes, snapshots, digest d
 - Worker separado criado em `services/api/src/jobs/ranking-snapshots.ts`.
 - Script `npm run job:ranking-snapshots` criado.
 - Status observavel do job de ranking snapshot exposto por dedupe key em `GET /v1/sales/campaigns/:campaignId/snapshots/job`.
-- Pendente: validar BullMQ com Redis real em stage/CI dedicado e conectar status detalhado na UI.
+- UI de Campanhas agora mostra o status do job de snapshot e permite atualizar a leitura manualmente.
+- Pendente: validar BullMQ com Redis real em stage/CI dedicado.
 
 ## Riscos
 - BullMQ exige Redis e muda operacao/deploy.
