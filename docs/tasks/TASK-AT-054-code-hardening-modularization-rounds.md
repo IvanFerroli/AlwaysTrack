@@ -58,6 +58,7 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 - Rodada 2 continuada com extracao da view de Campanhas para `apps/web/src/views/campaigns.tsx`.
 - Rodada 2 continuada com extracao da view de Ranking para `apps/web/src/views/ranking.tsx` e centralizacao de helpers compartilhados de vendas.
 - Rodada 2 continuada com extracao das views de Dashboard e Extratos para `apps/web/src/views/dashboard.tsx` e `apps/web/src/views/statements.tsx`, alem de contratos compartilhados de documentos/extratos em `apps/web/src/sales.ts`.
+- Rodada 2 continuada com extracao das views de FAQ e Auditoria para `apps/web/src/views/faq.tsx` e `apps/web/src/views/audit.tsx`.
 - Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
 - Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
 
