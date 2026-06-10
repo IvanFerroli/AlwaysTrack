@@ -121,6 +121,10 @@ export function HelpTip({ text, href }: HelpTipProps) {
   );
 }
 
+export function InfoTip(props: HelpTipProps) {
+  return <HelpTip {...props} />;
+}
+
 interface FilterField {
   key: string;
   label: string;

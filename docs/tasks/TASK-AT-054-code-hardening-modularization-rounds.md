@@ -55,6 +55,7 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 - Rodada 2 iniciada com extracao do cliente API web para `apps/web/src/api.ts`.
 - Rodada 2 continuada com extracao da marca/logo para `apps/web/src/components/brand.tsx`.
 - Rodada 2 continuada com extracao de tipos/helpers comerciais de campanhas, ranking snapshots e status de jobs para `apps/web/src/sales.ts`.
+- Rodada 2 continuada com extracao da view de Campanhas para `apps/web/src/views/campaigns.tsx`.
 - Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
 - Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
 
