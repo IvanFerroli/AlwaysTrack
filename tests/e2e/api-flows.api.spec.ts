@@ -1,11 +1,5 @@
-import { expect, test, type APIResponse, type APIRequestContext } from "@playwright/test";
-
-const seedPassword = "AlwaysTrackE2E123!";
-
-type ApiEnvelope<T> = {
-  ok: boolean;
-  data: T;
-};
+import { expect, test } from "@playwright/test";
+import { expectOk, loginApi, loginAsAdminApi, type ManagedUser } from "./helpers";
 
 type FaqThread = {
   id: string;
@@ -26,15 +20,6 @@ type WikiPage = {
   title: string;
 };
 
-type ManagedUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  active: boolean;
-  passwordHash?: string;
-};
-
 type InAppNotification = {
   id: string;
   type: string;
@@ -43,46 +28,9 @@ type InAppNotification = {
   readAt: string | null;
 };
 
-async function expectOk<T>(response: APIResponse): Promise<T> {
-  expect(response.ok(), await response.text()).toBeTruthy();
-  const payload = (await response.json()) as ApiEnvelope<T>;
-  expect(payload.ok).toBe(true);
-  return payload.data;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function login(request: APIRequestContext, email: string, password: string) {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await expectOk<{ user: ManagedUser }>(
-        await request.post("/v1/auth/login", {
-          data: {
-            email,
-            password
-          }
-        })
-      );
-      return;
-    } catch (error) {
-      lastError = error;
-      if (!(error instanceof Error) || !error.message.includes("ECONNREFUSED")) throw error;
-      await wait(250);
-    }
-  }
-  throw lastError;
-}
-
-async function loginAsAdmin(request: APIRequestContext) {
-  await login(request, "admin@example.com", seedPassword);
-}
-
 test.describe("AlwaysTrack API e2e regression flows", () => {
   test("FAQ thread can be commented, reacted, promoted to Wiki and notify the author", async ({ request, playwright }) => {
-    await loginAsAdmin(request);
+    await loginAsAdminApi(request);
     const suffix = `${Date.now()}-${test.info().workerIndex}`;
     const title = `E2E FAQ ${suffix}`;
     const vendorEmail = `e2e-vendedor-${suffix}@example.com`;
@@ -104,7 +52,7 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
 
     const vendorRequest = await playwright.request.newContext({ baseURL: "http://127.0.0.1:3334" });
     try {
-      await login(vendorRequest, vendorEmail, vendorPassword);
+      await loginApi(vendorRequest, vendorEmail, vendorPassword);
 
       const created = await expectOk<{ thread: FaqThread }>(
         await vendorRequest.post("/v1/faq/threads", {
@@ -174,7 +122,7 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
   });
 
   test("admin can create and list a commercial SAC user without exposing password hash", async ({ request }) => {
-    await loginAsAdmin(request);
+    await loginAsAdminApi(request);
     const suffix = `${Date.now()}-${test.info().workerIndex}`;
     const email = `e2e-sac-${suffix}@example.com`;
 

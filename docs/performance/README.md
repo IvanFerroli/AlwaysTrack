@@ -11,12 +11,15 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 ## Comandos
 - `npm run perf:smoke`: carga baixa local contra `http://localhost:3333`.
 - `npm run perf:1000 -- --target=<url>`: benchmark de leitura autenticada contra ambiente alvo.
+- `npm run perf:smoke:report -- --target=<url>`: gera JSON/HTML/snapshot diagnostico para smoke local ou stage leve.
+- `npm run perf:1000:report -- --target=<url>`: gera JSON/HTML/snapshot para ambiente stage/producao-like; falha se o alvo for localhost.
 
 ## Preparacao
 1. Suba o ambiente com seed estavel:
    `SEED_ADMIN_PASSWORD=AlwaysTrackPerf123! npm run up -- --no-studio --no-open`
 2. Rode `SEED_ADMIN_PASSWORD=AlwaysTrackPerf123! npm run perf:smoke`.
 3. Para ambiente remoto, passe `--target` e garanta um usuario admin de teste com a senha em `SEED_ADMIN_PASSWORD`.
+4. Para relatorios versionaveis operacionalmente, use o template `docs/performance/report-template.md`; os artefatos gerados ficam em `docs/performance/reports/` e nao devem ser commitados.
 
 ## SLO inicial
 - p95 read API <= 500 ms no ambiente alvo.
@@ -32,3 +35,4 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 
 ## Observacao
 SQLite local nao prova capacidade para 1000 usuarios simultaneos. O gate de 1000 deve rodar em stage/producao-like.
+Qualquer execucao local do Artillery deve ser tratada como smoke/diagnostico. A unica evidencia valida para fechar o alvo de 1000 usuarios e `perf:1000:report` contra ambiente stage/producao-like com recursos, banco e Redis equivalentes ao deploy pretendido.

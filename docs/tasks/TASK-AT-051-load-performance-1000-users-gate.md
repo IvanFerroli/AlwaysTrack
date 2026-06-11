@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-09
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-051-load-performance-1000-users-gate.md
 
 ## Modo
@@ -55,6 +55,14 @@ Hoje nao ha evidencia de carga. O alvo de 1000 simultaneos exige medir login, da
 - Criado `docs/performance/README.md` com SLO inicial e preparo.
 - `perf:smoke` validado contra API isolada em `3334`: 160 respostas 200, 0 falhas de VU, p95 ~31ms.
 - Pendente: rodar `perf:1000` em ambiente stage/producao-like; SQLite local nao prova meta de 1000 simultaneos.
+
+## Execucao 2026-06-11
+- Workflow de relatorio criado em `scripts/perf-report.js`.
+- Scripts `perf:smoke:report` e `perf:1000:report` adicionados para gerar JSON, HTML e resumo Markdown em `docs/performance/reports/`.
+- O modo `1000` bloqueia alvo localhost/loopback para evitar evidencia falsa de escala em notebook local.
+- Relatorio template criado em `docs/performance/report-template.md`.
+- `docs/performance/README.md` atualizado com smoke diagnostico, stage gate e interpretacao de resultados.
+- Pendente: executar `SEED_ADMIN_PASSWORD=... npm run perf:1000:report -- --target=<stage-url>` em ambiente stage/producao-like.
 
 ## Riscos
 - SQLite pode ser gargalo estrutural para 1000 simultaneos.

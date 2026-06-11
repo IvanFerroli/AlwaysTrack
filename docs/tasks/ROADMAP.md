@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-10
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -73,10 +73,14 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 54. `EXEC-AT-049`: extracao da view de Usuarios/Times para `apps/web/src/views/users-teams.tsx` (`TASK-AT-054`). Status: completed.
 55. `EXEC-AT-050`: extracao da view de Notas para `apps/web/src/views/notes.tsx` (`TASK-AT-054`). Status: completed.
 56. `EXEC-AT-051`: extracao da view Como usar para `apps/web/src/views/help.tsx` (`TASK-AT-054`). Status: completed.
+57. `EXEC-AT-052`: extracao da view Wiki e do centro de notificacoes para modulos dedicados (`TASK-AT-054`). Status: completed.
+58. `EXEC-AT-053`: regressao Playwright de navegador para upload/aprovacao DANFE e review Wiki com comentario (`TASK-AT-049`). Status: completed-partial.
+59. `EXEC-AT-054`: validacao BullMQ com Redis real via teste opcional, CI dedicado, compose e guard de ambiente (`TASK-AT-052`). Status: completed.
+60. `EXEC-AT-055`: workflow de relatorio Artillery com snapshots diagnosticos e bloqueio de benchmark 1000 em localhost (`TASK-AT-051`/`TASK-AT-053`). Status: completed-partial.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-049-playwright-e2e-regression-suite.md`: completar fluxos de navegador para upload/review DANFE e review Wiki.
-2. `TASK-AT-052-bullmq-background-jobs-backpressure.md`: validar BullMQ com Redis real em stage/CI dedicado.
-3. `TASK-AT-054-code-hardening-modularization-rounds.md`: extrair Wiki ou views legadas restantes por dominio de `apps/web/src/main.tsx`.
-4. `TASK-AT-053-observability-profiling-and-query-optimization.md`: aplicar otimizacao comprovada por metricas.
-5. `TASK-AT-051-load-performance-1000-users-gate.md`: rodar `perf:1000` em stage/producao-like e produzir relatorio.
+1. `TASK-AT-049-playwright-e2e-regression-suite.md`: monitorar CI com Chromium/deps e, se desejar, adicionar fluxo browser para FAQ/notificacoes/usuarios alem da cobertura API ja existente.
+2. `TASK-AT-051-load-performance-1000-users-gate.md`: rodar `perf:1000:report -- --target=<stage-url>` em ambiente stage/producao-like e anexar relatorio.
+3. `TASK-AT-053-observability-profiling-and-query-optimization.md`: aplicar a primeira otimizacao comprovada pelo relatorio stage, sem chute local.
+4. `TASK-AT-054-code-hardening-modularization-rounds.md`: continuar hardening em backend clients/hooks/erros compartilhados; as views comerciais ativas ja foram extraidas de `main.tsx`.
+5. Residual operacional: acompanhar `npm audit` moderado em dependencias transientes (`exceljs`/Artillery) quando houver janela de upgrade.

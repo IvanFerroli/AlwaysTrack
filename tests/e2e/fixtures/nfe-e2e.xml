@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe31260530417094000240550020007034441402199743" versao="4.00">
+      <ide>
+        <serie>2</serie>
+        <nNF>703444</nNF>
+        <dhEmi>2026-05-05T09:40:33-03:00</dhEmi>
+      </ide>
+      <emit><xNome>ALWAYS FIT SUPLEMENTOS ALIMENTICIOS LTDA</xNome></emit>
+      <dest><xNome>ADRIANA GORETE LOHN</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>HAIR1</cProd>
+          <xProd>FitHair - POTE</xProd>
+          <NCM>21069030</NCM>
+          <qCom>3.0000</qCom>
+          <vUnCom>44.91</vUnCom>
+          <vProd>134.73</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>ALW-G-B6B9B12-0</cProd>
+          <xProd>Metil-B9B12</xProd>
+          <NCM>21069030</NCM>
+          <qCom>2.0000</qCom>
+          <vUnCom>29.90</vUnCom>
+          <vProd>59.80</vProd>
+        </prod>
+      </det>
+      <total><ICMSTot><vNF>194.53</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+</nfeProc>

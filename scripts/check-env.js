@@ -36,6 +36,11 @@ const optional = [
   "META_WHATSAPP_SMOKE_TEMPLATE_LANGUAGE",
   "SUPPORT_PHONE",
   "NOTIFICATION_JOB_LIMIT",
+  "HTTP_METRICS_SLOW_MS",
+  "PRISMA_SLOW_QUERY_MS",
+  "JOB_QUEUE_DRIVER",
+  "REDIS_URL",
+  "JOB_CONCURRENCY",
   "GOOGLE_LOGIN_CLIENT_ID",
   "GOOGLE_LOGIN_CLIENT_SECRET",
   "GOOGLE_LOGIN_REDIRECT_URI",
@@ -44,6 +49,7 @@ const optional = [
 
 const missing = required.filter((key) => !process.env[key] || process.env[key] === "change-me-in-production");
 const provider = process.env.NOTIFICATION_PROVIDER ?? "fake";
+const jobQueueDriver = process.env.JOB_QUEUE_DRIVER ?? "inline";
 
 function isLoopbackHost(hostname) {
   return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname) || hostname.endsWith(".localhost");
@@ -78,6 +84,10 @@ if (provider === "meta") {
   for (const key of ["META_WHATSAPP_TOKEN", "META_WHATSAPP_PHONE_NUMBER_ID", "META_WEBHOOK_VERIFY_TOKEN", "META_APP_SECRET"]) {
     if (!process.env[key]) missing.push(key);
   }
+}
+
+if (jobQueueDriver === "bullmq" && !process.env.REDIS_URL) {
+  missing.push("REDIS_URL");
 }
 
 console.log(`[env:check] mode=${mode}`);

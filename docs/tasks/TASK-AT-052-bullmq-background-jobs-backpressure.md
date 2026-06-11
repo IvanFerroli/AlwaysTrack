@@ -1,9 +1,9 @@
 # TASK-AT-052 - BullMQ jobs and backpressure
 
 ## Metadata
-- status: completed-partial
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-10
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-052-bullmq-background-jobs-backpressure.md
 
 ## Modo
@@ -60,6 +60,14 @@ Fluxos como extracao/reprocessamento de DANFE, notificacoes, snapshots, digest d
 - Status observavel do job de ranking snapshot exposto por dedupe key em `GET /v1/sales/campaigns/:campaignId/snapshots/job`.
 - UI de Campanhas agora mostra o status do job de snapshot e permite atualizar a leitura manualmente.
 - Pendente: validar BullMQ com Redis real em stage/CI dedicado.
+
+## Execucao 2026-06-11
+- Teste opcional com Redis real criado em `services/api/src/core/jobs/queue.redis.test.ts`, cobrindo dedupe key, worker BullMQ e conclusao de job.
+- Scripts `test:jobs:redis` adicionados no root e workspace da API.
+- CI ganhou job `bullmq-redis` com service Redis para validar o piloto fora do fallback inline.
+- `deploy/docker-compose.example.yml` ganhou profile `jobs` com Redis e worker `ranking-snapshot-worker`.
+- `scripts/check-env.js` agora falha quando `JOB_QUEUE_DRIVER=bullmq` esta ativo sem `REDIS_URL`.
+- Validacao local sem Redis real passa com skip controlado; o teste real fica para CI/stage.
 
 ## Riscos
 - BullMQ exige Redis e muda operacao/deploy.

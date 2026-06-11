@@ -10,6 +10,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:jobs:redis": "RUN_REDIS_JOBS_TESTS=true JOB_QUEUE_DRIVER=bullmq vitest run queue.redis.test.ts",
     "job:notifications": "tsx src/jobs/notifications.ts",
     "job:ranking-snapshots": "tsx src/jobs/ranking-snapshots.ts",
     "smoke:whatsapp": "tsx src/scripts/smoke-whatsapp.ts",

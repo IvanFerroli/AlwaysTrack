@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-09
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-053-observability-profiling-and-query-optimization.md
 
 ## Modo
@@ -54,6 +54,12 @@ Sem observabilidade, otimizacao vira chute. O projeto tem logs estruturados parc
 - Slow query Prisma configuravel por `PRISMA_SLOW_QUERY_MS`.
 - Relatorio baseline criado em `docs/performance/observability-report-2026-06-09.md`.
 - Pendente: coletar antes/depois em stage com `perf:1000` e otimizar gargalo comprovado.
+
+## Execucao 2026-06-11
+- `scripts/perf-report.js` passou a coletar snapshots de `GET /v1/diagnostics/http-metrics` antes/depois de cada rodada Artillery.
+- O resumo Markdown do report passa a registrar target, duracao, artefatos gerados e caminho dos diagnosticos.
+- `docs/performance/report-template.md` padroniza a decisao de go/no-go, gargalos e follow-up de otimizacao.
+- Pendente: usar o primeiro report stage para escolher uma otimizacao mensuravel de endpoint/query.
 
 ## Riscos
 - Cache pode vazar dados entre tenants se mal desenhado.

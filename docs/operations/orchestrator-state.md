@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-06-10
+- last-updated: 2026-06-11
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
@@ -54,15 +54,20 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-049 (2026-06-10): view de Usuarios/Times extraida para `apps/web/src/views/users-teams.tsx`.
 - EXEC-AT-050 (2026-06-10): view de Notas extraida para `apps/web/src/views/notes.tsx`.
 - EXEC-AT-051 (2026-06-10): view Como usar extraida para `apps/web/src/views/help.tsx`.
+- EXEC-AT-052 (2026-06-11): view Wiki e centro de notificacoes extraidos para modulos dedicados.
+- EXEC-AT-053 (2026-06-11): regressao Playwright browser para upload/aprovacao DANFE e review Wiki.
+- EXEC-AT-054 (2026-06-11): validacao BullMQ com Redis real via teste opcional, CI dedicado, compose e env guard.
+- EXEC-AT-055 (2026-06-11): workflow de report Artillery com diagnosticos antes/depois e bloqueio de 1000 em localhost.
 
 ## Proximo ciclo a rotar
 - Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
 - `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
-- `TASK-AT-050`, `TASK-AT-051` e `TASK-AT-055` concluidas em MVP no `EXEC-AT-037`; `TASK-AT-049` esta completed-partial com smoke Playwright real e regressao API, ainda com pendencia de navegador para DANFE/review Wiki.
-- `TASK-AT-053` concluida em MVP e `TASK-AT-054` iniciada com inventario no `EXEC-AT-038`.
-- `TASK-AT-052` iniciada com ADR, contrato e piloto no `EXEC-AT-039`; status observavel do job piloto adicionado no `EXEC-AT-042` e conectado na UI no `EXEC-AT-043`.
-- `TASK-AT-054` avançou com novo modulo comercial frontend no `EXEC-AT-044`, extracao da view de Campanhas no `EXEC-AT-045`, extracao da view de Ranking no `EXEC-AT-046`, extracao das views de Dashboard/Extratos no `EXEC-AT-047`, extracao das views de FAQ/Auditoria no `EXEC-AT-048`, extracao da view de Usuarios/Times no `EXEC-AT-049`, extracao da view de Notas no `EXEC-AT-050` e extracao da view Como usar no `EXEC-AT-051`.
-- Prioridade recomendada: expandir Playwright profundo, validar BullMQ com Redis real e continuar modularizacao por dominio.
+- `TASK-AT-050`, `TASK-AT-055` concluidas; `TASK-AT-051` tem ferramenta e report, restando a execucao stage/producao-like.
+- `TASK-AT-049` esta completed-partial com smoke browser, regressao API e fluxos browser de DANFE/Wiki; browser local segue bloqueado por `libnspr4.so`, mas CI instala deps.
+- `TASK-AT-052` esta completed para o piloto: ADR, contrato, worker, status UI, teste Redis real opcional, CI dedicado e compose `jobs`.
+- `TASK-AT-053` esta completed-mvp com metricas e workflow de report; a otimizacao real depende do primeiro report stage.
+- `TASK-AT-054` avançou com extracao das views comerciais ativas e notificacoes para modulos; proxima rodada deve focar hooks/API clients tipados, erros e backend services.
+- Prioridade recomendada: rodar `perf:1000:report` em stage, observar CI Playwright/BullMQ e aplicar otimizacao comprovada.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
@@ -190,6 +195,18 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-10 (EXEC-AT-051) |
 | npm run test:all | passou — 28 arquivos, 174 testes + TypeDoc | 2026-06-10 (EXEC-AT-051) |
 | npm run repo:hygiene | passou | 2026-06-10 (EXEC-AT-051) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-052) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-11 (EXEC-AT-053/054) |
+| npm run test:e2e -- --project=api | passou — 2 testes API | 2026-06-11 (EXEC-AT-053) |
+| npm run test:e2e -- --project=desktop | bloqueado localmente — falta libnspr4.so; CI instala deps com Playwright | 2026-06-11 (EXEC-AT-053) |
+| npm run test --workspace @alwaystrack/api -- ranking-snapshot.jobs.test.ts queue.redis.test.ts | passou — 3 testes, 1 skip Redis local | 2026-06-11 (EXEC-AT-054) |
+| JOB_QUEUE_DRIVER=inline npm run env:check | passou | 2026-06-11 (EXEC-AT-054) |
+| JOB_QUEUE_DRIVER=bullmq REDIS_URL=redis://127.0.0.1:6379 npm run env:check | passou | 2026-06-11 (EXEC-AT-054) |
+| node --check scripts/perf-report.js | passou | 2026-06-11 (EXEC-AT-055) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-052/053) |
+| npm run test:all | passou — 28 arquivos, 174 testes + 1 skip Redis + TypeDoc | 2026-06-11 (EXEC-AT-052..055) |
+| npm run repo:hygiene | passou | 2026-06-11 (EXEC-AT-052..055) |
+| npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-11 (EXEC-AT-052..055) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

@@ -13,5 +13,6 @@ services/api/prisma/dev.db.backup-*
 services/api/.storage/
 .storage/
 docs/generated/
+docs/performance/reports/
 test-results/
 playwright-report/

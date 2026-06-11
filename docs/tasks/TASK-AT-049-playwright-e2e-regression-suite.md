@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-partial
 - owner: olympus_taskyfier
-- last-updated: 2026-06-09
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-049-playwright-e2e-regression-suite.md
 
 ## Modo
@@ -56,6 +56,16 @@ O app e uma SPA Vite/React com API Express. O backend tem boa cobertura service-
 - Fluxos API adicionados para FAQ thread com comentario/reacao/promocao para Wiki, leitura/marcacao de notificacoes e criacao/listagem de usuario SAC.
 - Pendente: ampliar navegador para upload/review DANFE e Wiki review quando as dependencias de browser estiverem disponiveis localmente/CI.
 - Validacao local do navegador ficou bloqueada por dependencia de SO ausente (`libnspr4.so`) e falta de sudo para `playwright install-deps`; CI cobre instalacao com `--with-deps`.
+
+## Execucao 2026-06-11
+- Helpers de login/API compartilhados criados em `tests/e2e/helpers.ts`.
+- Fixture deterministica NF-e criada em `tests/e2e/fixtures/nfe-e2e.xml`.
+- Regressao browser adicionada em `tests/e2e/commercial-browser.spec.ts` para upload de DANFE XML, aprovacao pela UI, leitura em Ranking/Extratos e review Wiki com comentario de decisao.
+- Regressao API existente foi mantida para FAQ->Wiki, notificacoes e usuarios.
+- Validacao local:
+  - `npm run test:e2e -- --project=api` passou.
+  - `npm run test:e2e -- --project=desktop` segue bloqueado no host local por `libnspr4.so`; o teste nao chegou na logica do app.
+- Proximo passo: observar o job de CI com Playwright/deps e ampliar browser para FAQ/notificacoes/usuarios se isso virar necessidade.
 
 ## Riscos
 - E2E flaky se servidor/banco nao forem isolados.

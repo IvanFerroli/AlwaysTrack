@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    profiles:
+      - jobs
+    volumes:
+      - redis-data:/data
+
   api:
     build:
       context: ..
@@ -41,6 +48,26 @@ services:
       - api-data:/app/services/api/prisma
       - api-storage:/app/services/api/.storage
 
+  ranking-snapshot-worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    env_file:
+      - ../.env.production
+    environment:
+      JOB_QUEUE_DRIVER: bullmq
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    command: ["npm", "run", "job:ranking-snapshots", "--workspace", "@alwaystrack/api"]
+    depends_on:
+      - redis
+      - api
+    profiles:
+      - jobs
+    volumes:
+      - api-data:/app/services/api/prisma
+      - api-storage:/app/services/api/.storage
+
 volumes:
   api-data:
   api-storage:
+  redis-data:

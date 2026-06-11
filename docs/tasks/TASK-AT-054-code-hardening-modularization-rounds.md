@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-partial
 - owner: olympus_taskyfier
-- last-updated: 2026-06-10
+- last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-054-code-hardening-modularization-rounds.md
 
 ## Modo
@@ -62,8 +62,9 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 - Rodada 2 continuada com extracao da view de Usuarios/Times para `apps/web/src/views/users-teams.tsx`.
 - Rodada 2 continuada com extracao da view de Notas para `apps/web/src/views/notes.tsx`, mantendo helpers de revisao de DANFE junto do dominio.
 - Rodada 2 continuada com extracao da view Como usar para `apps/web/src/views/help.tsx`.
-- Nenhuma refatoracao grande executada nesta rodada para evitar regressao sem Playwright local rodando.
-- Proxima rodada recomendada: extrair cliente API/hooks e views por dominio de `apps/web/src/main.tsx`.
+- Rodada 2 continuada com extracao da view Wiki para `apps/web/src/views/wiki.tsx`.
+- Rodada 2 continuada com extracao do centro de notificacoes para `apps/web/src/components/notification-center.tsx`.
+- As views comerciais ativas deixaram de ficar concentradas em `apps/web/src/main.tsx`; a proxima rodada recomendada e focar hooks/API clients tipados, padronizacao de erros e backend services.
 
 ## Riscos
 - Refatoracao grande pode introduzir regressao visual.
