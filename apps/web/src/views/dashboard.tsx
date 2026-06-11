@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { api } from "../api";
+import { api, apiBaseUrl } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import { formatDateBr, formatMoneyFromCents, salesFilterQuery, type SalesDashboardData, type SalesFilters, type SalesSellerItem } from "../sales";
 
@@ -127,6 +127,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
     }
     return [...values.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [sellers]);
+  const csvHref = `${apiBaseUrl}/v1/sales/dashboard.csv${salesFilterQuery(filters)}`;
 
   if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
   if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
@@ -162,6 +163,11 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
               ))}
             </select>
           </label>
+        </div>
+        <div className="form-actions">
+          <a className="secondary button-link" href={csvHref}>
+            Exportar dashboard CSV
+          </a>
         </div>
       </section>
 

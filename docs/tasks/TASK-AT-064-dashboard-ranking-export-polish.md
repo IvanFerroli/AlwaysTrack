@@ -1,7 +1,7 @@
 # TASK-AT-064 - Dashboard and ranking export polish
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-064-dashboard-ranking-export-polish.md
@@ -70,3 +70,6 @@ Para apresentacao e uso interno, gestores costumam precisar levar ranking e resu
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao
+- `EXEC-AT-063`: CSV de ranking, dashboard e extrato alinhados aos filtros da tela, com metadados, nomes por periodo/data e auditoria de exportacao.

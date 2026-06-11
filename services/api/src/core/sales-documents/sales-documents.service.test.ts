@@ -14,6 +14,10 @@ import {
   parseSalesDocumentReviewInput,
   parseSalesDocumentUploadInput,
   reviewSalesDocument,
+  salesDashboardCsv,
+  salesExportFileName,
+  salesRankingCsv,
+  salesStatementsCsv,
   uniqueSalesInvoicesByAccessKey,
   uploadSalesDocument
 } from "./sales-documents.service.js";
@@ -638,6 +642,33 @@ INFORMAÇÕES COMPLEMENTARES
     );
   });
 
+  it("exports ranking csv with metadata and active filters", () => {
+    const csv = salesRankingCsv(
+      {
+        campaign: null,
+        total: 1,
+        items: [
+          {
+            position: 1,
+            sellerId: "seller-1",
+            sellerName: "Ana",
+            groupName: "Norte",
+            totalAmountCents: 50000,
+            quantity: 4,
+            documents: 2
+          }
+        ]
+      } as never,
+      { from: "2026-06-01", to: "2026-06-30", salesGroupId: "group-1", sellerProfileId: "seller-1" }
+    );
+
+    expect(csv).toContain('"relatorio","ranking-comercial"');
+    expect(csv).toContain('"periodo_de","2026-06-01"');
+    expect(csv).toContain('"grupo_id","group-1"');
+    expect(csv).toContain('"posicao","vendedor","grupo","total_centavos","itens","notas"');
+    expect(csv).toContain('"1","Ana","Norte","50000","4","2"');
+  });
+
   it("builds approved statement consolidations by seller and group", async () => {
     const issuedAt = new Date("2026-06-10T00:00:00.000Z");
     const prisma = {
@@ -704,6 +735,65 @@ INFORMAÇÕES COMPLEMENTARES
       { groupId: "group-1", groupName: "Norte", documents: 3, sellers: 2, quantity: 7, totalAmountCents: 39000 },
       { groupId: "group-2", groupName: "Sul", documents: 1, sellers: 1, quantity: 2, totalAmountCents: 18000 }
     ]);
+  });
+
+  it("exports statement csv with metadata and keeps empty exports valid", () => {
+    const csv = salesStatementsCsv({
+      filters: { from: "2026-06-01", to: "2026-06-30" },
+      summary: { documents: 0, totalAmountCents: 0, totalItems: 0 },
+      consolidations: { bySeller: [], byGroup: [] },
+      items: []
+    } as never);
+
+    expect(csv).toContain('"relatorio","extrato-comercial"');
+    expect(csv).toContain('"periodo_ate","2026-06-30"');
+    expect(csv).toContain('"data","vendedor","grupo","nota","serie","emitente","comprador","produto","quantidade","total_centavos"');
+  });
+
+  it("exports dashboard csv with metrics, series and filename range", () => {
+    const csv = salesDashboardCsv(
+      {
+        metrics: {
+          totalDocuments: 3,
+          pendingDocuments: 1,
+          approvedDocuments: 2,
+          rejectedDocuments: 0,
+          activeSellers: 2,
+          totalAmountCents: 75000
+        },
+        chart: {
+          bucket: "day",
+          from: "2026-06-01",
+          to: "2026-06-30",
+          series: [
+            {
+              key: "2026-06-10",
+              label: "2026-06-10",
+              from: "2026-06-10",
+              to: "2026-06-10",
+              documents: 2,
+              quantity: 4,
+              totalAmountCents: 75000,
+              averageTicketCents: 37500
+            }
+          ]
+        },
+        queues: {
+          pendingDocuments: [],
+          topSellers: [{ sellerId: "seller-1", sellerName: "Ana", groupName: "Norte", totalAmountCents: 75000, quantity: 4 }],
+          groups: [{ groupName: "Norte", totalAmountCents: 75000, quantity: 4 }]
+        }
+      } as never,
+      { from: "2026-06-01", to: "2026-06-30", bucket: "day" }
+    );
+
+    expect(csv).toContain('"relatorio","dashboard-comercial"');
+    expect(csv).toContain('"total_vendido_centavos","75000"');
+    expect(csv).toContain('"serie_periodo","de","ate","notas","itens","total_centavos","ticket_medio_centavos"');
+    expect(csv).toContain('"2026-06-10","2026-06-10","2026-06-10","2","4","75000","37500"');
+    expect(salesExportFileName("dashboard-comercial", { from: "2026-06-01", to: "2026-06-30" }, new Date("2026-06-11T00:00:00.000Z"))).toBe(
+      "dashboard-comercial-2026-06-01-a-2026-06-30-2026-06-11.csv"
+    );
   });
 
   it("keeps statement consolidations scoped to the logged seller", async () => {

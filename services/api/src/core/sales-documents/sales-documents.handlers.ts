@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
+import { recordAuditLog } from "../audit/audit.service.js";
 import { getStorageProvider } from "../documents/storage.provider.js";
 import { getDocumentAiProvider } from "../document-ai/provider.js";
 import { logEvent } from "../diagnostics/logger.js";
@@ -21,6 +22,9 @@ import {
   parseSalesPeriodFilters,
   parseSalesDocumentUploadInput,
   reviewSalesDocument,
+  salesDashboardCsv,
+  salesExportFileName,
+  salesRankingCsv,
   salesStatementsCsv,
   SalesDocumentError,
   updateSalesCampaign,
@@ -70,6 +74,28 @@ export async function salesDashboardHandler(request: Request, response: Response
     return sendOk(response, result);
   } catch (error) {
     logHandlerError(request, "sales_dashboard.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function salesDashboardCsvHandler(request: Request, response: Response) {
+  try {
+    const filters = parseSalesPeriodFilters(request.query);
+    const dashboard = await getSalesDashboard(prisma, actorFrom(request), filters);
+    const csv = salesDashboardCsv(dashboard, filters);
+    logEvent("info", "sales_dashboard_csv.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      filters,
+      metrics: dashboard.metrics
+    });
+    await auditExport(request, "sales_dashboard.export", "SalesDashboard", "dashboard", { filters, metrics: dashboard.metrics });
+    response.header("content-type", "text/csv; charset=utf-8");
+    response.header("content-disposition", `attachment; filename="${salesExportFileName("dashboard-comercial", filters)}"`);
+    return response.status(200).send(csv);
+  } catch (error) {
+    logHandlerError(request, "sales_dashboard_csv.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }
@@ -212,6 +238,28 @@ export async function salesRankingHandler(request: Request, response: Response) 
   }
 }
 
+export async function salesRankingCsvHandler(request: Request, response: Response) {
+  try {
+    const filters = parseSalesPeriodFilters(request.query);
+    const ranking = await getSalesRanking(prisma, actorFrom(request), filters);
+    const csv = salesRankingCsv(ranking, filters);
+    logEvent("info", "sales_ranking_csv.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      filters,
+      total: ranking.total
+    });
+    await auditExport(request, "sales_ranking.export", "SalesRanking", "ranking", { filters, total: ranking.total });
+    response.header("content-type", "text/csv; charset=utf-8");
+    response.header("content-disposition", `attachment; filename="${salesExportFileName("ranking-comercial", filters)}"`);
+    return response.status(200).send(csv);
+  } catch (error) {
+    logHandlerError(request, "sales_ranking_csv.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
 export async function salesStatementsHandler(request: Request, response: Response) {
   try {
     const filters = parseSalesPeriodFilters(request.query);
@@ -242,13 +290,26 @@ export async function salesStatementsCsvHandler(request: Request, response: Resp
       filters,
       summary: statement.summary
     });
+    await auditExport(request, "sales_statements.export", "SalesStatements", "statements", { filters, summary: statement.summary });
     response.header("content-type", "text/csv; charset=utf-8");
-    response.header("content-disposition", 'attachment; filename="extrato-comercial.csv"');
+    response.header("content-disposition", `attachment; filename="${salesExportFileName("extrato-comercial", filters)}"`);
     return response.status(200).send(csv);
   } catch (error) {
     logHandlerError(request, "sales_statements_csv.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
+}
+
+async function auditExport(request: Request, action: string, entityType: string, entityId: string, metadata: unknown) {
+  if (!request.user) return;
+  await recordAuditLog(prisma, {
+    organizationId: request.user.organizationId,
+    actorId: request.user.id,
+    action,
+    entityType,
+    entityId,
+    metadata
+  });
 }
 
 export async function uploadSalesDocumentHandler(request: Request, response: Response) {

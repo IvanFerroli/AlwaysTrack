@@ -86,6 +86,7 @@ export interface SalesFilters {
   to?: string;
   salesGroupId?: string;
   sellerProfileId?: string;
+  bucket?: string;
 }
 
 export interface SalesGroupSource {

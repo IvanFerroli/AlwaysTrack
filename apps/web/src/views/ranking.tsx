@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
-import { api } from "../api";
+import { api, apiBaseUrl } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import {
   formatMoneyFromCents,
@@ -41,6 +41,7 @@ export function RankingView({ user }: { user: CurrentUser }) {
   const sellers = (sellerRanking?.items ?? ranking?.items ?? [])
     .map((item) => ({ id: item.sellerId, name: item.sellerName }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const csvHref = `${apiBaseUrl}/v1/sales/ranking.csv${salesFilterQuery(filters)}`;
 
   return (
     <div className="content-stack">
@@ -102,7 +103,12 @@ export function RankingView({ user }: { user: CurrentUser }) {
             <p className="eyebrow">Ranking</p>
             <h2>Vendedores por venda aprovada</h2>
           </div>
-          {ranking?.campaign ? <span className="status-badge">{ranking.campaign.name}</span> : null}
+          <div className="table-panel-toggle-group">
+            {ranking?.campaign ? <span className="status-badge">{ranking.campaign.name}</span> : null}
+            <a className="secondary button-link" href={csvHref}>
+              Baixar CSV
+            </a>
+          </div>
         </div>
         {!ranking ? (
           <OperationalState state="loading" title="Carregando ranking" />

@@ -153,12 +153,14 @@ import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
   createSalesCampaignHandler,
+  salesDashboardCsvHandler,
   getRankingSnapshotJobStatusHandler,
   listSalesCampaignsHandler,
   listRankingSnapshotsHandler,
   listSalesDocumentsHandler,
   listSalesSellersHandler,
   reviewSalesDocumentHandler,
+  salesRankingCsvHandler,
   salesRankingHandler,
   salesDashboardHandler,
   salesStatementsCsvHandler,
@@ -218,6 +220,7 @@ export function createApp() {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }
   app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialAllRoles), salesDashboardHandler);
+  app.get("/v1/sales/dashboard.csv", requireAuth, requireRole(commercialAllRoles), salesDashboardCsvHandler);
   app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialAllRoles), listSalesCampaignsHandler);
   app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), express.json(), createSalesCampaignHandler);
   app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(commercialAllRoles), listRankingSnapshotsHandler);
@@ -225,6 +228,7 @@ export function createApp() {
   app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), createRankingSnapshotHandler);
   app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(commercialManagerRoles), getRankingSnapshotJobStatusHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(commercialAllRoles), salesRankingHandler);
+  app.get("/v1/sales/ranking.csv", requireAuth, requireRole(commercialAllRoles), salesRankingCsvHandler);
   app.get("/v1/sales/sellers", requireAuth, requireRole(commercialAllRoles), listSalesSellersHandler);
   app.get("/v1/sales/statements", requireAuth, requireRole(commercialAllRoles), salesStatementsHandler);
   app.get("/v1/sales/statements.csv", requireAuth, requireRole(commercialAllRoles), salesStatementsCsvHandler);

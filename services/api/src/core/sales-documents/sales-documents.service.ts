@@ -1272,6 +1272,7 @@ function buildSalesStatementConsolidations(documents: SalesStatementDocument[]) 
 }
 
 export function salesStatementsCsv(statement: Awaited<ReturnType<typeof getSalesStatements>>) {
+  const metadata = exportMetadataRows("extrato-comercial", statement.filters);
   const header = ["data", "vendedor", "grupo", "nota", "serie", "emitente", "comprador", "produto", "quantidade", "total_centavos"];
   const rows = statement.items.flatMap((document) =>
     document.items.map((item) => [
@@ -1287,7 +1288,106 @@ export function salesStatementsCsv(statement: Awaited<ReturnType<typeof getSales
       String(item.totalAmountCents)
     ])
   );
-  return [header, ...rows].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
+  return csvRows([...metadata, [], header, ...rows]);
+}
+
+export function salesRankingCsv(ranking: Awaited<ReturnType<typeof getSalesRanking>>, filters: SalesPeriodFilters = {}) {
+  const metadata = exportMetadataRows("ranking-comercial", filters);
+  const campaignRows = ranking.campaign
+    ? [
+        ["campanha", ranking.campaign.name],
+        ["campanha_inicio", ranking.campaign.startsAt.toISOString().slice(0, 10)],
+        ["campanha_fim", ranking.campaign.endsAt.toISOString().slice(0, 10)]
+      ]
+    : [];
+  const header = ["posicao", "vendedor", "grupo", "total_centavos", "itens", "notas"];
+  const rows = ranking.items.map((item) => [
+    String(item.position),
+    item.sellerName,
+    item.groupName ?? "",
+    String(item.totalAmountCents),
+    String(item.quantity),
+    String(item.documents)
+  ]);
+  return csvRows([...metadata, ...campaignRows, ["total_linhas", String(ranking.total)], [], header, ...rows]);
+}
+
+export function salesDashboardCsv(dashboard: Awaited<ReturnType<typeof getSalesDashboard>>, filters: SalesPeriodFilters = {}) {
+  const metadata = exportMetadataRows("dashboard-comercial", {
+    ...filters,
+    from: filters.from ?? dashboard.chart.from,
+    to: filters.to ?? dashboard.chart.to,
+    bucket: filters.bucket ?? dashboard.chart.bucket
+  });
+  const metricRows = [
+    ["metrica", "valor"],
+    ["notas_enviadas", String(dashboard.metrics.totalDocuments)],
+    ["notas_pendentes", String(dashboard.metrics.pendingDocuments)],
+    ["notas_aprovadas", String(dashboard.metrics.approvedDocuments)],
+    ["notas_recusadas_duplicadas", String(dashboard.metrics.rejectedDocuments)],
+    ["vendedores_ativos", String(dashboard.metrics.activeSellers)],
+    ["total_vendido_centavos", String(dashboard.metrics.totalAmountCents)]
+  ];
+  const seriesRows = dashboard.chart.series.map((item) => [
+    item.key,
+    item.from,
+    item.to,
+    String(item.documents),
+    String(item.quantity),
+    String(item.totalAmountCents),
+    String(item.averageTicketCents)
+  ]);
+  const sellerRows = dashboard.queues.topSellers.map((item, index) => [
+    String(index + 1),
+    item.sellerName,
+    item.groupName ?? "",
+    String(item.totalAmountCents),
+    String(item.quantity)
+  ]);
+  const groupRows = dashboard.queues.groups.map((item) => [item.groupName, String(item.totalAmountCents), String(item.quantity)]);
+
+  return csvRows([
+    ...metadata,
+    [],
+    ...metricRows,
+    [],
+    ["serie_periodo", "de", "ate", "notas", "itens", "total_centavos", "ticket_medio_centavos"],
+    ...seriesRows,
+    [],
+    ["ranking_top_vendedores", "vendedor", "grupo", "total_centavos", "itens"],
+    ...sellerRows,
+    [],
+    ["grupos", "total_centavos", "itens"],
+    ...groupRows
+  ]);
+}
+
+export function salesExportFileName(prefix: string, filters: SalesPeriodFilters = {}, generatedAt = new Date()) {
+  const date = generatedAt.toISOString().slice(0, 10);
+  const from = filters.from ? `-${filters.from}` : "";
+  const to = filters.to ? `-a-${filters.to}` : "";
+  return `${prefix}${from}${to}-${date}.csv`;
+}
+
+function exportMetadataRows(name: string, filters: SalesPeriodFilters) {
+  return [
+    ["relatorio", name],
+    ["gerado_em", new Date().toISOString()],
+    ["periodo_de", filters.from ?? ""],
+    ["periodo_ate", filters.to ?? ""],
+    ["campanha_id", filters.campaignId ?? ""],
+    ["grupo_id", filters.salesGroupId ?? ""],
+    ["vendedor_id", filters.sellerProfileId ?? ""],
+    ["bucket", filters.bucket ?? ""]
+  ];
+}
+
+function csvRows(rows: string[][]) {
+  return rows.map((row) => row.map(csvCell).join(",")).join("\n");
+}
+
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}, today = new Date()) {
