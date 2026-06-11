@@ -170,6 +170,7 @@ button.ghost-button,
   justify-content: center;
   padding: 0 18px;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .extracted-data-panel {
@@ -725,9 +726,9 @@ button .icon {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   display: grid;
-  column-gap: 24px;
-  grid-template-columns: minmax(260px, max-content) minmax(0, 1fr) auto;
-  padding: 16px;
+  column-gap: 16px;
+  grid-template-columns: minmax(230px, max-content) minmax(0, 1fr) auto;
+  padding: 14px;
   position: sticky;
   top: 16px;
   z-index: 10;
@@ -737,13 +738,14 @@ button .icon {
 .topbar-title {
   display: grid;
   gap: 5px;
-  min-width: 220px;
+  min-width: 210px;
   padding-right: 0;
 }
 
 .topbar h1 {
   align-items: center;
   display: flex;
+  font-size: clamp(24px, 2.2vw, 36px);
   gap: 8px;
 }
 
@@ -773,15 +775,18 @@ button .icon {
   border-right: 1px solid var(--color-border-soft);
   display: flex;
   min-width: 0;
-  padding: 0 24px;
+  padding: 0 16px;
 }
 
 .top-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 7px;
   justify-content: flex-start;
   min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .top-nav-item {
@@ -792,9 +797,11 @@ button .icon {
   color: #344054;
   display: inline-flex;
   gap: 6px;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 12px;
+  flex: 0 0 auto;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .top-nav-item:hover:not(.active) {
@@ -811,7 +818,7 @@ button .icon {
 .user-actions {
   align-items: center;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
   min-width: max-content;
 }
@@ -1127,7 +1134,7 @@ button .icon {
 
 .sales-chart-scroll {
   overflow-x: auto;
-  padding: 0 16px 16px;
+  padding: 0 22px 18px;
 }
 
 .sales-chart {
@@ -1151,7 +1158,7 @@ button .icon {
 
 .sales-chart text {
   fill: var(--color-muted);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -1391,6 +1398,22 @@ button .icon {
   padding: 18px;
 }
 
+.campaign-form-panel,
+.organization-settings-panel {
+  padding: 18px;
+}
+
+.campaign-form-panel .table-panel-toolbar {
+  border-bottom: 0;
+  padding: 0 0 14px;
+}
+
+.campaign-form-panel form,
+.organization-settings-panel form {
+  display: grid;
+  gap: 13px;
+}
+
 .filter-panel {
   padding: 16px;
 }
@@ -1527,6 +1550,7 @@ legend {
 .wiki-discovery-panel {
   display: grid;
   gap: 14px;
+  padding: 18px;
 }
 
 .wiki-discovery-summary {
@@ -1636,11 +1660,20 @@ legend {
   color: inherit;
   display: grid;
   gap: 4px;
+  justify-items: start;
   min-height: auto;
   min-width: 0;
   padding: 11px 12px;
   text-align: left;
   width: 100%;
+}
+
+.wiki-page-button strong {
+  display: block;
+  line-height: 1.18;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .wiki-page-button.active {
@@ -2235,6 +2268,27 @@ legend {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.wiki-reader-panel .detail-header > div:first-child {
+  min-width: 0;
+}
+
+.wiki-reader-panel .detail-header h2 {
+  overflow-wrap: anywhere;
+}
+
+.wiki-reader-panel .detail-header > .row-actions {
+  align-items: stretch;
+  flex: 0 1 260px;
+  justify-content: flex-end;
+  min-width: 180px;
+}
+
+.wiki-reader-panel .detail-header > .row-actions button:not(.ui-info-button),
+.wiki-reader-panel .detail-header > .row-actions select {
+  width: min(220px, 100%);
 }
 
 .detail-grid {
@@ -2267,6 +2321,17 @@ legend {
   height: 48px;
   place-items: center;
   width: 48px;
+}
+
+@media (max-width: 860px) {
+  .wiki-reader-panel .detail-header {
+    flex-direction: column;
+  }
+
+  .wiki-reader-panel .detail-header > .row-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 
 /* Ajuda / suporte */

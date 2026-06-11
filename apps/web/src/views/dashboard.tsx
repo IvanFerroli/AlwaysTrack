@@ -35,11 +35,12 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
   const max = Math.max(...series.map((item) => item.totalAmountCents), 1);
   const width = 720;
   const height = 220;
-  const padding = { top: 18, right: 18, bottom: 42, left: 54 };
+  const padding = { top: 18, right: 18, bottom: 54, left: 86 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
   const barGap = 8;
   const barWidth = Math.max(8, plotWidth / Math.max(series.length, 1) - barGap);
+  const labelStep = Math.max(1, Math.ceil(series.length / 10));
   const total = series.reduce((sum, item) => sum + item.totalAmountCents, 0);
   const quantity = series.reduce((sum, item) => sum + item.quantity, 0);
   const documents = series.reduce((sum, item) => sum + item.documents, 0);
@@ -82,7 +83,9 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
                   <rect x={x} y={y} width={barWidth} height={barHeight} rx="4">
                     <title>{`${chartLabel(item.from, item.to, dashboard.chart.bucket)}: ${formatMoneyFromCents(item.totalAmountCents)} / ${item.documents} nota(s)`}</title>
                   </rect>
-                  <text x={x + barWidth / 2} y={height - 18} textAnchor="middle">{chartLabel(item.from, item.to, dashboard.chart.bucket)}</text>
+                  {index % labelStep === 0 || index === series.length - 1 ? (
+                    <text x={x + barWidth / 2} y={height - 22} textAnchor="middle">{chartLabel(item.from, item.to, dashboard.chart.bucket)}</text>
+                  ) : null}
                 </g>
               );
             })}

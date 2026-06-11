@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
-import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
+import { InfoTip, OperationalState, OperationalTable, PaginationControls } from "../components/operational";
 import {
   formatDateBr,
   formatMoneyFromCents,
@@ -221,6 +221,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
   const [items, setItems] = useState<SalesDocumentItem[]>([]);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, SalesDocumentReviewDraft>>({});
   const [filters, setFilters] = useState<SalesDocumentListFilters>({});
+  const [page, setPage] = useState(1);
   const [sellerOptions, setSellerOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [uploadSellerProfileId, setUploadSellerProfileId] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -237,6 +238,8 @@ export function NotesView({ user }: { user: CurrentUser }) {
   );
   const selectedInvalidApprovalCount = selectedPendingItems.filter((item) => validReviewItemCount(reviewDrafts[item.id] ?? reviewDraftFromDocument(item)) === 0).length;
   const allPendingSelected = pendingReviewItems.length > 0 && pendingReviewItems.every((item) => selectedDocumentIds.includes(item.id));
+  const pageSize = 12;
+  const paginatedItems = useMemo(() => items.slice((page - 1) * pageSize, page * pageSize), [items, page]);
 
   async function load() {
     setLoading(true);
@@ -244,6 +247,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ items: SalesDocumentItem[]; total: number }>(`/v1/sales/documents${salesFilterQuery(filters)}`);
       setItems(result.items);
+      setPage(1);
       setSelectedDocumentIds((current) => current.filter((id) => result.items.some((item) => item.id === id && item.status === "PENDING_REVIEW")));
       setSellerOptions((current) => {
         const next = new Map(current.map((seller) => [seller.id, seller.name]));
@@ -517,7 +521,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
               </div>
             ) : null}
             <OperationalTable
-              items={items}
+              items={paginatedItems}
               getRowKey={(item) => item.id}
               columns={[
                 ...(canReview
@@ -588,6 +592,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
                 }
               ]}
             />
+            <PaginationControls page={page} pageSize={pageSize} total={items.length} onPageChange={setPage} />
           </>
         )}
         {Object.entries(extractionFeedback).length > 0 ? (

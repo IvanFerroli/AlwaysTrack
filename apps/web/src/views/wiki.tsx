@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api, uploadWikiImage } from "../api";
-import { InfoTip, OperationalFilters, OperationalState, OperationalTable } from "../components/operational";
+import { InfoTip, OperationalFilters, OperationalState, OperationalTable, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
 
 interface WikiUserRef {
@@ -510,6 +510,8 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
   const [pageStatus, setPageStatus] = useState("ACTIVE");
   const [selectedTag, setSelectedTag] = useState("");
   const [recent, setRecent] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
@@ -543,6 +545,10 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
       setPages(result.items);
       const slugToOpen = pendingSlug;
       const slugMatch = slugToOpen ? result.items.find((item) => item.slug === slugToOpen) : null;
+      const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
+      const pageAnchorId = slugMatch?.id ?? nextId;
+      const pageAnchorIndex = pageAnchorId ? result.items.findIndex((item) => item.id === pageAnchorId) : 0;
+      setPage(Math.max(1, Math.floor(Math.max(pageAnchorIndex, 0) / pageSize) + 1));
       if (slugToOpen) {
         if (slugMatch) {
           await openPage(slugMatch.id, false);
@@ -550,7 +556,6 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
           await openPageBySlug(slugToOpen, false);
         }
       } else {
-        const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
         if (nextId) {
           await openPage(nextId, false);
         } else {
@@ -606,6 +611,10 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
   useEffect(() => {
     void loadPages();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTag]);
 
   useEffect(() => {
     if (!selected || !selected.active) return;
@@ -747,6 +756,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     return [...tags].sort((a, b) => a.localeCompare(b));
   }, [pages]);
   const visiblePages = selectedTag ? pages.filter((page) => wikiTagsFor(page).includes(selectedTag)) : pages;
+  const paginatedPages = visiblePages.slice((page - 1) * pageSize, page * pageSize);
   const activePages = visiblePages.filter((page) => page.active);
   const archivedPages = visiblePages.filter((page) => !page.active);
   const pagesWithPendingRequests = visiblePages.filter((page) => page.editRequests.length > 0);
@@ -932,7 +942,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
             <OperationalState state="empty" title="Nenhuma pagina publicada" detail="Publique um procedimento ou promova uma pergunta resolvida do FAQ." />
           ) : (
             <div className="wiki-page-list">
-              {visiblePages.map((page) => (
+              {paginatedPages.map((page) => (
                 <button
                   className={selected?.id === page.id ? "wiki-page-button active" : "wiki-page-button"}
                   key={page.id}
@@ -947,6 +957,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                   {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
                 </button>
               ))}
+              <PaginationControls page={page} pageSize={pageSize} total={visiblePages.length} onPageChange={setPage} />
             </div>
           )}
         </section>

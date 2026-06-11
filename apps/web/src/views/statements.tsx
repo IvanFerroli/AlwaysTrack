@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, apiBaseUrl } from "../api";
-import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
+import { InfoTip, OperationalState, OperationalTable, PaginationControls } from "../components/operational";
 import {
   formatDateBr,
   formatMoneyFromCents,
@@ -26,6 +26,7 @@ export function StatementsView() {
   const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
   const [referenceDocuments, setReferenceDocuments] = useState<SalesDocumentItem[]>([]);
   const [filters, setFilters] = useState<SalesFilters>({});
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
@@ -33,7 +34,12 @@ export function StatementsView() {
   }, []);
 
   useEffect(() => {
-    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery(filters)}`).then(setStatement).catch(() => setStatement(null));
+    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery(filters)}`)
+      .then((result) => {
+        setStatement(result);
+        setPage(1);
+      })
+      .catch(() => setStatement(null));
   }, [filters]);
 
   const groups = mergeUniqueGroups(campaigns, referenceDocuments);
@@ -41,6 +47,8 @@ export function StatementsView() {
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const csvHref = `${apiBaseUrl}/v1/sales/statements.csv${salesFilterQuery(filters)}`;
+  const pageSize = 12;
+  const paginatedStatementItems = statement?.items.slice((page - 1) * pageSize, page * pageSize) ?? [];
 
   return (
     <div className="content-stack">
@@ -168,7 +176,7 @@ export function StatementsView() {
           <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" detail="Aprove notas ou ajuste os filtros de período, grupo e vendedor." />
         ) : (
           <OperationalTable
-            items={statement.items}
+            items={paginatedStatementItems}
             getRowKey={(item) => item.id}
             columns={[
               { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
@@ -179,6 +187,9 @@ export function StatementsView() {
             ]}
           />
         )}
+        {statement && statement.items.length > 0 ? (
+          <PaginationControls page={page} pageSize={pageSize} total={statement.items.length} onPageChange={setPage} />
+        ) : null}
       </section>
     </div>
   );

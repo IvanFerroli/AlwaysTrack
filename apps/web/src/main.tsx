@@ -4032,7 +4032,11 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
-  const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile");
+  const primaryNav = [
+    ...visibleNav.filter((item) => item.key === "dashboard"),
+    ...visibleNav.filter((item) => item.key === "profile"),
+    ...visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile" && item.key !== "dashboard")
+  ];
 
   function clearHelpHash() {
     if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {

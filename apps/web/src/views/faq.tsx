@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
-import { OperationalFilters, OperationalState } from "../components/operational";
+import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
 
 interface FaqReactionItem {
@@ -63,6 +63,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
   const [status, setStatus] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const [recent, setRecent] = useState("");
+  const [page, setPage] = useState(1);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tagDraft, setTagDraft] = useState("");
@@ -83,6 +84,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ items: FaqThreadItem[]; total: number }>(`/v1/faq/threads?${search.toString()}`);
       setThreads(result.items);
+      setPage(1);
       const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id ?? "";
       setSelectedId(nextId);
     } catch (caught) {
@@ -166,6 +168,8 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
   }
 
   const selected = threads.find((thread) => thread.id === selectedId) ?? null;
+  const pageSize = 8;
+  const paginatedThreads = threads.slice((page - 1) * pageSize, page * pageSize);
   const faqTags = [...new Set([...defaultKnowledgeTags, ...threads.flatMap((thread) => thread.tags ?? [])])].sort((a, b) => a.localeCompare(b));
   const statusOptions = [
     { value: "OPEN", label: "Aberta" },
@@ -238,7 +242,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
             <OperationalState state="empty" title="Nenhuma pergunta encontrada" detail="Publique uma dúvida para abrir uma thread e criar conhecimento reutilizável." />
           ) : (
             <div className="wiki-page-list">
-              {threads.map((thread) => (
+              {paginatedThreads.map((thread) => (
                 <button className={selectedId === thread.id ? "wiki-page-button active" : "wiki-page-button"} key={thread.id} type="button" onClick={() => setSelectedId(thread.id)}>
                   <strong>{thread.title}</strong>
                   {thread.tags?.length ? <small>{thread.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
@@ -247,6 +251,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
                   {thread.wikiPage ? <small>Wiki: /{thread.wikiPage.slug}</small> : null}
                 </button>
               ))}
+              <PaginationControls page={page} pageSize={pageSize} total={threads.length} onPageChange={setPage} />
             </div>
           )}
         </section>

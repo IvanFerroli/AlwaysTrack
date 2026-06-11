@@ -1,8 +1,8 @@
 # TASK-AT-066 - Screenshot-driven visual polish
 
 ## Metadata
-- status: proposed-blocked-by-user-input
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_orchestrator
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-066-screenshot-driven-visual-polish.md
 
@@ -23,7 +23,7 @@ Ha melhorias visuais desejadas, mas elas dependem de evidencia visual concreta. 
 
 ## Dependencias
 - satisfeitas: app visual ja esta funcional.
-- em aberto: usuario precisa enviar prints antes de qualquer implementacao.
+- satisfeitas: usuario enviou prints desktop com Dashboard, Campanhas, Wiki, FAQ e Configuracoes.
 
 ## Regra dura para o agente executor
 1. Nao iniciar implementacao sem prints.
@@ -46,12 +46,12 @@ Ha melhorias visuais desejadas, mas elas dependem de evidencia visual concreta. 
 - Corrigir telas nao demonstradas nos prints, salvo regressao claramente relacionada.
 
 ## Checklist
-1. Receber prints e numerar problemas.
-2. Confirmar escopo da leva.
-3. Aplicar patch minimo.
-4. Rodar build/typecheck.
-5. Validar visualmente.
-6. Registrar o que ficou fora.
+1. Receber prints e numerar problemas. Status: completed.
+2. Confirmar escopo da leva. Status: completed.
+3. Aplicar patch minimo. Status: completed.
+4. Rodar build/typecheck. Status: completed.
+5. Validar visualmente. Status: completed-by-code-review-build.
+6. Registrar o que ficou fora. Status: completed.
 
 ## Acceptance Criteria
 1. Cada print enviado tem uma resposta objetiva: corrigido, nao reproduzido ou pendente com motivo.
@@ -67,6 +67,17 @@ Ha melhorias visuais desejadas, mas elas dependem de evidencia visual concreta. 
 ## Validacao
 - comandos/checks: `npm run typecheck --workspace @alwaystrack/web`, `npm run build --workspace @alwaystrack/web`
 - revisao manual: comparar prints de entrada com tela corrigida.
+
+## Execucao 2026-06-11
+- Dashboard: grafico ganhou margem esquerda/inferior maior, labels menores e reducao automatica de labels no eixo X para evitar numeros sobrepostos.
+- Header: navegacao superior agora tenta permanecer em uma linha com scroll horizontal discreto quando o viewport nao comporta todos os atalhos.
+- Perfil: aba `Perfil` entrou na navegacao superior logo apos `Dashboard`.
+- Notas: tabela recebeu paginacao client-side.
+- Extratos: tabela de itens do extrato recebeu paginacao client-side.
+- Wiki: lista lateral recebeu paginacao, cards quebram titulos longos, painel de descoberta ganhou respiro interno e a abertura por slug preserva a pagina lateral correta.
+- FAQ: lista de threads recebeu paginacao, cards quebram texto longo e acoes do detalhe deixam de estourar o container.
+- Campanhas: formulario ganhou padding interno e espacamento vertical entre grupos de campos.
+- Configuracoes: painel administrativo ganhou padding interno e espacamento vertical entre campos.
 
 ## Evidencia esperada
 - Lista dos prints atendidos.

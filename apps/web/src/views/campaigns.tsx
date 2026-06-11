@@ -153,7 +153,7 @@ export function CampaignsView({ user }: { user: CurrentUser }) {
   return (
     <div className="content-stack">
       {canManage ? (
-        <section className="panel">
+        <section className="panel campaign-form-panel">
           <form onSubmit={saveCampaign}>
             <div className="table-panel-toolbar">
               <div>

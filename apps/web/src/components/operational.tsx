@@ -231,6 +231,29 @@ export function PaginationSummary({ page, pageSize, total }: PaginationSummaryPr
   );
 }
 
+interface PaginationControlsProps {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}
+
+export function PaginationControls({ page, pageSize, total, onPageChange }: PaginationControlsProps) {
+  return (
+    <div className="pagination-actions">
+      <PaginationSummary page={page} pageSize={pageSize} total={total} />
+      <div>
+        <button className="secondary small" type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          Anterior
+        </button>
+        <button className="secondary small" type="button" disabled={page * pageSize >= total} onClick={() => onPageChange(page + 1)}>
+          Próxima
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface ConfirmButtonProps {
   children: ReactNode;
   confirmLabel: string;

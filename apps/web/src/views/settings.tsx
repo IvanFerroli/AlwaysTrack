@@ -107,7 +107,7 @@ export function SettingsView({ onSaved }: { onSaved?: (settings: OrganizationSet
 
   return (
     <div className="content-stack">
-      <section className="panel">
+      <section className="panel organization-settings-panel">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Organização</p>
