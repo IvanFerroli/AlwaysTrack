@@ -1,7 +1,7 @@
 # TASK-AT-063 - Organization settings for internal product
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-063-organization-settings-internal-product.md
@@ -74,3 +74,6 @@ Como ferramenta interna, algumas configuracoes nao devem depender de alteracao m
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao
+- `EXEC-AT-062`: contrato/API admin de configuracoes da organizacao, tela admin, brand runtime para admin, dominios Google somente leitura via env e auditoria.

@@ -24,7 +24,9 @@ import {
   createSectorHandler,
   createUnitHandler,
   getOrganizationHandler,
+  getOrganizationSettingsHandler,
   updateOrganizationHandler,
+  updateOrganizationSettingsHandler,
   updateSectorHandler,
   updateUnitHandler
 } from "./core/organizations/organizations.handlers.js";
@@ -265,6 +267,8 @@ export function createApp() {
   }
   app.get("/v1/organization", requireAuth, requireRole(adminOnlyRoles), getOrganizationHandler);
   app.patch("/v1/organization", requireAuth, requireRole(adminOnlyRoles), updateOrganizationHandler);
+  app.get("/v1/organization/settings", requireAuth, requireRole(adminOnlyRoles), getOrganizationSettingsHandler);
+  app.patch("/v1/organization/settings", requireAuth, requireRole(adminOnlyRoles), updateOrganizationSettingsHandler);
   app.post("/v1/organization/units", requireAuth, requireRole(adminOnlyRoles), createUnitHandler);
   app.patch("/v1/organization/units/:unitId", requireAuth, requireRole(adminOnlyRoles), updateUnitHandler);
   app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(adminOnlyRoles), createSectorHandler);

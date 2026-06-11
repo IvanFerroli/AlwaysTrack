@@ -4,12 +4,15 @@ import { sendError, sendOk } from "../http/responses.js";
 import {
   createSector,
   createUnit,
+  getOrganizationSettings,
   getOrganizationTree,
   OrganizationError,
+  parseOrganizationSettingsUpdate,
   parseOrganizationUpdate,
   parseSectorInput,
   parseUnitInput,
   updateCurrentOrganization,
+  updateOrganizationSettings,
   updateSector,
   updateUnit
 } from "./organizations.service.js";
@@ -51,6 +54,24 @@ export async function getOrganizationHandler(request: Request, response: Respons
 export async function updateOrganizationHandler(request: Request, response: Response) {
   try {
     const organization = await updateCurrentOrganization(prisma, actorFrom(request), parseOrganizationUpdate(request.body));
+    return sendOk(response, { organization });
+  } catch (error) {
+    return sendOrganizationError(response, error);
+  }
+}
+
+export async function getOrganizationSettingsHandler(request: Request, response: Response) {
+  try {
+    const settings = await getOrganizationSettings(prisma, actorFrom(request));
+    return sendOk(response, settings);
+  } catch (error) {
+    return sendOrganizationError(response, error);
+  }
+}
+
+export async function updateOrganizationSettingsHandler(request: Request, response: Response) {
+  try {
+    const organization = await updateOrganizationSettings(prisma, actorFrom(request), parseOrganizationSettingsUpdate(request.body));
     return sendOk(response, { organization });
   } catch (error) {
     return sendOrganizationError(response, error);

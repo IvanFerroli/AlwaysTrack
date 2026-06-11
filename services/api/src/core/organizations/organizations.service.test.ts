@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSector,
   createUnit,
+  getOrganizationSettings,
   OrganizationError,
+  parseOrganizationSettingsUpdate,
   parseOrganizationUpdate,
+  updateOrganizationSettings,
   updateSector,
   updateUnit
 } from "./organizations.service.js";
@@ -17,6 +20,106 @@ describe("organizations service", () => {
       document: null,
       active: false
     });
+  });
+
+  it("parses editable organization settings without allowing invalid urls or env fields", () => {
+    expect(
+      parseOrganizationSettingsUpdate({
+        name: " AlwaysTrack Comercial ",
+        document: "",
+        logoUrl: "https://cdn.example.com/logo.png",
+        defaultTags: ["#Vendas", "ia", "x", "ia"],
+        dashboardDefaultRange: "90",
+        dashboardDefaultBucket: "week",
+        googleLoginAllowedDomains: ["evil.example"]
+      })
+    ).toEqual({
+      name: "AlwaysTrack Comercial",
+      document: null,
+      logoUrl: "https://cdn.example.com/logo.png",
+      defaultTags: ["ia", "vendas"],
+      dashboardDefaultRange: "90",
+      dashboardDefaultBucket: "week"
+    });
+
+    expect(parseOrganizationSettingsUpdate({ logoUrl: "javascript:alert(1)" })).toEqual({
+      name: undefined,
+      document: undefined,
+      logoUrl: undefined,
+      defaultTags: undefined,
+      dashboardDefaultRange: undefined,
+      dashboardDefaultBucket: undefined
+    });
+  });
+
+  it("returns organization settings with google domains as readonly env data", async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      id: "org-1",
+      name: "AlwaysTrack",
+      document: null,
+      logoUrl: "/logo.png",
+      settingsJson: JSON.stringify({ defaultTags: ["vendas"], dashboardDefaultRange: "7", dashboardDefaultBucket: "day" }),
+      active: true,
+      updatedAt: new Date("2026-06-11T12:00:00.000Z")
+    });
+    const prisma = { organization: { findFirst } };
+
+    const result = await getOrganizationSettings(prisma as never, actor, {
+      googleLoginAllowedDomains: ["alwaysfit.com.br"]
+    });
+
+    expect(result.organization.settings.defaultTags).toEqual(["vendas"]);
+    expect(result.googleLogin).toEqual({
+      allowedDomains: ["alwaysfit.com.br"],
+      editable: false,
+      source: "env"
+    });
+  });
+
+  it("updates organization settings and audits the allowed fields", async () => {
+    const update = vi.fn().mockResolvedValue({
+      id: "org-1",
+      name: "AlwaysTrack Comercial",
+      document: null,
+      logoUrl: "/assets/logo.png",
+      settingsJson: JSON.stringify({ defaultTags: ["notas"], dashboardDefaultRange: "30", dashboardDefaultBucket: "day" }),
+      active: true,
+      updatedAt: new Date("2026-06-11T12:00:00.000Z")
+    });
+    const auditCreate = vi.fn().mockResolvedValue({ id: "audit-1" });
+    const prisma = {
+      organization: {
+        findFirst: vi.fn().mockResolvedValue({ id: "org-1", settingsJson: null }),
+        update
+      },
+      auditLog: { create: auditCreate }
+    };
+
+    const result = await updateOrganizationSettings(prisma as never, actor, {
+      name: "AlwaysTrack Comercial",
+      logoUrl: "/assets/logo.png",
+      defaultTags: ["notas"]
+    });
+
+    expect(result.settings.defaultTags).toEqual(["notas"]);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "AlwaysTrack Comercial",
+          logoUrl: "/assets/logo.png",
+          settingsJson: expect.any(String)
+        })
+      })
+    );
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "organization.settings_update",
+          entityType: "Organization",
+          actorId: "admin-1"
+        })
+      })
+    );
   });
 
   it("creates units under the actor organization and audits the change", async () => {

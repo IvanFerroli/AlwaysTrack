@@ -1,4 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
+import type { ApiEnv } from "../../config/env.js";
+import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 
 export class OrganizationError extends Error {
@@ -16,6 +18,21 @@ export interface OrganizationUpdateInput {
   name?: string;
   document?: string | null;
   active?: boolean;
+}
+
+export interface OrganizationSettings {
+  defaultTags: string[];
+  dashboardDefaultRange: "7" | "30" | "90";
+  dashboardDefaultBucket: "day" | "week" | "month";
+}
+
+export interface OrganizationSettingsUpdateInput {
+  name?: string;
+  document?: string | null;
+  logoUrl?: string | null;
+  defaultTags?: string[];
+  dashboardDefaultRange?: OrganizationSettings["dashboardDefaultRange"];
+  dashboardDefaultBucket?: OrganizationSettings["dashboardDefaultBucket"];
 }
 
 export interface UnitInput {
@@ -42,8 +59,64 @@ function cleanOptionalText(value: unknown) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function cleanOptionalUrl(value: unknown) {
+  const cleaned = cleanOptionalText(value);
+  if (cleaned === undefined || cleaned === null) return cleaned;
+  if (cleaned.length > 500) return undefined;
+  if (cleaned.startsWith("/") || /^https?:\/\//i.test(cleaned)) return cleaned;
+  return undefined;
+}
+
 function cleanBoolean(value: unknown) {
   return typeof value === "boolean" ? value : undefined;
+}
+
+function cleanTags(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const tags = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const tag = item.trim().replace(/^#/, "").toLowerCase();
+    if (/^[a-z0-9][a-z0-9_-]{1,32}$/.test(tag)) {
+      tags.add(tag);
+    }
+  }
+  return [...tags].sort((left, right) => left.localeCompare(right)).slice(0, 30);
+}
+
+const fallbackSettings: OrganizationSettings = {
+  defaultTags: ["campanhas", "notas", "processo", "ranking", "sac", "treinamento", "vendas"],
+  dashboardDefaultRange: "30",
+  dashboardDefaultBucket: "day"
+};
+
+function parseSettingsJson(value: string | null | undefined): OrganizationSettings {
+  if (!value) return fallbackSettings;
+  try {
+    const parsed = JSON.parse(value) as Partial<OrganizationSettings>;
+    return {
+      defaultTags: cleanTags(parsed.defaultTags) ?? fallbackSettings.defaultTags,
+      dashboardDefaultRange:
+        parsed.dashboardDefaultRange === "7" || parsed.dashboardDefaultRange === "30" || parsed.dashboardDefaultRange === "90"
+          ? parsed.dashboardDefaultRange
+          : fallbackSettings.dashboardDefaultRange,
+      dashboardDefaultBucket:
+        parsed.dashboardDefaultBucket === "day" || parsed.dashboardDefaultBucket === "week" || parsed.dashboardDefaultBucket === "month"
+          ? parsed.dashboardDefaultBucket
+          : fallbackSettings.dashboardDefaultBucket
+    };
+  } catch {
+    return fallbackSettings;
+  }
+}
+
+function serializeSettings(currentSettingsJson: string | null | undefined, input: OrganizationSettingsUpdateInput) {
+  const current = parseSettingsJson(currentSettingsJson);
+  return JSON.stringify({
+    defaultTags: input.defaultTags ?? current.defaultTags,
+    dashboardDefaultRange: input.dashboardDefaultRange ?? current.dashboardDefaultRange,
+    dashboardDefaultBucket: input.dashboardDefaultBucket ?? current.dashboardDefaultBucket
+  } satisfies OrganizationSettings);
 }
 
 export function parseOrganizationUpdate(payload: unknown): OrganizationUpdateInput {
@@ -52,6 +125,24 @@ export function parseOrganizationUpdate(payload: unknown): OrganizationUpdateInp
     name: cleanText(input.name),
     document: cleanOptionalText(input.document),
     active: cleanBoolean(input.active)
+  };
+}
+
+export function parseOrganizationSettingsUpdate(payload: unknown): OrganizationSettingsUpdateInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    name: cleanText(input.name),
+    document: cleanOptionalText(input.document),
+    logoUrl: cleanOptionalUrl(input.logoUrl),
+    defaultTags: cleanTags(input.defaultTags),
+    dashboardDefaultRange:
+      input.dashboardDefaultRange === "7" || input.dashboardDefaultRange === "30" || input.dashboardDefaultRange === "90"
+        ? input.dashboardDefaultRange
+        : undefined,
+    dashboardDefaultBucket:
+      input.dashboardDefaultBucket === "day" || input.dashboardDefaultBucket === "week" || input.dashboardDefaultBucket === "month"
+        ? input.dashboardDefaultBucket
+        : undefined
   };
 }
 
@@ -122,6 +213,104 @@ export async function updateCurrentOrganization(
   });
 
   return organization;
+}
+
+export async function getOrganizationSettings(
+  prisma: PrismaClient,
+  actor: ActorContext,
+  env: Pick<ApiEnv, "googleLoginAllowedDomains"> = loadEnv()
+) {
+  const organization = await prisma.organization.findFirst({
+    where: { id: actor.organizationId },
+    select: {
+      id: true,
+      name: true,
+      document: true,
+      logoUrl: true,
+      settingsJson: true,
+      active: true,
+      updatedAt: true
+    }
+  });
+
+  if (!organization) {
+    throw new OrganizationError("NOT_FOUND");
+  }
+
+  return {
+    organization: {
+      id: organization.id,
+      name: organization.name,
+      document: organization.document,
+      logoUrl: organization.logoUrl,
+      active: organization.active,
+      updatedAt: organization.updatedAt,
+      settings: parseSettingsJson(organization.settingsJson)
+    },
+    googleLogin: {
+      allowedDomains: env.googleLoginAllowedDomains ?? [],
+      editable: false,
+      source: "env" as const
+    }
+  };
+}
+
+export async function updateOrganizationSettings(
+  prisma: PrismaClient,
+  actor: ActorContext,
+  input: OrganizationSettingsUpdateInput
+) {
+  const current = await prisma.organization.findFirst({
+    where: { id: actor.organizationId },
+    select: { id: true, settingsJson: true }
+  });
+  if (!current) {
+    throw new OrganizationError("NOT_FOUND");
+  }
+
+  const hasSettingsChange =
+    input.defaultTags !== undefined || input.dashboardDefaultRange !== undefined || input.dashboardDefaultBucket !== undefined;
+  if (!input.name && input.document === undefined && input.logoUrl === undefined && !hasSettingsChange) {
+    throw new OrganizationError("INVALID_INPUT");
+  }
+
+  const organization = await prisma.organization.update({
+    where: { id: actor.organizationId },
+    data: {
+      name: input.name,
+      document: input.document,
+      logoUrl: input.logoUrl,
+      settingsJson: hasSettingsChange ? serializeSettings(current.settingsJson, input) : undefined
+    },
+    select: {
+      id: true,
+      name: true,
+      document: true,
+      logoUrl: true,
+      settingsJson: true,
+      active: true,
+      updatedAt: true
+    }
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "organization.settings_update",
+    entityType: "Organization",
+    entityId: organization.id,
+    metadata: input
+  });
+
+  return {
+    id: organization.id,
+    name: organization.name,
+    document: organization.document,
+    logoUrl: organization.logoUrl,
+    active: organization.active,
+    updatedAt: organization.updatedAt,
+    settings: parseSettingsJson(organization.settingsJson)
+  };
 }
 
 export async function createUnit(prisma: PrismaClient, actor: ActorContext, input: UnitInput) {

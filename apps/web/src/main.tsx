@@ -52,6 +52,7 @@ import { HelpView } from "./views/help";
 import { NotesView } from "./views/notes";
 import { ProfileView } from "./views/profile";
 import { RankingView } from "./views/ranking";
+import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResponse } from "./views/settings";
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
@@ -462,6 +463,7 @@ const navItems: NavItem[] = [
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: adminOnlyRoles },
+  { key: "settings", label: "Configurações", description: "Organização e defaults", icon: "settings", roles: adminOnlyRoles },
   { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: commercialAllRoles },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: adminOnlyRoles },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
@@ -4028,6 +4030,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
   const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
+  const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile");
 
@@ -4064,6 +4067,21 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     await api("/v1/auth/logout", { method: "POST" });
     onLogout();
   }
+
+  useEffect(() => {
+    if (user.role !== "ADMIN") return;
+    let cancelled = false;
+    api<OrganizationSettingsResponse>("/v1/organization/settings")
+      .then((result) => {
+        if (!cancelled) setOrganizationSettings(result);
+      })
+      .catch(() => {
+        if (!cancelled) setOrganizationSettings(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.role]);
 
   function openNotificationHref(href?: string | null) {
     if (!href) return;
@@ -4122,9 +4140,9 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     <main className="app-frame">
       <aside className="sidebar">
         <div className="brand">
-          <BrandMark />
+          <BrandMark alt={organizationSettings?.organization.name ?? appName} src={organizationSettings?.organization.logoUrl} />
           <div>
-            <strong>{appName}</strong>
+            <strong>{organizationSettings?.organization.name ?? appName}</strong>
             <small>Notas, ranking e campanhas</small>
           </div>
         </div>
@@ -4208,7 +4226,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (
-          <SettingsView />
+          <OrganizationSettingsView onSaved={setOrganizationSettings} />
         ) : activeItem.key === "profile" ? (
           <ProfileView user={user} onProfileSaved={onUserChange} />
         ) : activeItem.key === "help" ? (

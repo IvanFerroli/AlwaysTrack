@@ -1426,6 +1426,39 @@ button .icon {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.section-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.section-heading .brand-mark {
+  flex: 0 0 auto;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-list span {
+  background: var(--color-primary-soft);
+  border: 1px solid #cce9ef;
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.status-ok {
+  color: #0f7b5f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 fieldset {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
