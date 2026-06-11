@@ -62,6 +62,7 @@ interface WikiPageDetail extends WikiPageSummary {
   editRequests: WikiEditRequestItem[];
 }
 
+const defaultKnowledgeTags = ["vendas", "notas", "processo", "treinamento", "sac", "ranking", "campanhas"];
 
 function wikiChangeSummary(before: string, after: string) {
   const beforeLines = before.split(/\r?\n/);
@@ -86,6 +87,14 @@ function extractWikiTags(content: string) {
 
 function wikiTagsFor(item: { content: string; tags?: string[] }) {
   return item.tags?.length ? item.tags : extractWikiTags(item.content);
+}
+
+function tagsText(value: string[]) {
+  return value.join(", ");
+}
+
+function parseTagsText(value: string) {
+  return [...new Set(value.split(",").map((tag) => tag.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function wikiLineDiff(before: string, after: string) {
@@ -500,12 +509,15 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
   const [query, setQuery] = useState("");
   const [pageStatus, setPageStatus] = useState("ACTIVE");
   const [selectedTag, setSelectedTag] = useState("");
+  const [recent, setRecent] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
+  const [tagDraft, setTagDraft] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editSlug, setEditSlug] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editTagDraft, setEditTagDraft] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [selectedRevisionVersion, setSelectedRevisionVersion] = useState<number | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -523,6 +535,8 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     setError(null);
     const search = new URLSearchParams();
     if (query) search.set("query", query);
+    if (selectedTag) search.set("tags", selectedTag);
+    if (recent) search.set("recent", recent);
     if (user.role === "ADMIN" && pageStatus !== "ACTIVE") search.set("status", pageStatus);
     try {
       const result = await api<{ items: WikiPageSummary[]; total: number }>(`/v1/wiki/pages?${search.toString()}`);
@@ -565,6 +579,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     setEditTitle(page.title);
     setEditSlug(page.slug);
     setEditContent(page.content);
+    setEditTagDraft(tagsText(wikiTagsFor(page)));
     setSelectedRevisionVersion(null);
     setDraftMessage(null);
     if (updateUrl) window.history.replaceState(null, "", wikiPathForSlug(page.slug));
@@ -637,11 +652,12 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     await run(async () => {
       const result = await api<{ page: WikiPageSummary }>("/v1/wiki/pages", {
         method: "POST",
-        body: JSON.stringify({ title, slug: slug || undefined, content })
+        body: JSON.stringify({ title, slug: slug || undefined, content, tags: parseTagsText(tagDraft) })
       });
       setTitle("");
       setSlug("");
       setContent("");
+      setTagDraft("");
       await loadPages(result.page.id);
     });
   }
@@ -652,7 +668,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     await run(async () => {
       await api(`/v1/wiki/pages/${selected.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title: editTitle, slug: editSlug || undefined, content: editContent, baseVersion: selected.version })
+        body: JSON.stringify({ title: editTitle, slug: editSlug || undefined, content: editContent, tags: parseTagsText(editTagDraft), baseVersion: selected.version })
       });
       window.localStorage.removeItem(draftKey(selected.id));
       setDraftMessage(null);
@@ -724,7 +740,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
 
   const pendingForSelected = selected?.editRequests.filter((request) => request.status === "PENDING") ?? [];
   const wikiTags = useMemo(() => {
-    const tags = new Set<string>();
+    const tags = new Set<string>(defaultKnowledgeTags);
     for (const page of pages) {
       for (const tag of wikiTagsFor(page)) tags.add(tag);
     }
@@ -754,10 +770,35 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
             key: "query",
             label: "Busca",
             value: query,
-            placeholder: "Titulo, slug ou conteudo",
-            help: "Busca paginas por titulo, slug ou conteudo publicado.",
+            placeholder: "Titulo, slug, conteudo ou tag",
+            help: "Busca paginas por titulo, slug, conteudo publicado e tags.",
             helpHref: "#wiki",
             onChange: setQuery
+          },
+          {
+            key: "tag",
+            label: "Tag",
+            value: selectedTag,
+            type: "select",
+            placeholder: "Todas",
+            options: wikiTags.map((tag) => ({ value: tag, label: `#${tag}` })),
+            help: "Filtra por tag normalizada.",
+            helpHref: "#wiki",
+            onChange: setSelectedTag
+          },
+          {
+            key: "recent",
+            label: "Recencia",
+            value: recent,
+            type: "select",
+            placeholder: "Todas",
+            options: [
+              { value: "7", label: "7 dias" },
+              { value: "30", label: "30 dias" }
+            ],
+            help: "Filtra paginas atualizadas recentemente.",
+            helpHref: "#wiki",
+            onChange: setRecent
           },
           ...(user.role === "ADMIN"
             ? [
@@ -860,6 +901,12 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                 <span className="label-row">Slug opcional <InfoTip text="Slug vira o endereco /wiki/slug-da-pagina; use texto curto e estavel." href="#wiki" /></span>
                 <input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="primeiros-passos" />
               </label>
+              <div className="full-span">
+                <label>
+                  Tags
+                  <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="vendas, processo, treinamento" />
+                </label>
+              </div>
               <div className="full-span">
                 <WikiMarkdownEditor label="Conteudo" rows={6} value={content} onChange={setContent} onUploadImage={(file) => uploadWikiImage(file)} />
               </div>
@@ -1016,6 +1063,12 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                       <input value={editSlug} onChange={(event) => setEditSlug(event.target.value)} />
                     </label>
                   ) : null}
+                  {user.role === "ADMIN" ? (
+                    <label>
+                      Tags
+                      <input value={editTagDraft} onChange={(event) => setEditTagDraft(event.target.value)} placeholder="vendas, processo, treinamento" />
+                    </label>
+                  ) : null}
                   <WikiMarkdownEditor label="Conteudo" value={editContent} onChange={setEditContent} onUploadImage={(file) => uploadWikiImage(file, selected.id)} />
                   <div className="form-actions">
                     <button disabled={saving || !editTitle.trim() || !editContent.trim()}>
@@ -1126,4 +1179,3 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     </div>
   );
 }
-

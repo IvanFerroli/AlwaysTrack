@@ -1,7 +1,7 @@
 # TASK-AT-061 - Wiki and FAQ tags with combined search
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-061-knowledge-tags-and-combined-search.md
@@ -21,7 +21,7 @@ O AlwaysTrack tambem e base transversal de conhecimento. Para a equipe achar pro
 
 ## Dependencias
 - satisfeitas: Wiki, FAQ, promocao FAQ->Wiki e busca basica existem.
-- em aberto: definir permissao de criacao/edicao de tags.
+- em aberto: permissoes granulares de administracao de taxonomia ficam para `TASK-AT-063`/hardening futuro.
 
 ## Tags padrao sugeridas
 - `vendas`
@@ -59,12 +59,12 @@ O AlwaysTrack tambem e base transversal de conhecimento. Para a equipe achar pro
 - Permissoes granulares por tag.
 
 ## Checklist
-1. Definir schema de tags.
-2. Seedar tags padrao.
-3. Criar endpoints de listagem/criacao/associacao.
-4. Atualizar Wiki e FAQ UI.
-5. Adicionar testes combinando filtros.
-6. Validar migracao sem perder tags atuais extraidas do conteudo.
+1. [x] Definir schema de tags.
+2. [x] Expor tags padrao como opcoes iniciais na UI.
+3. [x] Criar contrato de criacao/associacao via payload de Wiki/FAQ.
+4. [x] Atualizar Wiki e FAQ UI.
+5. [x] Adicionar testes combinando filtros.
+6. [x] Validar migracao sem perder tags atuais extraidas do conteudo.
 
 ## Acceptance Criteria
 1. Usuario encontra Wiki por titulo, conteudo e tag.
@@ -77,6 +77,11 @@ O AlwaysTrack tambem e base transversal de conhecimento. Para a equipe achar pro
 1. Wiki e FAQ compartilham mecanica coerente de tags.
 2. Busca combinada testada em backend e UI.
 3. `npm run test:all` passa.
+
+## Execucao
+- execucao: `EXEC-AT-059-knowledge-tags-and-combined-search.md`
+- resultado: Wiki e FAQ aceitam tags customizadas normalizadas, exibem tags padrao, filtram por texto + tag + recencia e preservam tags ao promover FAQ para Wiki.
+- nota tecnica: a primeira versao usa `tagsJson` normalizado em `WikiPage`/`FaqThread` para reduzir impacto de schema; uma tabela global de taxonomia e permissoes granulares pode entrar em configuracoes/hardening.
 
 ## Validacao
 - comandos/checks: `npm run test --workspace @alwaystrack/api -- wiki.service.test.ts faq.service.test.ts`, `npm run typecheck --workspace @alwaystrack/web`, `npm run test:e2e -- --project=api`, `npm run test:all`

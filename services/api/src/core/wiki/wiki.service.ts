@@ -28,6 +28,7 @@ export interface WikiPageInput {
   content?: string;
   slug?: string;
   baseVersion?: number;
+  tags?: string[];
 }
 
 export interface WikiEditRequestInput {
@@ -57,6 +58,8 @@ export interface WikiAttachmentUploadInput {
 /** Search and status filters for the internal Wiki index. */
 export interface WikiFilters {
   query?: string;
+  tags?: string[];
+  recent?: string;
   status?: string;
   pageStatus?: "ACTIVE" | "ARCHIVED" | "ALL";
 }
@@ -64,8 +67,43 @@ export interface WikiFilters {
 const wikiContentFormat = "MARKDOWN";
 const allowedWikiAttachmentMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-function withWikiContentFormat<T extends { content: string }>(item: T) {
-  return { ...item, contentFormat: wikiContentFormat, tags: extractWikiTags(item.content) };
+function normalizedTags(values: unknown[] = []) {
+  const tags = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const normalized = value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/^#/, "")
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32);
+    if (normalized.length >= 2) tags.add(normalized);
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b));
+}
+
+function tagsFromJson(value: string | null | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? normalizedTags(parsed) : [];
+  } catch {
+    return [];
+  }
+}
+
+function tagsJsonFor(values: unknown[] = []) {
+  return JSON.stringify(normalizedTags(values));
+}
+
+function combinedWikiTags(input: { content?: string | null; tagsJson?: string | null; tags?: string[] }) {
+  return normalizedTags([...tagsFromJson(input.tagsJson), ...extractWikiTags(input.content), ...(input.tags ?? [])]);
+}
+
+function withWikiContentFormat<T extends { content: string; tagsJson?: string | null }>(item: T) {
+  return { ...item, contentFormat: wikiContentFormat, tags: combinedWikiTags(item) };
 }
 
 function withWikiRequestContentFormat<T extends { content: string; baseVersion?: number; page?: { content?: string; version?: number; revisions?: Array<{ version: number; content: string; title: string }> } }>(item: T) {
@@ -88,7 +126,7 @@ function withWikiRequestContentFormat<T extends { content: string; baseVersion?:
   };
 }
 
-function withWikiPageDetailFormat<T extends { content: string; revisions?: Array<{ content: string }>; editRequests?: Array<{ content: string }> }>(page: T) {
+function withWikiPageDetailFormat<T extends { content: string; tagsJson?: string | null; revisions?: Array<{ content: string }>; editRequests?: Array<{ content: string }> }>(page: T) {
   return {
     ...withWikiContentFormat(page),
     revisions: page.revisions?.map(withWikiContentFormat),
@@ -148,12 +186,25 @@ function slugify(value: string) {
 }
 
 function extractWikiTags(content: string | null | undefined) {
-  const tags = new Set<string>();
+  const tags: string[] = [];
   if (!content) return [];
   for (const match of content.matchAll(/(^|\s)#([a-z0-9][a-z0-9_-]{1,32})/gi)) {
-    tags.add(match[2].toLowerCase());
+    tags.push(match[2]);
   }
-  return [...tags].sort((a, b) => a.localeCompare(b));
+  return normalizedTags(tags);
+}
+
+function tagWhere(tags: string[] | undefined) {
+  const normalized = normalizedTags(tags ?? []);
+  return normalized.length ? normalized.map((tag) => ({ tagsJson: { contains: `"${tag}"` } })) : undefined;
+}
+
+function recentSince(value: string | undefined) {
+  const days = value === "7" ? 7 : value === "30" ? 30 : undefined;
+  if (!days) return undefined;
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - days);
+  return since;
 }
 
 function ensureAdmin(actor: CurrentUser) {
@@ -166,6 +217,7 @@ function wikiPageSelect() {
     slug: true,
     title: true,
     content: true,
+    tagsJson: true,
     version: true,
     active: true,
     publishedAt: true,
@@ -206,7 +258,8 @@ export function parseWikiPageInput(payload: unknown): WikiPageInput {
     title: cleanText(input.title),
     content: cleanText(input.content),
     slug: cleanText(input.slug),
-    baseVersion: cleanNumber(input.baseVersion)
+    baseVersion: cleanNumber(input.baseVersion),
+    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined
   };
 }
 
@@ -245,6 +298,8 @@ export function parseWikiAttachmentUploadInput(input: { query: Record<string, un
 export function parseWikiFilters(query: Record<string, unknown>): WikiFilters {
   return {
     query: cleanText(query.query),
+    tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
+    recent: cleanText(query.recent),
     status: cleanStatus(query.status),
     pageStatus: cleanPageStatus(query.status)
   };
@@ -262,8 +317,15 @@ export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, fi
   const where: Prisma.WikiPageWhereInput = {
     organizationId: actor.organizationId,
     active,
+    updatedAt: recentSince(filters.recent) ? { gte: recentSince(filters.recent) } : undefined,
+    AND: tagWhere(filters.tags),
     OR: filters.query
-      ? [{ title: { contains: filters.query } }, { content: { contains: filters.query } }, { slug: { contains: filters.query } }]
+      ? [
+          { title: { contains: filters.query } },
+          { content: { contains: filters.query } },
+          { slug: { contains: filters.query } },
+          { tagsJson: { contains: filters.query.toLowerCase() } }
+        ]
       : undefined
   };
   const [items, total] = await Promise.all([
@@ -332,6 +394,7 @@ export async function createWikiPage(prisma: PrismaClient, actor: CurrentUser, i
       slug,
       title: input.title,
       content: input.content,
+      tagsJson: tagsJsonFor([...(input.tags ?? []), ...extractWikiTags(input.content)]),
       version: 1,
       createdById: actor.id,
       updatedById: actor.id
@@ -387,6 +450,7 @@ export async function updateWikiPage(prisma: PrismaClient, actor: CurrentUser, p
       slug,
       title: input.title,
       content: input.content,
+      tagsJson: tagsJsonFor([...(input.tags ?? []), ...extractWikiTags(input.content)]),
       version: existing.version + 1,
       updatedById: actor.id,
       publishedAt: new Date()
@@ -478,6 +542,7 @@ export async function restoreWikiRevision(prisma: PrismaClient, actor: CurrentUs
     data: {
       title: revision.title,
       content: revision.content,
+      tagsJson: tagsJsonFor(extractWikiTags(revision.content)),
       version: page.version + 1,
       active: true,
       updatedById: actor.id,
@@ -591,6 +656,7 @@ export async function approveWikiEditRequest(prisma: PrismaClient, actor: Curren
     data: {
       title: request.title,
       content: request.content,
+      tagsJson: tagsJsonFor(extractWikiTags(request.content)),
       version: request.page.version + 1,
       updatedById: actor.id,
       publishedAt: new Date()

@@ -39,11 +39,14 @@ export interface FaqThreadInput {
   title?: string;
   body?: string | null;
   status?: string;
+  tags?: string[];
 }
 
 export interface FaqThreadFilters {
   query?: string;
   status?: string;
+  tags?: string[];
+  recent?: string;
 }
 
 export interface FaqCommentInput {
@@ -90,6 +93,63 @@ function cleanReactionType(value: unknown) {
 
 function cleanTargetType(value: unknown) {
   return value === "COMMENT" ? "COMMENT" : value === "THREAD" ? "THREAD" : undefined;
+}
+
+function normalizedTags(values: unknown[] = []) {
+  const tags = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const normalized = value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/^#/, "")
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 32);
+    if (normalized.length >= 2) tags.add(normalized);
+  }
+  return [...tags].sort((a, b) => a.localeCompare(b));
+}
+
+function tagsJsonFor(values: unknown[] = []) {
+  return JSON.stringify(normalizedTags(values));
+}
+
+function tagsFromJson(value: string | null | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? normalizedTags(parsed) : [];
+  } catch {
+    return [];
+  }
+}
+
+function extractInlineTags(...values: Array<string | null | undefined>) {
+  const tags: string[] = [];
+  for (const value of values) {
+    if (!value) continue;
+    for (const match of value.matchAll(/(^|\s)#([a-z0-9][a-z0-9_-]{1,32})/gi)) tags.push(match[2]);
+  }
+  return normalizedTags(tags);
+}
+
+function tagWhere(tags: string[] | undefined) {
+  const normalized = normalizedTags(tags ?? []);
+  return normalized.length ? normalized.map((tag) => ({ tagsJson: { contains: `"${tag}"` } })) : undefined;
+}
+
+function recentSince(value: string | undefined) {
+  const days = value === "7" ? 7 : value === "30" ? 30 : undefined;
+  if (!days) return undefined;
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - days);
+  return since;
+}
+
+function withThreadTags<T extends { title: string; body: string | null; tagsJson?: string | null }>(thread: T) {
+  return { ...thread, tags: normalizedTags([...tagsFromJson(thread.tagsJson), ...extractInlineTags(thread.title, thread.body)]) };
 }
 
 function slugify(value: string) {
@@ -150,14 +210,17 @@ export function parseFaqThreadInput(payload: unknown): FaqThreadInput {
   return {
     title: cleanText(input.title),
     body: cleanOptionalText(input.body),
-    status: cleanThreadStatus(input.status)
+    status: cleanThreadStatus(input.status),
+    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined
   };
 }
 
 export function parseFaqThreadFilters(query: Record<string, unknown>): FaqThreadFilters {
   return {
     query: cleanText(query.query),
-    status: cleanThreadStatus(query.status)
+    status: cleanThreadStatus(query.status),
+    tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
+    recent: cleanText(query.recent)
   };
 }
 
@@ -286,10 +349,13 @@ function faqThreadWhere(actor: CurrentUser, filters: FaqThreadFilters = {}): Pri
   return {
     organizationId: actor.organizationId,
     status: filters.status,
+    updatedAt: recentSince(filters.recent) ? { gte: recentSince(filters.recent) } : undefined,
+    AND: tagWhere(filters.tags),
     OR: filters.query
       ? [
           { title: { contains: filters.query } },
           { body: { contains: filters.query } },
+          { tagsJson: { contains: filters.query.toLowerCase() } },
           { comments: { some: { body: { contains: filters.query } } } }
         ]
       : undefined
@@ -306,7 +372,7 @@ export async function listFaqThreads(prisma: PrismaClient, actor: CurrentUser, f
     }),
     prisma.faqThread.count({ where })
   ]);
-  return { items, total };
+  return { items: items.map(withThreadTags), total };
 }
 
 export async function createFaqThread(prisma: PrismaClient, actor: CurrentUser, input: FaqThreadInput) {
@@ -317,6 +383,7 @@ export async function createFaqThread(prisma: PrismaClient, actor: CurrentUser, 
       authorId: actor.id,
       title: input.title,
       body: input.body ?? null,
+      tagsJson: tagsJsonFor([...(input.tags ?? []), ...extractInlineTags(input.title, input.body)]),
       status: "OPEN"
     },
     include: faqThreadInclude
@@ -340,7 +407,7 @@ export async function createFaqThread(prisma: PrismaClient, actor: CurrentUser, 
     href: "/faq",
     dedupeKey: `faq.thread.created:${thread.id}`
   });
-  return thread;
+  return withThreadTags(thread);
 }
 
 async function getFaqThreadOrThrow(prisma: PrismaClient, actor: CurrentUser, threadId: string) {
@@ -349,7 +416,7 @@ async function getFaqThreadOrThrow(prisma: PrismaClient, actor: CurrentUser, thr
     include: faqThreadInclude
   });
   if (!thread) throw new FaqError("NOT_FOUND");
-  return thread;
+  return withThreadTags(thread);
 }
 
 export async function addFaqComment(prisma: PrismaClient, actor: CurrentUser, threadId: string, input: FaqCommentInput) {
@@ -385,7 +452,7 @@ export async function addFaqComment(prisma: PrismaClient, actor: CurrentUser, th
     href: "/faq",
     dedupeKey: `faq.thread.commented:${comment.id}`
   });
-  return thread;
+  return withThreadTags(thread);
 }
 
 export async function updateFaqThreadStatus(prisma: PrismaClient, actor: CurrentUser, threadId: string, input: FaqThreadInput) {
@@ -416,7 +483,7 @@ export async function updateFaqThreadStatus(prisma: PrismaClient, actor: Current
     href: "/faq",
     dedupeKey: `faq.thread.status:${thread.id}:${thread.status}`
   });
-  return thread;
+  return withThreadTags(thread);
 }
 
 async function assertFaqReactionTarget(prisma: PrismaClient, actor: CurrentUser, threadId: string, input: FaqReactionInput) {
@@ -496,7 +563,7 @@ export async function setFaqReaction(prisma: PrismaClient, actor: CurrentUser, t
       dedupeKey: `faq.thread.reacted:${input.targetType}:${input.targetId}:${input.type}:${actor.id}`
     });
   }
-  return thread;
+  return withThreadTags(thread);
 }
 
 function wikiMarkdownFromThread(thread: Awaited<ReturnType<typeof getFaqThreadOrThrow>>) {
@@ -516,7 +583,7 @@ function wikiMarkdownFromThread(thread: Awaited<ReturnType<typeof getFaqThreadOr
 export async function promoteFaqThreadToWiki(prisma: PrismaClient, actor: CurrentUser, threadId: string) {
   ensureThreadModerator(actor);
   const thread = await getFaqThreadOrThrow(prisma, actor, threadId);
-  if (thread.wikiPage) return thread;
+  if (thread.wikiPage) return withThreadTags(thread);
 
   const baseSlug = slugify(thread.title);
   const existing = await prisma.wikiPage.findFirst({ where: { organizationId: actor.organizationId, slug: baseSlug } });
@@ -527,6 +594,7 @@ export async function promoteFaqThreadToWiki(prisma: PrismaClient, actor: Curren
       slug,
       title: thread.title,
       content: wikiMarkdownFromThread(thread),
+      tagsJson: tagsJsonFor([...tagsFromJson(thread.tagsJson), ...extractInlineTags(thread.title, thread.body)]),
       version: 1,
       createdById: actor.id,
       updatedById: actor.id
@@ -580,7 +648,7 @@ export async function promoteFaqThreadToWiki(prisma: PrismaClient, actor: Curren
     href: `/wiki/${page.slug}`,
     dedupeKey: `faq.thread.promoted_to_wiki:${updated.id}`
   });
-  return updated;
+  return withThreadTags(updated);
 }
 
 function digitsOnly(value: string | null | undefined) {

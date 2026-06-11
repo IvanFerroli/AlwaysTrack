@@ -7,6 +7,7 @@ import {
   createFaqItem,
   FaqError,
   listFaqItems,
+  listFaqThreads,
   promoteFaqThreadToWiki,
   listPublicFaqItems,
   parseFaqCommentInput,
@@ -66,9 +67,21 @@ describe("faq service", () => {
     expect(parseFaqThreadInput({ title: " Como aprovar? ", body: "", status: "RESOLVED" })).toEqual({
       title: "Como aprovar?",
       body: null,
-      status: "RESOLVED"
+      status: "RESOLVED",
+      tags: undefined
     });
-    expect(parseFaqThreadFilters({ query: " nota ", status: "OPEN" })).toEqual({ query: "nota", status: "OPEN" });
+    expect(parseFaqThreadInput({ title: " Como aprovar? ", body: "#Notas", tags: ["Vendas", "nota fiscal"] })).toEqual({
+      title: "Como aprovar?",
+      body: "#Notas",
+      status: undefined,
+      tags: ["nota-fiscal", "vendas"]
+    });
+    expect(parseFaqThreadFilters({ query: " nota ", status: "OPEN", tags: " vendas,nota fiscal ", recent: "30" })).toEqual({
+      query: "nota",
+      status: "OPEN",
+      tags: ["nota-fiscal", "vendas"],
+      recent: "30"
+    });
     expect(parseFaqCommentInput({ body: " Resposta " })).toEqual({ body: "Resposta" });
     expect(parseFaqReactionInput({ targetType: "THREAD", targetId: "thread-1", type: "HELPFUL", active: false })).toEqual({
       targetType: "THREAD",
@@ -215,7 +228,8 @@ describe("faq service", () => {
     const thread = {
       id: "thread-1",
       title: "Como aprovar nota?",
-      body: "Tenho duvida",
+      body: "Tenho duvida #notas",
+      tagsJson: "[\"notas\",\"vendas\"]",
       status: "OPEN",
       author: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" },
       wikiPage: null,
@@ -228,15 +242,40 @@ describe("faq service", () => {
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
-    await createFaqThread(prisma as never, admin, { title: "Como aprovar nota?", body: "Tenho duvida" });
+    const result = await createFaqThread(prisma as never, admin, { title: "Como aprovar nota?", body: "Tenho duvida #notas", tags: ["vendas"] });
 
+    expect(result.tags).toEqual(["notas", "vendas"]);
     expect(prisma.faqThread.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ organizationId: "org-1", authorId: "admin-1", status: "OPEN" })
+        data: expect.objectContaining({
+          organizationId: "org-1",
+          authorId: "admin-1",
+          status: "OPEN",
+          tagsJson: "[\"notas\",\"vendas\"]"
+        })
       })
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "faq.thread.create", entityType: "FaqThread" }) })
+    );
+  });
+
+  it("filters FAQ threads by query, tag, and recency", async () => {
+    const prisma = {
+      faqThread: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
+    };
+
+    await listFaqThreads(prisma as never, admin, { query: "nota", tags: ["vendas"], recent: "30" });
+
+    expect(prisma.faqThread.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          updatedAt: expect.objectContaining({ gte: expect.any(Date) }),
+          AND: expect.arrayContaining([{ tagsJson: { contains: "\"vendas\"" } }]),
+          OR: expect.arrayContaining([{ tagsJson: { contains: "nota" } }])
+        })
+      })
     );
   });
 

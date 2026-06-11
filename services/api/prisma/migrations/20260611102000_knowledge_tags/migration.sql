@@ -1,0 +1,2 @@
+ALTER TABLE "WikiPage" ADD COLUMN "tagsJson" TEXT;
+ALTER TABLE "FaqThread" ADD COLUMN "tagsJson" TEXT;

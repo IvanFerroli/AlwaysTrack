@@ -48,7 +48,15 @@ describe("wiki service", () => {
       title: "Guia",
       content: "Conteudo",
       slug: undefined,
-      baseVersion: 2
+      baseVersion: 2,
+      tags: undefined
+    });
+    expect(parseWikiPageInput({ title: " Guia ", content: " Conteudo ", tags: [" #Vendas ", "Vendas", "Nota Fiscal"] })).toEqual({
+      title: "Guia",
+      content: "Conteudo",
+      slug: undefined,
+      baseVersion: undefined,
+      tags: ["nota-fiscal", "vendas"]
     });
     expect(parseWikiEditRequestInput({ pageId: " page-1 ", title: " Novo ", content: " Texto ", baseVersion: 1 })).toEqual({
       pageId: "page-1",
@@ -84,6 +92,26 @@ describe("wiki service", () => {
           organizationId: "org-1",
           active: true,
           OR: expect.arrayContaining([{ title: { contains: "processo" } }])
+        })
+      })
+    );
+  });
+
+  it("filters pages by combined query, tag, and recency", async () => {
+    const prisma = {
+      wikiPage: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
+    };
+
+    await listWikiPages(prisma as never, admin, { query: "processo", tags: ["vendas"], recent: "7" });
+
+    expect(prisma.wikiPage.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          active: true,
+          updatedAt: expect.objectContaining({ gte: expect.any(Date) }),
+          AND: expect.arrayContaining([{ tagsJson: { contains: "\"vendas\"" } }]),
+          OR: expect.arrayContaining([{ tagsJson: { contains: "processo" } }])
         })
       })
     );
@@ -166,13 +194,19 @@ describe("wiki service", () => {
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
-    const page = await createWikiPage(prisma as never, admin, { title: "Primeiros passos", content: "Use." });
+    const page = await createWikiPage(prisma as never, admin, { title: "Primeiros passos", content: "Use.", tags: ["processo"] });
 
     expect(page.id).toBe("page-1");
     expect(page.contentFormat).toBe("MARKDOWN");
     expect(page.tags).toEqual(["onboarding"]);
     expect(prisma.wikiPage.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ organizationId: "org-1", slug: "primeiros-passos" }) })
+      expect.objectContaining({
+        data: expect.objectContaining({
+          organizationId: "org-1",
+          slug: "primeiros-passos",
+          tagsJson: "[\"processo\"]"
+        })
+      })
     );
     expect(prisma.wikiRevision.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ pageId: "page-1", version: 1 }) })

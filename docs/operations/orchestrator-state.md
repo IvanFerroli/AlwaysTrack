@@ -222,6 +222,15 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-058) |
 | npm run build --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-058) |
 | npm run test:all | passou — 28 arquivos, 175 testes + 1 skip Redis + TypeDoc | 2026-06-11 (EXEC-AT-058) |
+| npm run prisma:generate | passou | 2026-06-11 (EXEC-AT-059) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-11 (EXEC-AT-059) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-059) |
+| npm run test --workspace @alwaystrack/api -- wiki.service.test.ts faq.service.test.ts | passou — 34 testes | 2026-06-11 (EXEC-AT-059) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-059) |
+| npm run test:all | passou — 28 arquivos, 177 testes + 1 skip Redis + TypeDoc | 2026-06-11 (EXEC-AT-059) |
+| npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-11 (EXEC-AT-059) |
+| npm run repo:hygiene | passou | 2026-06-11 (EXEC-AT-059) |
+| git diff --check | passou | 2026-06-11 (EXEC-AT-059) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

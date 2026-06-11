@@ -25,6 +25,7 @@ interface FaqThreadItem {
   id: string;
   title: string;
   body: string | null;
+  tags?: string[];
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -49,13 +50,22 @@ function faqReactionCount(reactions: FaqReactionItem[], type: string) {
   return reactions.filter((reaction) => reaction.type === type).length;
 }
 
+function parseTagsText(value: string) {
+  return [...new Set(value.split(",").map((tag) => tag.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+const defaultKnowledgeTags = ["vendas", "notas", "processo", "treinamento", "sac", "ranking", "campanhas"];
+
 export function FaqThreadsView({ user }: { user: CurrentUser }) {
   const [threads, setThreads] = useState<FaqThreadItem[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
+  const [recent, setRecent] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [tagDraft, setTagDraft] = useState("");
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +78,8 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
     const search = new URLSearchParams();
     if (query) search.set("query", query);
     if (status) search.set("status", status);
+    if (selectedTag) search.set("tags", selectedTag);
+    if (recent) search.set("recent", recent);
     try {
       const result = await api<{ items: FaqThreadItem[]; total: number }>(`/v1/faq/threads?${search.toString()}`);
       setThreads(result.items);
@@ -101,10 +113,11 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
     await run(async () => {
       const result = await api<{ thread: FaqThreadItem }>("/v1/faq/threads", {
         method: "POST",
-        body: JSON.stringify({ title, body: body || null })
+        body: JSON.stringify({ title, body: body || null, tags: parseTagsText(tagDraft) })
       });
       setTitle("");
       setBody("");
+      setTagDraft("");
       await load(result.thread.id);
     });
   }
@@ -153,6 +166,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
   }
 
   const selected = threads.find((thread) => thread.id === selectedId) ?? null;
+  const faqTags = [...new Set([...defaultKnowledgeTags, ...threads.flatMap((thread) => thread.tags ?? [])])].sort((a, b) => a.localeCompare(b));
   const statusOptions = [
     { value: "OPEN", label: "Aberta" },
     { value: "ANSWERED", label: "Respondida" },
@@ -165,7 +179,22 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
       <OperationalFilters
         fields={[
           { key: "query", label: "Busca", value: query, placeholder: "Pergunta, resposta ou autor", help: "Busca em titulo, corpo e comentarios da FAQ.", helpHref: "#faq", onChange: setQuery },
-          { key: "status", label: "Status", value: status, type: "select", placeholder: "Todos", options: statusOptions, help: "Estado operacional da thread.", helpHref: "#faq", onChange: setStatus }
+          { key: "status", label: "Status", value: status, type: "select", placeholder: "Todos", options: statusOptions, help: "Estado operacional da thread.", helpHref: "#faq", onChange: setStatus },
+          { key: "tag", label: "Tag", value: selectedTag, type: "select", placeholder: "Todas", options: faqTags.map((tag) => ({ value: tag, label: `#${tag}` })), help: "Filtra perguntas por tag.", helpHref: "#faq", onChange: setSelectedTag },
+          {
+            key: "recent",
+            label: "Recencia",
+            value: recent,
+            type: "select",
+            placeholder: "Todas",
+            options: [
+              { value: "7", label: "7 dias" },
+              { value: "30", label: "30 dias" }
+            ],
+            help: "Filtra threads atualizadas recentemente.",
+            helpHref: "#faq",
+            onChange: setRecent
+          }
         ]}
         onSubmit={() => void load()}
       />
@@ -185,6 +214,10 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
           <label>
             Contexto
             <textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
+          </label>
+          <label>
+            Tags
+            <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="vendas, processo, treinamento" />
           </label>
           <div className="form-actions">
             <button disabled={saving || !title.trim()}>Publicar pergunta</button>
@@ -208,6 +241,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
               {threads.map((thread) => (
                 <button className={selectedId === thread.id ? "wiki-page-button active" : "wiki-page-button"} key={thread.id} type="button" onClick={() => setSelectedId(thread.id)}>
                   <strong>{thread.title}</strong>
+                  {thread.tags?.length ? <small>{thread.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
                   <span>{thread.status} / {thread.comments.length} resposta(s)</span>
                   <small>{thread.author.name} em {formatDateBr(thread.createdAt)}</small>
                   {thread.wikiPage ? <small>Wiki: /{thread.wikiPage.slug}</small> : null}
@@ -248,6 +282,15 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
                 </div>
               </div>
               {selected.body ? <p>{selected.body}</p> : null}
+              {selected.tags?.length ? (
+                <div className="wiki-tag-filter">
+                  {selected.tags.map((tag) => (
+                    <button key={tag} type="button" onClick={() => setSelectedTag(tag)}>
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="row-actions">
                 <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("THREAD", selected.id, "SAME_DOUBT")}>
                   Tambem tenho ({faqReactionCount(selected.reactions, "SAME_DOUBT")})

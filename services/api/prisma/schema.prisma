@@ -610,6 +610,7 @@ model FaqThread {
   authorId       String
   title          String
   body           String?
+  tagsJson       String?
   status         String   @default("OPEN")
   wikiPageId     String?
   promotedAt     DateTime?
@@ -684,6 +685,7 @@ model WikiPage {
   slug           String
   title          String
   content        String
+  tagsJson       String?
   version        Int      @default(1)
   active         Boolean  @default(true)
   createdById    String
