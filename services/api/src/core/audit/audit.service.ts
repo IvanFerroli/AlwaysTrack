@@ -40,7 +40,7 @@ export async function listAuditLogs(prisma: PrismaClient, input: ListAuditLogsIn
   const where: Prisma.AuditLogWhereInput = {
     organizationId: input.organizationId,
     actorId: input.actorId,
-    action: input.action,
+    action: input.action ? { contains: input.action } : undefined,
     entityType: input.entityType,
     entityId: input.entityId,
     createdAt:

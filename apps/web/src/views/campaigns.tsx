@@ -231,7 +231,7 @@ export function CampaignsView({ user }: { user: CurrentUser }) {
         {!items ? (
           <OperationalState state="loading" title="Carregando campanhas" />
         ) : items.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma campanha cadastrada" />
+          <OperationalState state="empty" title="Nenhuma campanha cadastrada" detail="Crie uma campanha para congelar snapshots e comparar ranking." />
         ) : (
           <OperationalTable
             items={items}
@@ -285,7 +285,7 @@ export function CampaignsView({ user }: { user: CurrentUser }) {
           </div>
         </div>
         {snapshots.length < 2 ? (
-          <OperationalState state="empty" title="Crie ao menos dois snapshots para comparar rankings" />
+          <OperationalState state="empty" title="Crie ao menos dois snapshots para comparar rankings" detail="Snapshots guardam a posição do ranking em momentos diferentes." />
         ) : (
           <>
             <div className="filter-panel">
@@ -343,7 +343,7 @@ export function CampaignsView({ user }: { user: CurrentUser }) {
           </div>
         </div>
         {snapshots.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum snapshot criado" />
+          <OperationalState state="empty" title="Nenhum snapshot criado" detail="Congele o ranking de uma campanha para acompanhar evolução." />
         ) : (
           <OperationalTable
             items={snapshots}

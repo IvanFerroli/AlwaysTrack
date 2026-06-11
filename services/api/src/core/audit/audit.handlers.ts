@@ -21,13 +21,20 @@ function parseDate(value: unknown) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseDateEndOfDay(value: unknown) {
+  const parsed = parseDate(value);
+  if (!parsed || typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return parsed;
+  parsed.setUTCHours(23, 59, 59, 999);
+  return parsed;
+}
+
 export async function listAuditLogsHandler(request: Request, response: Response) {
   if (!request.user) {
     return sendError(response, 401, "UNAUTHENTICATED", "Login required.");
   }
 
   const from = parseDate(request.query.from);
-  const to = parseDate(request.query.to);
+  const to = parseDateEndOfDay(request.query.to);
   if (from === null || to === null) {
     return sendError(response, 400, "INVALID_DATE", "Invalid from/to date.");
   }

@@ -85,10 +85,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 66. `EXEC-AT-061`: matriz canonica de permissoes comerciais em docs/API/UI (`TASK-AT-062`). Status: completed.
 67. `EXEC-AT-062`: configuracoes administrativas da organizacao com nome/logo/defaults/dominio Google readonly (`TASK-AT-063`). Status: completed.
 68. `EXEC-AT-063`: exports CSV de ranking, dashboard e extratos com filtros, metadados, nome por periodo e auditoria (`TASK-AT-064`). Status: completed.
+69. `EXEC-AT-064`: prontidao de demo com roteiro, seed comercial reforcado, empty states e auditoria consultavel (`TASK-AT-065`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-065-demo-readiness-empty-states-and-audit.md`: preparar seed/demo, estados vazios e auditoria consultavel.
-2. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
+1. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -99,5 +99,5 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 6. `TASK-AT-062`: matriz de permissoes comercial. Status: completed.
 7. `TASK-AT-063`: configuracoes da organizacao. Status: completed.
 8. `TASK-AT-064`: exportacoes comerciais polidas. Status: completed.
-9. `TASK-AT-065`: prontidao para demo, estados vazios e auditoria.
+9. `TASK-AT-065`: prontidao para demo, estados vazios e auditoria. Status: completed.
 10. `TASK-AT-066`: polimento visual guiado por prints, bloqueado ate input visual.

@@ -1,7 +1,7 @@
 # TASK-AT-065 - Demo readiness, empty states and audit search
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-065-demo-readiness-empty-states-and-audit.md
@@ -73,3 +73,6 @@ Um produto interno precisa parecer confiavel mesmo quando nao ha dados. Tambem p
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao
+- `EXEC-AT-064`: roteiro de demo, seed comercial reforcado, estados vazios orientativos e auditoria com busca parcial por acao/data final inclusiva.

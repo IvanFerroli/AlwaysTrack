@@ -39,7 +39,29 @@ const auditEntityTypeOptions = toFilterOptions([
   { value: "Document", label: "Documento" },
   { value: "NotificationRule", label: "Regra de notificação" },
   { value: "NotificationJob", label: "Job de notificação" },
-  { value: "Faq", label: "FAQ" }
+  { value: "InAppNotification", label: "Notificação in-app" },
+  { value: "SalesDocument", label: "Nota comercial" },
+  { value: "SalesCampaign", label: "Campanha comercial" },
+  { value: "SalesRanking", label: "Ranking comercial" },
+  { value: "SalesDashboard", label: "Dashboard comercial" },
+  { value: "SalesStatements", label: "Extrato comercial" },
+  { value: "RankingSnapshot", label: "Snapshot de ranking" },
+  { value: "Faq", label: "FAQ" },
+  { value: "FaqThread", label: "Thread FAQ" },
+  { value: "WikiPage", label: "Wiki" }
+]);
+const auditActionOptions = toFilterOptions([
+  { value: "auth.login", label: "Login" },
+  { value: "sales_document", label: "Notas comerciais" },
+  { value: "sales_ranking", label: "Ranking" },
+  { value: "sales_dashboard", label: "Dashboard" },
+  { value: "sales_statements", label: "Extratos" },
+  { value: "sales_campaign", label: "Campanhas" },
+  { value: "wiki", label: "Wiki" },
+  { value: "faq", label: "FAQ" },
+  { value: "user", label: "Usuários" },
+  { value: "organization", label: "Organização" },
+  { value: "seed.local", label: "Seed/demo" }
 ]);
 
 function formatDateTimeBr(value: string | null | undefined) {
@@ -141,7 +163,17 @@ export function AuditView() {
     <div className="content-stack">
       <OperationalFilters
         fields={[
-          { key: "action", label: "Ação", value: action, placeholder: "auth.login", help: "Nome do evento gravado na trilha de auditoria.", helpHref: "#auditoria", onChange: setAction },
+          {
+            key: "action",
+            label: "Ação",
+            type: "select",
+            value: action,
+            placeholder: "Todas as ações",
+            options: auditActionOptions,
+            help: "Filtra por trecho do evento gravado na trilha de auditoria.",
+            helpHref: "#auditoria",
+            onChange: setAction
+          },
           {
             key: "entityType",
             label: "Entidade",

@@ -235,7 +235,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
           {loading ? (
             <OperationalState state="loading" title="Carregando threads" />
           ) : threads.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma pergunta encontrada" />
+            <OperationalState state="empty" title="Nenhuma pergunta encontrada" detail="Publique uma dúvida para abrir uma thread e criar conhecimento reutilizável." />
           ) : (
             <div className="wiki-page-list">
               {threads.map((thread) => (

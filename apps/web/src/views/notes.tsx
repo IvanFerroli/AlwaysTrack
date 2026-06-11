@@ -478,7 +478,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
         {loading ? (
           <OperationalState state="loading" title="Carregando notas" />
         ) : items.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma nota enviada" />
+          <OperationalState state="empty" title="Nenhuma nota enviada" detail="Envie uma DANFE ou limpe os filtros para revisar o histórico." />
         ) : (
           <>
             {canReview ? (

@@ -113,7 +113,7 @@ export function RankingView({ user }: { user: CurrentUser }) {
         {!ranking ? (
           <OperationalState state="loading" title="Carregando ranking" />
         ) : ranking.items.length === 0 ? (
-          <OperationalState state="empty" title="Ainda não há ranking" />
+          <OperationalState state="empty" title="Ainda não há ranking" detail="Aprove notas no período ou limpe os filtros para comparar vendedores." />
         ) : (
           <OperationalTable
             items={ranking.items}

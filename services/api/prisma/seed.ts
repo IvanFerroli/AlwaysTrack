@@ -151,7 +151,15 @@ async function ensureAuditLog(input: {
       entityId: input.entityId
     }
   });
-  if (existing) return existing;
+  if (existing) {
+    return prisma.auditLog.update({
+      where: { id: existing.id },
+      data: {
+        actorId: input.actorId,
+        metadataJson: JSON.stringify(input.metadata)
+      }
+    });
+  }
 
   return prisma.auditLog.create({
     data: {
@@ -212,6 +220,155 @@ async function ensureSellerProfile(input: {
   });
 }
 
+async function ensureSalesDocument(input: {
+  organizationId: string;
+  sellerProfileId: string;
+  uploadedById: string;
+  reviewedById?: string;
+  fileKey: string;
+  fileName: string;
+  status: string;
+  accessKey: string;
+  invoiceNumber: string;
+  issuedAt: Date;
+  issuerName: string;
+  buyerName: string;
+  totalAmountCents: number;
+  reviewedAt?: Date;
+  rejectionReason?: string;
+  items: Array<{
+    sku: string;
+    description: string;
+    category: string;
+    quantity: number;
+    unitAmountCents: number;
+    totalAmountCents: number;
+  }>;
+}) {
+  const document = await prisma.salesDocument.upsert({
+    where: {
+      organizationId_accessKey: {
+        organizationId: input.organizationId,
+        accessKey: input.accessKey
+      }
+    },
+    update: {
+      sellerProfileId: input.sellerProfileId,
+      uploadedById: input.uploadedById,
+      reviewedById: input.reviewedById,
+      status: input.status,
+      invoiceNumber: input.invoiceNumber,
+      series: "1",
+      issuedAt: input.issuedAt,
+      issuerName: input.issuerName,
+      buyerName: input.buyerName,
+      totalAmountCents: input.totalAmountCents,
+      extractionConfidence: 0.95,
+      reviewedAt: input.reviewedAt,
+      rejectionReason: input.rejectionReason
+    },
+    create: {
+      organizationId: input.organizationId,
+      sellerProfileId: input.sellerProfileId,
+      uploadedById: input.uploadedById,
+      reviewedById: input.reviewedById,
+      fileKey: input.fileKey,
+      fileName: input.fileName,
+      mimeType: "application/pdf",
+      size: 128000,
+      status: input.status,
+      accessKey: input.accessKey,
+      invoiceNumber: input.invoiceNumber,
+      series: "1",
+      issuedAt: input.issuedAt,
+      issuerName: input.issuerName,
+      buyerName: input.buyerName,
+      totalAmountCents: input.totalAmountCents,
+      extractionConfidence: 0.95,
+      reviewedAt: input.reviewedAt,
+      rejectionReason: input.rejectionReason
+    }
+  });
+
+  await prisma.salesItem.deleteMany({ where: { salesDocumentId: document.id } });
+  if (input.items.length > 0) {
+    await prisma.salesItem.createMany({
+      data: input.items.map((item) => ({
+        salesDocumentId: document.id,
+        sellerProfileId: input.sellerProfileId,
+        ...item
+      }))
+    });
+  }
+
+  return document;
+}
+
+async function ensureFaqThread(input: {
+  organizationId: string;
+  authorId: string;
+  title: string;
+  body: string;
+  tags: string[];
+  status: string;
+  wikiPageId?: string;
+  promotedById?: string;
+}) {
+  const existing = await prisma.faqThread.findFirst({ where: { organizationId: input.organizationId, title: input.title } });
+  const data = {
+    authorId: input.authorId,
+    body: input.body,
+    tagsJson: JSON.stringify(input.tags),
+    status: input.status,
+    wikiPageId: input.wikiPageId,
+    promotedAt: input.wikiPageId ? daysAgo(1) : null,
+    promotedById: input.promotedById
+  };
+  return existing
+    ? prisma.faqThread.update({ where: { id: existing.id }, data })
+    : prisma.faqThread.create({ data: { organizationId: input.organizationId, title: input.title, ...data } });
+}
+
+async function ensureFaqComment(input: { organizationId: string; threadId: string; authorId: string; body: string }) {
+  const existing = await prisma.faqComment.findFirst({
+    where: { organizationId: input.organizationId, threadId: input.threadId, authorId: input.authorId, body: input.body }
+  });
+  return existing ?? prisma.faqComment.create({ data: input });
+}
+
+async function ensureInAppNotification(input: {
+  organizationId: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  body: string;
+  entityType: string;
+  entityId: string;
+  href: string;
+  dedupeKey: string;
+  readAt?: Date | null;
+}) {
+  return prisma.inAppNotification.upsert({
+    where: {
+      organizationId_recipientId_dedupeKey: {
+        organizationId: input.organizationId,
+        recipientId: input.recipientId,
+        dedupeKey: input.dedupeKey
+      }
+    },
+    update: {
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      href: input.href,
+      readAt: input.readAt ?? null
+    },
+    create: input
+  });
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
@@ -228,11 +385,27 @@ async function main() {
 
   const organization = await prisma.organization.upsert({
     where: { id: organizationId },
-    update: { name: organizationName, document: "00.000.000/0001-00", active: true },
+    update: {
+      name: organizationName,
+      document: "00.000.000/0001-00",
+      logoUrl: "/favicon/favicon-512.png",
+      settingsJson: JSON.stringify({
+        defaultTags: ["campanhas", "faq", "notas", "processo", "ranking", "sac", "vendas"],
+        dashboardDefaultRange: "30",
+        dashboardDefaultBucket: "day"
+      }),
+      active: true
+    },
     create: {
       id: organizationId,
       name: organizationName,
-      document: "00.000.000/0001-00"
+      document: "00.000.000/0001-00",
+      logoUrl: "/favicon/favicon-512.png",
+      settingsJson: JSON.stringify({
+        defaultTags: ["campanhas", "faq", "notas", "processo", "ranking", "sac", "vendas"],
+        dashboardDefaultRange: "30",
+        dashboardDefaultBucket: "day"
+      })
     }
   });
 
@@ -386,6 +559,7 @@ async function main() {
     monthlyGoalCents: 2500000
   });
 
+  const demoSellerProfiles = [{ profile: sellerProfile, user: sellerUser }];
   for (const extraSeller of [
     { email: "vendedor2@example.com", name: "Vendedor Demo 2", code: "VD-002", phone: "+5511999992002", monthlyGoalCents: 2200000 },
     { email: "vendedor3@example.com", name: "Vendedor Demo 3", code: "VD-003", phone: "+5511999992003", monthlyGoalCents: 2000000 }
@@ -410,7 +584,7 @@ async function main() {
       }
     });
 
-    await ensureSellerProfile({
+    const profile = await ensureSellerProfile({
       organizationId: organization.id,
       userId: user.id,
       salesGroupId: salesGroup.id,
@@ -420,59 +594,26 @@ async function main() {
       phone: user.phone,
       monthlyGoalCents: extraSeller.monthlyGoalCents
     });
+    demoSellerProfiles.push({ profile, user });
   }
 
-  const approvedSalesDocument = await prisma.salesDocument.upsert({
-    where: {
-      organizationId_accessKey: {
-        organizationId: organization.id,
-        accessKey: "35260500000000000100550010000000011000000010"
-      }
-    },
-    update: {
-      sellerProfileId: sellerProfile.id,
-      uploadedById: sellerUser.id,
-      reviewedById: financeiro.id,
-      status: "APPROVED",
-      invoiceNumber: "000000001",
-      series: "1",
-      issuedAt: daysAgo(3),
-      issuerName: "Distribuidora Suplementos Demo",
-      buyerName: "Cliente Farma Norte",
-      totalAmountCents: 189970,
-      reviewedAt: daysAgo(2)
-    },
-    create: {
+  const approvedSalesDocument = await ensureSalesDocument({
       organizationId: organization.id,
       sellerProfileId: sellerProfile.id,
       uploadedById: sellerUser.id,
       reviewedById: financeiro.id,
       fileKey: `${organization.id}/sales-documents/${sellerProfile.id}/seed-danfe.pdf`,
       fileName: "danfe-demo-aprovada.pdf",
-      mimeType: "application/pdf",
-      size: 128000,
       status: "APPROVED",
       accessKey: "35260500000000000100550010000000011000000010",
       invoiceNumber: "000000001",
-      series: "1",
       issuedAt: daysAgo(3),
       issuerName: "Distribuidora Suplementos Demo",
       buyerName: "Cliente Farma Norte",
       totalAmountCents: 189970,
-      extractionConfidence: 0.96,
-      reviewedAt: daysAgo(2)
-    }
-  });
-
-  const existingSalesItem = await prisma.salesItem.findFirst({
-    where: { salesDocumentId: approvedSalesDocument.id, sku: "WHEY-900-BAU" }
-  });
-  if (!existingSalesItem) {
-    await prisma.salesItem.createMany({
-      data: [
+      reviewedAt: daysAgo(2),
+      items: [
         {
-          salesDocumentId: approvedSalesDocument.id,
-          sellerProfileId: sellerProfile.id,
           sku: "WHEY-900-BAU",
           description: "Whey Protein 900g Baunilha",
           category: "Proteinas",
@@ -481,8 +622,6 @@ async function main() {
           totalAmountCents: 75960
         },
         {
-          salesDocumentId: approvedSalesDocument.id,
-          sellerProfileId: sellerProfile.id,
           sku: "CREA-300",
           description: "Creatina 300g",
           category: "Performance",
@@ -491,8 +630,6 @@ async function main() {
           totalAmountCents: 53940
         },
         {
-          salesDocumentId: approvedSalesDocument.id,
-          sellerProfileId: sellerProfile.id,
           sku: "PRE-300-LIM",
           description: "Pre treino 300g Limao",
           category: "Performance",
@@ -501,8 +638,166 @@ async function main() {
           totalAmountCents: 60070
         }
       ]
-    });
-  }
+  });
+
+  await ensureSalesDocument({
+    organizationId: organization.id,
+    sellerProfileId: demoSellerProfiles[1].profile.id,
+    uploadedById: demoSellerProfiles[1].user.id,
+    reviewedById: sac.id,
+    fileKey: `${organization.id}/sales-documents/${demoSellerProfiles[1].profile.id}/seed-danfe-2.pdf`,
+    fileName: "danfe-demo-aprovada-2.pdf",
+    status: "APPROVED",
+    accessKey: "35260500000000000100550010000000022000000020",
+    invoiceNumber: "000000002",
+    issuedAt: daysAgo(5),
+    issuerName: "Distribuidora Suplementos Demo",
+    buyerName: "Cliente Farma Centro",
+    totalAmountCents: 246820,
+    reviewedAt: daysAgo(4),
+    items: [
+      {
+        sku: "WHEY-900-CHO",
+        description: "Whey Protein 900g Chocolate",
+        category: "Proteinas",
+        quantity: 8,
+        unitAmountCents: 18990,
+        totalAmountCents: 151920
+      },
+      {
+        sku: "COLL-300",
+        description: "Colageno 300g",
+        category: "Saude",
+        quantity: 5,
+        unitAmountCents: 18980,
+        totalAmountCents: 94900
+      }
+    ]
+  });
+
+  await ensureSalesDocument({
+    organizationId: organization.id,
+    sellerProfileId: demoSellerProfiles[2].profile.id,
+    uploadedById: demoSellerProfiles[2].user.id,
+    reviewedById: financeiro.id,
+    fileKey: `${organization.id}/sales-documents/${demoSellerProfiles[2].profile.id}/seed-danfe-3.pdf`,
+    fileName: "danfe-demo-aprovada-3.pdf",
+    status: "APPROVED",
+    accessKey: "35260500000000000100550010000000033000000030",
+    invoiceNumber: "000000003",
+    issuedAt: daysAgo(8),
+    issuerName: "Distribuidora Suplementos Demo",
+    buyerName: "Cliente Farma Sul",
+    totalAmountCents: 98240,
+    reviewedAt: daysAgo(7),
+    items: [
+      {
+        sku: "CREA-300",
+        description: "Creatina 300g",
+        category: "Performance",
+        quantity: 4,
+        unitAmountCents: 8990,
+        totalAmountCents: 35960
+      },
+      {
+        sku: "OMEGA-120",
+        description: "Omega 3 120 caps",
+        category: "Saude",
+        quantity: 7,
+        unitAmountCents: 8897,
+        totalAmountCents: 62280
+      }
+    ]
+  });
+
+  const pendingSalesDocument = await ensureSalesDocument({
+    organizationId: organization.id,
+    sellerProfileId: demoSellerProfiles[0].profile.id,
+    uploadedById: demoSellerProfiles[0].user.id,
+    fileKey: `${organization.id}/sales-documents/${demoSellerProfiles[0].profile.id}/seed-danfe-pendente.pdf`,
+    fileName: "danfe-demo-pendente.pdf",
+    status: "PENDING_REVIEW",
+    accessKey: "35260500000000000100550010000000044000000040",
+    invoiceNumber: "000000004",
+    issuedAt: daysAgo(1),
+    issuerName: "Distribuidora Suplementos Demo",
+    buyerName: "Cliente Farma Norte",
+    totalAmountCents: 75400,
+    items: [
+      {
+        sku: "BCAA-240",
+        description: "BCAA 240 caps",
+        category: "Performance",
+        quantity: 4,
+        unitAmountCents: 18850,
+        totalAmountCents: 75400
+      }
+    ]
+  });
+
+  const currentCampaignStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const currentCampaignEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+  const demoCampaign = await prisma.salesCampaign.upsert({
+    where: { id: "seed-campaign-demo-current" },
+    update: {
+      organizationId: organization.id,
+      salesGroupId: salesGroup.id,
+      name: "Campanha Demo Atual",
+      description: "Campanha de apresentacao com ranking, extratos e dashboard preenchidos.",
+      metric: "TOTAL_AMOUNT",
+      status: "ACTIVE",
+      startsAt: currentCampaignStart,
+      endsAt: currentCampaignEnd
+    },
+    create: {
+      id: "seed-campaign-demo-current",
+      organizationId: organization.id,
+      salesGroupId: salesGroup.id,
+      name: "Campanha Demo Atual",
+      description: "Campanha de apresentacao com ranking, extratos e dashboard preenchidos.",
+      metric: "TOTAL_AMOUNT",
+      status: "ACTIVE",
+      startsAt: currentCampaignStart,
+      endsAt: currentCampaignEnd
+    }
+  });
+
+  await prisma.rankingSnapshot.upsert({
+    where: { id: "seed-ranking-snapshot-demo" },
+    update: {
+      organizationId: organization.id,
+      campaignId: demoCampaign.id,
+      periodStart: currentCampaignStart,
+      periodEnd: currentCampaignEnd,
+      scopeType: "SALES_GROUP",
+      scopeId: salesGroup.id,
+      payloadJson: JSON.stringify({
+        campaign: { id: demoCampaign.id, name: demoCampaign.name },
+        items: [
+          { position: 1, sellerName: "Vendedor Demo 2", totalAmountCents: 246820 },
+          { position: 2, sellerName: "Vendedor Demo", totalAmountCents: 189970 },
+          { position: 3, sellerName: "Vendedor Demo 3", totalAmountCents: 98240 }
+        ]
+      })
+    },
+    create: {
+      id: "seed-ranking-snapshot-demo",
+      organizationId: organization.id,
+      campaignId: demoCampaign.id,
+      periodStart: currentCampaignStart,
+      periodEnd: currentCampaignEnd,
+      scopeType: "SALES_GROUP",
+      scopeId: salesGroup.id,
+      payloadJson: JSON.stringify({
+        campaign: { id: demoCampaign.id, name: demoCampaign.name },
+        items: [
+          { position: 1, sellerName: "Vendedor Demo 2", totalAmountCents: 246820 },
+          { position: 2, sellerName: "Vendedor Demo", totalAmountCents: 189970 },
+          { position: 3, sellerName: "Vendedor Demo 3", totalAmountCents: 98240 }
+        ]
+      })
+    }
+  });
 
   await prisma.salesCampaign.upsert({
     where: { id: "seed-campaign-maio" },
@@ -526,6 +821,143 @@ async function main() {
       startsAt: new Date(Date.UTC(2026, 4, 1)),
       endsAt: new Date(Date.UTC(2026, 4, 31))
     }
+  });
+
+  const faqWikiPage = await prisma.wikiPage.upsert({
+    where: {
+      organizationId_slug: {
+        organizationId: organization.id,
+        slug: "conferencia-de-danfe"
+      }
+    },
+    update: {
+      title: "Conferência de DANFE",
+      content:
+        "## Quando revisar\nConfira vendedor, chave de acesso, NF, data de emissão e total antes de aprovar.\n\n## Quando rejeitar\nRejeite com comentário quando a imagem estiver ilegível, vendedor estiver incorreto ou a nota não pertencer ao período da campanha.\n\n_Fonte: FAQ interna de demo._",
+      tagsJson: JSON.stringify(["faq", "notas", "processo"]),
+      updatedById: admin.id,
+      active: true
+    },
+    create: {
+      organizationId: organization.id,
+      slug: "conferencia-de-danfe",
+      title: "Conferência de DANFE",
+      content:
+        "## Quando revisar\nConfira vendedor, chave de acesso, NF, data de emissão e total antes de aprovar.\n\n## Quando rejeitar\nRejeite com comentário quando a imagem estiver ilegível, vendedor estiver incorreto ou a nota não pertencer ao período da campanha.\n\n_Fonte: FAQ interna de demo._",
+      tagsJson: JSON.stringify(["faq", "notas", "processo"]),
+      createdById: admin.id,
+      updatedById: admin.id
+    }
+  });
+  const existingFaqWikiRevision = await prisma.wikiRevision.findFirst({ where: { pageId: faqWikiPage.id, version: faqWikiPage.version } });
+  if (!existingFaqWikiRevision) {
+    await prisma.wikiRevision.create({
+      data: {
+        organizationId: organization.id,
+        pageId: faqWikiPage.id,
+        authorId: admin.id,
+        version: faqWikiPage.version,
+        title: faqWikiPage.title,
+        content: faqWikiPage.content
+      }
+    });
+  }
+
+  const faqThread = await ensureFaqThread({
+    organizationId: organization.id,
+    authorId: sellerUser.id,
+    title: "Como conferir uma DANFE antes de aprovar?",
+    body: "Quando a nota chega com vários itens, o que precisa bater antes de aprovar para o ranking?",
+    tags: ["faq", "notas", "ranking"],
+    status: "RESOLVED",
+    wikiPageId: faqWikiPage.id,
+    promotedById: admin.id
+  });
+  const faqComment = await ensureFaqComment({
+    organizationId: organization.id,
+    threadId: faqThread.id,
+    authorId: sac.id,
+    body: "Confira vendedor, NF, chave de acesso, data de emissão e total. Se algo divergir, devolva com comentário objetivo."
+  });
+  await prisma.faqReaction.upsert({
+    where: {
+      organizationId_targetType_targetId_userId_type: {
+        organizationId: organization.id,
+        targetType: "COMMENT",
+        targetId: faqComment.id,
+        userId: supervisor.id,
+        type: "USEFUL"
+      }
+    },
+    update: {},
+    create: {
+      organizationId: organization.id,
+      threadId: faqThread.id,
+      commentId: faqComment.id,
+      userId: supervisor.id,
+      targetType: "COMMENT",
+      targetId: faqComment.id,
+      type: "USEFUL"
+    }
+  });
+
+  await ensureInAppNotification({
+    organizationId: organization.id,
+    recipientId: admin.id,
+    type: "sales_document.pending_review",
+    title: "Nota aguardando revisão",
+    body: "A DANFE demo pendente está pronta para validar o fluxo de aprovação.",
+    entityType: "SalesDocument",
+    entityId: pendingSalesDocument.id,
+    href: "/notas",
+    dedupeKey: "seed:pending-sales-document"
+  });
+  await ensureInAppNotification({
+    organizationId: organization.id,
+    recipientId: sellerUser.id,
+    type: "wiki.promoted",
+    title: "FAQ promovida para Wiki",
+    body: "A pergunta de conferência de DANFE virou uma seção consultável.",
+    entityType: "WikiPage",
+    entityId: faqWikiPage.id,
+    href: "/wiki/conferencia-de-danfe",
+    dedupeKey: "seed:wiki-promoted-faq"
+  });
+  await ensureInAppNotification({
+    organizationId: organization.id,
+    recipientId: supervisor.id,
+    type: "sales_ranking.snapshot",
+    title: "Snapshot de ranking criado",
+    body: "A campanha demo atual tem um ranking congelado para comparação.",
+    entityType: "RankingSnapshot",
+    entityId: "seed-ranking-snapshot-demo",
+    href: "/campanhas",
+    dedupeKey: "seed:ranking-snapshot"
+  });
+
+  await ensureAuditLog({
+    organizationId: organization.id,
+    actorId: admin.id,
+    action: "seed.local",
+    entityType: "Organization",
+    entityId: organization.id,
+    metadata: { source: "local-seed", sellers: demoSellerProfiles.length, salesDocuments: 4, provider: "fake" }
+  });
+  await ensureAuditLog({
+    organizationId: organization.id,
+    actorId: financeiro.id,
+    action: "sales_document.review",
+    entityType: "SalesDocument",
+    entityId: approvedSalesDocument.id,
+    metadata: { source: "local-seed", status: "APPROVED", totalAmountCents: approvedSalesDocument.totalAmountCents }
+  });
+  await ensureAuditLog({
+    organizationId: organization.id,
+    actorId: admin.id,
+    action: "faq.promote_to_wiki",
+    entityType: "FaqThread",
+    entityId: faqThread.id,
+    metadata: { source: "local-seed", wikiPageId: faqWikiPage.id }
   });
 
   if (enableLegacySylembra) {

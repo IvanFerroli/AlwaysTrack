@@ -58,7 +58,7 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
         </div>
       </div>
       {series.length === 0 || total === 0 ? (
-        <OperationalState state="empty" title="Sem vendas aprovadas no período" />
+        <OperationalState state="empty" title="Sem vendas aprovadas no período" detail="Aprove notas ou ajuste o range para alimentar o gráfico." />
       ) : (
         <div className="sales-chart-scroll">
           <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafico de vendas aprovadas por periodo">
@@ -226,7 +226,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
         <div className="panel table-panel">
           <h2>Notas pendentes</h2>
           {dashboard.queues.pendingDocuments.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma nota pendente" />
+            <OperationalState state="empty" title="Nenhuma nota pendente" detail="Quando vendedores subirem DANFEs, elas aparecem aqui para revisão." />
           ) : (
             <OperationalTable
               items={dashboard.queues.pendingDocuments}
@@ -245,7 +245,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
         <div className="panel table-panel">
           <h2>Top vendedores</h2>
           {dashboard.queues.topSellers.length === 0 ? (
-            <OperationalState state="empty" title="Ranking sem vendas aprovadas" />
+            <OperationalState state="empty" title="Ranking sem vendas aprovadas" detail="A primeira nota aprovada libera comparação entre vendedores." />
           ) : (
             <OperationalTable
               items={dashboard.queues.topSellers}
@@ -263,7 +263,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
         <div className="panel table-panel">
           <h2>Grupos</h2>
           {dashboard.queues.groups.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum grupo com venda aprovada" />
+            <OperationalState state="empty" title="Nenhum grupo com venda aprovada" detail="Vincule vendedores a grupos e aprove notas para ver o consolidado." />
           ) : (
             <OperationalTable
               items={dashboard.queues.groups}

@@ -110,7 +110,7 @@ export function StatementsView() {
           {!statement ? (
             <OperationalState state="loading" title="Carregando consolidados" />
           ) : statement.consolidations.bySeller.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum vendedor no extrato" />
+            <OperationalState state="empty" title="Nenhum vendedor no extrato" detail="Apenas notas aprovadas entram neste consolidado." />
           ) : (
             <OperationalTable
               items={statement.consolidations.bySeller}
@@ -135,7 +135,7 @@ export function StatementsView() {
           {!statement ? (
             <OperationalState state="loading" title="Carregando consolidados" />
           ) : statement.consolidations.byGroup.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum grupo no extrato" />
+            <OperationalState state="empty" title="Nenhum grupo no extrato" detail="Use grupos comerciais nos vendedores para ver comparação por time." />
           ) : (
             <OperationalTable
               items={statement.consolidations.byGroup}
@@ -165,7 +165,7 @@ export function StatementsView() {
         {!statement ? (
           <OperationalState state="loading" title="Carregando extrato" />
         ) : statement.items.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" />
+          <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" detail="Aprove notas ou ajuste os filtros de período, grupo e vendedor." />
         ) : (
           <OperationalTable
             items={statement.items}

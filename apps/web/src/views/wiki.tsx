@@ -929,7 +929,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
           {loading ? (
             <OperationalState state="loading" title="Carregando wiki" />
           ) : visiblePages.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma pagina publicada" />
+            <OperationalState state="empty" title="Nenhuma pagina publicada" detail="Publique um procedimento ou promova uma pergunta resolvida do FAQ." />
           ) : (
             <div className="wiki-page-list">
               {visiblePages.map((page) => (

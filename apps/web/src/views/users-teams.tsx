@@ -351,7 +351,7 @@ export function UsersTeamsView() {
           <span className="status-badge">{filteredUsers.length} usuario(s)</span>
         </div>
         {filteredUsers.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum usuario encontrado" />
+          <OperationalState state="empty" title="Nenhum usuario encontrado" detail="Crie usuários e vincule vendedores para alimentar notas, ranking e extratos." />
         ) : (
           <OperationalTable
             items={filteredUsers}

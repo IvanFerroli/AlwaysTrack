@@ -49,7 +49,7 @@ describe("audit service", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           organizationId: "org-1",
-          action: "auth.login"
+          action: { contains: "auth.login" }
         }),
         skip: 10,
         take: 10
@@ -58,7 +58,7 @@ describe("audit service", () => {
     expect(count).toHaveBeenCalledWith({
       where: expect.objectContaining({
         organizationId: "org-1",
-        action: "auth.login"
+        action: { contains: "auth.login" }
       })
     });
   });
@@ -90,7 +90,7 @@ describe("audit service", () => {
         where: {
           organizationId: "org-1",
           actorId: "user-1",
-          action: "license.update",
+          action: { contains: "license.update" },
           entityType: "License",
           entityId: "license-1",
           createdAt: { gte: from, lte: to }

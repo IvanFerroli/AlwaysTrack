@@ -4101,6 +4101,18 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       openView("notes");
       return;
     }
+    if (href === "/campanhas") {
+      openView("campaigns");
+      return;
+    }
+    if (href === "/ranking") {
+      openView("ranking");
+      return;
+    }
+    if (href === "/extratos") {
+      openView("statements");
+      return;
+    }
     if (href === "/profile") {
       openView("profile");
       return;
