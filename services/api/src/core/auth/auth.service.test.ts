@@ -91,7 +91,7 @@ describe("auth service", () => {
 
     const result = await loginUserByVerifiedGoogleEmail(
       prisma as never,
-      { email: "ADMIN@example.com", emailVerified: true, allowedDomains: ["example.com"] },
+      { email: "ADMIN@example.com", emailVerified: true, allowedDomains: ["EXAMPLE.com"] },
       "secret"
     );
 
@@ -108,7 +108,7 @@ describe("auth service", () => {
     );
   });
 
-  it("rejects unverified or unknown Google users", async () => {
+  it("rejects unverified, unauthorized-domain, unconfigured-domain or unknown Google users", async () => {
     const prisma = {
       user: { findUnique: vi.fn().mockResolvedValue(null) }
     };
@@ -122,7 +122,11 @@ describe("auth service", () => {
     ).rejects.toMatchObject({ code: "DOMAIN_NOT_ALLOWED" });
 
     await expect(
-      loginUserByVerifiedGoogleEmail(prisma as never, { email: "admin@example.com", emailVerified: true }, "secret")
+      loginUserByVerifiedGoogleEmail(prisma as never, { email: "admin@example.com", emailVerified: true, allowedDomains: [] }, "secret")
+    ).rejects.toMatchObject({ code: "DOMAIN_NOT_ALLOWED" });
+
+    await expect(
+      loginUserByVerifiedGoogleEmail(prisma as never, { email: "admin@example.com", emailVerified: true, allowedDomains: ["example.com"] }, "secret")
     ).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
   });
 });

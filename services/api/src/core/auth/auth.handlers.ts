@@ -112,12 +112,15 @@ export async function loginHandler(request: Request, response: Response) {
 
 export function googleLoginStatusHandler(_request: Request, response: Response) {
   const env = loadEnv();
-  return sendOk(response, { configured: isGoogleLoginConfigured(env) });
+  return sendOk(response, { configured: isGoogleLoginConfigured(env) && Boolean(env.googleLoginAllowedDomains?.length) });
 }
 
 export async function googleLoginStartHandler(_request: Request, response: Response) {
   try {
     const env = loadEnv();
+    if (!env.googleLoginAllowedDomains?.length) {
+      return sendError(response, 503, "NOT_CONFIGURED", "Google login requires at least one allowed company domain.");
+    }
     const result = createGoogleLoginStart(env);
     response.setHeader("set-cookie", googleLoginStateCookie(result.stateCookie));
     return response.redirect(result.url);

@@ -231,5 +231,30 @@ describe("users service", () => {
       data: { passwordHash: expect.stringMatching(/^scrypt:/) }
     });
     expect(user).not.toHaveProperty("passwordHash");
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "user.password_reset",
+          actorId: "admin-1",
+          entityId: "user-1",
+          metadataJson: expect.stringContaining("sup@example.com")
+        })
+      })
+    );
+  });
+
+  it("rejects password resets with short passwords before writing", async () => {
+    const prisma = {
+      user: {
+        findFirst: vi.fn(),
+        update: vi.fn()
+      }
+    };
+
+    await expect(resetManagedUserPassword(prisma as never, actor, "user-1", undefined)).rejects.toEqual(
+      new UserManagementError("INVALID_INPUT")
+    );
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 # TASK-AT-058 - Admin password reset and recovery
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-058-admin-password-reset-and-recovery.md
@@ -74,3 +74,13 @@ Perguntas de seguranca sao frageis e dificeis de auditar. Para plataforma intern
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao 2026-06-11
+- Fluxo admin de reset de senha ja existia em `POST /v1/users/:userId/reset-password` e na tela `Usuarios/Times`.
+- Reforcada cobertura de teste para auditoria `user.password_reset` e rejeicao de senha invalida antes de escrever no banco.
+- O reset permanece restrito a `ADMIN` pela rota e nao retorna `passwordHash`.
+- Fase futura de email tokenizado segue fora do MVP.
+
+## Validacao executada
+- `npm run test --workspace @alwaystrack/api -- auth.service.test.ts google-login.service.test.ts users.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`

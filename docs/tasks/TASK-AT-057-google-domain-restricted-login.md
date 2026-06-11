@@ -1,7 +1,7 @@
 # TASK-AT-057 - Google login restricted by company domain
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-057-google-domain-restricted-login.md
@@ -16,7 +16,7 @@ Permitir Google login apenas para dominios corporativos autorizados, mantendo lo
 O AlwaysTrack e uma ferramenta interna. Google login so faz sentido se o acesso puder ser restrito ao dominio da empresa. Sem essa restricao, qualquer conta Google cadastrada/acidental pode virar vetor de acesso indevido dependendo do fluxo de criacao de usuario.
 
 ## Inputs
-- Dominio(s) corporativo(s) aceitos, por exemplo `empresa.com.br`.
+- Dominio(s) corporativo(s) aceitos, por exemplo `alwaysfit.com.br`.
 - Decisao operacional: empresa usa Google Workspace ou apenas contas Google comuns.
 - Acesso ao Google Cloud Console/OAuth app, se a configuracao for feita fora do codigo.
 
@@ -44,9 +44,9 @@ O AlwaysTrack e uma ferramenta interna. Google login so faz sentido se o acesso 
    - `GOOGLE_LOGIN_CLIENT_ID=<client-id>`;
    - `GOOGLE_LOGIN_CLIENT_SECRET=<client-secret>`;
    - `GOOGLE_LOGIN_REDIRECT_URI=<callback-url>`;
-   - `GOOGLE_LOGIN_ALLOWED_DOMAINS=empresa.com.br` ou `empresa.com.br,filial.com.br`.
+   - `GOOGLE_LOGIN_ALLOWED_DOMAINS=alwaysfit.com.br`.
 5. Reiniciar API e validar:
-   - conta `@empresa.com.br` entra;
+   - conta `@alwaysfit.com.br` entra;
    - conta Gmail/pessoal recebe acesso negado;
    - admin local ainda consegue entrar por senha.
 
@@ -96,3 +96,28 @@ O AlwaysTrack e uma ferramenta interna. Google login so faz sentido se o acesso 
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao 2026-06-11
+- Google login agora exige `GOOGLE_LOGIN_ALLOWED_DOMAINS` para iniciar OAuth e para aceitar callback.
+- `GET /v1/auth/google/status` so retorna `configured=true` quando client/secret/redirect e dominio permitido estao configurados.
+- Callback Google rejeita email verificado fora dos dominios permitidos e tambem rejeita config vazia.
+- Comparacao de dominio normaliza caixa/espacos.
+- `scripts/check-env.js` falha quando Google OAuth esta parcialmente configurado sem `GOOGLE_LOGIN_ALLOWED_DOMAINS`.
+- Runbooks local/producao documentam que dominio permitido e obrigatorio para habilitar Google login.
+
+## Configuracao necessaria para o usuario
+```env
+GOOGLE_LOGIN_CLIENT_ID=<client-id-do-oauth>
+GOOGLE_LOGIN_CLIENT_SECRET=<client-secret-do-oauth>
+GOOGLE_LOGIN_REDIRECT_URI=https://sua-api.example.com/v1/auth/google/callback
+GOOGLE_LOGIN_ALLOWED_DOMAINS=alwaysfit.com.br
+```
+
+No Google Cloud Console, cadastrar exatamente o valor de `GOOGLE_LOGIN_REDIRECT_URI` em Authorized redirect URIs. Se a empresa usa Google Workspace, preferir OAuth consent screen do tipo Internal; se nao usa, manter External e confiar na validacao de dominio da API.
+
+## Validacao executada
+- `npm run test --workspace @alwaystrack/api -- auth.service.test.ts google-login.service.test.ts users.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run env:check`
+- `GOOGLE_LOGIN_CLIENT_ID=id GOOGLE_LOGIN_CLIENT_SECRET=secret GOOGLE_LOGIN_REDIRECT_URI=https://api.example.com/v1/auth/google/callback GOOGLE_LOGIN_ALLOWED_DOMAINS=alwaysfit.com.br npm run env:check`
+- `GOOGLE_LOGIN_CLIENT_ID=id GOOGLE_LOGIN_CLIENT_SECRET=secret GOOGLE_LOGIN_REDIRECT_URI=https://api.example.com/v1/auth/google/callback npm run env:check` falhou como esperado exigindo `GOOGLE_LOGIN_ALLOWED_DOMAINS`.

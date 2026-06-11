@@ -94,15 +94,14 @@ export async function loginUserByVerifiedGoogleEmail(
   sessionSecret: string
 ) {
   const normalizedEmail = normalizeEmail(input.email);
+  const allowedDomains = [...new Set((input.allowedDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))];
   if (!input.emailVerified) {
     throw new AuthError("EMAIL_NOT_VERIFIED");
   }
 
-  if (input.allowedDomains && input.allowedDomains.length > 0) {
-    const domain = normalizedEmail.split("@")[1] ?? "";
-    if (!input.allowedDomains.includes(domain)) {
-      throw new AuthError("DOMAIN_NOT_ALLOWED");
-    }
+  const domain = normalizedEmail.split("@")[1] ?? "";
+  if (allowedDomains.length === 0 || !allowedDomains.includes(domain)) {
+    throw new AuthError("DOMAIN_NOT_ALLOWED");
   }
 
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });

@@ -50,6 +50,11 @@ const optional = [
 const missing = required.filter((key) => !process.env[key] || process.env[key] === "change-me-in-production");
 const provider = process.env.NOTIFICATION_PROVIDER ?? "fake";
 const jobQueueDriver = process.env.JOB_QUEUE_DRIVER ?? "inline";
+const googleLoginPartiallyConfigured = [
+  "GOOGLE_LOGIN_CLIENT_ID",
+  "GOOGLE_LOGIN_CLIENT_SECRET",
+  "GOOGLE_LOGIN_REDIRECT_URI"
+].some((key) => Boolean(process.env[key]));
 
 function isLoopbackHost(hostname) {
   return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname) || hostname.endsWith(".localhost");
@@ -88,6 +93,10 @@ if (provider === "meta") {
 
 if (jobQueueDriver === "bullmq" && !process.env.REDIS_URL) {
   missing.push("REDIS_URL");
+}
+
+if (googleLoginPartiallyConfigured && !process.env.GOOGLE_LOGIN_ALLOWED_DOMAINS) {
+  missing.push("GOOGLE_LOGIN_ALLOWED_DOMAINS");
 }
 
 console.log(`[env:check] mode=${mode}`);

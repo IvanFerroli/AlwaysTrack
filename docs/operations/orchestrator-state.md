@@ -58,17 +58,18 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-053 (2026-06-11): regressao Playwright browser para upload/aprovacao DANFE e review Wiki.
 - EXEC-AT-054 (2026-06-11): validacao BullMQ com Redis real via teste opcional, CI dedicado, compose e env guard.
 - EXEC-AT-055 (2026-06-11): workflow de report Artillery com diagnosticos antes/depois e bloqueio de 1000 em localhost.
+- EXEC-AT-056 (2026-06-11): Google login restrito por dominio corporativo e env guard.
+- EXEC-AT-057 (2026-06-11): reset de senha por admin validado e testes reforcados.
 
 ## Proximo ciclo a rotar
 - Novo backlog de reta final criado em 2026-06-11: `TASK-AT-057` a `TASK-AT-066`, cobrindo autenticacao interna, recuperacao de senha, perfil, dashboard grafico, tags/busca Wiki/FAQ, matriz de permissoes, configuracoes, exports, prontidao de demo e polimento visual por prints.
+- `TASK-AT-057` e `TASK-AT-058` concluidas em `EXEC-AT-056`/`EXEC-AT-057`.
 - Prioridade recomendada:
-  1. `TASK-AT-057`: restringir Google login por dominio corporativo e documentar configuracao externa.
-  2. `TASK-AT-058`: reset de senha por admin.
-  3. `TASK-AT-060`: grafico dinamico no dashboard.
-  4. `TASK-AT-061`: tags e busca combinada em Wiki/FAQ.
-  5. `TASK-AT-059`: pagina de perfil.
-  6. `TASK-AT-062` a `TASK-AT-065`: permissoes, configuracoes, exports e demo readiness.
-  7. `TASK-AT-066`: visual polish somente depois de prints do usuario.
+  1. `TASK-AT-060`: grafico dinamico no dashboard.
+  2. `TASK-AT-061`: tags e busca combinada em Wiki/FAQ.
+  3. `TASK-AT-059`: pagina de perfil.
+  4. `TASK-AT-062` a `TASK-AT-065`: permissoes, configuracoes, exports e demo readiness.
+  5. `TASK-AT-066`: visual polish somente depois de prints do usuario.
 - Residual tecnico anterior: `TASK-AT-051` ainda precisa de execucao stage/producao-like para provar 1000 usuarios; `TASK-AT-053` depende desse report para otimizacao comprovada.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
@@ -210,6 +211,11 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run test:all | passou — 28 arquivos, 174 testes + 1 skip Redis + TypeDoc | 2026-06-11 (EXEC-AT-052..055) |
 | npm run repo:hygiene | passou | 2026-06-11 (EXEC-AT-052..055) |
 | npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-11 (EXEC-AT-052..055) |
+| npm run test --workspace @alwaystrack/api -- auth.service.test.ts google-login.service.test.ts users.service.test.ts | passou — 21 testes | 2026-06-11 (EXEC-AT-056/057) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-11 (EXEC-AT-056/057) |
+| npm run env:check | passou | 2026-06-11 (EXEC-AT-056) |
+| GOOGLE_LOGIN_CLIENT_ID=id GOOGLE_LOGIN_CLIENT_SECRET=secret GOOGLE_LOGIN_REDIRECT_URI=https://api.example.com/v1/auth/google/callback GOOGLE_LOGIN_ALLOWED_DOMAINS=alwaysfit.com.br npm run env:check | passou | 2026-06-11 (EXEC-AT-056) |
+| GOOGLE_LOGIN_CLIENT_ID=id GOOGLE_LOGIN_CLIENT_SECRET=secret GOOGLE_LOGIN_REDIRECT_URI=https://api.example.com/v1/auth/google/callback npm run env:check | falhou como esperado — exige GOOGLE_LOGIN_ALLOWED_DOMAINS | 2026-06-11 (EXEC-AT-056) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

@@ -18,7 +18,7 @@ Publicar web, API, banco/storage persistentes, webhook Meta e job de notificacoe
 ## Envs principais
 - API: `APP_NAME`, `DATABASE_URL`, `SESSION_SECRET`, `SESSION_COOKIE_NAME`, `API_PORT`, `CORS_ORIGIN`, `STORAGE_PROVIDER`, `STORAGE_LOCAL_DIR`, `DOCUMENT_MAX_BYTES`. `SESSION_SECRET` deve ter pelo menos 32 caracteres.
 - Web: `VITE_API_BASE_URL` apontando para a URL publica da API; `VITE_APP_NAME` alinhado ao `APP_NAME` usado pela API.
-- Google login: `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET`, `GOOGLE_LOGIN_REDIRECT_URI`. `GOOGLE_LOGIN_ALLOWED_DOMAINS` e opcional e aceita dominios separados por virgula. O OAuth client do Google precisa aceitar `GOOGLE_LOGIN_REDIRECT_URI` como redirect autorizado.
+- Google login: `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET`, `GOOGLE_LOGIN_REDIRECT_URI` e `GOOGLE_LOGIN_ALLOWED_DOMAINS`. `GOOGLE_LOGIN_ALLOWED_DOMAINS` aceita dominios separados por virgula e e obrigatorio para habilitar o login Google; sem ele, o OAuth fica bloqueado por politica interna e o fallback email/senha continua disponivel. O OAuth client do Google precisa aceitar `GOOGLE_LOGIN_REDIRECT_URI` como redirect autorizado.
 - Meta: `NOTIFICATION_PROVIDER=meta`, `META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`, `META_WEBHOOK_VERIFY_TOKEN`, `META_APP_SECRET`.
 - Job: `NOTIFICATION_JOB_LIMIT`.
 

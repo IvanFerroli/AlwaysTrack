@@ -53,7 +53,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `APP_NAME` afeta mensagens geradas pela API; `VITE_APP_NAME` afeta titulo, manifest e marca visivel da web.
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
-- Login Google local usa `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET` e `GOOGLE_LOGIN_REDIRECT_URI` quando configurado; sem essas envs, a tela mantém o fallback de email/senha.
+- Login Google local usa `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET`, `GOOGLE_LOGIN_REDIRECT_URI` e `GOOGLE_LOGIN_ALLOWED_DOMAINS` quando configurado. Sem dominio permitido, o login Google fica desabilitado por politica interna e a tela mantém o fallback de email/senha.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.
