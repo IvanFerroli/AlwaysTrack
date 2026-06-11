@@ -534,24 +534,60 @@ INFORMAÇÕES COMPLEMENTARES
       },
       sellerProfile: { findMany: vi.fn().mockResolvedValue([{ id: "seller-1", active: true, salesGroup: { name: "Norte" } }]) },
       salesItem: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            sellerProfileId: "seller-1",
-            totalAmountCents: 15000,
-            quantity: 2,
-            sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
-          }
-        ])
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              sellerProfileId: "seller-1",
+              totalAmountCents: 15000,
+              quantity: 2,
+              sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+            }
+          ])
+          .mockResolvedValueOnce([
+            {
+              salesDocumentId: "doc-1",
+              sellerProfileId: "seller-1",
+              totalAmountCents: 15000,
+              quantity: 2,
+              salesDocument: { id: "doc-1", issuedAt: new Date("2026-04-10T00:00:00.000Z") },
+              sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+            }
+          ])
       }
     };
 
-    const dashboard = await getSalesDashboard(prisma as never, admin);
+    const dashboard = await getSalesDashboard(
+      prisma as never,
+      admin,
+      { from: "2026-04-01", to: "2026-04-30", salesGroupId: "group-1", sellerProfileId: "seller-1" },
+      new Date("2026-04-30T00:00:00.000Z")
+    );
 
     expect(dashboard.metrics.totalDocuments).toBe(3);
     expect(dashboard.metrics.totalAmountCents).toBe(15000);
     expect(dashboard.queues.topSellers).toEqual([
       { sellerId: "seller-1", sellerName: "Ana", groupName: "Norte", totalAmountCents: 15000, quantity: 2 }
     ]);
+    expect(dashboard.chart).toMatchObject({ bucket: "day", from: "2026-04-01", to: "2026-04-30" });
+    expect(dashboard.chart.series.find((item) => item.key === "2026-04-10")).toMatchObject({
+      documents: 1,
+      quantity: 2,
+      totalAmountCents: 15000,
+      averageTicketCents: 15000
+    });
+    expect(prisma.salesItem.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          salesDocument: expect.objectContaining({
+            status: "APPROVED",
+            sellerProfileId: "seller-1",
+            sellerProfile: expect.objectContaining({ salesGroupId: "group-1" })
+          })
+        })
+      })
+    );
   });
 
   it("builds real-time ranking from approved sales items", async () => {

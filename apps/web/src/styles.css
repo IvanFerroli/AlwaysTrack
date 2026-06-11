@@ -969,6 +969,58 @@ button .icon {
   padding: 18px 18px 0;
 }
 
+.sales-chart-panel {
+  overflow: hidden;
+}
+
+.chart-summary {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.chart-summary span {
+  color: var(--color-heading);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.chart-summary small {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.sales-chart-scroll {
+  overflow-x: auto;
+  padding: 0 16px 16px;
+}
+
+.sales-chart {
+  display: block;
+  min-width: 640px;
+  width: 100%;
+}
+
+.sales-chart line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.sales-chart .chart-grid-line {
+  stroke: var(--color-border-soft);
+}
+
+.sales-chart rect {
+  fill: var(--color-primary);
+}
+
+.sales-chart text {
+  fill: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .action-center-panel {
   display: grid;
   gap: 0;

@@ -48,6 +48,7 @@ export interface SalesPeriodFilters extends SalesDocumentFilters {
   campaignId?: string;
   from?: string;
   to?: string;
+  bucket?: string;
 }
 
 export interface SalesCampaignInput {
@@ -372,7 +373,8 @@ export function parseSalesPeriodFilters(query: Record<string, unknown>): SalesPe
     ...parseSalesDocumentFilters(query),
     campaignId: cleanText(query.campaignId),
     from: cleanText(query.from),
-    to: cleanText(query.to)
+    to: cleanText(query.to),
+    bucket: cleanText(query.bucket)
   };
 }
 
@@ -467,6 +469,63 @@ function periodDocumentWhere(actor: CurrentUser, filters: SalesPeriodFilters = {
     status: "APPROVED",
     issuedAt: from || to ? { gte: from, lte: to } : undefined
   };
+}
+
+function startOfUtcDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addUtcDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function startOfUtcMonth(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function startOfUtcWeek(date: Date) {
+  const start = startOfUtcDay(date);
+  const day = start.getUTCDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  return addUtcDays(start, offset);
+}
+
+function chartBucketForRange(from: Date, to: Date, requested?: string) {
+  if (requested === "day" || requested === "week" || requested === "month") return requested;
+  const spanDays = Math.max(1, Math.ceil((startOfUtcDay(to).getTime() - startOfUtcDay(from).getTime()) / 86_400_000) + 1);
+  if (spanDays > 120) return "month";
+  if (spanDays > 45) return "week";
+  return "day";
+}
+
+function chartBucketStart(date: Date, bucket: "day" | "week" | "month") {
+  if (bucket === "month") return startOfUtcMonth(date);
+  if (bucket === "week") return startOfUtcWeek(date);
+  return startOfUtcDay(date);
+}
+
+function addChartBucket(date: Date, bucket: "day" | "week" | "month") {
+  if (bucket === "month") {
+    const next = new Date(date);
+    next.setUTCMonth(next.getUTCMonth() + 1, 1);
+    return next;
+  }
+  return addUtcDays(date, bucket === "week" ? 7 : 1);
+}
+
+function chartBucketLabel(date: Date, bucket: "day" | "week" | "month") {
+  const iso = date.toISOString().slice(0, 10);
+  if (bucket === "month") return iso.slice(0, 7);
+  return iso;
+}
+
+function dashboardChartRange(filters: SalesPeriodFilters, today = new Date()) {
+  const to = startOfUtcDay(dateFromIso(normalizeDate(filters.to)) ?? today);
+  const from = startOfUtcDay(dateFromIso(normalizeDate(filters.from)) ?? addUtcDays(to, -29));
+  if (from.getTime() > to.getTime()) throw new SalesDocumentError("INVALID_INPUT");
+  return { from, to };
 }
 
 function dateFromCampaignInput(value: string | undefined) {
@@ -1231,12 +1290,19 @@ export function salesStatementsCsv(statement: Awaited<ReturnType<typeof getSales
   return [header, ...rows].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
-export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser) {
+export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}, today = new Date()) {
   assertCommercialRole(actor);
   const documentWhere = salesDocumentWhere(actor);
   const approvedWhere = { ...documentWhere, status: "APPROVED" };
+  const chartRange = dashboardChartRange(filters, today);
+  const chartDocumentWhere = periodDocumentWhere(actor, {
+    ...filters,
+    from: chartRange.from.toISOString().slice(0, 10),
+    to: chartRange.to.toISOString().slice(0, 10)
+  });
+  const chartBucket = chartBucketForRange(chartRange.from, chartRange.to, filters.bucket) as "day" | "week" | "month";
 
-  const [totalDocuments, pendingDocuments, approvedDocuments, rejectedDocuments, sellers, approvedItems, pendingQueue] =
+  const [totalDocuments, pendingDocuments, approvedDocuments, rejectedDocuments, sellers, approvedItems, chartItems, pendingQueue] =
     await Promise.all([
       prisma.salesDocument.count({ where: documentWhere }),
       prisma.salesDocument.count({ where: { ...documentWhere, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } } }),
@@ -1246,6 +1312,13 @@ export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser
       prisma.salesItem.findMany({
         where: { salesDocument: approvedWhere },
         include: { sellerProfile: { include: { salesGroup: true } } }
+      }),
+      prisma.salesItem.findMany({
+        where: { salesDocument: chartDocumentWhere },
+        include: {
+          salesDocument: { select: { id: true, issuedAt: true } },
+          sellerProfile: { include: { salesGroup: true } }
+        }
       }),
       prisma.salesDocument.findMany({
         where: { ...documentWhere, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } },
@@ -1278,6 +1351,50 @@ export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser
     groupTotals.set(groupName, groupTotal);
   }
 
+  const chartBuckets = new Map<
+    string,
+    { key: string; label: string; from: string; to: string; documents: Set<string>; quantity: number; totalAmountCents: number }
+  >();
+  for (let cursor = chartBucketStart(chartRange.from, chartBucket); cursor.getTime() <= chartRange.to.getTime(); cursor = addChartBucket(cursor, chartBucket)) {
+    const next = addChartBucket(cursor, chartBucket);
+    const bucketEnd = addUtcDays(next, -1);
+    const key = chartBucketLabel(cursor, chartBucket);
+    chartBuckets.set(key, {
+      key,
+      label: key,
+      from: cursor.toISOString().slice(0, 10),
+      to: (bucketEnd.getTime() < chartRange.to.getTime() ? bucketEnd : chartRange.to).toISOString().slice(0, 10),
+      documents: new Set<string>(),
+      quantity: 0,
+      totalAmountCents: 0
+    });
+  }
+
+  for (const item of chartItems) {
+    const issuedAt = item.salesDocument.issuedAt;
+    if (!issuedAt) continue;
+    const key = chartBucketLabel(chartBucketStart(issuedAt, chartBucket), chartBucket);
+    const bucket = chartBuckets.get(key);
+    if (!bucket) continue;
+    bucket.documents.add(item.salesDocument.id);
+    bucket.quantity += item.quantity;
+    bucket.totalAmountCents += item.totalAmountCents;
+  }
+
+  const series = [...chartBuckets.values()].map((bucket) => {
+    const documents = bucket.documents.size;
+    return {
+      key: bucket.key,
+      label: bucket.label,
+      from: bucket.from,
+      to: bucket.to,
+      documents,
+      quantity: bucket.quantity,
+      totalAmountCents: bucket.totalAmountCents,
+      averageTicketCents: documents > 0 ? Math.round(bucket.totalAmountCents / documents) : 0
+    };
+  });
+
   return {
     metrics: {
       totalDocuments,
@@ -1286,6 +1403,12 @@ export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser
       rejectedDocuments,
       activeSellers: sellers.filter((seller) => seller.active).length,
       totalAmountCents: [...sellerTotals.values()].reduce((sum, item) => sum + item.totalAmountCents, 0)
+    },
+    chart: {
+      bucket: chartBucket,
+      from: chartRange.from.toISOString().slice(0, 10),
+      to: chartRange.to.toISOString().slice(0, 10),
+      series
     },
     queues: {
       pendingDocuments: pendingQueue,

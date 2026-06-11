@@ -60,7 +60,7 @@ function sendSalesDocumentError(request: Request, response: Response, error: unk
 
 export async function salesDashboardHandler(request: Request, response: Response) {
   try {
-    const result = await getSalesDashboard(prisma, actorFrom(request));
+    const result = await getSalesDashboard(prisma, actorFrom(request), parseSalesPeriodFilters(request.query));
     logEvent("info", "sales_dashboard.read", {
       requestId: request.context?.requestId,
       actorId: request.user?.id,

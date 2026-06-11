@@ -1,7 +1,7 @@
 # TASK-AT-060 - Dashboard dynamic sales charts
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-060-dashboard-dynamic-sales-charts.md
@@ -74,3 +74,16 @@ Para apresentar como produto acabado, o dashboard precisa mostrar tendencia visu
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Execucao 2026-06-11
+- `GET /v1/sales/dashboard` passou a aceitar filtros `from`, `to`, `sellerProfileId`, `salesGroupId` e `bucket`.
+- Backend agora retorna `chart` com bucket dinamico (`day`, `week`, `month`), serie temporal, total, quantidade, documentos e ticket medio por bucket.
+- Range padrao da UI: ultimos 30 dias.
+- Dashboard ganhou filtros por data, grupo e vendedor.
+- Dashboard ganhou grafico SVG responsivo de vendas aprovadas e tabela curta da serie.
+- Agregacao usa `issuedAt` das notas aprovadas, alinhando com extratos/ranking.
+
+## Validacao executada
+- `npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts dashboard.service.test.ts`
+- `npm run typecheck --workspace @alwaystrack/api`
+- `npm run typecheck --workspace @alwaystrack/web`

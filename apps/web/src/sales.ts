@@ -159,6 +159,21 @@ export interface SalesDashboardData {
     activeSellers: number;
     totalAmountCents: number;
   };
+  chart: {
+    bucket: "day" | "week" | "month";
+    from: string;
+    to: string;
+    series: Array<{
+      key: string;
+      label: string;
+      from: string;
+      to: string;
+      documents: number;
+      quantity: number;
+      totalAmountCents: number;
+      averageTicketCents: number;
+    }>;
+  };
   queues: {
     pendingDocuments: SalesDocumentItem[];
     topSellers: Array<{ sellerId: string; sellerName: string; groupName: string | null; totalAmountCents: number; quantity: number }>;

@@ -79,22 +79,22 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 60. `EXEC-AT-055`: workflow de relatorio Artillery com snapshots diagnosticos e bloqueio de benchmark 1000 em localhost (`TASK-AT-051`/`TASK-AT-053`). Status: completed-partial.
 61. `EXEC-AT-056`: Google login restrito por dominio corporativo e env guard (`TASK-AT-057`). Status: completed.
 62. `EXEC-AT-057`: reset de senha por admin validado e testes reforcados (`TASK-AT-058`). Status: completed.
+63. `EXEC-AT-058`: grafico dinamico no dashboard comercial por range/vendedor/grupo (`TASK-AT-060`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-060-dashboard-dynamic-sales-charts.md`: adicionar grafico dinamico no dashboard por range/filtros.
-2. `TASK-AT-061-knowledge-tags-and-combined-search.md`: tags padrao/customizadas e busca combinada em Wiki/FAQ.
-3. `TASK-AT-059-user-profile-page.md`: criar pagina de perfil com avatar, dados pessoais editaveis e historico de notificacoes.
-4. `TASK-AT-062-role-permission-matrix-hardening.md`: reforcar matriz de permissoes por role.
-5. `TASK-AT-063-organization-settings-internal-product.md`: configuracoes de organizacao para produto interno.
-6. `TASK-AT-064-dashboard-ranking-export-polish.md`: polir exports comerciais para reunioes.
-7. `TASK-AT-065-demo-readiness-empty-states-and-audit.md`: preparar seed/demo, estados vazios e auditoria consultavel.
-8. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
+1. `TASK-AT-061-knowledge-tags-and-combined-search.md`: tags padrao/customizadas e busca combinada em Wiki/FAQ.
+2. `TASK-AT-059-user-profile-page.md`: criar pagina de perfil com avatar, dados pessoais editaveis e historico de notificacoes.
+3. `TASK-AT-062-role-permission-matrix-hardening.md`: reforcar matriz de permissoes por role.
+4. `TASK-AT-063-organization-settings-internal-product.md`: configuracoes de organizacao para produto interno.
+5. `TASK-AT-064-dashboard-ranking-export-polish.md`: polir exports comerciais para reunioes.
+6. `TASK-AT-065-demo-readiness-empty-states-and-audit.md`: preparar seed/demo, estados vazios e auditoria consultavel.
+7. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
 2. `TASK-AT-058`: recuperacao de senha com reset por admin. Status: completed.
 3. `TASK-AT-059`: pagina de perfil do usuario.
-4. `TASK-AT-060`: grafico dinamico no dashboard.
+4. `TASK-AT-060`: grafico dinamico no dashboard. Status: completed.
 5. `TASK-AT-061`: tags e busca combinada em Wiki/FAQ.
 6. `TASK-AT-062`: matriz de permissoes comercial.
 7. `TASK-AT-063`: configuracoes da organizacao.
