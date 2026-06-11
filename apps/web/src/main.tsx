@@ -4035,10 +4035,13 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
-  const sidebarNav = visibleNav.filter((item) => item.key !== "profile");
-  const primaryNav = [
+  const sidebarNav = [
     ...visibleNav.filter((item) => item.key === "dashboard"),
     ...visibleNav.filter((item) => item.key === "profile"),
+    ...visibleNav.filter((item) => item.key !== "profile" && item.key !== "dashboard")
+  ];
+  const primaryNav = [
+    ...visibleNav.filter((item) => item.key === "dashboard"),
     ...visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile" && item.key !== "dashboard")
   ];
 

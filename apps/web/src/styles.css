@@ -807,7 +807,11 @@ button .icon {
   box-shadow: var(--shadow-sm);
   display: grid;
   column-gap: 16px;
-  grid-template-columns: minmax(230px, max-content) minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title account"
+    "nav nav";
+  grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: 14px;
   padding: 14px;
   position: sticky;
   top: 16px;
@@ -818,6 +822,7 @@ button .icon {
 .topbar-title {
   display: grid;
   gap: 5px;
+  grid-area: title;
   min-width: 210px;
   padding-right: 0;
 }
@@ -851,22 +856,22 @@ button .icon {
 
 .topbar-nav-group {
   align-items: center;
-  border-left: 1px solid var(--color-border-soft);
-  border-right: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--color-border-soft);
   display: flex;
+  grid-area: nav;
   min-width: 0;
-  padding: 0 16px;
+  padding: 14px 0 0;
 }
 
 .top-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 7px;
   justify-content: flex-start;
   min-width: 0;
   overflow: visible;
   padding-bottom: 0;
-  row-gap: 8px;
+  width: 100%;
 }
 
 .top-nav-item {
@@ -877,7 +882,7 @@ button .icon {
   color: #344054;
   display: inline-flex;
   gap: 6px;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   height: 34px;
   min-height: 34px;
   padding: 0 10px;
@@ -904,6 +909,7 @@ button .icon {
 }
 
 .topbar-account {
+  grid-area: account;
   padding-left: 2px;
 }
 
@@ -2569,13 +2575,20 @@ legend {
 
 @media (max-width: 1100px) {
   .topbar {
+    grid-template-areas:
+      "title"
+      "account"
+      "nav";
     grid-template-columns: 1fr;
   }
 
-  .topbar-title,
-  .topbar-nav-group {
+  .topbar-title {
     border: 0;
     padding: 0;
+  }
+
+  .topbar-nav-group {
+    padding-top: 12px;
   }
 
   .topbar-nav-group,
@@ -2699,6 +2712,7 @@ legend {
   }
 
   .top-nav {
+    flex-wrap: wrap;
     justify-content: stretch;
     min-width: 0;
   }
