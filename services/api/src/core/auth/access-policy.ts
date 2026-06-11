@@ -1,4 +1,4 @@
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 
 export interface ResourceScope {
   organizationId: string;
@@ -55,4 +55,8 @@ export function canAccessScopedResource(user: CurrentUser, resource: ResourceSco
 
 export function scopedOrganizationWhere(user: CurrentUser) {
   return { organizationId: user.organizationId };
+}
+
+export function canPerformCommercialAction(user: CurrentUser, permission: CommercialPermission) {
+  return canUseCommercialPermission(user.role, permission);
 }

@@ -24,6 +24,9 @@ import {
   notificationChannels,
   notificationStatuses,
   userRoles,
+  commercialAllRoles,
+  commercialManagerRoles,
+  adminOnlyRoles,
   type ApiResult,
   type CurrentUser,
   type LicenseStatus,
@@ -447,20 +450,20 @@ interface NavItem {
   label: string;
   description: string;
   icon: IconName;
-  roles: CurrentUser["role"][];
+  roles: readonly CurrentUser["role"][];
 }
 
 const navItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
-  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
+  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialAllRoles },
+  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialAllRoles },
   { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
-  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: ["ADMIN", "GESTOR", "SUPERVISOR"] },
-  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
-  { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
-  { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
-  { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: ["ADMIN", "GESTOR"] },
-  { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
-  { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
+  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialManagerRoles },
+  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialAllRoles },
+  { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
+  { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
+  { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: adminOnlyRoles },
+  { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: commercialAllRoles },
+  { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: adminOnlyRoles },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
 ];
 

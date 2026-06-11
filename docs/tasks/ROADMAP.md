@@ -82,13 +82,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 63. `EXEC-AT-058`: grafico dinamico no dashboard comercial por range/vendedor/grupo (`TASK-AT-060`). Status: completed.
 64. `EXEC-AT-059`: tags padrao/customizadas e busca combinada em Wiki/FAQ (`TASK-AT-061`). Status: completed.
 65. `EXEC-AT-060`: pagina Perfil com avatar URL, dados readonly e historico de notificacoes (`TASK-AT-059`). Status: completed.
+66. `EXEC-AT-061`: matriz canonica de permissoes comerciais em docs/API/UI (`TASK-AT-062`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-062-role-permission-matrix-hardening.md`: reforcar matriz de permissoes por role.
-2. `TASK-AT-063-organization-settings-internal-product.md`: configuracoes de organizacao para produto interno.
-3. `TASK-AT-064-dashboard-ranking-export-polish.md`: polir exports comerciais para reunioes.
-4. `TASK-AT-065-demo-readiness-empty-states-and-audit.md`: preparar seed/demo, estados vazios e auditoria consultavel.
-5. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
+1. `TASK-AT-063-organization-settings-internal-product.md`: configuracoes de organizacao para produto interno.
+2. `TASK-AT-064-dashboard-ranking-export-polish.md`: polir exports comerciais para reunioes.
+3. `TASK-AT-065-demo-readiness-empty-states-and-audit.md`: preparar seed/demo, estados vazios e auditoria consultavel.
+4. `TASK-AT-066-screenshot-driven-visual-polish.md`: ajustes visuais somente apos o usuario enviar prints.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -96,7 +96,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 3. `TASK-AT-059`: pagina de perfil do usuario. Status: completed.
 4. `TASK-AT-060`: grafico dinamico no dashboard. Status: completed.
 5. `TASK-AT-061`: tags e busca combinada em Wiki/FAQ. Status: completed.
-6. `TASK-AT-062`: matriz de permissoes comercial.
+6. `TASK-AT-062`: matriz de permissoes comercial. Status: completed.
 7. `TASK-AT-063`: configuracoes da organizacao.
 8. `TASK-AT-064`: exportacoes comerciais polidas.
 9. `TASK-AT-065`: prontidao para demo, estados vazios e auditoria.

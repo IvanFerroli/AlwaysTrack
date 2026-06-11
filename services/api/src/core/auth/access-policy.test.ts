@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
-import { canAccessScopedResource, scopedOrganizationWhere } from "./access-policy.js";
+import { canAccessScopedResource, canPerformCommercialAction, scopedOrganizationWhere } from "./access-policy.js";
 
 function user(overrides: Partial<CurrentUser>): CurrentUser {
   return {
@@ -52,5 +52,15 @@ describe("access policy", () => {
 
   it("returns reusable organization filters", () => {
     expect(scopedOrganizationWhere(user({ organizationId: "org-1" }))).toEqual({ organizationId: "org-1" });
+  });
+
+  it("locks critical commercial permissions by role", () => {
+    expect(canPerformCommercialAction(user({ role: "VENDEDOR" }), "sales.upload")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "VENDEDOR" }), "sales.review")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "SAC" }), "sales.review")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "FINANCEIRO" }), "campaign.manage")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "SUPERVISOR" }), "campaign.manage")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "GESTOR" }), "users.manage")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "ADMIN" }), "audit.read")).toBe(true);
   });
 });

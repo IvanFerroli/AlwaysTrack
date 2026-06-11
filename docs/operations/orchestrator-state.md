@@ -240,6 +240,12 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 | npm run db:test:migrations | passou — SQLite vazio, seedado e backup/restore local | 2026-06-11 (EXEC-AT-060) |
 | npm run repo:hygiene | passou | 2026-06-11 (EXEC-AT-060) |
 | git diff --check | passou | 2026-06-11 (EXEC-AT-060) |
+| npm run typecheck --workspace @alwaystrack/api | passou | 2026-06-11 (EXEC-AT-061) |
+| npm run typecheck --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-061) |
+| npm run test --workspace @alwaystrack/api -- access-policy.test.ts auth.service.test.ts | passou — 16 testes | 2026-06-11 (EXEC-AT-061) |
+| npm run build --workspace @alwaystrack/web | passou | 2026-06-11 (EXEC-AT-061) |
+| npm run test:all | passou — 28 arquivos, 181 testes + 1 skip Redis + TypeDoc | 2026-06-11 (EXEC-AT-061) |
+| npm run repo:hygiene | passou | 2026-06-11 (EXEC-AT-061) |
 | npm run check | passou — 114 testes | 2026-05-28 |
 | npm run check | passou — 115 testes | 2026-05-29 |
 | npm run check | passou — 116 testes | 2026-05-29 |

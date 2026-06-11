@@ -46,7 +46,7 @@ export async function requireAuth(request: Request, response: Response, next: Ne
 }
 
 
-export function requireRole(roles: UserRole[]) {
+export function requireRole(roles: readonly UserRole[]) {
   return (request: Request, response: Response, next: NextFunction) => {
     if (!request.user) {
       return sendError(response, 401, "UNAUTHENTICATED", "Login required.");

@@ -1,4 +1,11 @@
 import express from "express";
+import {
+  adminOnlyRoles,
+  commercialAllRoles,
+  commercialKnowledgeContributorRoles,
+  commercialManagerRoles,
+  commercialReviewerRoles
+} from "@alwaystrack/shared";
 import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
 import { sendError, sendOk } from "./core/http/responses.js";
@@ -203,41 +210,41 @@ export function createApp() {
   app.patch("/v1/profile", requireAuth, updateProfileHandler);
   app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
 
-  app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);
-  app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(["ADMIN"]), httpMetricsHandler);
+  app.get("/v1/audit-logs", requireAuth, requireRole(adminOnlyRoles), listAuditLogsHandler);
+  app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(adminOnlyRoles), httpMetricsHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }
-  app.get("/v1/sales/dashboard", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesDashboardHandler);
-  app.get("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesCampaignsHandler);
-  app.post("/v1/sales/campaigns", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), createSalesCampaignHandler);
-  app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listRankingSnapshotsHandler);
-  app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), express.json(), updateSalesCampaignHandler);
-  app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), createRankingSnapshotHandler);
-  app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), getRankingSnapshotJobStatusHandler);
-  app.get("/v1/sales/ranking", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesRankingHandler);
-  app.get("/v1/sales/sellers", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesSellersHandler);
-  app.get("/v1/sales/statements", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsHandler);
-  app.get("/v1/sales/statements.csv", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), salesStatementsCsvHandler);
-  app.get("/v1/sales/documents", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listSalesDocumentsHandler);
+  app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialAllRoles), salesDashboardHandler);
+  app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialAllRoles), listSalesCampaignsHandler);
+  app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), express.json(), createSalesCampaignHandler);
+  app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(commercialAllRoles), listRankingSnapshotsHandler);
+  app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), express.json(), updateSalesCampaignHandler);
+  app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), createRankingSnapshotHandler);
+  app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(commercialManagerRoles), getRankingSnapshotJobStatusHandler);
+  app.get("/v1/sales/ranking", requireAuth, requireRole(commercialAllRoles), salesRankingHandler);
+  app.get("/v1/sales/sellers", requireAuth, requireRole(commercialAllRoles), listSalesSellersHandler);
+  app.get("/v1/sales/statements", requireAuth, requireRole(commercialAllRoles), salesStatementsHandler);
+  app.get("/v1/sales/statements.csv", requireAuth, requireRole(commercialAllRoles), salesStatementsCsvHandler);
+  app.get("/v1/sales/documents", requireAuth, requireRole(commercialAllRoles), listSalesDocumentsHandler);
   app.post(
     "/v1/sales/documents",
     requireAuth,
-    requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
+    requireRole(commercialAllRoles),
     express.raw({ limit: "11mb", type: ["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
-  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), analyzeSalesDocumentHandler);
-  app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO"]), reviewSalesDocumentHandler);
-  app.get("/v1/faq/threads", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listFaqThreadsHandler);
-  app.post("/v1/faq/threads", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), createFaqThreadHandler);
-  app.post("/v1/faq/threads/:threadId/comments", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), addFaqCommentHandler);
-  app.patch("/v1/faq/threads/:threadId/status", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), updateFaqThreadStatusHandler);
-  app.post("/v1/faq/threads/:threadId/reactions", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), setFaqReactionHandler);
-  app.post("/v1/faq/threads/:threadId/promote-to-wiki", requireAuth, requireRole(["ADMIN", "GESTOR", "SUPERVISOR"]), promoteFaqThreadToWikiHandler);
-  app.get("/v1/in-app-notifications", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listInAppNotificationsHandler);
-  app.post("/v1/in-app-notifications/read-all", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markAllInAppNotificationsReadHandler);
-  app.post("/v1/in-app-notifications/:notificationId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markInAppNotificationReadHandler);
+  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialAllRoles), analyzeSalesDocumentHandler);
+  app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(commercialReviewerRoles), reviewSalesDocumentHandler);
+  app.get("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), listFaqThreadsHandler);
+  app.post("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), createFaqThreadHandler);
+  app.post("/v1/faq/threads/:threadId/comments", requireAuth, requireRole(commercialAllRoles), addFaqCommentHandler);
+  app.patch("/v1/faq/threads/:threadId/status", requireAuth, requireRole(commercialManagerRoles), updateFaqThreadStatusHandler);
+  app.post("/v1/faq/threads/:threadId/reactions", requireAuth, requireRole(commercialAllRoles), setFaqReactionHandler);
+  app.post("/v1/faq/threads/:threadId/promote-to-wiki", requireAuth, requireRole(commercialManagerRoles), promoteFaqThreadToWikiHandler);
+  app.get("/v1/in-app-notifications", requireAuth, requireRole(commercialAllRoles), listInAppNotificationsHandler);
+  app.post("/v1/in-app-notifications/read-all", requireAuth, requireRole(commercialAllRoles), markAllInAppNotificationsReadHandler);
+  app.post("/v1/in-app-notifications/:notificationId/read", requireAuth, requireRole(commercialAllRoles), markInAppNotificationReadHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
     app.get("/v1/reports/licenses/expired/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesCsvReportHandler);
@@ -256,20 +263,20 @@ export function createApp() {
     app.get("/v1/reports/regularization", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationReportHandler);
     app.get("/v1/reports/regularization/csv", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), regularizationCsvReportHandler);
   }
-  app.get("/v1/organization", requireAuth, requireRole(["ADMIN"]), getOrganizationHandler);
-  app.patch("/v1/organization", requireAuth, requireRole(["ADMIN"]), updateOrganizationHandler);
-  app.post("/v1/organization/units", requireAuth, requireRole(["ADMIN"]), createUnitHandler);
-  app.patch("/v1/organization/units/:unitId", requireAuth, requireRole(["ADMIN"]), updateUnitHandler);
-  app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(["ADMIN"]), createSectorHandler);
-  app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(["ADMIN"]), updateSectorHandler);
-  app.get("/v1/users", requireAuth, requireRole(["ADMIN"]), listUsersHandler);
-  app.get("/v1/users/commercial-options", requireAuth, requireRole(["ADMIN"]), listCommercialUserOptionsHandler);
-  app.post("/v1/users", requireAuth, requireRole(["ADMIN"]), createUserHandler);
-  app.patch("/v1/users/:userId", requireAuth, requireRole(["ADMIN"]), updateUserHandler);
-  app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(["ADMIN"]), resetUserPasswordHandler);
-  app.get("/v1/integrations/google/status", requireAuth, requireRole(["ADMIN"]), googleIntegrationStatusHandler);
-  app.get("/v1/integrations/google/oauth/start", requireAuth, requireRole(["ADMIN"]), googleOauthStartHandler);
-  app.delete("/v1/integrations/google", requireAuth, requireRole(["ADMIN"]), googleIntegrationDisconnectHandler);
+  app.get("/v1/organization", requireAuth, requireRole(adminOnlyRoles), getOrganizationHandler);
+  app.patch("/v1/organization", requireAuth, requireRole(adminOnlyRoles), updateOrganizationHandler);
+  app.post("/v1/organization/units", requireAuth, requireRole(adminOnlyRoles), createUnitHandler);
+  app.patch("/v1/organization/units/:unitId", requireAuth, requireRole(adminOnlyRoles), updateUnitHandler);
+  app.post("/v1/organization/units/:unitId/sectors", requireAuth, requireRole(adminOnlyRoles), createSectorHandler);
+  app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(adminOnlyRoles), updateSectorHandler);
+  app.get("/v1/users", requireAuth, requireRole(adminOnlyRoles), listUsersHandler);
+  app.get("/v1/users/commercial-options", requireAuth, requireRole(adminOnlyRoles), listCommercialUserOptionsHandler);
+  app.post("/v1/users", requireAuth, requireRole(adminOnlyRoles), createUserHandler);
+  app.patch("/v1/users/:userId", requireAuth, requireRole(adminOnlyRoles), updateUserHandler);
+  app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(adminOnlyRoles), resetUserPasswordHandler);
+  app.get("/v1/integrations/google/status", requireAuth, requireRole(adminOnlyRoles), googleIntegrationStatusHandler);
+  app.get("/v1/integrations/google/oauth/start", requireAuth, requireRole(adminOnlyRoles), googleOauthStartHandler);
+  app.delete("/v1/integrations/google", requireAuth, requireRole(adminOnlyRoles), googleIntegrationDisconnectHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/professionals", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), listProfessionalsHandler);
     app.get("/v1/professionals/:professionalId", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getProfessionalHandler);
@@ -351,31 +358,31 @@ export function createApp() {
     app.post("/v1/notifications/process", requireAuth, requireRole(["ADMIN"]), processNotificationJobsHandler);
     app.post("/v1/notifications/manual-license", requireAuth, requireRole(["ADMIN"]), manualLicenseNotificationHandler);
   }
-  app.get("/v1/wiki/pages", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listWikiPagesHandler);
-  app.post("/v1/wiki/pages", requireAuth, requireRole(["ADMIN"]), createWikiPageHandler);
-  app.get("/v1/wiki/pages/by-slug/:slug", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiPageBySlugHandler);
-  app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiPageHandler);
-  app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(["ADMIN"]), updateWikiPageHandler);
-  app.post("/v1/wiki/pages/:pageId/archive", requireAuth, requireRole(["ADMIN"]), archiveWikiPageHandler);
-  app.post("/v1/wiki/pages/:pageId/unarchive", requireAuth, requireRole(["ADMIN"]), unarchiveWikiPageHandler);
-  app.post("/v1/wiki/pages/:pageId/revisions/:revisionId/restore", requireAuth, requireRole(["ADMIN"]), restoreWikiRevisionHandler);
-  app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), markWikiReadHandler);
-  app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), heartbeatWikiPresenceHandler);
+  app.get("/v1/wiki/pages", requireAuth, requireRole(commercialAllRoles), listWikiPagesHandler);
+  app.post("/v1/wiki/pages", requireAuth, requireRole(adminOnlyRoles), createWikiPageHandler);
+  app.get("/v1/wiki/pages/by-slug/:slug", requireAuth, requireRole(commercialAllRoles), getWikiPageBySlugHandler);
+  app.get("/v1/wiki/pages/:pageId", requireAuth, requireRole(commercialAllRoles), getWikiPageHandler);
+  app.patch("/v1/wiki/pages/:pageId", requireAuth, requireRole(adminOnlyRoles), updateWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/archive", requireAuth, requireRole(adminOnlyRoles), archiveWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/unarchive", requireAuth, requireRole(adminOnlyRoles), unarchiveWikiPageHandler);
+  app.post("/v1/wiki/pages/:pageId/revisions/:revisionId/restore", requireAuth, requireRole(adminOnlyRoles), restoreWikiRevisionHandler);
+  app.post("/v1/wiki/pages/:pageId/read", requireAuth, requireRole(commercialAllRoles), markWikiReadHandler);
+  app.post("/v1/wiki/pages/:pageId/presence", requireAuth, requireRole(commercialAllRoles), heartbeatWikiPresenceHandler);
   app.post(
     "/v1/wiki/attachments",
     requireAuth,
-    requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
+    requireRole(commercialAllRoles),
     express.raw({ limit: "11mb", type: ["image/jpeg", "image/png", "image/webp"] }),
     uploadWikiAttachmentHandler
   );
-  app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), getWikiAttachmentFileHandler);
-  app.get("/v1/wiki/edit-requests", requireAuth, requireRole(["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), listWikiEditRequestsHandler);
-  app.post("/v1/wiki/edit-requests", requireAuth, requireRole(["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]), createWikiEditRequestHandler);
-  app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(["ADMIN"]), approveWikiEditRequestHandler);
-  app.post("/v1/wiki/edit-requests/:requestId/reject", requireAuth, requireRole(["ADMIN"]), rejectWikiEditRequestHandler);
-  app.get("/v1/faq", requireAuth, requireRole(["ADMIN"]), listFaqItemsHandler);
-  app.post("/v1/faq", requireAuth, requireRole(["ADMIN"]), createFaqItemHandler);
-  app.patch("/v1/faq/:faqItemId", requireAuth, requireRole(["ADMIN"]), updateFaqItemHandler);
+  app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(commercialAllRoles), getWikiAttachmentFileHandler);
+  app.get("/v1/wiki/edit-requests", requireAuth, requireRole(commercialAllRoles), listWikiEditRequestsHandler);
+  app.post("/v1/wiki/edit-requests", requireAuth, requireRole(commercialKnowledgeContributorRoles), createWikiEditRequestHandler);
+  app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(adminOnlyRoles), approveWikiEditRequestHandler);
+  app.post("/v1/wiki/edit-requests/:requestId/reject", requireAuth, requireRole(adminOnlyRoles), rejectWikiEditRequestHandler);
+  app.get("/v1/faq", requireAuth, requireRole(adminOnlyRoles), listFaqItemsHandler);
+  app.post("/v1/faq", requireAuth, requireRole(adminOnlyRoles), createFaqItemHandler);
+  app.patch("/v1/faq/:faqItemId", requireAuth, requireRole(adminOnlyRoles), updateFaqItemHandler);
 
   app.use((_request, response) => sendError(response, 404, "NOT_FOUND", "Route not found."));
 

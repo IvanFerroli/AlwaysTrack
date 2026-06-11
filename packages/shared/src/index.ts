@@ -4,6 +4,37 @@ export type UserRole = (typeof userRoles)[number];
 export const commercialUserRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR"] as const;
 export type CommercialUserRole = (typeof commercialUserRoles)[number];
 
+export const adminOnlyRoles = ["ADMIN"] as const satisfies readonly UserRole[];
+export const commercialAllRoles = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
+export const commercialManagerRoles = ["ADMIN", "GESTOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
+export const commercialReviewerRoles = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO"] as const satisfies readonly UserRole[];
+export const commercialKnowledgeContributorRoles = ["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
+
+export const commercialPermissionMatrix = {
+  "sales.read": commercialAllRoles,
+  "sales.upload": commercialAllRoles,
+  "sales.review": commercialReviewerRoles,
+  "campaign.read": commercialAllRoles,
+  "campaign.manage": commercialManagerRoles,
+  "ranking.read": ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[],
+  "ranking.filterSeller": commercialManagerRoles,
+  "statements.read": commercialAllRoles,
+  "knowledge.read": commercialAllRoles,
+  "knowledge.contribute": commercialKnowledgeContributorRoles,
+  "knowledge.publish": adminOnlyRoles,
+  "faq.moderate": commercialManagerRoles,
+  "users.manage": adminOnlyRoles,
+  "audit.read": adminOnlyRoles,
+  "profile.manageSelf": commercialAllRoles,
+  "notifications.readSelf": commercialAllRoles
+} as const;
+
+export type CommercialPermission = keyof typeof commercialPermissionMatrix;
+
+export function canUseCommercialPermission(role: UserRole, permission: CommercialPermission) {
+  return (commercialPermissionMatrix[permission] as readonly UserRole[]).includes(role);
+}
+
 export const licenseStatuses = [
   "REGULAR",
   "EXPIRING",

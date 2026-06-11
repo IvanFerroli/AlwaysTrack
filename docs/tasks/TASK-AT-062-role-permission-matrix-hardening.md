@@ -1,7 +1,7 @@
 # TASK-AT-062 - Commercial role permission matrix hardening
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-062-role-permission-matrix-hardening.md
@@ -21,7 +21,7 @@ O produto esta perto de apresentacao. Antes de demo/beta, precisa estar claro o 
 
 ## Dependencias
 - satisfeitas: roles comerciais existem.
-- em aberto: confirmar se SAC e financeiro devem ter visoes diferentes.
+- em aberto: diferenciar ainda mais SAC e financeiro fica para decisao futura; nesta fase ambos podem revisar notas.
 
 ## Alvos explicitos
 1. Criar matriz documentada em docs.
@@ -35,11 +35,11 @@ O produto esta perto de apresentacao. Antes de demo/beta, precisa estar claro o 
 - Permissoes customizadas por usuario.
 
 ## Checklist
-1. Levantar rotas API e views.
-2. Criar tabela role x acao.
-3. Implementar/ajustar checks faltantes.
-4. Esconder acoes indisponiveis na UI.
-5. Testar acesso direto via API.
+1. [x] Levantar rotas API e views.
+2. [x] Criar tabela role x acao.
+3. [x] Implementar/ajustar checks faltantes.
+4. [x] Esconder acoes indisponiveis na UI.
+5. [x] Testar acesso direto via API.
 
 ## Acceptance Criteria
 1. Matriz de permissoes existe e esta atualizada.
@@ -50,6 +50,11 @@ O produto esta perto de apresentacao. Antes de demo/beta, precisa estar claro o 
 ## Definition of Done
 1. Docs, testes e ajustes entregues.
 2. `npm run test:all` passa.
+
+## Execucao
+- execucao: `EXEC-AT-061-commercial-permission-matrix-hardening.md`
+- matriz: `docs/security/commercial-permission-matrix.md`
+- resultado: permissoes comerciais canonicas em `@alwaystrack/shared`, rotas comerciais ativas usando grupos nomeados e UI usando a mesma matriz para acoes criticas.
 
 ## Validacao
 - comandos/checks: `npm run test --workspace @alwaystrack/api -- access-policy.test.ts auth.service.test.ts`, `npm run test:all`

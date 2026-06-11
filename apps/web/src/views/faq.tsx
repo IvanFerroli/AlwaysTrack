@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { OperationalFilters, OperationalState } from "../components/operational";
 import { formatDateBr } from "../sales";
@@ -70,7 +70,7 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canModerate = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
+  const canModerate = canUseCommercialPermission(user.role, "faq.moderate");
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);

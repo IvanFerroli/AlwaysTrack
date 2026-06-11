@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import {
@@ -17,7 +17,7 @@ export function RankingView({ user }: { user: CurrentUser }) {
   const [sellerRanking, setSellerRanking] = useState<SalesRankingData | null>(null);
   const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
   const [filters, setFilters] = useState<SalesFilters>({});
-  const canFilterSellers = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
+  const canFilterSellers = canUseCommercialPermission(user.role, "ranking.filterSeller");
 
   useEffect(() => {
     api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));

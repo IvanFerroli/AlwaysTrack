@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import {
@@ -229,7 +229,7 @@ export function NotesView({ user }: { user: CurrentUser }) {
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const canReview = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(user.role);
+  const canReview = canUseCommercialPermission(user.role, "sales.review");
   const pendingReviewItems = useMemo(() => items.filter((item) => item.status === "PENDING_REVIEW"), [items]);
   const selectedPendingItems = useMemo(
     () => pendingReviewItems.filter((item) => selectedDocumentIds.includes(item.id)),

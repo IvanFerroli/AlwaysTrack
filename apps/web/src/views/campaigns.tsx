@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import {
@@ -56,7 +56,7 @@ export function CampaignsView({ user }: { user: CurrentUser }) {
   const [error, setError] = useState<string | null>(null);
   const [compareBaseId, setCompareBaseId] = useState("");
   const [compareCurrentId, setCompareCurrentId] = useState("");
-  const canManage = ["ADMIN", "GESTOR", "SUPERVISOR"].includes(user.role);
+  const canManage = canUseCommercialPermission(user.role, "campaign.manage");
   const groups = campaignGroups(items);
   const defaultBaseId = snapshots[1]?.id ?? snapshots[0]?.id ?? "";
   const defaultCurrentId = snapshots[0]?.id ?? "";
