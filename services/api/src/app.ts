@@ -23,9 +23,11 @@ import {
 } from "./core/organizations/organizations.handlers.js";
 import {
   createUserHandler,
+  getProfileHandler,
   listCommercialUserOptionsHandler,
   listUsersHandler,
   resetUserPasswordHandler,
+  updateProfileHandler,
   updateUserHandler
 } from "./core/users/users.handlers.js";
 import {
@@ -197,6 +199,8 @@ export function createApp() {
   app.get("/v1/auth/google/callback", googleLoginCallbackHandler);
   app.post("/v1/auth/logout", requireAuth, logoutHandler);
   app.get("/v1/auth/me", requireAuth, meHandler);
+  app.get("/v1/profile", requireAuth, getProfileHandler);
+  app.patch("/v1/profile", requireAuth, updateProfileHandler);
   app.get("/v1/integrations/google/oauth/callback", googleOauthCallbackHandler);
 
   app.get("/v1/audit-logs", requireAuth, requireRole(["ADMIN"]), listAuditLogsHandler);

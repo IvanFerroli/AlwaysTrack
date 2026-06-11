@@ -33,6 +33,7 @@ function currentUserFromRecord(user: {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string | null;
   role: string;
   organizationId: string;
   unitScopeJson: string | null;
@@ -42,6 +43,7 @@ function currentUserFromRecord(user: {
     id: user.id,
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatarUrl ?? null,
     role: toUserRole(user.role),
     organizationId: user.organizationId,
     unitScopeIds: parseScopeIds(user.unitScopeJson),

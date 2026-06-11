@@ -912,9 +912,143 @@ button .icon {
   font-style: normal;
 }
 
+.profile-trigger {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  height: 40px;
+  min-height: 40px;
+  max-width: 220px;
+  padding: 0 10px;
+}
+
+.profile-trigger img,
+.profile-trigger span {
+  border-radius: var(--radius-pill);
+  height: 26px;
+  width: 26px;
+}
+
+.profile-trigger img {
+  object-fit: cover;
+}
+
+.profile-trigger span {
+  align-items: center;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: center;
+}
+
+.profile-trigger strong {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .content-stack {
   display: grid;
   gap: 18px;
+}
+
+.profile-header-panel {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(320px, 1.4fr);
+  padding: 20px;
+}
+
+.profile-avatar {
+  align-items: center;
+  background: var(--color-primary-soft);
+  border: 1px solid #bfe5dd;
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  display: flex;
+  font-size: 24px;
+  font-weight: 900;
+  height: 76px;
+  justify-content: center;
+  overflow: hidden;
+  width: 76px;
+}
+
+.profile-avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.profile-readonly-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-readonly-grid span {
+  background: #f8fbfd;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.profile-readonly-grid small {
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.profile-readonly-grid strong {
+  overflow-wrap: anywhere;
+}
+
+.profile-notification-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.profile-notification {
+  align-items: start;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--color-text);
+  display: grid;
+  gap: 5px;
+  height: auto;
+  justify-items: stretch;
+  min-height: 72px;
+  padding: 11px;
+  text-align: left;
+  width: 100%;
+}
+
+.profile-notification.unread {
+  background: #ecfdf7;
+  border-color: #99e4c8;
+}
+
+.profile-notification span {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-notification small,
+.profile-notification em {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-style: normal;
 }
 
 /* Dashboard */
@@ -2276,7 +2410,9 @@ legend {
   .wiki-review-grid,
   .wiki-conflict-grid,
   .wiki-compare-grid,
-  .wiki-meta-grid {
+  .wiki-meta-grid,
+  .profile-header-panel,
+  .profile-readonly-grid {
     grid-template-columns: 1fr;
   }
 }

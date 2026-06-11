@@ -13,6 +13,7 @@ import {
   LogOut,
   ScrollText,
   Settings,
+  UserCircle,
   ScanSearch,
   Users,
   type LucideIcon
@@ -46,6 +47,7 @@ import { DashboardView } from "./views/dashboard";
 import { FaqThreadsView } from "./views/faq";
 import { HelpView } from "./views/help";
 import { NotesView } from "./views/notes";
+import { ProfileView } from "./views/profile";
 import { RankingView } from "./views/ranking";
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
@@ -61,6 +63,7 @@ type ViewKey =
   | "wiki"
   | "faq"
   | "users"
+  | "profile"
   | "audit"
   | "help"
   | "professionals"
@@ -79,6 +82,7 @@ type IconName =
   | "settings"
   | "help"
   | "logout"
+  | "profile"
   | "download"
   | "check"
   | "bell"
@@ -455,6 +459,7 @@ const navItems: NavItem[] = [
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: ["ADMIN", "GESTOR"] },
+  { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: ["ADMIN"] },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
 ];
@@ -492,6 +497,7 @@ const iconComponents: Record<IconName, LucideIcon> = {
   settings: Settings,
   help: CircleHelp,
   logout: LogOut,
+  profile: UserCircle,
   download: Download,
   check: Check,
   bell: Bell,
@@ -4011,7 +4017,7 @@ function wikiSlugFromPath(pathname = window.location.pathname) {
   }
 }
 
-function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void }) {
+function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogout: () => void; onUserChange: (user: CurrentUser) => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const initialHelpId = window.location.hash.replace("#", "");
   const initialWikiSlug = wikiSlugFromPath();
@@ -4020,7 +4026,7 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
   const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
-  const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings");
+  const primaryNav = visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile");
 
   function clearHelpHash() {
     if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {
@@ -4072,6 +4078,10 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
     }
     if (href === "/notas") {
       openView("notes");
+      return;
+    }
+    if (href === "/profile") {
+      openView("profile");
       return;
     }
     window.location.assign(href);
@@ -4159,7 +4169,10 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           </div>
           <div className="topbar-account user-actions">
             <NotificationCenter onNavigate={openNotificationHref} />
-            <span>{user.name}</span>
+            <button className="profile-trigger secondary" type="button" onClick={() => openView("profile")} title="Perfil">
+              {user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} /> : <span>{user.name.slice(0, 1).toUpperCase()}</span>}
+              <strong>{user.name}</strong>
+            </button>
             <button className="secondary" onClick={logout}>
               <Icon name="logout" /> Sair
             </button>
@@ -4193,6 +4206,8 @@ function AppShell({ user, onLogout }: { user: CurrentUser; onLogout: () => void 
           <AuditView />
         ) : activeItem.key === "settings" ? (
           <SettingsView />
+        ) : activeItem.key === "profile" ? (
+          <ProfileView user={user} onProfileSaved={onUserChange} />
         ) : activeItem.key === "help" ? (
           <HelpView user={user} />
         ) : (
@@ -4232,7 +4247,7 @@ function App() {
     return <PublicFaqView />;
   }
 
-  return user ? <AppShell user={user} onLogout={() => setUser(null)} /> : <LoginForm onLogin={setUser} />;
+  return user ? <AppShell user={user} onLogout={() => setUser(null)} onUserChange={setUser} /> : <LoginForm onLogin={setUser} />;
 }
 
 createRoot(document.getElementById("root") as HTMLElement).render(

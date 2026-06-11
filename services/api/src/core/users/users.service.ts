@@ -21,6 +21,7 @@ export interface UserManagementInput {
   password?: string;
   role?: UserRole;
   phone?: string | null;
+  avatarUrl?: string | null;
   active?: boolean;
   unitScopeIds?: string[];
   sectorScopeIds?: string[];
@@ -40,6 +41,19 @@ function cleanOptionalText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function cleanAvatarUrl(value: unknown) {
+  const avatarUrl = cleanOptionalText(value);
+  if (avatarUrl === undefined || avatarUrl === null) return avatarUrl;
+  if (avatarUrl.length > 500) return undefined;
+  if (avatarUrl.startsWith("/")) return avatarUrl;
+  try {
+    const parsed = new URL(avatarUrl);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? avatarUrl : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function cleanBoolean(value: unknown) {
@@ -83,6 +97,27 @@ function sanitizeUser<T extends { passwordHash?: string; unitScopeJson: string |
   };
 }
 
+function profileSelect() {
+  return {
+    id: true,
+    name: true,
+    email: true,
+    avatarUrl: true,
+    role: true,
+    phone: true,
+    active: true,
+    organizationId: true,
+    unitScopeJson: true,
+    sectorScopeJson: true,
+    createdAt: true,
+    updatedAt: true,
+    organization: { select: { id: true, name: true } },
+    sellerProfile: { include: { salesGroup: true } },
+    supervisedSalesGroups: true,
+    googleConnection: { select: { id: true, connectedAt: true } }
+  } as const;
+}
+
 export function parseCreateUserInput(payload: unknown): UserManagementInput {
   const input = (payload ?? {}) as Record<string, unknown>;
   return {
@@ -113,6 +148,15 @@ export function parseUpdateUserInput(payload: unknown): UserManagementInput {
     sellerCode: cleanText(input.sellerCode),
     sellerDisplayName: cleanText(input.sellerDisplayName),
     salesGroupId: cleanOptionalText(input.salesGroupId)
+  };
+}
+
+export function parseProfileInput(payload: unknown): UserManagementInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    name: cleanText(input.name),
+    phone: cleanOptionalText(input.phone),
+    avatarUrl: cleanAvatarUrl(input.avatarUrl)
   };
 }
 
@@ -386,4 +430,53 @@ export async function resetManagedUserPassword(
   });
 
   return sanitizeUser(user);
+}
+
+export async function getUserProfile(prisma: PrismaClient, actor: ActorContext) {
+  const user = await prisma.user.findFirst({
+    where: { id: actor.id, organizationId: actor.organizationId },
+    select: profileSelect()
+  });
+  if (!user) throw new UserManagementError("NOT_FOUND");
+  return { profile: sanitizeUser(user) };
+}
+
+export async function updateUserProfile(prisma: PrismaClient, actor: ActorContext, input: UserManagementInput) {
+  if (!input.name && input.phone === undefined && input.avatarUrl === undefined) {
+    throw new UserManagementError("INVALID_INPUT");
+  }
+
+  const existing = await prisma.user.findFirst({ where: { id: actor.id, organizationId: actor.organizationId } });
+  if (!existing) throw new UserManagementError("NOT_FOUND");
+
+  const user = await prisma.user.update({
+    where: { id: actor.id },
+    data: {
+      name: input.name,
+      phone: input.phone,
+      avatarUrl: input.avatarUrl
+    },
+    select: profileSelect()
+  });
+
+  if (user.sellerProfile && (input.name || input.phone !== undefined)) {
+    await prisma.sellerProfile.update({
+      where: { id: user.sellerProfile.id },
+      data: {
+        displayName: input.name ?? user.sellerProfile.displayName,
+        phone: input.phone === undefined ? user.sellerProfile.phone : input.phone
+      }
+    });
+  }
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "user.profile_update",
+    entityType: "User",
+    entityId: actor.id,
+    metadata: { name: input.name, phone: input.phone, avatarUrl: input.avatarUrl }
+  });
+
+  return { profile: sanitizeUser(user) };
 }

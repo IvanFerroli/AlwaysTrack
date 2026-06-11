@@ -1,7 +1,7 @@
 # TASK-AT-059 - User profile page
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-059-user-profile-page.md
@@ -21,7 +21,7 @@ Uma pagina de perfil melhora a percepcao de produto acabado e concentra informac
 
 ## Dependencias
 - satisfeitas: usuario autenticado e centro de notificacoes existem.
-- em aberto: reset/troca de senha local pode depender de `TASK-AT-058`.
+- em aberto: troca de senha propria fica para task futura; `TASK-AT-058` entregou reset por admin.
 
 ## Alvos explicitos
 1. Criar rota/tela Perfil.
@@ -37,11 +37,11 @@ Uma pagina de perfil melhora a percepcao de produto acabado e concentra informac
 - Upload de imagens sem limite/tipo validado.
 
 ## Checklist
-1. Definir contrato API de perfil.
-2. Implementar leitura/atualizacao segura.
-3. Implementar upload/avatar ou iniciais como fallback.
-4. Integrar historico de notificacoes.
-5. Cobrir testes e estados vazios.
+1. [x] Definir contrato API de perfil.
+2. [x] Implementar leitura/atualizacao segura.
+3. [x] Implementar avatar por URL validada e iniciais como fallback.
+4. [x] Integrar historico de notificacoes.
+5. [x] Cobrir testes e estados vazios.
 
 ## Acceptance Criteria
 1. Usuario consegue atualizar nome e foto/avatar.
@@ -53,6 +53,11 @@ Uma pagina de perfil melhora a percepcao de produto acabado e concentra informac
 1. Perfil acessivel pelo topo/menu.
 2. Dados sensiveis protegidos por permissao.
 3. `npm run test:all` e build web passam.
+
+## Execucao
+- execucao: `EXEC-AT-060-user-profile-page.md`
+- resultado: pagina Perfil criada com edicao de nome, telefone e avatar URL; email, role, organizacao e vinculos comerciais aparecem como somente leitura; historico de notificacoes tem filtros e acao para marcar lidas.
+- nota tecnica: upload binario de avatar e troca de senha propria nao entram nesta leva. Avatar usa URL relativa/HTTP validada; senha propria deve ser desenhada separadamente para nao conflitar com login Google e reset por admin.
 
 ## Validacao
 - comandos/checks: `npm run typecheck --workspace @alwaystrack/web`, `npm run test --workspace @alwaystrack/api -- users.service.test.ts notifications.service.test.ts`, `npm run test:all`

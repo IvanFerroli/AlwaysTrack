@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createManagedUser,
+  getUserProfile,
   parseCreateUserInput,
+  parseProfileInput,
   resetManagedUserPassword,
+  updateUserProfile,
   updateManagedUser,
   UserManagementError
 } from "./users.service.js";
@@ -33,6 +36,28 @@ describe("users service", () => {
       sellerCode: undefined,
       sellerDisplayName: undefined,
       salesGroupId: undefined
+    });
+  });
+
+  it("parses profile payload without privileged fields", () => {
+    expect(
+      parseProfileInput({
+        name: " Vendedor Demo ",
+        phone: "",
+        avatarUrl: " /favicon/favicon-512.png ",
+        email: "root@example.com",
+        role: "ADMIN",
+        organizationId: "other"
+      })
+    ).toEqual({
+      name: "Vendedor Demo",
+      phone: null,
+      avatarUrl: "/favicon/favicon-512.png"
+    });
+    expect(parseProfileInput({ avatarUrl: "javascript:alert(1)" })).toEqual({
+      name: undefined,
+      phone: undefined,
+      avatarUrl: undefined
     });
   });
 
@@ -256,5 +281,96 @@ describe("users service", () => {
     );
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("loads the current user profile with commercial readonly links", async () => {
+    const prisma = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "seller-user-1",
+          name: "Ana",
+          email: "ana@example.com",
+          avatarUrl: "/avatar.png",
+          passwordHash: "secret",
+          role: "VENDEDOR",
+          phone: "+5583999999999",
+          active: true,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          organization: { id: "org-1", name: "AlwaysTrack" },
+          sellerProfile: { id: "seller-1", code: "VD-001", displayName: "Ana Vendas", salesGroup: { id: "group-1", name: "Vendas" } },
+          supervisedSalesGroups: [],
+          googleConnection: null
+        })
+      }
+    };
+
+    const result = await getUserProfile(prisma as never, { id: "seller-user-1", organizationId: "org-1" });
+
+    expect(result.profile).not.toHaveProperty("passwordHash");
+    expect(result.profile.avatarUrl).toBe("/avatar.png");
+    expect(result.profile.sellerProfile?.salesGroup?.name).toBe("Vendas");
+  });
+
+  it("updates only self-service profile fields and audits the change", async () => {
+    const prisma = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "seller-user-1",
+          organizationId: "org-1",
+          role: "VENDEDOR"
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "seller-user-1",
+          name: "Ana Nova",
+          email: "ana@example.com",
+          avatarUrl: "https://cdn.example.com/ana.png",
+          passwordHash: "secret",
+          role: "VENDEDOR",
+          phone: "+558300000000",
+          active: true,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          organization: { id: "org-1", name: "AlwaysTrack" },
+          sellerProfile: { id: "seller-1", code: "VD-001", displayName: "Ana", phone: "+5583999999999", salesGroup: null },
+          supervisedSalesGroups: [],
+          googleConnection: null
+        })
+      },
+      sellerProfile: { update: vi.fn().mockResolvedValue({ id: "seller-1" }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await updateUserProfile(prisma as never, { id: "seller-user-1", organizationId: "org-1" }, {
+      name: "Ana Nova",
+      phone: "+558300000000",
+      avatarUrl: "https://cdn.example.com/ana.png",
+      email: "admin@example.com",
+      role: "ADMIN",
+      salesGroupId: "group-out"
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "seller-user-1" },
+        data: {
+          name: "Ana Nova",
+          phone: "+558300000000",
+          avatarUrl: "https://cdn.example.com/ana.png"
+        }
+      })
+    );
+    expect(prisma.sellerProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "seller-1" }, data: expect.objectContaining({ displayName: "Ana Nova" }) })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "user.profile_update", entityId: "seller-user-1" }) })
+    );
   });
 });

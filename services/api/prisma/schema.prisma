@@ -84,6 +84,7 @@ model User {
   passwordHash    String
   role            String
   phone           String?
+  avatarUrl       String?
   active          Boolean  @default(true)
   organizationId  String
   unitScopeJson   String?

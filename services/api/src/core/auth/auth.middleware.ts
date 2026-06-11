@@ -36,6 +36,7 @@ export async function requireAuth(request: Request, response: Response, next: Ne
     id: user.id,
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatarUrl ?? null,
     role: user.role as UserRole,
     organizationId: user.organizationId,
     unitScopeIds: parseScopeIds(user.unitScopeJson),

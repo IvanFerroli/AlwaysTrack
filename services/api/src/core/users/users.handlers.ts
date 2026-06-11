@@ -3,12 +3,15 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
   createManagedUser,
+  getUserProfile,
   listCommercialUserOptions,
   listManagedUsers,
   parseCreateUserInput,
+  parseProfileInput,
   parseResetPasswordInput,
   parseUpdateUserInput,
   resetManagedUserPassword,
+  updateUserProfile,
   updateManagedUser,
   UserManagementError
 } from "./users.service.js";
@@ -48,6 +51,22 @@ export async function listUsersHandler(request: Request, response: Response) {
   try {
     const users = await listManagedUsers(prisma, actorFrom(request));
     return sendOk(response, { users });
+  } catch (error) {
+    return sendUserManagementError(response, error);
+  }
+}
+
+export async function getProfileHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await getUserProfile(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendUserManagementError(response, error);
+  }
+}
+
+export async function updateProfileHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await updateUserProfile(prisma, actorFrom(request), parseProfileInput(request.body)));
   } catch (error) {
     return sendUserManagementError(response, error);
   }
