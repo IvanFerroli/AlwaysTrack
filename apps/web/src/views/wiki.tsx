@@ -941,7 +941,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
           ) : visiblePages.length === 0 ? (
             <OperationalState state="empty" title="Nenhuma pagina publicada" detail="Publique um procedimento ou promova uma pergunta resolvida do FAQ." />
           ) : (
-            <div className="wiki-page-list">
+            <div className="wiki-page-list wiki-page-list-paginated">
               {paginatedPages.map((page) => (
                 <button
                   className={selected?.id === page.id ? "wiki-page-button active" : "wiki-page-button"}

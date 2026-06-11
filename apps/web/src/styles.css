@@ -577,6 +577,11 @@ tr:hover td {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 180ms ease;
+}
+
+.app-frame.sidebar-collapsed {
+  grid-template-columns: 86px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -591,6 +596,28 @@ tr:hover td {
   padding: 24px 18px;
   position: sticky;
   top: 0;
+}
+
+.sidebar-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-toggle {
+  flex: 0 0 auto;
+  height: 38px;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 0;
+}
+
+.sidebar-toggle svg {
+  height: 18px;
+  width: 18px;
 }
 
 .sidebar::after {
@@ -612,6 +639,59 @@ tr:hover td {
   position: relative;
   text-align: left;
   z-index: 1;
+}
+
+.sidebar-collapsed .sidebar {
+  align-items: center;
+  gap: 18px;
+  padding: 22px 12px;
+}
+
+.sidebar-collapsed .sidebar-header {
+  display: grid;
+  justify-items: center;
+}
+
+.sidebar-collapsed .brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar-collapsed .brand > div {
+  display: none;
+}
+
+.sidebar-collapsed .brand .brand-mark {
+  border-radius: 14px;
+  height: 48px;
+  padding: 5px;
+  width: 48px;
+}
+
+.sidebar-collapsed .nav-list {
+  width: 100%;
+}
+
+.sidebar-collapsed .nav-item {
+  align-items: center;
+  justify-content: center;
+  justify-items: center;
+  min-height: 48px;
+  padding: 10px;
+}
+
+.sidebar-collapsed .nav-item span {
+  font-size: 0;
+  gap: 0;
+}
+
+.sidebar-collapsed .nav-item small {
+  display: none;
+}
+
+.sidebar-collapsed .nav-item .icon {
+  margin: 0;
+  min-width: 0;
 }
 
 .brand .brand-mark {
@@ -780,13 +860,13 @@ button .icon {
 
 .top-nav {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 7px;
   justify-content: flex-start;
   min-width: 0;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
+  overflow: visible;
+  padding-bottom: 0;
+  row-gap: 8px;
 }
 
 .top-nav-item {
@@ -1660,12 +1740,27 @@ legend {
   color: inherit;
   display: grid;
   gap: 4px;
+  height: auto;
   justify-items: start;
   min-height: auto;
   min-width: 0;
   padding: 11px 12px;
   text-align: left;
   width: 100%;
+}
+
+.wiki-page-list-paginated {
+  align-content: start;
+}
+
+.wiki-page-list-paginated .pagination-actions {
+  border-top: 1px solid var(--color-border-soft);
+  margin-top: 4px;
+  padding: 10px 0 0;
+}
+
+.wiki-page-list-paginated .pagination-summary {
+  padding: 0;
 }
 
 .wiki-page-button strong {
@@ -2516,7 +2611,8 @@ legend {
 }
 
 @media (max-width: 860px) {
-  .app-frame {
+  .app-frame,
+  .app-frame.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 

@@ -11,6 +11,8 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   ScrollText,
   Settings,
   UserCircle,
@@ -4031,7 +4033,9 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
+  const sidebarNav = visibleNav.filter((item) => item.key !== "profile");
   const primaryNav = [
     ...visibleNav.filter((item) => item.key === "dashboard"),
     ...visibleNav.filter((item) => item.key === "profile"),
@@ -4153,21 +4157,33 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   }, [activeView, pendingHelpHash]);
 
   return (
-    <main className="app-frame">
+    <main className={sidebarCollapsed ? "app-frame sidebar-collapsed" : "app-frame"}>
       <aside className="sidebar">
-        <div className="brand">
-          <BrandMark alt={organizationSettings?.organization.name ?? appName} src={organizationSettings?.organization.logoUrl} />
-          <div>
-            <strong>{organizationSettings?.organization.name ?? appName}</strong>
-            <small>Notas, ranking e campanhas</small>
+        <div className="sidebar-header">
+          <div className="brand">
+            <BrandMark alt={organizationSettings?.organization.name ?? appName} src={organizationSettings?.organization.logoUrl} />
+            <div>
+              <strong>{organizationSettings?.organization.name ?? appName}</strong>
+              <small>Notas, ranking e campanhas</small>
+            </div>
           </div>
+          <button
+            className="sidebar-toggle secondary"
+            type="button"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={sidebarCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </button>
         </div>
         <nav className="nav-list" aria-label="Navegação principal">
-          {visibleNav.map((item) => (
+          {sidebarNav.map((item) => (
             <button
               className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
               key={item.key}
               onClick={() => openView(item.key)}
+              title={sidebarCollapsed ? item.label : item.description}
             >
               <span><Icon name={item.icon} /> {item.label}</span>
               <small>{item.description}</small>

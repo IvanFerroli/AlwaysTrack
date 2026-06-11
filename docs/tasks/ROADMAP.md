@@ -87,6 +87,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 68. `EXEC-AT-063`: exports CSV de ranking, dashboard e extratos com filtros, metadados, nome por periodo e auditoria (`TASK-AT-064`). Status: completed.
 69. `EXEC-AT-064`: prontidao de demo com roteiro, seed comercial reforcado, empty states e auditoria consultavel (`TASK-AT-065`). Status: completed.
 70. `EXEC-AT-065`: polimento visual guiado por prints com ajustes de grafico/header, padding, botoes e paginacao em Notas/Extratos/Wiki/FAQ (`TASK-AT-066`). Status: completed.
+71. `EXEC-AT-066`: correcao follow-up de header sem scrollbar, Perfil fora do sidebar, sidebar colapsavel e cards Wiki/FAQ sem overflow (`TASK-AT-067`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. Sem backlog funcional pendente neste momento.
@@ -102,3 +103,4 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 8. `TASK-AT-064`: exportacoes comerciais polidas. Status: completed.
 9. `TASK-AT-065`: prontidao para demo, estados vazios e auditoria. Status: completed.
 10. `TASK-AT-066`: polimento visual guiado por prints. Status: completed.
+11. `TASK-AT-067`: follow-up de header/sidebar/overflow visual. Status: completed.
