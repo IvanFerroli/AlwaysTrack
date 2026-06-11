@@ -60,20 +60,23 @@ Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
 - EXEC-AT-055 (2026-06-11): workflow de report Artillery com diagnosticos antes/depois e bloqueio de 1000 em localhost.
 
 ## Proximo ciclo a rotar
-- Novo backlog tecnico criado em 2026-06-09: `TASK-AT-047` a `TASK-AT-055`, cobrindo TypeDoc/arquitetura, estrategia de testes, Playwright, rollback/migrations, carga para 1000 usuarios, BullMQ/backpressure, observabilidade/profiling, hardening modular e onboarding/CI.
-- `TASK-AT-047` e `TASK-AT-048` concluidas em MVP no `EXEC-AT-036`.
-- `TASK-AT-050`, `TASK-AT-055` concluidas; `TASK-AT-051` tem ferramenta e report, restando a execucao stage/producao-like.
-- `TASK-AT-049` esta completed-partial com smoke browser, regressao API e fluxos browser de DANFE/Wiki; browser local segue bloqueado por `libnspr4.so`, mas CI instala deps.
-- `TASK-AT-052` esta completed para o piloto: ADR, contrato, worker, status UI, teste Redis real opcional, CI dedicado e compose `jobs`.
-- `TASK-AT-053` esta completed-mvp com metricas e workflow de report; a otimizacao real depende do primeiro report stage.
-- `TASK-AT-054` avançou com extracao das views comerciais ativas e notificacoes para modulos; proxima rodada deve focar hooks/API clients tipados, erros e backend services.
-- Prioridade recomendada: rodar `perf:1000:report` em stage, observar CI Playwright/BullMQ e aplicar otimizacao comprovada.
+- Novo backlog de reta final criado em 2026-06-11: `TASK-AT-057` a `TASK-AT-066`, cobrindo autenticacao interna, recuperacao de senha, perfil, dashboard grafico, tags/busca Wiki/FAQ, matriz de permissoes, configuracoes, exports, prontidao de demo e polimento visual por prints.
+- Prioridade recomendada:
+  1. `TASK-AT-057`: restringir Google login por dominio corporativo e documentar configuracao externa.
+  2. `TASK-AT-058`: reset de senha por admin.
+  3. `TASK-AT-060`: grafico dinamico no dashboard.
+  4. `TASK-AT-061`: tags e busca combinada em Wiki/FAQ.
+  5. `TASK-AT-059`: pagina de perfil.
+  6. `TASK-AT-062` a `TASK-AT-065`: permissoes, configuracoes, exports e demo readiness.
+  7. `TASK-AT-066`: visual polish somente depois de prints do usuario.
+- Residual tecnico anterior: `TASK-AT-051` ainda precisa de execucao stage/producao-like para provar 1000 usuarios; `TASK-AT-053` depende desse report para otimizacao comprovada.
 - Remover/descontinuar legado SyLembra em fases.
 - Se houver beta externo, acompanhar o residual `npm audit` moderado em `exceljs`/`uuid`; audit completo tambem mostra moderadas dev vindas de Artillery via `artillery-plugin-fake-data`/`@ngneat/falso`/`uuid`.
 - Evitar reabrir tasks de licencas/compliance como backlog AlwaysTrack.
 
 ## Blockers conhecidos
-- Nenhum blocker tecnico critico. Residual conhecido: legado SyLembra ainda existe no codigo como porao tecnico temporario; UI ativa ja aponta para o produto comercial.
+- `TASK-AT-066` bloqueada ate o usuario enviar prints dos problemas visuais.
+- Residual conhecido: legado SyLembra ainda existe no codigo como porao tecnico temporario; UI ativa ja aponta para o produto comercial.
 
 ## Estado dos gates
 | Gate | Resultado | Data |
