@@ -1673,6 +1673,100 @@ button .icon {
   padding: 5px 9px;
 }
 
+.permission-matrix-panel {
+  padding: 18px;
+}
+
+.permission-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.permission-level,
+.permission-dot {
+  align-items: center;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+  line-height: 1;
+  min-width: 58px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.permission-level.view,
+.permission-dot.view {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.permission-level.act,
+.permission-dot.act {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-dark);
+}
+
+.permission-level.admin,
+.permission-dot.admin {
+  background: var(--color-success-soft);
+  color: var(--color-success-dark);
+}
+
+.permission-dot.denied {
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.permission-matrix-table {
+  border-collapse: collapse;
+  min-width: 980px;
+  width: 100%;
+}
+
+.permission-matrix-table th,
+.permission-matrix-table td {
+  border-bottom: 1px solid var(--color-border-soft);
+  padding: 12px 10px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.permission-matrix-table th:first-child,
+.permission-matrix-table th:nth-child(2),
+.permission-matrix-table td:first-child,
+.permission-matrix-table td:nth-child(2) {
+  text-align: left;
+}
+
+.permission-matrix-table th {
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.permission-matrix-table td {
+  color: var(--color-text);
+}
+
+.permission-matrix-table td strong,
+.permission-matrix-table td span {
+  display: block;
+}
+
+.permission-matrix-table td small {
+  color: var(--color-muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
 .status-ok {
   color: #0f7b5f;
   font-size: 13px;

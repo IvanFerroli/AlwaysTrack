@@ -90,6 +90,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 71. `EXEC-AT-066`: correcao follow-up de header sem scrollbar, Perfil fora do sidebar, sidebar colapsavel e cards Wiki/FAQ sem overflow (`TASK-AT-067`). Status: completed.
 72. `EXEC-AT-067`: correcao de interpretacao para Perfil em segundo no sidebar e atalhos do header em faixa unica full-width (`TASK-AT-068`). Status: completed.
 73. `EXEC-AT-068`: Central Operacional Hoje com endpoint agregado, cards acionaveis e filtros iniciais (`TASK-AT-069`). Status: completed.
+74. `EXEC-AT-069`: matriz visual de permissoes em Configuracoes usando a matriz canonica compartilhada (`TASK-AT-077`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-070-explainable-ranking.md`: Ranking explicavel. Fase A, prioridade 2.
@@ -99,11 +100,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 5. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 6. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
 7. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
-8. `TASK-AT-077-visual-permission-matrix.md`: Matriz visual de permissoes. Fase C, prioridade 9.
-9. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
-10. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
-11. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
-12. `TASK-AT-081-minimum-operational-observability-panel.md`: Painel minimo de observabilidade operacional. Fase B, extra recomendado.
+8. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
+9. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
+10. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
+11. `TASK-AT-081-minimum-operational-observability-panel.md`: Painel minimo de observabilidade operacional. Fase B, extra recomendado.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -135,7 +135,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 4. `TASK-AT-081`: Painel minimo de observabilidade operacional. Status: proposed.
 
 ### Fase C - Produto interno definitivo
-1. `TASK-AT-077`: Matriz visual de permissoes. Status: proposed.
+1. `TASK-AT-077`: Matriz visual de permissoes. Status: completed.
 2. `TASK-AT-078`: Curadoria clara de Wiki/FAQ. Status: proposed.
 3. `TASK-AT-079`: Busca global simples. Status: proposed.
 4. `TASK-AT-080`: Notificacoes mais uteis. Status: proposed.

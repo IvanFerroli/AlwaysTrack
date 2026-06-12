@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { commercialPermissionMatrix, type CommercialPermission, type UserRole } from "@alwaystrack/shared";
 import { api } from "../api";
 import { BrandMark } from "../components/brand";
 import { InfoTip, OperationalState } from "../components/operational";
@@ -33,6 +34,98 @@ function parseTags(value: string) {
         .filter(Boolean)
     )
   ].sort((left, right) => left.localeCompare(right));
+}
+
+const permissionRoles: Array<{ role: UserRole; label: string }> = [
+  { role: "ADMIN", label: "Admin" },
+  { role: "GESTOR", label: "Gestor" },
+  { role: "SUPERVISOR", label: "Supervisor" },
+  { role: "SAC", label: "SAC" },
+  { role: "FINANCEIRO", label: "Financeiro" },
+  { role: "VENDEDOR", label: "Vendas" }
+];
+
+const permissionRows: Array<{ permission: CommercialPermission; module: string; action: string; level: "view" | "act" | "admin" }> = [
+  { permission: "sales.read", module: "Notas", action: "Ver DANFEs e status", level: "view" },
+  { permission: "sales.upload", module: "Notas", action: "Enviar DANFEs", level: "act" },
+  { permission: "sales.review", module: "Notas", action: "Aprovar ou rejeitar notas", level: "act" },
+  { permission: "ranking.read", module: "Ranking", action: "Consultar ranking", level: "view" },
+  { permission: "ranking.filterSeller", module: "Ranking", action: "Filtrar por vendedor", level: "act" },
+  { permission: "campaign.read", module: "Campanhas", action: "Ver campanhas", level: "view" },
+  { permission: "campaign.manage", module: "Campanhas", action: "Criar e alterar campanhas", level: "admin" },
+  { permission: "statements.read", module: "Extratos", action: "Consultar extratos", level: "view" },
+  { permission: "knowledge.read", module: "Wiki", action: "Consultar conhecimento", level: "view" },
+  { permission: "knowledge.contribute", module: "Wiki", action: "Sugerir conteúdo", level: "act" },
+  { permission: "knowledge.publish", module: "Wiki", action: "Publicar e arquivar páginas", level: "admin" },
+  { permission: "faq.moderate", module: "FAQ", action: "Moderar e promover perguntas", level: "act" },
+  { permission: "users.manage", module: "Usuários", action: "Gerenciar usuários e times", level: "admin" },
+  { permission: "audit.read", module: "Auditoria", action: "Consultar trilha de eventos", level: "admin" },
+  { permission: "profile.manageSelf", module: "Perfil", action: "Editar o próprio perfil", level: "act" },
+  { permission: "notifications.readSelf", module: "Notificações", action: "Ver notificações próprias", level: "view" }
+];
+
+const permissionLevelLabel = {
+  view: "Pode ver",
+  act: "Pode agir",
+  admin: "Administra"
+} as const;
+
+function roleCan(permission: CommercialPermission, role: UserRole) {
+  return (commercialPermissionMatrix[permission] as readonly UserRole[]).includes(role);
+}
+
+function PermissionMatrix() {
+  return (
+    <section className="panel permission-matrix-panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Governança</p>
+          <h2>Matriz de permissões</h2>
+          <p className="muted">Fonte visual da separação entre consulta, ação operacional e administração.</p>
+        </div>
+        <div className="permission-legend" aria-label="Legenda de permissões">
+          <span className="permission-level view">Pode ver</span>
+          <span className="permission-level act">Pode agir</span>
+          <span className="permission-level admin">Administra</span>
+        </div>
+      </div>
+      <div className="table-scroll">
+        <table className="permission-matrix-table">
+          <thead>
+            <tr>
+              <th>Área</th>
+              <th>Capacidade</th>
+              {permissionRoles.map((item) => (
+                <th key={item.role}>{item.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {permissionRows.map((row) => (
+              <tr key={row.permission}>
+                <td>
+                  <strong>{row.module}</strong>
+                  <small>{row.permission}</small>
+                </td>
+                <td>
+                  <span>{row.action}</span>
+                  <small>{permissionLevelLabel[row.level]}</small>
+                </td>
+                {permissionRoles.map((item) => {
+                  const allowed = roleCan(row.permission, item.role);
+                  return (
+                    <td key={item.role}>
+                      <span className={allowed ? `permission-dot ${row.level}` : "permission-dot denied"}>{allowed ? "Sim" : "Não"}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 export function SettingsView({ onSaved }: { onSaved?: (settings: OrganizationSettingsResponse) => void }) {
@@ -182,6 +275,7 @@ export function SettingsView({ onSaved }: { onSaved?: (settings: OrganizationSet
           </form>
         ) : null}
       </section>
+      <PermissionMatrix />
     </div>
   );
 }

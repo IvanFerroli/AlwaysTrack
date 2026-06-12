@@ -1,8 +1,8 @@
 # TASK-AT-077 - Matriz visual de permissoes
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-077-visual-permission-matrix.md
 
@@ -49,3 +49,5 @@ Ajuda a defender maturidade, controle e separacao de responsabilidades.
 ## Riscos
 - Duplicar matriz visual e regra real, criando divergencia.
 
+## Execucao
+- `EXEC-AT-069-visual-permission-matrix.md`
