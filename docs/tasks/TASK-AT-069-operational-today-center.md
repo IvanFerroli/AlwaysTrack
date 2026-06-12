@@ -1,8 +1,8 @@
 # TASK-AT-069 - Central Operacional Hoje
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-069-operational-today-center.md
 
@@ -27,10 +27,10 @@ O AlwaysTrack precisa abrir como painel de comando, nao como mosaico decorativo.
 ## Arquivos candidatos
 - `apps/web/src/views/dashboard.tsx` ou nova `apps/web/src/views/today.tsx`
 - `apps/web/src/main.tsx`
-- `apps/api/src/**/sales*`
-- `apps/api/src/**/wiki*`
-- `apps/api/src/**/faq*`
-- `apps/api/src/**/notifications*`
+- `services/api/src/**/sales*`
+- `services/api/src/**/wiki*`
+- `services/api/src/**/faq*`
+- `services/api/src/**/notifications*`
 - `packages/shared/src/**`
 
 ## Plano de execucao
@@ -55,3 +55,5 @@ Abre a demo com uma narrativa forte: "aqui esta tudo que precisa de decisao hoje
 - Query agregada pesada se tentar calcular tudo em tempo real sem limites.
 - Excesso visual se a tela virar outro dashboard generico.
 
+## Execucao
+- `EXEC-AT-068-operational-today-center.md`

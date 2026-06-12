@@ -12,12 +12,18 @@ import {
   type SalesRankingData
 } from "../sales";
 
-export function RankingView({ user }: { user: CurrentUser }) {
+export function RankingView({ user, initialFilters }: { user: CurrentUser; initialFilters?: SalesFilters }) {
   const [ranking, setRanking] = useState<SalesRankingData | null>(null);
   const [sellerRanking, setSellerRanking] = useState<SalesRankingData | null>(null);
   const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
   const [filters, setFilters] = useState<SalesFilters>({});
   const canFilterSellers = canUseCommercialPermission(user.role, "ranking.filterSeller");
+  const initialFiltersKey = JSON.stringify(initialFilters ?? {});
+
+  useEffect(() => {
+    if (!initialFilters || Object.keys(initialFilters).length === 0) return;
+    setFilters((current) => ({ ...current, ...initialFilters }));
+  }, [initialFiltersKey]);
 
   useEffect(() => {
     api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));

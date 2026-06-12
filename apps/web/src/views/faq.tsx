@@ -56,7 +56,7 @@ function parseTagsText(value: string) {
 
 const defaultKnowledgeTags = ["vendas", "notas", "processo", "treinamento", "sac", "ranking", "campanhas"];
 
-export function FaqThreadsView({ user }: { user: CurrentUser }) {
+export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; initialStatus?: string }) {
   const [threads, setThreads] = useState<FaqThreadItem[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
@@ -72,6 +72,11 @@ export function FaqThreadsView({ user }: { user: CurrentUser }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canModerate = canUseCommercialPermission(user.role, "faq.moderate");
+
+  useEffect(() => {
+    if (!initialStatus) return;
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);

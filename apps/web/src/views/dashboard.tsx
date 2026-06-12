@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, apiBaseUrl } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
-import { formatDateBr, formatMoneyFromCents, salesFilterQuery, type SalesDashboardData, type SalesFilters, type SalesSellerItem } from "../sales";
+import {
+  formatDateBr,
+  formatMoneyFromCents,
+  salesFilterQuery,
+  type OperationalTodayData,
+  type SalesDashboardData,
+  type SalesDocumentListFilters,
+  type SalesFilters,
+  type SalesSellerItem
+} from "../sales";
 
-type DashboardTargetView = "notes" | "ranking" | "statements" | "wiki";
+type DashboardTargetView = "notes" | "ranking" | "statements" | "wiki" | "faq" | "campaigns";
+type DashboardOpenOptions = {
+  notes?: SalesDocumentListFilters;
+  ranking?: SalesFilters;
+  faq?: { status?: string };
+};
 
 function MetricCard({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -96,8 +110,99 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
   );
 }
 
-export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) => void }) {
+function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
+  return (
+    <section className="panel operational-today-panel">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Central operacional</p>
+          <h2>Hoje</h2>
+          <p className="muted">Pulso da operação em {formatDateBr(today.period.today)}</p>
+        </div>
+        <span className="status-badge">Atualizada {new Date(today.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+      </div>
+      <div className="today-card-grid">
+        <button type="button" onClick={() => onOpen("notes", { notes: { status: "PENDING_REVIEW" } })}>
+          <span>Notas pendentes</span>
+          <strong>{today.metrics.pendingDocuments}</strong>
+          <small>Revisar DANFEs para liberar ranking e extratos</small>
+        </button>
+        <button type="button" onClick={() => onOpen("notes", { notes: { status: "APPROVED" } })}>
+          <span>Aprovadas hoje</span>
+          <strong>{today.metrics.approvedToday}</strong>
+          <small>Entraram na operação após revisão</small>
+        </button>
+        <button type="button" onClick={() => onOpen("notes", { notes: { status: "REJECTED" } })}>
+          <span>Rejeições hoje</span>
+          <strong>{today.metrics.rejectedToday}</strong>
+          <small>Precisam de motivo claro para auditoria</small>
+        </button>
+        <button type="button" onClick={() => onOpen("notes", { notes: { status: "DUPLICATE" } })}>
+          <span>Duplicidades</span>
+          <strong>{today.metrics.duplicates}</strong>
+          <small>Conferir chaves e pacotes reprocessados</small>
+        </button>
+        <button type="button" onClick={() => onOpen("ranking", { ranking: { from: today.period.from, to: today.period.to } })}>
+          <span>Ranking parcial</span>
+          <strong>{today.queues.ranking.length}</strong>
+          <small>Vendedores com venda aprovada hoje</small>
+        </button>
+        <button type="button" onClick={() => onOpen("campaigns")}>
+          <span>Campanhas ativas</span>
+          <strong>{today.metrics.activeCampaigns}</strong>
+          <small>{today.metrics.campaignsEndingSoon} encerrando em até 7 dias</small>
+        </button>
+        <button type="button" onClick={() => onOpen("wiki")}>
+          <span>Wiki pendente</span>
+          <strong>{today.metrics.wikiPendingReviews}</strong>
+          <small>Propostas aguardando curadoria</small>
+        </button>
+        <button type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
+          <span>FAQ sem resposta</span>
+          <strong>{today.metrics.faqUnanswered}</strong>
+          <small>Dúvidas que ainda não viraram conhecimento</small>
+        </button>
+      </div>
+      <div className="today-work-grid">
+        <div>
+          <h3>Alertas importantes</h3>
+          {today.queues.alerts.length === 0 ? (
+            <OperationalState state="success" title="Nenhum alerta crítico" detail="A operação não tem bloqueios relevantes agora." />
+          ) : (
+            <div className="today-alert-list">
+              {today.queues.alerts.map((alert) => (
+                <button className={`today-alert ${alert.severity}`} key={`${alert.title}-${alert.target}`} type="button" onClick={() => onOpen(alert.target as DashboardTargetView)}>
+                  <strong>{alert.title}</strong>
+                  <span>{alert.detail}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <h3>Fila imediata</h3>
+          {today.queues.pendingDocuments.length === 0 ? (
+            <OperationalState state="empty" title="Sem notas na fila" detail="Novas DANFEs aparecerão aqui primeiro." />
+          ) : (
+            <OperationalTable
+              items={today.queues.pendingDocuments}
+              getRowKey={(item) => item.id}
+              columns={[
+                { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
+                { key: "status", header: "Status", render: (item) => item.status },
+                { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) }
+              ]}
+            />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
   const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
+  const [today, setToday] = useState<OperationalTodayData | null>(null);
   const [sellers, setSellers] = useState<SalesSellerItem[]>([]);
   const [filters, setFilters] = useState<SalesFilters>({ from: daysAgoIso(29), to: todayIso() });
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +212,12 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
     setLoading(true);
     setError(null);
     try {
-      setDashboard(await api<SalesDashboardData>(`/v1/sales/dashboard${salesFilterQuery(filters)}`));
+      const [dashboardResult, todayResult] = await Promise.all([
+        api<SalesDashboardData>(`/v1/sales/dashboard${salesFilterQuery(filters)}`),
+        api<OperationalTodayData>("/v1/operations/today")
+      ]);
+      setDashboard(dashboardResult);
+      setToday(todayResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar dashboard.");
     } finally {
@@ -173,6 +283,8 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView) 
           </a>
         </div>
       </section>
+
+      {today ? <OperationalTodayCenter today={today} onOpen={onOpen} /> : null}
 
       <section className="metrics-grid">
         <MetricCard label="Notas enviadas" value={dashboard.metrics.totalDocuments} />

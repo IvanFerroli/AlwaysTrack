@@ -217,7 +217,7 @@ function SalesDocumentReviewEditor({
   );
 }
 
-export function NotesView({ user }: { user: CurrentUser }) {
+export function NotesView({ user, initialFilters }: { user: CurrentUser; initialFilters?: SalesDocumentListFilters }) {
   const [items, setItems] = useState<SalesDocumentItem[]>([]);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, SalesDocumentReviewDraft>>({});
   const [filters, setFilters] = useState<SalesDocumentListFilters>({});
@@ -240,6 +240,12 @@ export function NotesView({ user }: { user: CurrentUser }) {
   const allPendingSelected = pendingReviewItems.length > 0 && pendingReviewItems.every((item) => selectedDocumentIds.includes(item.id));
   const pageSize = 12;
   const paginatedItems = useMemo(() => items.slice((page - 1) * pageSize, page * pageSize), [items, page]);
+  const initialFiltersKey = JSON.stringify(initialFilters ?? {});
+
+  useEffect(() => {
+    if (!initialFilters || Object.keys(initialFilters).length === 0) return;
+    setFilters((current) => ({ ...current, ...initialFilters }));
+  }, [initialFiltersKey]);
 
   async function load() {
     setLoading(true);

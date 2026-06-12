@@ -182,6 +182,32 @@ export interface SalesDashboardData {
   };
 }
 
+export interface OperationalTodayData {
+  generatedAt: string;
+  period: { today: string; from: string; to: string };
+  metrics: {
+    pendingDocuments: number;
+    approvedToday: number;
+    rejectedToday: number;
+    duplicates: number;
+    extractionFailuresToday: number;
+    activeCampaigns: number;
+    campaignsEndingSoon: number;
+    wikiPendingReviews: number;
+    faqUnanswered: number;
+    unreadNotifications: number;
+  };
+  queues: {
+    pendingDocuments: SalesDocumentItem[];
+    ranking: SalesRankingRow[];
+    activeCampaigns: SalesCampaignItem[];
+    wikiPendingReviews: Array<{ id: string; title: string; createdAt: string; page: { id: string; slug: string; title: string }; author: { id: string; name: string; role: string } }>;
+    faqUnanswered: Array<{ id: string; title: string; body: string | null; createdAt: string; author: { id: string; name: string; role: string } }>;
+    unreadNotifications: Array<{ id: string; type: string; title: string; body: string | null; href: string | null; createdAt: string }>;
+    alerts: Array<{ severity: "danger" | "warning" | "info"; title: string; detail: string; target: string }>;
+  };
+}
+
 export interface SalesStatementSellerConsolidation {
   sellerId: string;
   sellerName: string;

@@ -1196,6 +1196,117 @@ button .icon {
   padding: 18px 18px 0;
 }
 
+.operational-today-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.operational-today-panel .table-panel-toolbar {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.today-card-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.today-card-grid button {
+  align-items: start;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  color: var(--color-text);
+  display: grid;
+  gap: 6px;
+  height: auto;
+  justify-items: start;
+  min-height: 118px;
+  padding: 13px;
+  text-align: left;
+}
+
+.today-card-grid button:hover {
+  background: var(--color-primary-soft);
+}
+
+.today-card-grid span {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.today-card-grid strong {
+  color: var(--color-heading);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.today-card-grid small {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.today-work-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.today-work-grid > div {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.today-work-grid h3 {
+  border-bottom: 1px solid var(--color-border-soft);
+  font-size: 15px;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.today-alert-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.today-alert {
+  align-items: start;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--color-text);
+  display: grid;
+  gap: 4px;
+  height: auto;
+  justify-items: start;
+  min-height: 58px;
+  padding: 10px;
+  text-align: left;
+}
+
+.today-alert.warning {
+  border-left-color: #f79009;
+}
+
+.today-alert.danger {
+  border-left-color: var(--color-danger);
+}
+
+.today-alert span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
 .sales-chart-panel {
   overflow: hidden;
 }
@@ -2600,7 +2711,12 @@ legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .today-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-grid,
+  .today-work-grid,
   .action-center-grid,
   .settings-grid,
   .analysis-grid,
@@ -2649,6 +2765,8 @@ legend {
   .operational-filters,
   .filter-grid,
   .metrics-grid,
+  .today-card-grid,
+  .today-work-grid,
   .dashboard-grid,
   .action-center-grid,
   .settings-grid,

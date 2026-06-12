@@ -149,6 +149,7 @@ import {
   updateWikiPageHandler,
   uploadWikiAttachmentHandler
 } from "./core/wiki/wiki.handlers.js";
+import { operationalTodayHandler } from "./core/operations/operations.handlers.js";
 import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
@@ -220,6 +221,7 @@ export function createApp() {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }
   app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialAllRoles), salesDashboardHandler);
+  app.get("/v1/operations/today", requireAuth, requireRole(commercialAllRoles), operationalTodayHandler);
   app.get("/v1/sales/dashboard.csv", requireAuth, requireRole(commercialAllRoles), salesDashboardCsvHandler);
   app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialAllRoles), listSalesCampaignsHandler);
   app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), express.json(), createSalesCampaignHandler);

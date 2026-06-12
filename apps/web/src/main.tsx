@@ -58,6 +58,7 @@ import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResp
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
+import type { SalesDocumentListFilters, SalesFilters } from "./sales";
 import "./styles.css";
 
 type ViewKey =
@@ -93,6 +94,12 @@ type IconName =
   | "check"
   | "bell"
   | "scan";
+
+type ViewIntent = {
+  notes?: SalesDocumentListFilters;
+  ranking?: SalesFilters;
+  faq?: { status?: string };
+};
 
 function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
@@ -4034,6 +4041,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [viewIntent, setViewIntent] = useState<ViewIntent>({});
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const sidebarNav = [
     ...visibleNav.filter((item) => item.key === "dashboard"),
@@ -4059,11 +4067,12 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     setActiveView("help");
   }
 
-  function openView(key: ViewKey) {
+  function openView(key: ViewKey, intent?: ViewIntent) {
     if (key === "help") {
       openHelpHash("#visao-geral");
       return;
     }
+    setViewIntent(intent ?? {});
     setPendingHelpHash(null);
     clearHelpHash();
     if (key === "wiki") {
@@ -4235,9 +4244,9 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           </div>
         </header>
         {activeItem.key === "notes" ? (
-          <NotesView user={user} />
+          <NotesView user={user} initialFilters={viewIntent.notes} />
         ) : activeItem.key === "ranking" ? (
-          <RankingView user={user} />
+          <RankingView user={user} initialFilters={viewIntent.ranking} />
         ) : activeItem.key === "campaigns" ? (
           <CampaignsView user={user} />
         ) : activeItem.key === "statements" ? (
@@ -4257,7 +4266,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "wiki" ? (
           <WikiView user={user} initialSlug={initialWikiSlug} />
         ) : activeItem.key === "faq" ? (
-          <FaqThreadsView user={user} />
+          <FaqThreadsView user={user} initialStatus={viewIntent.faq?.status} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
         ) : activeItem.key === "settings" ? (
