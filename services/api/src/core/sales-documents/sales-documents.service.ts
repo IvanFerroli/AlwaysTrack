@@ -157,6 +157,16 @@ function maskedAccessKey(value: string | null | undefined) {
   return value ? `${value.slice(0, 6)}...${value.slice(-6)}` : null;
 }
 
+function safeJson(value: string | null | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 function isMissingStoredFile(error: unknown) {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "ENOENT");
 }
@@ -624,6 +634,118 @@ export async function listSalesSellers(prisma: PrismaClient, actor: CurrentUser)
     orderBy: [{ displayName: "asc" }]
   });
   return { items, total: items.length };
+}
+
+export async function getSalesDocumentTimeline(prisma: PrismaClient, actor: CurrentUser, documentId: string) {
+  assertCommercialRole(actor);
+  const document = await getScopedSalesDocument(prisma, actor, documentId);
+  const auditLogs = await prisma.auditLog.findMany({
+    where: { organizationId: actor.organizationId, entityType: "SalesDocument", entityId: document.id },
+    include: { actor: { select: { id: true, name: true, email: true, role: true } } },
+    orderBy: { createdAt: "asc" }
+  });
+
+  const events: Array<{
+    id: string;
+    at: Date;
+    type: string;
+    title: string;
+    detail: string;
+    actor: { id: string; name: string; email: string; role: string } | null;
+    status?: string | null;
+    metadata?: Record<string, unknown>;
+  }> = [
+    {
+      id: `${document.id}:created`,
+      at: document.createdAt,
+      type: "upload",
+      title: "DANFE enviada",
+      detail: `${document.fileName} enviada para ${document.sellerProfile.displayName}.`,
+      actor: document.uploadedBy,
+      status: "UPLOADED",
+      metadata: { fileName: document.fileName, mimeType: document.mimeType, size: document.size }
+    }
+  ];
+
+  for (const extraction of [...document.extractions].reverse()) {
+    events.push({
+      id: extraction.id,
+      at: extraction.createdAt,
+      type: "extraction",
+      title: "Dados extraidos",
+      detail: `Provider ${extraction.provider}${extraction.confidence !== null ? ` com ${Math.round(extraction.confidence * 100)}% de confianca` : ""}.`,
+      actor: null,
+      status: document.status,
+      metadata: { provider: extraction.provider, confidence: extraction.confidence }
+    });
+  }
+
+  for (const log of auditLogs) {
+    const metadata = safeJson(log.metadataJson);
+    const status = typeof metadata.status === "string" ? metadata.status : undefined;
+    const reviewNote = typeof metadata.reviewNote === "string" ? metadata.reviewNote : undefined;
+    const rejectionReason = typeof metadata.rejectionReason === "string" ? metadata.rejectionReason : undefined;
+    const actionMap: Record<string, { type: string; title: string; detail: string }> = {
+      "sales_document.upload": { type: "upload", title: "Upload registrado", detail: "Arquivo salvo e auditado." },
+      "sales_document.extract": { type: "extraction", title: "Extracao registrada", detail: "Campos e itens foram estruturados para revisao." },
+      "sales_document.extract_duplicate": { type: "duplicate", title: "Duplicidade detectada", detail: "Chave de acesso ja existia em outra nota." },
+      "sales_document.extract_failed": { type: "error", title: "Falha na extracao", detail: String(metadata.error ?? "Erro registrado durante a extracao.") },
+      "sales_document.approve": {
+        type: "review",
+        title: "Nota aprovada",
+        detail: reviewNote ? `Comentario: ${reviewNote}` : "Nota liberada para ranking, campanhas e extratos."
+      },
+      "sales_document.reject": {
+        type: "review",
+        title: status === "DUPLICATE" ? "Nota marcada como duplicada" : "Nota rejeitada",
+        detail: rejectionReason ?? reviewNote ?? "Nota nao entrou no ranking."
+      }
+    };
+    const mapped = actionMap[log.action] ?? { type: "audit", title: log.action, detail: "Evento de auditoria relacionado." };
+    events.push({
+      id: log.id,
+      at: log.createdAt,
+      type: mapped.type,
+      title: mapped.title,
+      detail: mapped.detail,
+      actor: log.actor,
+      status,
+      metadata
+    });
+  }
+
+  if (document.reviewedAt && document.reviewedBy) {
+    events.push({
+      id: `${document.id}:reviewed`,
+      at: document.reviewedAt,
+      type: "review",
+      title: document.status === "APPROVED" ? "Impacto comercial liberado" : "Decisao final registrada",
+      detail:
+        document.status === "APPROVED"
+          ? "Nota aprovada passa a compor ranking, campanhas ativas e extratos."
+          : document.rejectionReason ?? "Nota ficou fora do ranking e dos extratos.",
+      actor: document.reviewedBy,
+      status: document.status,
+      metadata: { invoiceNumber: document.invoiceNumber, totalAmountCents: document.totalAmountCents, itemCount: document.items.length }
+    });
+  }
+
+  return {
+    document: {
+      id: document.id,
+      fileName: document.fileName,
+      status: document.status,
+      invoiceNumber: document.invoiceNumber,
+      accessKey: document.accessKey,
+      issuedAt: document.issuedAt,
+      totalAmountCents: document.totalAmountCents,
+      sellerProfile: document.sellerProfile
+    },
+    events: events
+      .sort((left, right) => left.at.getTime() - right.at.getTime())
+      .map((event) => ({ ...event, at: event.at.toISOString() })),
+    total: events.length
+  };
 }
 
 export async function analyzeSalesDocumentWithAi(

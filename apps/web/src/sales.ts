@@ -199,6 +199,30 @@ export interface SalesDocumentExtractionFeedback {
   warnings?: string[];
 }
 
+export interface SalesDocumentTimeline {
+  document: {
+    id: string;
+    fileName: string;
+    status: string;
+    invoiceNumber: string | null;
+    accessKey: string | null;
+    issuedAt: string | null;
+    totalAmountCents: number | null;
+    sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
+  };
+  events: Array<{
+    id: string;
+    at: string;
+    type: string;
+    title: string;
+    detail: string;
+    actor: { id: string; name: string; email: string; role: string } | null;
+    status?: string | null;
+    metadata?: Record<string, unknown>;
+  }>;
+  total: number;
+}
+
 export interface SalesDashboardData {
   metrics: {
     totalDocuments: number;

@@ -11,6 +11,7 @@ import {
   createSalesCampaign,
   getSalesRanking,
   getSalesRankingExplanation,
+  getSalesDocumentTimeline,
   getSalesStatements,
   getSalesDashboard,
   listRankingSnapshots,
@@ -110,6 +111,23 @@ export async function listSalesDocumentsHandler(request: Request, response: Resp
     return sendOk(response, await listSalesDocuments(prisma, actorFrom(request), parseSalesDocumentFilters(request.query)));
   } catch (error) {
     logHandlerError(request, "sales_documents.list.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function salesDocumentTimelineHandler(request: Request, response: Response) {
+  try {
+    const result = await getSalesDocumentTimeline(prisma, actorFrom(request), cleanRouteParam(request.params.documentId));
+    logEvent("info", "sales_document.timeline.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      documentId: request.params.documentId,
+      total: result.total
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_document.timeline.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }

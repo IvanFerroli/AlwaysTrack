@@ -6,6 +6,7 @@ import {
   createRankingSnapshot,
   createSalesCampaign,
   getSalesDashboard,
+  getSalesDocumentTimeline,
   getSalesRanking,
   getSalesRankingExplanation,
   getSalesStatements,
@@ -640,6 +641,77 @@ INFORMAÇÕES COMPLEMENTARES
     ]);
     expect(prisma.salesItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ salesDocument: expect.objectContaining({ status: "APPROVED" }) }) })
+    );
+  });
+
+  it("builds a sales document visual timeline from document, extractions and audit logs", async () => {
+    const prisma = {
+      salesDocument: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "doc-1",
+          organizationId: "org-1",
+          sellerProfileId: "seller-1",
+          uploadedById: "seller-user-1",
+          reviewedById: "admin-1",
+          fileName: "danfe.pdf",
+          mimeType: "application/pdf",
+          size: 123,
+          status: "APPROVED",
+          accessKey: "key-1",
+          invoiceNumber: "100",
+          issuedAt: new Date("2026-06-10T00:00:00.000Z"),
+          totalAmountCents: 20000,
+          rejectionReason: null,
+          reviewedAt: new Date("2026-06-12T12:00:00.000Z"),
+          createdAt: new Date("2026-06-12T10:00:00.000Z"),
+          updatedAt: new Date("2026-06-12T12:00:00.000Z"),
+          sellerProfile: { id: "seller-1", displayName: "Ana", code: "ANA", salesGroup: { id: "group-1", name: "Norte" }, user: null },
+          uploadedBy: { id: "seller-user-1", name: "Seller", email: "seller@example.com", role: "VENDEDOR" },
+          reviewedBy: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" },
+          items: [{ id: "item-1" }],
+          extractions: [
+            {
+              id: "extraction-1",
+              provider: "deterministic-pdf-text",
+              confidence: 0.92,
+              createdAt: new Date("2026-06-12T10:05:00.000Z")
+            }
+          ]
+        })
+      },
+      auditLog: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "audit-upload",
+            action: "sales_document.upload",
+            metadataJson: JSON.stringify({ fileName: "danfe.pdf" }),
+            createdAt: new Date("2026-06-12T10:00:01.000Z"),
+            actor: { id: "seller-user-1", name: "Seller", email: "seller@example.com", role: "VENDEDOR" }
+          },
+          {
+            id: "audit-review",
+            action: "sales_document.approve",
+            metadataJson: JSON.stringify({ status: "APPROVED", itemCount: 1, reviewNote: "Tudo certo" }),
+            createdAt: new Date("2026-06-12T12:00:00.000Z"),
+            actor: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" }
+          }
+        ])
+      }
+    };
+
+    const timeline = await getSalesDocumentTimeline(prisma as never, admin, "doc-1");
+
+    expect(timeline.document).toMatchObject({ id: "doc-1", status: "APPROVED", invoiceNumber: "100" });
+    expect(timeline.events.map((event) => event.title)).toEqual([
+      "DANFE enviada",
+      "Upload registrado",
+      "Dados extraidos",
+      "Nota aprovada",
+      "Impacto comercial liberado"
+    ]);
+    expect(timeline.events.at(-1)).toMatchObject({ status: "APPROVED", actor: { name: "Admin" } });
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organizationId: "org-1", entityType: "SalesDocument", entityId: "doc-1" } })
     );
   });
 

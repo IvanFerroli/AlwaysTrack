@@ -10,6 +10,7 @@ import {
   type SalesDocumentItem,
   type SalesDocumentListFilters,
   type SalesDocumentReviewDraft,
+  type SalesDocumentTimeline,
   type SalesSellerItem
 } from "../sales";
 
@@ -88,6 +89,58 @@ function validReviewItemCount(draft: SalesDocumentReviewDraft) {
 
 function formatPercent(value: number | null | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "-";
+}
+
+function formatDateTimeBr(value: string | null | undefined) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function TimelinePanel({
+  timeline,
+  loading,
+  error,
+  onClose
+}: {
+  timeline: SalesDocumentTimeline | null;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  if (loading) return <section className="panel sales-timeline-panel"><OperationalState state="loading" title="Carregando timeline da nota" /></section>;
+  if (error) return <section className="panel sales-timeline-panel"><OperationalState state="error" title="Falha na timeline" detail={error} /></section>;
+  if (!timeline) return null;
+
+  return (
+    <section className="panel sales-timeline-panel">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Rastreabilidade</p>
+          <h2>{timeline.document.invoiceNumber ? `NF ${timeline.document.invoiceNumber}` : timeline.document.fileName}</h2>
+          <p className="muted">
+            {timeline.document.sellerProfile.displayName} · {timeline.document.status} · {formatMoneyFromCents(timeline.document.totalAmountCents)}
+          </p>
+        </div>
+        <button className="secondary" type="button" onClick={onClose}>Fechar timeline</button>
+      </div>
+      <ol className="sales-timeline-list">
+        {timeline.events.map((event) => (
+          <li className={`sales-timeline-event ${event.type}`} key={event.id}>
+            <div className="sales-timeline-marker" aria-hidden="true" />
+            <div>
+              <span>{formatDateTimeBr(event.at)}</span>
+              <strong>{event.title}</strong>
+              <p>{event.detail}</p>
+              <small>
+                {event.actor ? `${event.actor.name} (${event.actor.role})` : "Sistema"}
+                {event.status ? ` · ${event.status}` : ""}
+              </small>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 function SalesDocumentReviewEditor({
@@ -226,6 +279,9 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
   const [uploadSellerProfileId, setUploadSellerProfileId] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [extractionFeedback, setExtractionFeedback] = useState<Record<string, SalesDocumentExtractionFeedback>>({});
+  const [timeline, setTimeline] = useState<SalesDocumentTimeline | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -402,6 +458,19 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
     }
   }
 
+  async function openTimeline(document: SalesDocumentItem) {
+    setTimelineLoading(true);
+    setTimelineError(null);
+    setTimeline(null);
+    try {
+      setTimeline(await api<SalesDocumentTimeline>(`/v1/sales/documents/${document.id}/timeline`));
+    } catch (caught) {
+      setTimelineError(caught instanceof Error ? caught.message : "Falha ao carregar timeline.");
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
+
   return (
     <div className="content-stack">
       {user.role === "VENDEDOR" || canReview ? (
@@ -564,6 +633,9 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
                           {actingId === item.id ? "Extraindo..." : "Extrair"}
                         </button>
                       ) : null}
+                      <button className="ghost-button small" type="button" onClick={() => void openTimeline(item)}>
+                        Timeline
+                      </button>
                       {canReview && item.status === "PENDING_REVIEW" ? (
                         <>
                           <button
@@ -626,6 +698,17 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
           </div>
         ) : null}
       </section>
+      {timeline || timelineLoading || timelineError ? (
+        <TimelinePanel
+          timeline={timeline}
+          loading={timelineLoading}
+          error={timelineError}
+          onClose={() => {
+            setTimeline(null);
+            setTimelineError(null);
+          }}
+        />
+      ) : null}
       {items.some((item) => item.accessKey || item.items.length > 0 || item.extractions?.length) ? (
         <section className="panel extracted-data-panel">
           <div className="table-panel-toolbar">

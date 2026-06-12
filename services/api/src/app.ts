@@ -161,6 +161,7 @@ import {
   listSalesDocumentsHandler,
   listSalesSellersHandler,
   reviewSalesDocumentHandler,
+  salesDocumentTimelineHandler,
   salesRankingCsvHandler,
   salesRankingExplanationHandler,
   salesRankingHandler,
@@ -244,6 +245,7 @@ export function createApp() {
     express.raw({ limit: "11mb", type: ["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
+  app.get("/v1/sales/documents/:documentId/timeline", requireAuth, requireRole(commercialAllRoles), salesDocumentTimelineHandler);
   app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialAllRoles), analyzeSalesDocumentHandler);
   app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(commercialReviewerRoles), reviewSalesDocumentHandler);
   app.get("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), listFaqThreadsHandler);

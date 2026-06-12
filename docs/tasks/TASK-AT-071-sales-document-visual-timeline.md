@@ -1,8 +1,8 @@
 # TASK-AT-071 - Timeline visual da nota
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-071-sales-document-visual-timeline.md
 
@@ -25,9 +25,9 @@ A nota e o objeto central do fluxo comercial. A timeline torna rastreabilidade v
 
 ## Arquivos candidatos
 - `apps/web/src/views/notes.tsx`
-- `apps/api/src/**/sales*`
-- `apps/api/src/**/audit*`
-- `apps/api/src/**/notifications*`
+- `services/api/src/**/sales*`
+- `services/api/src/**/audit*`
+- `services/api/src/**/notifications*`
 - `prisma/schema.prisma` se eventos nao forem recuperaveis hoje
 
 ## Plano de execucao
@@ -51,3 +51,5 @@ Mostra rastreabilidade ponta a ponta: o sistema nao so calcula, ele explica o pr
 - Eventos historicos incompletos podem exigir fallbacks visuais.
 - Misturar auditoria tecnica crua com linguagem de negocio.
 
+## Execucao
+- `EXEC-AT-071-sales-document-visual-timeline.md`

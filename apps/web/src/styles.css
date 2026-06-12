@@ -1364,6 +1364,97 @@ button .icon {
   padding: 16px 16px 0;
 }
 
+.sales-timeline-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.sales-timeline-panel .table-panel-toolbar {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.sales-timeline-list {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sales-timeline-event {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  padding: 0 0 18px;
+  position: relative;
+}
+
+.sales-timeline-event::before {
+  background: var(--color-border);
+  bottom: 0;
+  content: "";
+  left: 8px;
+  position: absolute;
+  top: 18px;
+  width: 2px;
+}
+
+.sales-timeline-event:last-child::before {
+  display: none;
+}
+
+.sales-timeline-marker {
+  background: var(--color-primary);
+  border: 3px solid var(--color-primary-soft);
+  border-radius: 50%;
+  height: 18px;
+  margin-top: 3px;
+  width: 18px;
+}
+
+.sales-timeline-event.extraction .sales-timeline-marker {
+  background: #2e90fa;
+  border-color: #d1e9ff;
+}
+
+.sales-timeline-event.review .sales-timeline-marker {
+  background: var(--color-success);
+  border-color: var(--color-success-soft);
+}
+
+.sales-timeline-event.error .sales-timeline-marker,
+.sales-timeline-event.duplicate .sales-timeline-marker {
+  background: var(--color-danger);
+  border-color: var(--color-danger-soft);
+}
+
+.sales-timeline-event > div:last-child {
+  background: #fbfdfe;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+}
+
+.sales-timeline-event span,
+.sales-timeline-event small {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sales-timeline-event strong {
+  color: var(--color-heading);
+}
+
+.sales-timeline-event p {
+  color: var(--color-text);
+  margin: 0;
+}
+
 .sales-chart-panel {
   overflow: hidden;
 }
