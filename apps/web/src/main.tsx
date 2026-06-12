@@ -34,7 +34,7 @@ import {
   type LicenseStatus,
   type UserRole
 } from "@alwaystrack/shared";
-import { api, apiBaseUrl, appName } from "./api";
+import { api, apiBaseUrl, appName, demoMode } from "./api";
 import { BrandMark } from "./components/brand";
 import { NotificationCenter } from "./components/notification-center";
 import {
@@ -657,6 +657,25 @@ function PlaceholderView({ item }: { item: NavItem }) {
       <p className="eyebrow">{item.label}</p>
       <h2>{item.description}</h2>
       <p className="muted">Módulo reservado no shell. A implementação funcional entra nas próximas tasks do roadmap.</p>
+    </section>
+  );
+}
+
+function DemoModeBanner({ onOpen }: { onOpen: (key: ViewKey) => void }) {
+  if (!demoMode) return null;
+  return (
+    <section className="demo-mode-banner" aria-label="Modo demo guiado">
+      <div>
+        <p className="eyebrow">Modo demo</p>
+        <strong>Roteiro pronto para apresentação interna</strong>
+        <span>Central, nota pendente, aprovação, ranking explicável, timeline, FAQ/Wiki e notificações</span>
+      </div>
+      <div className="demo-mode-actions">
+        <button className="secondary small" type="button" onClick={() => onOpen("dashboard")}>Central</button>
+        <button className="secondary small" type="button" onClick={() => onOpen("notes")}>Nota</button>
+        <button className="secondary small" type="button" onClick={() => onOpen("ranking")}>Ranking</button>
+        <button className="secondary small" type="button" onClick={() => onOpen("faq")}>FAQ</button>
+      </div>
     </section>
   );
 }
@@ -4243,6 +4262,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
             </button>
           </div>
         </header>
+        <DemoModeBanner onOpen={openView} />
         {activeItem.key === "notes" ? (
           <NotesView user={user} initialFilters={viewIntent.notes} />
         ) : activeItem.key === "ranking" ? (

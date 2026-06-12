@@ -913,6 +913,41 @@ button .icon {
   padding-left: 2px;
 }
 
+.demo-mode-banner {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-md);
+  color: #7c2d12;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.demo-mode-banner .eyebrow {
+  color: #9a3412;
+}
+
+.demo-mode-banner strong,
+.demo-mode-banner span {
+  display: block;
+}
+
+.demo-mode-banner span {
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 3px;
+}
+
+.demo-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .notification-center {
   position: relative;
 }
@@ -3006,6 +3041,15 @@ legend {
 
   .topbar {
     position: static;
+  }
+
+  .demo-mode-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .demo-mode-actions {
+    justify-content: flex-start;
   }
 
   .operational-filters,

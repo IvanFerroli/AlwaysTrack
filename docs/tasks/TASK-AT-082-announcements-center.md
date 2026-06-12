@@ -46,6 +46,13 @@ O AlwaysTrack ja organiza notas, ranking e conhecimento. Falta um canal formal p
 5. Adicionar aba visual e card na Central Operacional Hoje.
 6. Cobrir com testes de servico/API para publicacao, escopo e notificacoes.
 
+## Subtasks planejadas
+1. `TASK-AT-083`: modelo de dados, ciclo de vida e permissoes.
+2. `TASK-AT-084`: editor rico e leitura.
+3. `TASK-AT-085`: notificacoes e ciencia.
+4. `TASK-AT-086`: integracao com Central Operacional Hoje.
+5. `TASK-AT-087`: vinculos, busca e governanca.
+
 ## Acceptance Criteria
 1. Usuario comercial consegue ver avisos ativos e acessar aviso por slug/id.
 2. Admin/Gestor/Supervisor autorizado consegue criar/publicar aviso rico.
@@ -61,4 +68,3 @@ Completa a narrativa de operacao diaria: alem de pendencias e conhecimento valid
 - Duplicar demais a Wiki em vez de reaproveitar padroes.
 - Notificar todo mundo em excesso e gerar ruido.
 - Escopo de publico alvo ficar complexo demais para a primeira entrega.
-

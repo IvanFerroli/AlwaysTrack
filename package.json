@@ -36,6 +36,7 @@
     "smoke:beta-local": "node scripts/smoke-beta-local.js",
     "db:flush:local": "node scripts/flush-local-demo.js",
     "db:flush:demo": "node scripts/flush-local-demo.js",
+    "demo:reset:local": "node scripts/reset-local-demo.js",
     "job:notifications": "npm run job:notifications --workspace @alwaystrack/api",
     "job:ranking-snapshots": "npm run job:ranking-snapshots --workspace @alwaystrack/api",
     "smoke:whatsapp": "npm run smoke:whatsapp --workspace @alwaystrack/api",

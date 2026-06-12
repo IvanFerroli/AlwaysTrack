@@ -1,8 +1,8 @@
 # TASK-AT-072 - Modo demo guiado
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-072-guided-demo-mode.md
 
@@ -52,3 +52,5 @@ Reduz risco de falha ao vivo e aumenta percepcao de produto acabado.
 - Confundir dados demo com dados reais se nao houver guardas.
 - Seed grande demais ficar fragil.
 
+## Execucao
+- `EXEC-AT-072-guided-demo-mode.md`

@@ -93,18 +93,23 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 74. `EXEC-AT-069`: matriz visual de permissoes em Configuracoes usando a matriz canonica compartilhada (`TASK-AT-077`). Status: completed.
 75. `EXEC-AT-070`: ranking explicavel com endpoint de composicao por vendedor e painel de prova na UI (`TASK-AT-070`). Status: completed.
 76. `EXEC-AT-071`: timeline visual por DANFE/nota com eventos de documento, extracao e auditoria (`TASK-AT-071`). Status: completed.
+77. `EXEC-AT-072`: modo demo guiado com reset local seguro, faixa visual opcional e roteiro atualizado (`TASK-AT-072`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-072-guided-demo-mode.md`: Modo demo guiado. Fase A, prioridade 4.
-2. `TASK-AT-073-danfe-diagnostics-and-manual-correction.md`: Diagnostico de DANFE e correcao manual auditavel. Fase B, prioridade 5.
-3. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-4. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
-5. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
-6. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
-7. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
-8. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
-9. `TASK-AT-081-minimum-operational-observability-panel.md`: Painel minimo de observabilidade operacional. Fase B, extra recomendado.
-10. `TASK-AT-082-announcements-center.md`: Aba de avisos e comunicados internos. Fase C, prioridade 13.
+1. `TASK-AT-073-danfe-diagnostics-and-manual-correction.md`: Diagnostico de DANFE e correcao manual auditavel. Fase B, prioridade 5.
+2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+3. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
+4. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
+5. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
+6. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
+7. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
+8. `TASK-AT-081-minimum-operational-observability-panel.md`: Painel minimo de observabilidade operacional. Fase B, extra recomendado.
+9. `TASK-AT-082-announcements-center.md`: Aba de avisos e comunicados internos. Fase C, prioridade 13.
+10. `TASK-AT-083-announcements-data-model-and-permissions.md`: Avisos: modelo de dados e permissoes. Fase C, prioridade 13.1.
+11. `TASK-AT-084-announcements-rich-editor-and-reader.md`: Avisos: editor rico e leitura. Fase C, prioridade 13.2.
+12. `TASK-AT-085-announcements-notifications-and-acknowledgement.md`: Avisos: notificacoes e ciencia. Fase C, prioridade 13.3.
+13. `TASK-AT-086-announcements-operational-today-integration.md`: Avisos: integracao com Central Operacional Hoje. Fase C, prioridade 13.4.
+14. `TASK-AT-087-announcements-links-search-and-governance.md`: Avisos: vinculos, busca e governanca. Fase C, prioridade 13.5.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -126,7 +131,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 1. `TASK-AT-069`: Central Operacional Hoje. Status: completed-mvp.
 2. `TASK-AT-070`: Ranking explicavel. Status: completed-mvp.
 3. `TASK-AT-071`: Timeline visual da nota. Status: completed-mvp.
-4. `TASK-AT-072`: Modo demo guiado. Status: proposed.
+4. `TASK-AT-072`: Modo demo guiado. Status: completed-mvp.
 5. `TASK-AT-074`: Polimento visual final por prints reais. Status: proposed-blocked-by-user-input.
 
 ### Fase B - Confiabilidade operacional
@@ -141,3 +146,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 3. `TASK-AT-079`: Busca global simples. Status: proposed.
 4. `TASK-AT-080`: Notificacoes mais uteis. Status: proposed.
 5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: proposed.
+6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: proposed.
+7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: proposed.
+8. `TASK-AT-085`: Avisos - notificacoes e ciencia. Status: proposed.
+9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: proposed.
+10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: proposed.
