@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-11
+- last-updated: 2026-06-12
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -91,7 +91,19 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 72. `EXEC-AT-067`: correcao de interpretacao para Perfil em segundo no sidebar e atalhos do header em faixa unica full-width (`TASK-AT-068`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. Sem backlog funcional pendente neste momento.
+1. `TASK-AT-069-operational-today-center.md`: Central Operacional Hoje. Fase A, prioridade 1.
+2. `TASK-AT-070-explainable-ranking.md`: Ranking explicavel. Fase A, prioridade 2.
+3. `TASK-AT-071-sales-document-visual-timeline.md`: Timeline visual da nota. Fase A, prioridade 3.
+4. `TASK-AT-072-guided-demo-mode.md`: Modo demo guiado. Fase A, prioridade 4.
+5. `TASK-AT-073-danfe-diagnostics-and-manual-correction.md`: Diagnostico de DANFE e correcao manual auditavel. Fase B, prioridade 5.
+6. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+7. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
+8. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
+9. `TASK-AT-077-visual-permission-matrix.md`: Matriz visual de permissoes. Fase C, prioridade 9.
+10. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
+11. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
+12. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
+13. `TASK-AT-081-minimum-operational-observability-panel.md`: Painel minimo de observabilidade operacional. Fase B, extra recomendado.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -106,3 +118,24 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 10. `TASK-AT-066`: polimento visual guiado por prints. Status: completed.
 11. `TASK-AT-067`: follow-up de header/sidebar/overflow visual. Status: completed.
 12. `TASK-AT-068`: correcao de interpretacao do header/sidebar. Status: completed.
+
+## Backlog proposto - consolidacao produto interno definitivo
+
+### Fase A - Impacto para apresentacao
+1. `TASK-AT-069`: Central Operacional Hoje. Status: proposed.
+2. `TASK-AT-070`: Ranking explicavel. Status: proposed.
+3. `TASK-AT-071`: Timeline visual da nota. Status: proposed.
+4. `TASK-AT-072`: Modo demo guiado. Status: proposed.
+5. `TASK-AT-074`: Polimento visual final por prints reais. Status: proposed-blocked-by-user-input.
+
+### Fase B - Confiabilidade operacional
+1. `TASK-AT-073`: Diagnostico de DANFE e correcao manual auditavel. Status: proposed.
+2. `TASK-AT-075`: Playwright/CI limpo. Status: proposed.
+3. `TASK-AT-076`: Paginacao server-side em telas criticas. Status: proposed.
+4. `TASK-AT-081`: Painel minimo de observabilidade operacional. Status: proposed.
+
+### Fase C - Produto interno definitivo
+1. `TASK-AT-077`: Matriz visual de permissoes. Status: proposed.
+2. `TASK-AT-078`: Curadoria clara de Wiki/FAQ. Status: proposed.
+3. `TASK-AT-079`: Busca global simples. Status: proposed.
+4. `TASK-AT-080`: Notificacoes mais uteis. Status: proposed.
