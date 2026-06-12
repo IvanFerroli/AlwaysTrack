@@ -10,6 +10,7 @@ import {
   analyzeSalesDocumentWithAi,
   createSalesCampaign,
   getSalesRanking,
+  getSalesRankingExplanation,
   getSalesStatements,
   getSalesDashboard,
   listRankingSnapshots,
@@ -34,6 +35,10 @@ import {
 function actorFrom(request: Request) {
   if (!request.user) throw new SalesDocumentError("FORBIDDEN");
   return request.user;
+}
+
+function cleanRouteParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 function logHandlerError(request: Request, event: string, error: unknown) {
@@ -234,6 +239,26 @@ export async function salesRankingHandler(request: Request, response: Response) 
     return sendOk(response, result);
   } catch (error) {
     logHandlerError(request, "sales_ranking.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function salesRankingExplanationHandler(request: Request, response: Response) {
+  try {
+    const filters = parseSalesPeriodFilters(request.query);
+    const sellerProfileId = cleanRouteParam(request.params.sellerProfileId);
+    const result = await getSalesRankingExplanation(prisma, actorFrom(request), sellerProfileId, filters);
+    logEvent("info", "sales_ranking.explanation.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      sellerProfileId,
+      filters,
+      total: result.summary.totalAmountCents
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_ranking.explanation.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }

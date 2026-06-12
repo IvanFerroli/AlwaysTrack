@@ -1172,6 +1172,112 @@ export async function getSalesRanking(prisma: PrismaClient, actor: CurrentUser, 
   return { campaign, items: ranking, total: ranking.length };
 }
 
+export async function getSalesRankingExplanation(prisma: PrismaClient, actor: CurrentUser, sellerProfileId: string, filters: SalesPeriodFilters = {}) {
+  assertCommercialRole(actor);
+  const ranking = await getSalesRanking(prisma, actor, { ...filters, sellerProfileId });
+  const row = ranking.items.find((item) => item.sellerId === sellerProfileId);
+  if (!row) throw new SalesDocumentError("NOT_FOUND");
+
+  const effectiveFilters = {
+    ...filters,
+    from: filters.from ?? ranking.campaign?.startsAt.toISOString().slice(0, 10),
+    to: filters.to ?? ranking.campaign?.endsAt.toISOString().slice(0, 10),
+    salesGroupId: filters.salesGroupId ?? ranking.campaign?.salesGroupId ?? undefined,
+    sellerProfileId
+  };
+  const approvedWhere = periodDocumentWhere(actor, effectiveFilters);
+  const relatedWhere = salesDocumentWhere(actor, {
+    ...effectiveFilters,
+    status: undefined
+  });
+
+  const [approvedDocuments, relatedDocuments, latestSnapshot] = await Promise.all([
+    prisma.salesDocument.findMany({
+      where: approvedWhere,
+      include: { sellerProfile: { include: { salesGroup: true } }, items: true },
+      orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }]
+    }),
+    prisma.salesDocument.findMany({
+      where: { ...relatedWhere, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW", "REJECTED", "DUPLICATE"] } },
+      include: { sellerProfile: { include: { salesGroup: true } }, items: true },
+      orderBy: [{ createdAt: "desc" }],
+      take: 20
+    }),
+    ranking.campaign
+      ? prisma.rankingSnapshot.findFirst({
+          where: { organizationId: actor.organizationId, campaignId: ranking.campaign.id },
+          include: { campaign: { include: { salesGroup: true } } },
+          orderBy: { createdAt: "desc" }
+        })
+      : Promise.resolve(null)
+  ]);
+
+  const documents = approvedDocuments.map((document) => {
+    const itemsTotal = document.items.reduce((sum, item) => sum + item.totalAmountCents, 0);
+    const quantity = document.items.reduce((sum, item) => sum + item.quantity, 0);
+    return {
+      id: document.id,
+      fileName: document.fileName,
+      status: document.status,
+      invoiceNumber: document.invoiceNumber,
+      accessKey: document.accessKey,
+      issuedAt: document.issuedAt,
+      reviewedAt: document.reviewedAt,
+      totalAmountCents: document.totalAmountCents ?? itemsTotal,
+      quantity,
+      items: document.items.map((item) => ({
+        id: item.id,
+        sku: item.sku,
+        description: item.description,
+        quantity: item.quantity,
+        totalAmountCents: item.totalAmountCents
+      }))
+    };
+  });
+  const related = relatedDocuments.map((document) => ({
+    id: document.id,
+    fileName: document.fileName,
+    status: document.status,
+    invoiceNumber: document.invoiceNumber,
+    issuedAt: document.issuedAt,
+    createdAt: document.createdAt,
+    reviewedAt: document.reviewedAt,
+    rejectionReason: document.rejectionReason,
+    totalAmountCents: document.totalAmountCents ?? document.items.reduce((sum, item) => sum + item.totalAmountCents, 0)
+  }));
+  const totalAmountCents = documents.reduce((sum, document) => sum + document.totalAmountCents, 0);
+  const quantity = documents.reduce((sum, document) => sum + document.quantity, 0);
+
+  return {
+    filters: effectiveFilters,
+    campaign: ranking.campaign,
+    ranking: row,
+    summary: {
+      totalAmountCents,
+      quantity,
+      documents: documents.length,
+      averageTicketCents: documents.length ? Math.round(totalAmountCents / documents.length) : 0,
+      pendingDocuments: related.filter((document) => ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"].includes(document.status)).length,
+      rejectedDocuments: related.filter((document) => document.status === "REJECTED").length,
+      duplicateDocuments: related.filter((document) => document.status === "DUPLICATE").length
+    },
+    documents,
+    relatedDocuments: related,
+    snapshot: latestSnapshot
+      ? {
+          id: latestSnapshot.id,
+          campaignId: latestSnapshot.campaignId,
+          periodStart: latestSnapshot.periodStart,
+          periodEnd: latestSnapshot.periodEnd,
+          scopeType: latestSnapshot.scopeType,
+          scopeId: latestSnapshot.scopeId,
+          createdAt: latestSnapshot.createdAt
+        }
+      : null,
+    generatedAt: new Date().toISOString()
+  };
+}
+
 export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
   assertCommercialRole(actor);
   const documents = await prisma.salesDocument.findMany({

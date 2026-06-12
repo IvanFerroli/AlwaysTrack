@@ -80,6 +80,54 @@ export interface SalesRankingData {
   total: number;
 }
 
+export interface SalesRankingExplanation {
+  generatedAt: string;
+  filters: SalesFilters & { sellerProfileId: string };
+  campaign: SalesCampaignItem | null;
+  ranking: SalesRankingRow;
+  summary: {
+    totalAmountCents: number;
+    quantity: number;
+    documents: number;
+    averageTicketCents: number;
+    pendingDocuments: number;
+    rejectedDocuments: number;
+    duplicateDocuments: number;
+  };
+  documents: Array<{
+    id: string;
+    fileName: string;
+    status: string;
+    invoiceNumber: string | null;
+    accessKey: string | null;
+    issuedAt: string | null;
+    reviewedAt: string | null;
+    totalAmountCents: number;
+    quantity: number;
+    items: Array<{ id: string; sku: string | null; description: string; quantity: number; totalAmountCents: number }>;
+  }>;
+  relatedDocuments: Array<{
+    id: string;
+    fileName: string;
+    status: string;
+    invoiceNumber: string | null;
+    issuedAt: string | null;
+    createdAt: string;
+    reviewedAt: string | null;
+    rejectionReason: string | null;
+    totalAmountCents: number;
+  }>;
+  snapshot: {
+    id: string;
+    campaignId: string | null;
+    periodStart: string;
+    periodEnd: string;
+    scopeType: string;
+    scopeId: string | null;
+    createdAt: string;
+  } | null;
+}
+
 export interface SalesFilters {
   campaignId?: string;
   from?: string;

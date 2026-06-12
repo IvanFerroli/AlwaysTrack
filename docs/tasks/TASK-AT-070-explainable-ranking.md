@@ -1,8 +1,8 @@
 # TASK-AT-070 - Ranking explicavel
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-070-explainable-ranking.md
 
@@ -27,8 +27,8 @@ Ranking contestavel mata confianca. O sistema precisa responder "por que esse ve
 ## Arquivos candidatos
 - `apps/web/src/views/ranking.tsx`
 - `apps/web/src/views/statements.tsx`
-- `apps/api/src/**/ranking*`
-- `apps/api/src/**/sales*`
+- `services/api/src/**/ranking*`
+- `services/api/src/**/sales*`
 - `packages/shared/src/**`
 - `prisma/schema.prisma` se faltar persistencia de composicao/snapshot
 
@@ -54,3 +54,5 @@ Permite responder contestacoes ao vivo e vende governanca comercial.
 - Duplicar regra de ranking no endpoint de explicacao e gerar divergencia.
 - Tentar resolver historico complexo demais antes da demo.
 
+## Execucao
+- `EXEC-AT-070-explainable-ranking.md`

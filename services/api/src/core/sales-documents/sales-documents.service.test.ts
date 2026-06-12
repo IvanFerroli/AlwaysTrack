@@ -7,6 +7,7 @@ import {
   createSalesCampaign,
   getSalesDashboard,
   getSalesRanking,
+  getSalesRankingExplanation,
   getSalesStatements,
   listSalesDocuments,
   listSalesSellers,
@@ -639,6 +640,104 @@ INFORMAÇÕES COMPLEMENTARES
     ]);
     expect(prisma.salesItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ salesDocument: expect.objectContaining({ status: "APPROVED" }) }) })
+    );
+  });
+
+  it("explains a seller ranking from approved documents and related exceptions", async () => {
+    const issuedAt = new Date("2026-06-10T00:00:00.000Z");
+    const prisma = {
+      salesItem: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            salesDocumentId: "doc-1",
+            sellerProfileId: "seller-1",
+            totalAmountCents: 12000,
+            quantity: 2,
+            sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+          },
+          {
+            salesDocumentId: "doc-1",
+            sellerProfileId: "seller-1",
+            totalAmountCents: 8000,
+            quantity: 1,
+            sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+          }
+        ])
+      },
+      salesDocument: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              id: "doc-1",
+              fileName: "danfe.pdf",
+              status: "APPROVED",
+              invoiceNumber: "100",
+              accessKey: "key-1",
+              issuedAt,
+              reviewedAt: new Date("2026-06-11T00:00:00.000Z"),
+              totalAmountCents: null,
+              items: [
+                { id: "item-1", sku: "sku-1", description: "Produto A", quantity: 2, totalAmountCents: 12000 },
+                { id: "item-2", sku: "sku-2", description: "Produto B", quantity: 1, totalAmountCents: 8000 }
+              ],
+              sellerProfile: { displayName: "Ana", salesGroup: { name: "Norte" } }
+            }
+          ])
+          .mockResolvedValueOnce([
+            {
+              id: "doc-2",
+              fileName: "pendente.pdf",
+              status: "PENDING_REVIEW",
+              invoiceNumber: "101",
+              issuedAt,
+              createdAt: new Date("2026-06-12T00:00:00.000Z"),
+              reviewedAt: null,
+              rejectionReason: null,
+              totalAmountCents: 5000,
+              items: []
+            },
+            {
+              id: "doc-3",
+              fileName: "rejeitada.pdf",
+              status: "REJECTED",
+              invoiceNumber: "102",
+              issuedAt,
+              createdAt: new Date("2026-06-12T00:00:00.000Z"),
+              reviewedAt: new Date("2026-06-12T01:00:00.000Z"),
+              rejectionReason: "Periodo incorreto",
+              totalAmountCents: 3000,
+              items: []
+            }
+          ])
+      },
+      rankingSnapshot: {
+        findFirst: vi.fn()
+      }
+    };
+
+    const explanation = await getSalesRankingExplanation(prisma as never, admin, "seller-1", { from: "2026-06-01", to: "2026-06-30" });
+
+    expect(explanation.ranking).toMatchObject({ sellerId: "seller-1", totalAmountCents: 20000, quantity: 3, documents: 1 });
+    expect(explanation.summary).toMatchObject({
+      totalAmountCents: 20000,
+      quantity: 3,
+      documents: 1,
+      averageTicketCents: 20000,
+      pendingDocuments: 1,
+      rejectedDocuments: 1,
+      duplicateDocuments: 0
+    });
+    expect(explanation.documents[0]).toMatchObject({ id: "doc-1", totalAmountCents: 20000, quantity: 3 });
+    expect(prisma.salesDocument.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "APPROVED",
+          sellerProfileId: "seller-1",
+          issuedAt: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) })
+        })
+      })
     );
   });
 

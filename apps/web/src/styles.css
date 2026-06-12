@@ -1307,6 +1307,63 @@ button .icon {
   font-size: 12px;
 }
 
+.ranking-explanation-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.ranking-explanation-panel .table-panel-toolbar {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.ranking-explanation-metrics {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.metric-card.compact {
+  min-height: 92px;
+  padding: 14px;
+}
+
+.ranking-snapshot-note {
+  align-items: center;
+  background: #fbfdfe;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.ranking-snapshot-note strong {
+  color: var(--color-heading);
+}
+
+.ranking-snapshot-note span {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ranking-explanation-panel .dashboard-grid {
+  align-items: start;
+}
+
+.ranking-explanation-panel .table-panel {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  overflow: auto;
+}
+
+.ranking-explanation-panel h3 {
+  color: var(--color-heading);
+  font-size: 16px;
+  padding: 16px 16px 0;
+}
+
 .sales-chart-panel {
   overflow: hidden;
 }
@@ -2805,6 +2862,10 @@ legend {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .ranking-explanation-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .today-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2859,6 +2920,7 @@ legend {
   .operational-filters,
   .filter-grid,
   .metrics-grid,
+  .ranking-explanation-metrics,
   .today-card-grid,
   .today-work-grid,
   .dashboard-grid,

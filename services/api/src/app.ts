@@ -162,6 +162,7 @@ import {
   listSalesSellersHandler,
   reviewSalesDocumentHandler,
   salesRankingCsvHandler,
+  salesRankingExplanationHandler,
   salesRankingHandler,
   salesDashboardHandler,
   salesStatementsCsvHandler,
@@ -230,6 +231,7 @@ export function createApp() {
   app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), createRankingSnapshotHandler);
   app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(commercialManagerRoles), getRankingSnapshotJobStatusHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(commercialAllRoles), salesRankingHandler);
+  app.get("/v1/sales/ranking/:sellerProfileId/explanation", requireAuth, requireRole(commercialAllRoles), salesRankingExplanationHandler);
   app.get("/v1/sales/ranking.csv", requireAuth, requireRole(commercialAllRoles), salesRankingCsvHandler);
   app.get("/v1/sales/sellers", requireAuth, requireRole(commercialAllRoles), listSalesSellersHandler);
   app.get("/v1/sales/statements", requireAuth, requireRole(commercialAllRoles), salesStatementsHandler);
