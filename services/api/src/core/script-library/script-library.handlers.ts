@@ -10,6 +10,7 @@ import {
   parseScriptCategoryInput,
   parseScriptCopyInput,
   parseScriptFilters,
+  recertifyOperationalScript,
   recordScriptCopy,
   ScriptLibraryError,
   updateOperationalScript,
@@ -79,6 +80,14 @@ export async function validateOperationalScriptHandler(request: Request, respons
 export async function obsoleteOperationalScriptHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await obsoleteOperationalScript(prisma, actorFrom(request), routeParam(request.params.scriptId)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function recertifyOperationalScriptHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await recertifyOperationalScript(prisma, actorFrom(request), routeParam(request.params.scriptId), parseOperationalScriptInput(request.body)));
   } catch (error) {
     return sendScriptError(response, error);
   }

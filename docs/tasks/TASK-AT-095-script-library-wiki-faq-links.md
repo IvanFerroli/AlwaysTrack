@@ -1,9 +1,9 @@
 # TASK-AT-095 - Scriptoteca: vinculos com Wiki e FAQ
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-095-script-library-wiki-faq-links.md
 
 ## Fase
@@ -31,3 +31,6 @@ Conectar scripts a paginas Wiki e threads FAQ sem confundir os dominios.
 ## Riscos
 - Transformar tudo em tudo e perder clareza de produto.
 - Vinculos quebrados apos arquivamento.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-095-script-library-wiki-faq-links.md

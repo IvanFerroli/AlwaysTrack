@@ -445,6 +445,9 @@ async function ensureOperationalScript(input: {
   channel: string;
   body: string;
   tags: string[];
+  wikiPageId?: string;
+  faqThreadId?: string;
+  reviewDueAt?: Date | null;
 }) {
   const placeholders = [...new Set([...input.body.matchAll(/\{([a-zA-Z0-9_.-]+)\}/g)].map((match) => match[1]))].sort();
   const script = await prisma.operationalScript.upsert({
@@ -454,6 +457,9 @@ async function ensureOperationalScript(input: {
       body: input.body,
       tagsJson: JSON.stringify(input.tags),
       placeholdersJson: JSON.stringify(placeholders),
+      wikiPageId: input.wikiPageId,
+      faqThreadId: input.faqThreadId,
+      reviewDueAt: input.reviewDueAt,
       status: "VALIDATED",
       updatedById: input.updatedById,
       validatedById: input.validatedById,
@@ -467,6 +473,9 @@ async function ensureOperationalScript(input: {
       body: input.body,
       tagsJson: JSON.stringify(input.tags),
       placeholdersJson: JSON.stringify(placeholders),
+      wikiPageId: input.wikiPageId,
+      faqThreadId: input.faqThreadId,
+      reviewDueAt: input.reviewDueAt,
       status: "VALIDATED",
       createdById: input.createdById,
       updatedById: input.updatedById,
@@ -1148,7 +1157,8 @@ async function main() {
     title: "Enviar código de rastreio",
     channel: "WHATSAPP",
     body: "Olá {nome_cliente}, tudo bem? Seu pedido {numero_pedido} já está em transporte. O código de rastreio é {codigo_rastreio}. O prazo estimado é {prazo}. Qualquer dúvida sigo por aqui.",
-    tags: ["entrega", "pedido", "rastreio", "whatsapp"]
+    tags: ["entrega", "pedido", "rastreio", "whatsapp"],
+    reviewDueAt: addDays(45)
   });
   await ensureOperationalScript({
     organizationId: organization.id,
@@ -1159,7 +1169,8 @@ async function main() {
     title: "Confirmar solicitação de estorno",
     channel: "WHATSAPP",
     body: "Oi {nome_cliente}. Recebemos sua solicitação de estorno do pedido {numero_pedido}. O valor de {valor} será analisado pelo financeiro e retornamos com a confirmação em até {prazo}.",
-    tags: ["estorno", "financeiro", "pedido", "whatsapp"]
+    tags: ["estorno", "financeiro", "pedido", "whatsapp"],
+    reviewDueAt: addDays(30)
   });
   await ensureOperationalScript({
     organizationId: organization.id,
@@ -1170,7 +1181,10 @@ async function main() {
     title: "Orientação inicial sobre produto",
     channel: "WHATSAPP",
     body: "Olá {nome_cliente}. Sobre o produto {produto}, a orientação inicial é conferir modo de uso, objetivo e restrições no rótulo. Se quiser, posso encaminhar sua dúvida para um atendente especializado. Atendente: {atendente}.",
-    tags: ["produto", "sac", "treinamento", "whatsapp"]
+    tags: ["produto", "sac", "treinamento", "whatsapp"],
+    wikiPageId: faqWikiPage.id,
+    faqThreadId: faqThread.id,
+    reviewDueAt: daysAgo(2)
   });
 
   await ensureAuditLog({

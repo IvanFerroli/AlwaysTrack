@@ -1,7 +1,7 @@
 # TASK-AT-099 - Scriptoteca: validade e recertificacao de scripts
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-099-script-library-validity-governance.md
@@ -39,3 +39,6 @@ Mostra maturidade operacional: a empresa nao apenas centraliza textos, mas gover
 - Criar burocracia demais para textos simples.
 - Notificar demais e gerar ruido.
 - Tratar validade como bloqueio duro antes de entender a rotina real do SAC.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-099-script-library-validity-governance.md

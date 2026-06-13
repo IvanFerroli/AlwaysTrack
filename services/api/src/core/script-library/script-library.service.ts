@@ -18,11 +18,15 @@ export interface ScriptCategoryInput {
 
 export interface OperationalScriptInput {
   categoryId?: string;
+  wikiPageId?: string | null;
+  faqThreadId?: string | null;
   title?: string;
   channel?: string;
   body?: string;
   tags?: string[];
   status?: string;
+  reviewDueAt?: Date | null;
+  comment?: string | null;
 }
 
 export interface ScriptFilters {
@@ -32,6 +36,7 @@ export interface ScriptFilters {
   status?: string;
   tags?: string[];
   includeObsolete?: boolean;
+  reviewDue?: boolean;
 }
 
 export interface ScriptCopyInput {
@@ -74,6 +79,13 @@ function cleanNumber(value: unknown) {
 
 function cleanStatus(value: unknown) {
   return typeof value === "string" && statuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+}
+
+function cleanDate(value: unknown) {
+  if (value === null) return null;
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function cleanChannel(value: unknown) {
@@ -149,8 +161,15 @@ function scriptVisibilityWhere(actor: CurrentUser): Prisma.OperationalScriptWher
   return { organizationId: actor.organizationId, status: "VALIDATED", category: { active: true } };
 }
 
-function withScriptFormat<T extends { tagsJson?: string | null; placeholdersJson?: string | null }>(item: T) {
-  return { ...item, tags: tagsFromJson(item.tagsJson), placeholders: placeholdersFromJson(item.placeholdersJson) };
+function reviewStateFor(item: { status: string; reviewDueAt?: Date | string | null }) {
+  if (item.status === "OBSOLETE") return "OBSOLETE";
+  if (item.status !== "VALIDATED") return "DRAFT";
+  if (item.reviewDueAt && new Date(item.reviewDueAt).getTime() <= Date.now()) return "REVIEW_DUE";
+  return "VALIDATED";
+}
+
+function withScriptFormat<T extends { tagsJson?: string | null; placeholdersJson?: string | null; status: string; reviewDueAt?: Date | string | null }>(item: T) {
+  return { ...item, tags: tagsFromJson(item.tagsJson), placeholders: placeholdersFromJson(item.placeholdersJson), reviewState: reviewStateFor(item) };
 }
 
 export function parseScriptCategoryInput(payload: unknown): ScriptCategoryInput {
@@ -168,11 +187,15 @@ export function parseOperationalScriptInput(payload: unknown): OperationalScript
   const input = (payload ?? {}) as Record<string, unknown>;
   return {
     categoryId: cleanText(input.categoryId),
+    wikiPageId: cleanOptionalText(input.wikiPageId),
+    faqThreadId: cleanOptionalText(input.faqThreadId),
     title: cleanText(input.title),
     channel: cleanChannel(input.channel),
     body: cleanText(input.body),
     tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
-    status: cleanStatus(input.status)
+    status: cleanStatus(input.status),
+    reviewDueAt: cleanDate(input.reviewDueAt),
+    comment: cleanOptionalText(input.comment)
   };
 }
 
@@ -183,7 +206,8 @@ export function parseScriptFilters(query: Record<string, unknown>): ScriptFilter
     channel: cleanChannel(query.channel),
     status: cleanStatus(query.status),
     tags: cleanText(query.tags)?.split(",").map((item) => item.trim()),
-    includeObsolete: query.includeObsolete === "1" || query.includeObsolete === "true"
+    includeObsolete: query.includeObsolete === "1" || query.includeObsolete === "true",
+    reviewDue: query.reviewDue === "1" || query.reviewDue === "true"
   };
 }
 
@@ -212,6 +236,7 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
           }
         : undefined,
       tagWhere(filters.tags)?.length ? { OR: tagWhere(filters.tags) } : undefined,
+      filters.reviewDue ? { reviewDueAt: { lte: new Date() } } : undefined,
       filters.includeObsolete ? undefined : { status: { not: "OBSOLETE" } }
     ].filter(Boolean) as Prisma.OperationalScriptWhereInput[]
   };
@@ -227,9 +252,12 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
         category: true,
         createdBy: { select: { id: true, name: true, email: true, role: true } },
         updatedBy: { select: { id: true, name: true, email: true, role: true } },
-        validatedBy: { select: { id: true, name: true, email: true, role: true } }
+        validatedBy: { select: { id: true, name: true, email: true, role: true } },
+        recertifiedBy: { select: { id: true, name: true, email: true, role: true } },
+        wikiPage: { select: { id: true, slug: true, title: true, active: true } },
+        faqThread: { select: { id: true, title: true, status: true, wikiPage: { select: { id: true, slug: true, title: true } } } }
       },
-      orderBy: [{ status: "asc" }, { usageCount: "desc" }, { updatedAt: "desc" }, { title: "asc" }],
+      orderBy: [{ status: "asc" }, { reviewDueAt: "asc" }, { usageCount: "desc" }, { updatedAt: "desc" }, { title: "asc" }],
       take: 100
     }),
     prisma.operationalScript.count({ where: scriptWhere })
@@ -265,6 +293,18 @@ async function ensureCategory(prisma: PrismaClient, actor: CurrentUser, category
   return category;
 }
 
+async function ensureWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string | null | undefined) {
+  if (!pageId) return;
+  const page = await prisma.wikiPage.findFirst({ where: { id: pageId, organizationId: actor.organizationId, active: true } });
+  if (!page) throw new ScriptLibraryError("NOT_FOUND");
+}
+
+async function ensureFaqThread(prisma: PrismaClient, actor: CurrentUser, threadId: string | null | undefined) {
+  if (!threadId) return;
+  const thread = await prisma.faqThread.findFirst({ where: { id: threadId, organizationId: actor.organizationId } });
+  if (!thread) throw new ScriptLibraryError("NOT_FOUND");
+}
+
 async function createRevision(prisma: PrismaClient, actor: CurrentUser, script: { id: string; organizationId: string; title: string; channel: string; body: string; tagsJson: string | null; placeholdersJson: string | null; status: string }) {
   const last = await prisma.operationalScriptRevision.findFirst({ where: { scriptId: script.id }, orderBy: { version: "desc" } });
   return prisma.operationalScriptRevision.create({
@@ -287,6 +327,8 @@ export async function createOperationalScript(prisma: PrismaClient, actor: Curre
   ensureManager(actor);
   if (!input.categoryId || !input.title || !input.channel || !input.body) throw new ScriptLibraryError("INVALID_INPUT");
   await ensureCategory(prisma, actor, input.categoryId);
+  await ensureWikiPage(prisma, actor, input.wikiPageId);
+  await ensureFaqThread(prisma, actor, input.faqThreadId);
   const existing = await prisma.operationalScript.findFirst({ where: { organizationId: actor.organizationId, categoryId: input.categoryId, title: input.title } });
   if (existing) throw new ScriptLibraryError("TITLE_TAKEN");
   const status = input.status ?? "DRAFT";
@@ -294,6 +336,8 @@ export async function createOperationalScript(prisma: PrismaClient, actor: Curre
     data: {
       organizationId: actor.organizationId,
       categoryId: input.categoryId,
+      wikiPageId: input.wikiPageId ?? null,
+      faqThreadId: input.faqThreadId ?? null,
       title: input.title,
       channel: input.channel,
       body: input.body,
@@ -303,7 +347,8 @@ export async function createOperationalScript(prisma: PrismaClient, actor: Curre
       createdById: actor.id,
       updatedById: actor.id,
       validatedById: status === "VALIDATED" ? actor.id : null,
-      validatedAt: status === "VALIDATED" ? new Date() : null
+      validatedAt: status === "VALIDATED" ? new Date() : null,
+      reviewDueAt: input.reviewDueAt ?? null
     }
   });
   await createRevision(prisma, actor, script);
@@ -316,11 +361,15 @@ export async function updateOperationalScript(prisma: PrismaClient, actor: Curre
   const current = await prisma.operationalScript.findFirst({ where: { id: scriptId, organizationId: actor.organizationId } });
   if (!current) throw new ScriptLibraryError("NOT_FOUND");
   if (input.categoryId) await ensureCategory(prisma, actor, input.categoryId);
+  await ensureWikiPage(prisma, actor, input.wikiPageId);
+  await ensureFaqThread(prisma, actor, input.faqThreadId);
   const body = input.body ?? current.body;
   const script = await prisma.operationalScript.update({
     where: { id: current.id },
     data: {
       categoryId: input.categoryId,
+      wikiPageId: input.wikiPageId,
+      faqThreadId: input.faqThreadId,
       title: input.title,
       channel: input.channel,
       body: input.body,
@@ -329,7 +378,8 @@ export async function updateOperationalScript(prisma: PrismaClient, actor: Curre
       status: input.status,
       updatedById: actor.id,
       validatedById: input.status === "VALIDATED" ? actor.id : input.status === "DRAFT" ? null : undefined,
-      validatedAt: input.status === "VALIDATED" ? new Date() : input.status === "DRAFT" ? null : undefined
+      validatedAt: input.status === "VALIDATED" ? new Date() : input.status === "DRAFT" ? null : undefined,
+      reviewDueAt: input.reviewDueAt
     }
   });
   await createRevision(prisma, actor, script);
@@ -347,6 +397,36 @@ export async function validateOperationalScript(prisma: PrismaClient, actor: Cur
   });
   await createRevision(prisma, actor, updated);
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script.validate", entityType: "OperationalScript", entityId: updated.id, metadata: { title: updated.title } });
+  return { script: withScriptFormat(updated) };
+}
+
+export async function recertifyOperationalScript(prisma: PrismaClient, actor: CurrentUser, scriptId: string, input: OperationalScriptInput = {}) {
+  ensureManager(actor);
+  const script = await prisma.operationalScript.findFirst({ where: { id: scriptId, organizationId: actor.organizationId } });
+  if (!script) throw new ScriptLibraryError("NOT_FOUND");
+  const updated = await prisma.operationalScript.update({
+    where: { id: script.id },
+    data: {
+      status: "VALIDATED",
+      validatedById: actor.id,
+      validatedAt: new Date(),
+      recertifiedById: actor.id,
+      recertifiedAt: new Date(),
+      reviewDueAt: input.reviewDueAt === undefined ? script.reviewDueAt : input.reviewDueAt,
+      updatedById: actor.id
+    }
+  });
+  await createRevision(prisma, actor, updated);
+  await prisma.operationalScriptEvent.create({
+    data: {
+      organizationId: actor.organizationId,
+      scriptId: updated.id,
+      userId: actor.id,
+      action: "recertify",
+      metadataJson: JSON.stringify({ comment: input.comment ?? null, reviewDueAt: updated.reviewDueAt })
+    }
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script.recertify", entityType: "OperationalScript", entityId: updated.id, metadata: { title: updated.title, comment: input.comment ?? null } });
   return { script: withScriptFormat(updated) };
 }
 

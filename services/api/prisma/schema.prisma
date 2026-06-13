@@ -134,6 +134,7 @@ model User {
   operationalScriptsCreated OperationalScript[] @relation("OperationalScriptCreatedBy")
   operationalScriptsUpdated OperationalScript[] @relation("OperationalScriptUpdatedBy")
   operationalScriptsValidated OperationalScript[] @relation("OperationalScriptValidatedBy")
+  operationalScriptsRecertified OperationalScript[] @relation("OperationalScriptRecertifiedBy")
   operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
 
@@ -689,6 +690,8 @@ model OperationalScript {
   id             String    @id @default(cuid())
   organizationId String
   categoryId     String
+  wikiPageId     String?
+  faqThreadId    String?
   title          String
   channel        String
   body           String
@@ -699,6 +702,9 @@ model OperationalScript {
   updatedById    String
   validatedById  String?
   validatedAt    DateTime?
+  reviewDueAt    DateTime?
+  recertifiedById String?
+  recertifiedAt  DateTime?
   usageCount     Int       @default(0)
   copiedAt       DateTime?
   createdAt      DateTime  @default(now())
@@ -706,18 +712,25 @@ model OperationalScript {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   category     ScriptCategory @relation(fields: [categoryId], references: [id])
+  wikiPage     WikiPage?    @relation("OperationalScriptWikiPage", fields: [wikiPageId], references: [id])
+  faqThread    FaqThread?   @relation("OperationalScriptFaqThread", fields: [faqThreadId], references: [id])
   createdBy    User         @relation("OperationalScriptCreatedBy", fields: [createdById], references: [id])
   updatedBy    User         @relation("OperationalScriptUpdatedBy", fields: [updatedById], references: [id])
   validatedBy  User?        @relation("OperationalScriptValidatedBy", fields: [validatedById], references: [id])
+  recertifiedBy User?       @relation("OperationalScriptRecertifiedBy", fields: [recertifiedById], references: [id])
   revisions    OperationalScriptRevision[]
   events       OperationalScriptEvent[]
 
   @@unique([organizationId, categoryId, title])
   @@index([organizationId])
   @@index([categoryId])
+  @@index([wikiPageId])
+  @@index([faqThreadId])
   @@index([status])
   @@index([channel])
   @@index([validatedById])
+  @@index([reviewDueAt])
+  @@index([recertifiedById])
   @@index([usageCount])
 }
 
@@ -803,6 +816,7 @@ model FaqThread {
   promotedBy   User?        @relation("FaqThreadPromoter", fields: [promotedById], references: [id])
   comments     FaqComment[]
   reactions    FaqReaction[]
+  operationalScripts OperationalScript[] @relation("OperationalScriptFaqThread")
 
   @@index([organizationId])
   @@index([authorId])
@@ -882,6 +896,7 @@ model WikiPage {
   revisions    WikiRevision[]
   attachments  WikiAttachment[]
   faqThreads   FaqThread[] @relation("FaqThreadWikiPage")
+  operationalScripts OperationalScript[] @relation("OperationalScriptWikiPage")
 
   @@unique([organizationId, slug])
   @@index([organizationId])
