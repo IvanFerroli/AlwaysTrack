@@ -12,6 +12,7 @@ import {
   parseScriptFilters,
   recertifyOperationalScript,
   recordScriptCopy,
+  restoreOperationalScriptRevision,
   ScriptLibraryError,
   updateOperationalScript,
   validateOperationalScript
@@ -88,6 +89,14 @@ export async function obsoleteOperationalScriptHandler(request: Request, respons
 export async function recertifyOperationalScriptHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await recertifyOperationalScript(prisma, actorFrom(request), routeParam(request.params.scriptId), parseOperationalScriptInput(request.body)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function restoreOperationalScriptRevisionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await restoreOperationalScriptRevision(prisma, actorFrom(request), routeParam(request.params.scriptId), routeParam(request.params.revisionId)));
   } catch (error) {
     return sendScriptError(response, error);
   }

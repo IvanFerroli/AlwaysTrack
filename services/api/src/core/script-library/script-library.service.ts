@@ -55,6 +55,10 @@ function ensureManager(actor: CurrentUser) {
   if (!isManager(actor)) throw new ScriptLibraryError("FORBIDDEN");
 }
 
+function ensureAdmin(actor: CurrentUser) {
+  if (actor.role !== "ADMIN") throw new ScriptLibraryError("FORBIDDEN");
+}
+
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -255,7 +259,17 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
         validatedBy: { select: { id: true, name: true, email: true, role: true } },
         recertifiedBy: { select: { id: true, name: true, email: true, role: true } },
         wikiPage: { select: { id: true, slug: true, title: true, active: true } },
-        faqThread: { select: { id: true, title: true, status: true, wikiPage: { select: { id: true, slug: true, title: true } } } }
+        faqThread: { select: { id: true, title: true, status: true, wikiPage: { select: { id: true, slug: true, title: true } } } },
+        revisions: {
+          orderBy: { version: "desc" },
+          take: 8,
+          include: { author: { select: { id: true, name: true, role: true } } }
+        },
+        events: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          include: { user: { select: { id: true, name: true, role: true } } }
+        }
       },
       orderBy: [{ status: "asc" }, { reviewDueAt: "asc" }, { usageCount: "desc" }, { updatedAt: "desc" }, { title: "asc" }],
       take: 100
@@ -438,6 +452,40 @@ export async function obsoleteOperationalScript(prisma: PrismaClient, actor: Cur
   await createRevision(prisma, actor, updated);
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script.obsolete", entityType: "OperationalScript", entityId: updated.id, metadata: { title: updated.title } });
   return { script: withScriptFormat(updated) };
+}
+
+export async function restoreOperationalScriptRevision(prisma: PrismaClient, actor: CurrentUser, scriptId: string, revisionId: string) {
+  ensureAdmin(actor);
+  const current = await prisma.operationalScript.findFirst({ where: { id: scriptId, organizationId: actor.organizationId } });
+  if (!current) throw new ScriptLibraryError("NOT_FOUND");
+  const revision = await prisma.operationalScriptRevision.findFirst({ where: { id: revisionId, scriptId, organizationId: actor.organizationId } });
+  if (!revision) throw new ScriptLibraryError("NOT_FOUND");
+  const restored = await prisma.operationalScript.update({
+    where: { id: current.id },
+    data: {
+      title: revision.title,
+      channel: revision.channel,
+      body: revision.body,
+      tagsJson: revision.tagsJson,
+      placeholdersJson: revision.placeholdersJson,
+      status: revision.status,
+      updatedById: actor.id,
+      validatedById: revision.status === "VALIDATED" ? actor.id : revision.status === "DRAFT" ? null : undefined,
+      validatedAt: revision.status === "VALIDATED" ? new Date() : revision.status === "DRAFT" ? null : undefined
+    }
+  });
+  await createRevision(prisma, actor, restored);
+  await prisma.operationalScriptEvent.create({
+    data: {
+      organizationId: actor.organizationId,
+      scriptId: restored.id,
+      userId: actor.id,
+      action: "restore",
+      metadataJson: JSON.stringify({ revisionId, version: revision.version })
+    }
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script.restore_revision", entityType: "OperationalScript", entityId: restored.id, metadata: { revisionId, version: revision.version } });
+  return { script: withScriptFormat(restored) };
 }
 
 export async function recordScriptCopy(prisma: PrismaClient, actor: CurrentUser, scriptId: string, input: ScriptCopyInput = {}) {

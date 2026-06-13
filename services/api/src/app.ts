@@ -169,6 +169,7 @@ import {
   obsoleteOperationalScriptHandler,
   updateOperationalScriptHandler,
   recertifyOperationalScriptHandler,
+  restoreOperationalScriptRevisionHandler,
   validateOperationalScriptHandler
 } from "./core/script-library/script-library.handlers.js";
 import {
@@ -258,6 +259,7 @@ export function createApp() {
   app.post("/v1/script-library/scripts/:scriptId/validate", requireAuth, requireRole(commercialManagerRoles), validateOperationalScriptHandler);
   app.post("/v1/script-library/scripts/:scriptId/obsolete", requireAuth, requireRole(commercialManagerRoles), obsoleteOperationalScriptHandler);
   app.post("/v1/script-library/scripts/:scriptId/recertify", requireAuth, requireRole(commercialManagerRoles), recertifyOperationalScriptHandler);
+  app.post("/v1/script-library/scripts/:scriptId/revisions/:revisionId/restore", requireAuth, requireRole(adminOnlyRoles), restoreOperationalScriptRevisionHandler);
   app.post("/v1/script-library/scripts/:scriptId/copy", requireAuth, requireRole(commercialAllRoles), copyOperationalScriptHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);

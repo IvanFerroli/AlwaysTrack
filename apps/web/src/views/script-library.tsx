@@ -37,6 +37,8 @@ interface OperationalScriptItem {
   recertifiedBy: { id: string; name: string; role: string } | null;
   wikiPage: { id: string; slug: string; title: string; active: boolean } | null;
   faqThread: { id: string; title: string; status: string; wikiPage: { id: string; slug: string; title: string } | null } | null;
+  revisions?: Array<{ id: string; version: number; title: string; channel: string; status: string; createdAt: string; author: { id: string; name: string; role: string } }>;
+  events?: Array<{ id: string; action: string; metadataJson: string | null; createdAt: string; user: { id: string; name: string; role: string } }>;
 }
 
 interface ScriptLibraryResponse {
@@ -113,6 +115,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
+  const canRestore = user.role === "ADMIN";
   const pageSize = 8;
 
   async function load(nextSelectedId = selectedId) {
@@ -264,6 +267,14 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     window.setTimeout(() => setCopyFeedback(""), 1800);
   }
 
+  async function restoreRevision(revisionId: string) {
+    if (!selected) return;
+    await run(async () => {
+      const result = await api<{ script: OperationalScriptItem }>(`/v1/script-library/scripts/${selected.id}/revisions/${revisionId}/restore`, { method: "POST" });
+      await load(result.script.id);
+    });
+  }
+
   return (
     <div className="content-stack">
       <OperationalFilters
@@ -393,6 +404,39 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
               {selected.tags?.length ? (
                 <div className="wiki-tag-row">
                   {selected.tags.map((tag) => <button key={tag} type="button" onClick={() => { setSelectedTag(tag); setPage(1); }}>#{tag}</button>)}
+                </div>
+              ) : null}
+              {canManage ? (
+                <div className="script-history-grid">
+                  <div>
+                    <h3>Revisões</h3>
+                    <div className="script-history-list">
+                      {(selected.revisions ?? []).map((revision) => (
+                        <div className="script-history-item" key={revision.id}>
+                          <div>
+                            <strong>v{revision.version} / {revision.status}</strong>
+                            <span>{revision.author.name} em {formatDateBr(revision.createdAt)}</span>
+                          </div>
+                          {canRestore ? <button className="secondary" type="button" disabled={saving} onClick={() => void restoreRevision(revision.id)}>Restaurar</button> : null}
+                        </div>
+                      ))}
+                      {selected.revisions?.length ? null : <span className="muted">Sem revisões registradas.</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Eventos</h3>
+                    <div className="script-history-list">
+                      {(selected.events ?? []).map((event) => (
+                        <div className="script-history-item" key={event.id}>
+                          <div>
+                            <strong>{event.action}</strong>
+                            <span>{event.user.name} em {formatDateBr(event.createdAt)}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {selected.events?.length ? null : <span className="muted">Sem eventos recentes.</span>}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </>

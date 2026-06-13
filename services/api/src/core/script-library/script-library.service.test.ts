@@ -7,6 +7,7 @@ import {
   parseScriptFilters,
   recertifyOperationalScript,
   recordScriptCopy,
+  restoreOperationalScriptRevision,
   validateOperationalScript
 } from "./script-library.service.js";
 
@@ -123,5 +124,20 @@ describe("script library service", () => {
     expect(prisma.operationalScript.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ recertifiedById: "admin-1", reviewDueAt: new Date("2026-08-01") }) }));
     expect(prisma.operationalScriptEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "recertify" }) }));
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script.recertify" }) }));
+  });
+
+  it("restores script revisions only for admins", async () => {
+    const prisma = prismaMock();
+    prisma.operationalScript.findFirst.mockResolvedValueOnce({ id: "script-1", organizationId: "org-1" });
+    prisma.operationalScriptRevision.findFirst
+      .mockResolvedValueOnce({ id: "rev-old", organizationId: "org-1", scriptId: "script-1", version: 1, title: "Antigo", channel: "WHATSAPP", body: "Texto antigo", tagsJson: "[]", placeholdersJson: "[]", status: "VALIDATED" })
+      .mockResolvedValueOnce({ version: 1 });
+
+    await restoreOperationalScriptRevision(prisma as never, admin, "script-1", "rev-old");
+
+    expect(prisma.operationalScript.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ title: "Antigo", body: "Texto antigo" }) }));
+    expect(prisma.operationalScriptEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "restore" }) }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script.restore_revision" }) }));
+    await expect(restoreOperationalScriptRevision(prisma as never, sac, "script-1", "rev-old")).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
