@@ -2710,6 +2710,35 @@ legend {
   margin-bottom: 8px;
 }
 
+.announcement-content {
+  padding: 16px;
+}
+
+.announcement-link-chip {
+  align-items: flex-start;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  display: grid;
+  font-weight: 800;
+  gap: 2px;
+  min-height: 42px;
+  padding: 9px 10px;
+  text-decoration: none;
+  width: 100%;
+}
+
+.announcement-link-chip small {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.form-grid select[multiple] {
+  min-height: 112px;
+  padding: 8px;
+}
+
 .wiki-edit-form {
   display: grid;
   gap: 12px;

@@ -318,6 +318,7 @@ export interface OperationalTodayData {
     wikiPendingReviews: number;
     faqUnanswered: number;
     unreadNotifications: number;
+    activeAnnouncements: number;
   };
   queues: {
     pendingDocuments: SalesDocumentItem[];
@@ -326,6 +327,17 @@ export interface OperationalTodayData {
     wikiPendingReviews: Array<{ id: string; title: string; createdAt: string; page: { id: string; slug: string; title: string }; author: { id: string; name: string; role: string } }>;
     faqUnanswered: Array<{ id: string; title: string; body: string | null; createdAt: string; author: { id: string; name: string; role: string } }>;
     unreadNotifications: Array<{ id: string; type: string; title: string; body: string | null; href: string | null; createdAt: string }>;
+    activeAnnouncements: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      summary: string | null;
+      priority: string;
+      pinned: boolean;
+      requiresAck: boolean;
+      publishedAt: string | null;
+      expiresAt: string | null;
+    }>;
     alerts: Array<{ severity: "danger" | "warning" | "info"; title: string; detail: string; target: string }>;
   };
 }

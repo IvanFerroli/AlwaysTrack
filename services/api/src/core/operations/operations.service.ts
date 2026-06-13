@@ -40,6 +40,16 @@ function canSeeKnowledgeReviewQueue(actor: CurrentUser) {
   return ["ADMIN", "GESTOR", "SUPERVISOR"].includes(actor.role);
 }
 
+function announcementScopeWhere(actor: CurrentUser, today: Date): Prisma.AnnouncementWhereInput {
+  return {
+    organizationId: actor.organizationId,
+    status: "PUBLISHED",
+    OR: [{ startsAt: null }, { startsAt: { lte: today } }],
+    AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gte: today } }] }],
+    targetRolesJson: { contains: `"${actor.role}"` }
+  };
+}
+
 /** Aggregates the operational state used by the executive "Hoje" dashboard. */
 export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUser, today = new Date()) {
   const dayStart = startOfUtcDay(today);
@@ -54,6 +64,7 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
     endsAt: { gte: dayStart },
     salesGroup: actor.role === "SUPERVISOR" ? { supervisorId: actor.id } : undefined
   };
+  const announcementScope = announcementScopeWhere(actor, dayEnd);
 
   const [
     pendingDocuments,
@@ -70,6 +81,9 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
     faqUnansweredQueue,
     unreadNotifications,
     unreadNotificationQueue,
+    activeAnnouncements,
+    announcementQueue,
+    criticalAnnouncements,
     ranking
   ] = await Promise.all([
     prisma.salesDocument.count({ where: { ...documentScope, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } } }),
@@ -123,6 +137,13 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
       orderBy: { createdAt: "desc" },
       take: 5
     }),
+    prisma.announcement.count({ where: announcementScope }),
+    prisma.announcement.findMany({
+      where: announcementScope,
+      orderBy: [{ pinned: "desc" }, { priority: "desc" }, { publishedAt: "desc" }],
+      take: 3
+    }),
+    prisma.announcement.count({ where: { ...announcementScope, priority: { in: ["HIGH", "CRITICAL"] } } }),
     getSalesRanking(prisma, actor, { from: todayText, to: todayText })
   ]);
 
@@ -137,6 +158,9 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
     faqUnanswered > 0 ? { severity: "info", title: "FAQ sem resposta", detail: `${faqUnanswered} pergunta(s) aberta(s).`, target: "faq" } : null,
     campaignsEndingSoon > 0
       ? { severity: "warning", title: "Campanhas perto do fim", detail: `${campaignsEndingSoon} campanha(s) encerram em ate 7 dias.`, target: "campaigns" }
+      : null,
+    criticalAnnouncements > 0
+      ? { severity: "warning", title: "Avisos importantes", detail: `${criticalAnnouncements} comunicado(s) de alta prioridade para hoje.`, target: "announcements" }
       : null
   ].filter(Boolean);
 
@@ -153,7 +177,8 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
       campaignsEndingSoon,
       wikiPendingReviews,
       faqUnanswered,
-      unreadNotifications
+      unreadNotifications,
+      activeAnnouncements
     },
     queues: {
       pendingDocuments: pendingQueue,
@@ -162,6 +187,7 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
       wikiPendingReviews: wikiPendingQueue,
       faqUnanswered: faqUnansweredQueue,
       unreadNotifications: unreadNotificationQueue,
+      activeAnnouncements: announcementQueue,
       alerts
     }
   };

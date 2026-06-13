@@ -7,7 +7,7 @@ export interface GlobalSearchInput {
 }
 
 export interface GlobalSearchResult {
-  type: "note" | "seller" | "campaign" | "wiki" | "faq";
+  type: "note" | "seller" | "campaign" | "wiki" | "faq" | "announcement";
   id: string;
   title: string;
   subtitle: string;
@@ -63,7 +63,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
     return { query: query ?? "", groups: [], total: 0 };
   }
 
-  const [notes, sellers, campaigns, wikiPages, faqThreads] = await Promise.all([
+  const [notes, sellers, campaigns, wikiPages, faqThreads, announcements] = await Promise.all([
     prisma.salesDocument.findMany({
       where: {
         ...salesDocumentScopeWhere(actor),
@@ -106,6 +106,16 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
         OR: containsQuery(["title", "body", "tagsJson", "status"], query)
       },
       orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+      take: limit
+    }),
+    prisma.announcement.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        status: "PUBLISHED",
+        targetRolesJson: { contains: `"${actor.role}"` },
+        OR: containsQuery(["title", "summary", "content", "tagsJson", "priority"], query)
+      },
+      orderBy: [{ pinned: "desc" }, { publishedAt: "desc" }],
       take: limit
     })
   ]);
@@ -172,12 +182,26 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
       label: "FAQ",
       items: faqThreads.map(
         (item): GlobalSearchResult => ({
-          type: "faq",
+          type: "announcement",
           id: item.id,
           title: item.title,
           subtitle: item.status,
           href: "/faq",
           meta: item.body
+        })
+      )
+    },
+    {
+      key: "announcements",
+      label: "Avisos",
+      items: announcements.map(
+        (item): GlobalSearchResult => ({
+          type: "faq",
+          id: item.id,
+          title: item.title,
+          subtitle: `${item.priority} · Aviso interno`,
+          href: `/avisos/${item.slug}`,
+          meta: item.summary
         })
       )
     }

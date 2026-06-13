@@ -369,6 +369,64 @@ async function ensureInAppNotification(input: {
   });
 }
 
+async function ensureAnnouncement(input: {
+  organizationId: string;
+  createdById: string;
+  updatedById: string;
+  slug: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  links?: Array<{ type: string; label: string; href: string }>;
+  targetRoles?: string[];
+  priority?: string;
+  pinned?: boolean;
+  requiresAck?: boolean;
+  startsAt?: Date | null;
+  expiresAt?: Date | null;
+}) {
+  return prisma.announcement.upsert({
+    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
+    update: {
+      title: input.title,
+      summary: input.summary,
+      content: input.content,
+      tagsJson: JSON.stringify(input.tags),
+      linksJson: JSON.stringify(input.links ?? []),
+      targetRolesJson: JSON.stringify(input.targetRoles ?? ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
+      status: "PUBLISHED",
+      priority: input.priority ?? "NORMAL",
+      pinned: input.pinned ?? false,
+      requiresAck: input.requiresAck ?? false,
+      startsAt: input.startsAt ?? null,
+      expiresAt: input.expiresAt ?? null,
+      publishedAt: daysAgo(0),
+      archivedAt: null,
+      updatedById: input.updatedById
+    },
+    create: {
+      organizationId: input.organizationId,
+      createdById: input.createdById,
+      updatedById: input.updatedById,
+      slug: input.slug,
+      title: input.title,
+      summary: input.summary,
+      content: input.content,
+      tagsJson: JSON.stringify(input.tags),
+      linksJson: JSON.stringify(input.links ?? []),
+      targetRolesJson: JSON.stringify(input.targetRoles ?? ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"]),
+      status: "PUBLISHED",
+      priority: input.priority ?? "NORMAL",
+      pinned: input.pinned ?? false,
+      requiresAck: input.requiresAck ?? false,
+      startsAt: input.startsAt ?? null,
+      expiresAt: input.expiresAt ?? null,
+      publishedAt: daysAgo(0)
+    }
+  });
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
@@ -933,6 +991,61 @@ async function main() {
     entityId: "seed-ranking-snapshot-demo",
     href: "/campanhas",
     dedupeKey: "seed:ranking-snapshot"
+  });
+
+  const criticalAnnouncement = await ensureAnnouncement({
+    organizationId: organization.id,
+    createdById: admin.id,
+    updatedById: admin.id,
+    slug: "conferencia-obrigatoria-de-danfe",
+    title: "Conferência obrigatória de DANFE",
+    summary: "Antes de aprovar notas, confira vendedor, NF, total, emissão e duplicidade.",
+    content:
+      "# Conferência obrigatória\n\n- Validar vendedor e grupo antes da aprovação.\n- Conferir NF, data de emissão, chave de acesso e total.\n- Usar Diagnóstico de DANFE quando a extração parecer inconsistente.\n\nEsse aviso exige ciência porque impacta ranking, extrato e auditoria.",
+    tags: ["notas", "processo", "ranking"],
+    links: [{ type: "WIKI", label: "Procedimento de conferência", href: "/wiki/conferencia-de-danfe" }],
+    priority: "CRITICAL",
+    pinned: true,
+    requiresAck: true,
+    expiresAt: addDays(14)
+  });
+  const dailyAnnouncement = await ensureAnnouncement({
+    organizationId: organization.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    slug: "prioridade-comercial-do-dia",
+    title: "Prioridade comercial do dia",
+    summary: "Campanhas ativas devem ser acompanhadas junto do ranking parcial.",
+    content:
+      "## Prioridade do dia\n\nAcompanhe campanhas ativas, ranking parcial e notas pendentes antes de cobrar resultado do time.\n\n- Use a Central Operacional Hoje.\n- Abra o ranking explicável em caso de contestação.\n- Registre dúvidas recorrentes no FAQ.",
+    tags: ["campanhas", "ranking", "vendas"],
+    links: [{ type: "CAMPAIGN", label: "Campanhas", href: "/campanhas" }],
+    priority: "HIGH",
+    pinned: false,
+    requiresAck: false,
+    expiresAt: addDays(7)
+  });
+  await ensureInAppNotification({
+    organizationId: organization.id,
+    recipientId: sellerUser.id,
+    type: "announcement.published",
+    title: "Aviso crítico: Conferência obrigatória de DANFE",
+    body: criticalAnnouncement.summary ?? "Novo comunicado interno.",
+    entityType: "Announcement",
+    entityId: criticalAnnouncement.id,
+    href: "/avisos/conferencia-obrigatoria-de-danfe",
+    dedupeKey: "seed:announcement-critical"
+  });
+  await ensureInAppNotification({
+    organizationId: organization.id,
+    recipientId: sac.id,
+    type: "announcement.published",
+    title: "Novo aviso: Prioridade comercial do dia",
+    body: dailyAnnouncement.summary ?? "Novo comunicado interno.",
+    entityType: "Announcement",
+    entityId: dailyAnnouncement.id,
+    href: "/avisos/prioridade-comercial-do-dia",
+    dedupeKey: "seed:announcement-daily"
   });
 
   await ensureAuditLog({

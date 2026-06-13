@@ -47,6 +47,7 @@ import {
   StatusBadge
 } from "./components/operational";
 import { AuditView } from "./views/audit";
+import { AnnouncementsView } from "./views/announcements";
 import { CampaignsView } from "./views/campaigns";
 import { DashboardView } from "./views/dashboard";
 import { FaqThreadsView } from "./views/faq";
@@ -82,6 +83,7 @@ type ViewKey =
   | "ranking"
   | "campaigns"
   | "statements"
+  | "announcements"
   | "wiki"
   | "faq"
   | "users"
@@ -114,6 +116,7 @@ type ViewIntent = {
   notes?: SalesDocumentListFilters;
   ranking?: SalesFilters;
   faq?: { status?: string };
+  announcements?: { slug?: string | null };
 };
 
 function digitsOnly(value: string) {
@@ -484,6 +487,7 @@ const navItems: NavItem[] = [
   { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
   { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialManagerRoles },
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialAllRoles },
+  { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: adminOnlyRoles },
@@ -4143,13 +4147,26 @@ function wikiSlugFromPath(pathname = window.location.pathname) {
   }
 }
 
+function announcementSlugFromPath(pathname = window.location.pathname) {
+  if (pathname === "/avisos") return "";
+  if (!pathname.startsWith("/avisos/")) return "";
+  const slug = pathname.slice("/avisos/".length).split("/")[0] ?? "";
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogout: () => void; onUserChange: (user: CurrentUser) => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
   const initialHelpId = window.location.hash.replace("#", "");
   const initialWikiSlug = wikiSlugFromPath();
+  const initialAnnouncementSlug = announcementSlugFromPath();
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
   const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
-  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : visibleNav[0]?.key ?? "dashboard");
+  const startsInAnnouncements = window.location.pathname === "/avisos" || window.location.pathname.startsWith("/avisos/");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -4189,7 +4206,14 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     clearHelpHash();
     if (key === "wiki") {
       window.history.replaceState(null, "", "/wiki");
-    } else if (window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/")) {
+    } else if (key === "announcements") {
+      window.history.replaceState(null, "", "/avisos");
+    } else if (
+      window.location.pathname === "/wiki" ||
+      window.location.pathname.startsWith("/wiki/") ||
+      window.location.pathname === "/avisos" ||
+      window.location.pathname.startsWith("/avisos/")
+    ) {
       window.history.replaceState(null, "", "/");
     }
     setActiveView(key);
@@ -4224,6 +4248,15 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     }
     if (path === "/wiki") {
       openView("wiki");
+      return;
+    }
+    if (href.startsWith("/avisos/")) {
+      openView("announcements", { announcements: { slug: href.slice("/avisos/".length).split("?")[0] } });
+      window.history.replaceState(null, "", href);
+      return;
+    }
+    if (path === "/avisos") {
+      openView("announcements");
       return;
     }
     if (path === "/faq") {
@@ -4374,6 +4407,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           <CampaignsView user={user} />
         ) : activeItem.key === "statements" ? (
           <StatementsView />
+        ) : activeItem.key === "announcements" ? (
+          <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
         ) : activeItem.key === "users" ? (
           <UsersTeamsView />
         ) : activeItem.key === "professionals" ? (

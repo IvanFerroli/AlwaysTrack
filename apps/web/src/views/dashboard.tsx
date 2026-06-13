@@ -12,7 +12,7 @@ import {
   type SalesSellerItem
 } from "../sales";
 
-type DashboardTargetView = "notes" | "ranking" | "statements" | "wiki" | "faq" | "campaigns";
+type DashboardTargetView = "notes" | "ranking" | "statements" | "wiki" | "faq" | "campaigns" | "announcements";
 type DashboardOpenOptions = {
   notes?: SalesDocumentListFilters;
   ranking?: SalesFilters;
@@ -162,6 +162,11 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
           <strong>{today.metrics.faqUnanswered}</strong>
           <small>Dúvidas que ainda não viraram conhecimento</small>
         </button>
+        <button type="button" onClick={() => onOpen("announcements")}>
+          <span>Avisos ativos</span>
+          <strong>{today.metrics.activeAnnouncements}</strong>
+          <small>Comunicados vigentes para sua operação</small>
+        </button>
       </div>
       <div className="today-work-grid">
         <div>
@@ -193,6 +198,26 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
                 { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) }
               ]}
             />
+          )}
+        </div>
+        <div>
+          <h3>Avisos do dia</h3>
+          {today.queues.activeAnnouncements.length === 0 ? (
+            <OperationalState state="empty" title="Sem avisos ativos" detail="Comunicados importantes aparecerão aqui." />
+          ) : (
+            <div className="today-alert-list">
+              {today.queues.activeAnnouncements.map((item) => (
+                <button
+                  className={`today-alert ${item.priority === "CRITICAL" ? "danger" : item.priority === "HIGH" ? "warning" : "info"}`}
+                  key={item.id}
+                  type="button"
+                  onClick={() => onOpen("announcements")}
+                >
+                  <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
+                  <span>{item.summary ?? "Abrir comunicado interno"}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>

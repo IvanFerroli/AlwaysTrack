@@ -24,6 +24,8 @@ model Organization {
   notificationRules     NotificationRule[]
   notificationJobs      NotificationJob[]
   inAppNotifications    InAppNotification[]
+  announcements         Announcement[]
+  announcementReadReceipts AnnouncementReadReceipt[]
   faqItems              FaqItem[]
   faqThreads            FaqThread[]
   faqComments           FaqComment[]
@@ -121,6 +123,9 @@ model User {
   faqCommentsAuthored   FaqComment[] @relation("FaqCommentAuthor")
   faqReactionsAuthored  FaqReaction[] @relation("FaqReactionUser")
   inAppNotifications    InAppNotification[] @relation("InAppNotificationRecipient")
+  announcementsAuthored Announcement[] @relation("AnnouncementAuthor")
+  announcementsUpdated  Announcement[] @relation("AnnouncementUpdatedBy")
+  announcementReadReceipts AnnouncementReadReceipt[] @relation("AnnouncementReadReceiptUser")
 
   @@index([organizationId])
   @@index([role])
@@ -587,6 +592,64 @@ model InAppNotification {
   @@index([readAt])
   @@index([type])
   @@index([entityType, entityId])
+}
+
+model Announcement {
+  id             String    @id @default(cuid())
+  organizationId String
+  slug           String
+  title          String
+  summary        String?
+  content        String
+  tagsJson       String?
+  linksJson      String?
+  targetRolesJson String?
+  status         String    @default("DRAFT")
+  priority       String    @default("NORMAL")
+  pinned         Boolean   @default(false)
+  requiresAck    Boolean   @default(false)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  publishedAt    DateTime?
+  archivedAt     DateTime?
+  createdById    String
+  updatedById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    User         @relation("AnnouncementAuthor", fields: [createdById], references: [id])
+  updatedBy    User         @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id])
+  readReceipts AnnouncementReadReceipt[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([pinned])
+  @@index([startsAt])
+  @@index([expiresAt])
+  @@index([publishedAt])
+}
+
+model AnnouncementReadReceipt {
+  id             String   @id @default(cuid())
+  organizationId String
+  announcementId String
+  userId         String
+  acknowledgedAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  announcement Announcement  @relation(fields: [announcementId], references: [id])
+  user         User          @relation("AnnouncementReadReceiptUser", fields: [userId], references: [id])
+
+  @@unique([announcementId, userId])
+  @@index([organizationId])
+  @@index([announcementId])
+  @@index([userId])
+  @@index([acknowledgedAt])
 }
 
 model FaqItem {

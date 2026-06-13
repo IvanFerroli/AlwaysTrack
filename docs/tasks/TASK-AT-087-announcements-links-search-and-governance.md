@@ -1,10 +1,11 @@
 # TASK-AT-087 - Avisos: vinculos, busca e governanca
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-087-announcements-links-search-and-governance.md
+- execution: docs/tasks/EXEC-AT-087-announcements-links-search-and-governance.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -30,4 +31,3 @@ Transformar Avisos em uma ferramenta governada e navegavel, conectada a Wiki, FA
 
 ## Riscos
 - Criar grafo complexo demais; primeira versao pode ter links simples tipados.
-

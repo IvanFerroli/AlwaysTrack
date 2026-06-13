@@ -99,20 +99,20 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 80. `EXEC-AT-080`: notificacoes in-app com filtro de nao lidas, agrupamento por tipo e links internos mais confiaveis (`TASK-AT-080`). Status: completed.
 81. `EXEC-AT-079`: busca global simples com endpoint agrupado e popover no header (`TASK-AT-079`). Status: completed.
 82. `EXEC-AT-078`: curadoria Wiki/FAQ com sem resposta, validacao e relacionados por tags (`TASK-AT-078`). Status: completed.
+83. `EXEC-AT-082`: aba de Avisos e comunicados internos com leitura/editor (`TASK-AT-082`). Status: completed.
+84. `EXEC-AT-083`: modelo de dados e permissoes para Avisos (`TASK-AT-083`). Status: completed.
+85. `EXEC-AT-084`: editor rico e leitura de Avisos (`TASK-AT-084`). Status: completed.
+86. `EXEC-AT-085`: notificacoes e ciencia de Avisos (`TASK-AT-085`). Status: completed.
+87. `EXEC-AT-086`: Avisos na Central Operacional Hoje (`TASK-AT-086`). Status: completed.
+88. `EXEC-AT-087`: vinculos, busca e governanca simples de Avisos (`TASK-AT-087`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 2. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
 3. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
-4. `TASK-AT-082-announcements-center.md`: Aba de avisos e comunicados internos. Fase C, prioridade 13.
-5. `TASK-AT-083-announcements-data-model-and-permissions.md`: Avisos: modelo de dados e permissoes. Fase C, prioridade 13.1.
-6. `TASK-AT-084-announcements-rich-editor-and-reader.md`: Avisos: editor rico e leitura. Fase C, prioridade 13.2.
-7. `TASK-AT-085-announcements-notifications-and-acknowledgement.md`: Avisos: notificacoes e ciencia. Fase C, prioridade 13.3.
-8. `TASK-AT-086-announcements-operational-today-integration.md`: Avisos: integracao com Central Operacional Hoje. Fase C, prioridade 13.4.
-9. `TASK-AT-087-announcements-links-search-and-governance.md`: Avisos: vinculos, busca e governanca. Fase C, prioridade 13.5.
-10. `TASK-AT-088-sac-operational-script-library.md`: Scriptoteca Operacional do SAC. Fase C, prioridade 14.
-11. `TASK-AT-089-script-library-data-model-and-permissions.md`: Scriptoteca: modelo de dados e permissoes. Fase C, prioridade 14.1.
-12. `TASK-AT-090-script-library-navigation-preview.md`: Scriptoteca: navegacao por categoria e preview. Fase C, prioridade 14.2.
+4. `TASK-AT-088-sac-operational-script-library.md`: Scriptoteca Operacional do SAC. Fase C, prioridade 14.
+5. `TASK-AT-089-script-library-data-model-and-permissions.md`: Scriptoteca: modelo de dados e permissoes. Fase C, prioridade 14.1.
+6. `TASK-AT-090-script-library-navigation-preview.md`: Scriptoteca: navegacao por categoria e preview. Fase C, prioridade 14.2.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -148,12 +148,12 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 2. `TASK-AT-078`: Curadoria clara de Wiki/FAQ. Status: completed-mvp.
 3. `TASK-AT-079`: Busca global simples. Status: completed-mvp.
 4. `TASK-AT-080`: Notificacoes mais uteis. Status: completed-mvp.
-5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: proposed.
-6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: proposed.
-7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: proposed.
-8. `TASK-AT-085`: Avisos - notificacoes e ciencia. Status: proposed.
-9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: proposed.
-10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: proposed.
+5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: completed-mvp.
+6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: completed-mvp.
+7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: completed-mvp.
+8. `TASK-AT-085`: Avisos - notificacoes e ciencia. Status: completed-mvp.
+9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: completed-mvp.
+10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: completed-mvp.
 11. `TASK-AT-088`: Scriptoteca Operacional do SAC. Status: proposed.
 12. `TASK-AT-089`: Scriptoteca - modelo de dados e permissoes. Status: proposed.
 13. `TASK-AT-090`: Scriptoteca - navegacao por categoria e preview. Status: proposed.

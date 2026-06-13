@@ -1,10 +1,11 @@
 # TASK-AT-083 - Avisos: modelo de dados e permissoes
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-083-announcements-data-model-and-permissions.md
+- execution: docs/tasks/EXEC-AT-083-announcements-data-model-and-permissions.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -30,4 +31,3 @@ Definir e implementar a base de dados, permissoes e ciclo de vida dos Avisos.
 
 ## Riscos
 - Publico alvo granular demais aumentar complexidade; primeira versao deve privilegiar roles e todos.
-

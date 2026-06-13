@@ -1,10 +1,11 @@
 # TASK-AT-086 - Avisos: integracao com Central Operacional Hoje
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-086-announcements-operational-today-integration.md
+- execution: docs/tasks/EXEC-AT-086-announcements-operational-today-integration.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -29,4 +30,3 @@ Mostrar avisos ativos do dia na Central Operacional Hoje com CTA real para leitu
 
 ## Riscos
 - Central ficar carregada; mostrar apenas top 3 e contador.
-

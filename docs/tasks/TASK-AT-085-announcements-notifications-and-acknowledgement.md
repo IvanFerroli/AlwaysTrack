@@ -1,10 +1,11 @@
 # TASK-AT-085 - Avisos: notificacoes e ciencia
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-085-announcements-notifications-and-acknowledgement.md
+- execution: docs/tasks/EXEC-AT-085-announcements-notifications-and-acknowledgement.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -30,4 +31,3 @@ Fazer avisos publicados chegarem aos usuarios certos e permitir saber quem viu/c
 
 ## Riscos
 - Excesso de notificacao virar ruido; agrupar ou deduplicar desde a primeira versao.
-

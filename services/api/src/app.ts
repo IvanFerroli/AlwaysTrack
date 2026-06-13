@@ -153,6 +153,15 @@ import {
 import { operationalTodayHandler } from "./core/operations/operations.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
+  acknowledgeAnnouncementHandler,
+  archiveAnnouncementHandler,
+  createAnnouncementHandler,
+  getAnnouncementBySlugHandler,
+  listAnnouncementsHandler,
+  publishAnnouncementHandler,
+  updateAnnouncementHandler
+} from "./core/announcements/announcements.handlers.js";
+import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
   createSalesCampaignHandler,
@@ -225,6 +234,13 @@ export function createApp() {
   app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(adminOnlyRoles), httpMetricsHandler);
   app.get("/v1/diagnostics/operations", requireAuth, requireRole(adminOnlyRoles), operationalObservabilityHandler);
   app.get("/v1/search", requireAuth, requireRole(commercialAllRoles), globalSearchHandler);
+  app.get("/v1/announcements", requireAuth, requireRole(commercialAllRoles), listAnnouncementsHandler);
+  app.post("/v1/announcements", requireAuth, requireRole(commercialManagerRoles), createAnnouncementHandler);
+  app.get("/v1/announcements/by-slug/:slug", requireAuth, requireRole(commercialAllRoles), getAnnouncementBySlugHandler);
+  app.patch("/v1/announcements/:announcementId", requireAuth, requireRole(commercialManagerRoles), updateAnnouncementHandler);
+  app.post("/v1/announcements/:announcementId/publish", requireAuth, requireRole(commercialManagerRoles), publishAnnouncementHandler);
+  app.post("/v1/announcements/:announcementId/archive", requireAuth, requireRole(commercialManagerRoles), archiveAnnouncementHandler);
+  app.post("/v1/announcements/:announcementId/acknowledge", requireAuth, requireRole(commercialAllRoles), acknowledgeAnnouncementHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

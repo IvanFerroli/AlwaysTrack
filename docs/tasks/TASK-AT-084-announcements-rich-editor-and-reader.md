@@ -1,10 +1,11 @@
 # TASK-AT-084 - Avisos: editor rico e leitura
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-084-announcements-rich-editor-and-reader.md
+- execution: docs/tasks/EXEC-AT-084-announcements-rich-editor-and-reader.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -30,4 +31,3 @@ Criar a experiencia visual de Avisos com editor rico semelhante ao da Wiki e lei
 
 ## Riscos
 - Editor rico virar fork da Wiki; preferir extrair/reusar helpers comuns.
-

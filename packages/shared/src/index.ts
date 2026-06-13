@@ -23,6 +23,8 @@ export const commercialPermissionMatrix = {
   "knowledge.contribute": commercialKnowledgeContributorRoles,
   "knowledge.publish": adminOnlyRoles,
   "faq.moderate": commercialManagerRoles,
+  "announcements.read": commercialAllRoles,
+  "announcements.manage": commercialManagerRoles,
   "users.manage": adminOnlyRoles,
   "audit.read": adminOnlyRoles,
   "profile.manageSelf": commercialAllRoles,
