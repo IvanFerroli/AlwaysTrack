@@ -522,6 +522,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
   const [recent, setRecent] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 8;
+  const [total, setTotal] = useState(0);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [content, setContent] = useState("");
@@ -542,7 +543,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     return `alwaystrack:wiki-draft:${user.id}:${pageId}`;
   }
 
-  async function loadPages(nextSelectedId = selected?.id) {
+  async function loadPages(nextSelectedId = selected?.id, pageOverride = page) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
@@ -550,15 +551,16 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     if (selectedTag) search.set("tags", selectedTag);
     if (recent) search.set("recent", recent);
     if (user.role === "ADMIN" && pageStatus !== "ACTIVE") search.set("status", pageStatus);
+    search.set("page", String(pageOverride));
+    search.set("pageSize", String(pageSize));
     try {
-      const result = await api<{ items: WikiPageSummary[]; total: number }>(`/v1/wiki/pages?${search.toString()}`);
+      const result = await api<{ items: WikiPageSummary[]; total: number; page?: number }>(`/v1/wiki/pages?${search.toString()}`);
       setPages(result.items);
+      setTotal(result.total);
       const slugToOpen = pendingSlug;
       const slugMatch = slugToOpen ? result.items.find((item) => item.slug === slugToOpen) : null;
       const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id;
-      const pageAnchorId = slugMatch?.id ?? nextId;
-      const pageAnchorIndex = pageAnchorId ? result.items.findIndex((item) => item.id === pageAnchorId) : 0;
-      setPage(Math.max(1, Math.floor(Math.max(pageAnchorIndex, 0) / pageSize) + 1));
+      setPage(result.page ?? pageOverride);
       if (slugToOpen) {
         if (slugMatch) {
           await openPage(slugMatch.id, false);
@@ -621,10 +623,6 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
   useEffect(() => {
     void loadPages();
   }, []);
-
-  useEffect(() => {
-    setPage(1);
-  }, [selectedTag]);
 
   useEffect(() => {
     if (!selected || !selected.active) return;
@@ -765,8 +763,8 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     }
     return [...tags].sort((a, b) => a.localeCompare(b));
   }, [pages]);
-  const visiblePages = selectedTag ? pages.filter((page) => wikiTagsFor(page).includes(selectedTag)) : pages;
-  const paginatedPages = visiblePages.slice((page - 1) * pageSize, page * pageSize);
+  const visiblePages = pages;
+  const paginatedPages = visiblePages;
   const activePages = visiblePages.filter((page) => page.active);
   const archivedPages = visiblePages.filter((page) => !page.active);
   const pagesWithPendingRequests = visiblePages.filter((page) => page.editRequests.length > 0);
@@ -847,7 +845,10 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
               ]
             : [])
         ]}
-        onSubmit={() => void loadPages()}
+        onSubmit={() => {
+          setPage(1);
+          void loadPages(undefined, 1);
+        }}
       />
 
       {error ? <OperationalState state="error" title="Falha na wiki" detail={error} /> : null}
@@ -975,7 +976,15 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                   {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
                 </button>
               ))}
-              <PaginationControls page={page} pageSize={pageSize} total={visiblePages.length} onPageChange={setPage} />
+              <PaginationControls
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={(nextPage) => {
+                  setPage(nextPage);
+                  void loadPages(undefined, nextPage);
+                }}
+              />
             </div>
           )}
         </section>

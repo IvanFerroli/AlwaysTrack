@@ -1,7 +1,7 @@
 # TASK-AT-093 - Scriptoteca: sugestoes e decisao de novos scripts
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-093-script-library-crud-validation-flow.md
@@ -34,3 +34,6 @@ Permitir que SAC sugira novos scripts ou alteracoes, sem publicar diretamente, e
 ## Riscos
 - Duplicar fluxo de Wiki review sem necessidade.
 - Validacao virar burocracia que impede uso.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-093-script-library-suggestions.md

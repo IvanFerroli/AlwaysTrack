@@ -2745,6 +2745,11 @@ legend {
   grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr) minmax(360px, 1.4fr);
 }
 
+.script-metrics-panel {
+  display: grid;
+  gap: 16px;
+}
+
 .script-placeholder-grid {
   display: grid;
   gap: 10px;

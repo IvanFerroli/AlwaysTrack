@@ -57,7 +57,17 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Playwright smoke
-        run: npm run test:e2e -- --project=desktop
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-e2e-smoke-artifacts
+          path: |
+            test-results/e2e-artifacts
+            playwright-report
+          if-no-files-found: ignore
 
   bullmq-redis:
     runs-on: ubuntu-latest

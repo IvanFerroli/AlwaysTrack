@@ -62,6 +62,8 @@ export interface WikiFilters {
   recent?: string;
   status?: string;
   pageStatus?: "ACTIVE" | "ARCHIVED" | "ALL";
+  page?: number;
+  pageSize?: number;
 }
 
 const wikiContentFormat = "MARKDOWN";
@@ -150,6 +152,13 @@ function cleanOptionalText(value: unknown) {
 function cleanNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function paginationFor(input: { page?: number; pageSize?: number }) {
+  if (!input.page && !input.pageSize) return {};
+  const page = input.page ?? 1;
+  const pageSize = Math.min(Math.max(input.pageSize ?? 25, 1), 100);
+  return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
 function cleanStatus(value: unknown) {
@@ -301,7 +310,9 @@ export function parseWikiFilters(query: Record<string, unknown>): WikiFilters {
     tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
     recent: cleanText(query.recent),
     status: cleanStatus(query.status),
-    pageStatus: cleanPageStatus(query.status)
+    pageStatus: cleanPageStatus(query.status),
+    page: cleanNumber(query.page),
+    pageSize: cleanNumber(query.pageSize)
   };
 }
 
@@ -328,15 +339,18 @@ export async function listWikiPages(prisma: PrismaClient, actor: CurrentUser, fi
         ]
       : undefined
   };
+  const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
     prisma.wikiPage.findMany({
       where,
       select: wikiPageSelect(),
-      orderBy: [{ updatedAt: "desc" }, { title: "asc" }]
+      orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
+      skip: pagination.skip,
+      take: pagination.take
     }),
     prisma.wikiPage.count({ where })
   ]);
-  return { items: items.map(withWikiContentFormat), total };
+  return { items: items.map(withWikiContentFormat), total, page: pagination.page ?? 1, pageSize: pagination.pageSize ?? items.length };
 }
 
 export async function getWikiPage(prisma: PrismaClient, actor: CurrentUser, pageId: string) {

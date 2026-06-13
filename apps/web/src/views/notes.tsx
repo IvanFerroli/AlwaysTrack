@@ -390,6 +390,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, SalesDocumentReviewDraft>>({});
   const [filters, setFilters] = useState<SalesDocumentListFilters>({});
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [sellerOptions, setSellerOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [uploadSellerProfileId, setUploadSellerProfileId] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -416,21 +417,26 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
   const selectedInvalidApprovalCount = selectedPendingItems.filter((item) => validReviewItemCount(reviewDrafts[item.id] ?? reviewDraftFromDocument(item)) === 0).length;
   const allPendingSelected = pendingReviewItems.length > 0 && pendingReviewItems.every((item) => selectedDocumentIds.includes(item.id));
   const pageSize = 12;
-  const paginatedItems = useMemo(() => items.slice((page - 1) * pageSize, page * pageSize), [items, page]);
   const initialFiltersKey = JSON.stringify(initialFilters ?? {});
 
   useEffect(() => {
     if (!initialFilters || Object.keys(initialFilters).length === 0) return;
+    setPage(1);
     setFilters((current) => ({ ...current, ...initialFilters }));
   }, [initialFiltersKey]);
+
+  function updateFilters(next: SalesDocumentListFilters) {
+    setPage(1);
+    setFilters(next);
+  }
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api<{ items: SalesDocumentItem[]; total: number }>(`/v1/sales/documents${salesFilterQuery(filters)}`);
+      const result = await api<{ items: SalesDocumentItem[]; total: number }>(`/v1/sales/documents${salesFilterQuery({ ...filters, page, pageSize })}`);
       setItems(result.items);
-      setPage(1);
+      setTotal(result.total);
       setSelectedDocumentIds((current) => current.filter((id) => result.items.some((item) => item.id === id && item.status === "PENDING_REVIEW")));
       setSellerOptions((current) => {
         const next = new Map(current.map((seller) => [seller.id, seller.name]));
@@ -454,7 +460,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
 
   useEffect(() => {
     void load();
-  }, [filters.status, filters.sellerProfileId, filters.from, filters.to]);
+  }, [filters.status, filters.sellerProfileId, filters.from, filters.to, page]);
 
   useEffect(() => {
     api<{ items: SalesSellerItem[]; total: number }>("/v1/sales/sellers")
@@ -682,17 +688,17 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
         <div className="operational-filters notes-review-filters">
           <label>
             Enviada de
-            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
+            <input type="date" value={filters.from ?? ""} onChange={(event) => updateFilters({ ...filters, from: event.target.value || undefined })} />
           </label>
           <label>
             Enviada até
-            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
+            <input type="date" value={filters.to ?? ""} onChange={(event) => updateFilters({ ...filters, to: event.target.value || undefined })} />
           </label>
           <label>
             <span className="label-row">
               Vendedor <InfoTip text="Filtre por vendedor para revisar lote, conferir duplicidades ou validar ranking." href="#aprovacao-de-notas" />
             </span>
-            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
+            <select value={filters.sellerProfileId ?? ""} onChange={(event) => updateFilters({ ...filters, sellerProfileId: event.target.value || undefined })}>
               <option value="">Todos</option>
               {sellerOptions.map((seller) => (
                 <option key={seller.id} value={seller.id}>
@@ -705,7 +711,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
             <span className="label-row">
               Status <InfoTip text="Status indica a etapa da nota: enviada, extraida, pendente, aprovada, rejeitada ou duplicada." href="#status-das-notas" />
             </span>
-            <select value={filters.status ?? ""} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value || undefined }))}>
+            <select value={filters.status ?? ""} onChange={(event) => updateFilters({ ...filters, status: event.target.value || undefined })}>
               <option value="">Todos</option>
               <option value="UPLOADED">Enviada</option>
               <option value="EXTRACTING">Extraindo</option>
@@ -716,7 +722,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
             </select>
           </label>
           <div className="filter-actions">
-            <button className="secondary" type="button" onClick={() => setFilters({})}>
+            <button className="secondary" type="button" onClick={() => updateFilters({})}>
               Limpar
             </button>
           </div>
@@ -763,7 +769,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
               </div>
             ) : null}
             <OperationalTable
-              items={paginatedItems}
+              items={items}
               getRowKey={(item) => item.id}
               columns={[
                 ...(canReview
@@ -840,7 +846,7 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
                 }
               ]}
             />
-            <PaginationControls page={page} pageSize={pageSize} total={items.length} onPageChange={setPage} />
+            <PaginationControls page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
           </>
         )}
         {Object.entries(extractionFeedback).length > 0 ? (

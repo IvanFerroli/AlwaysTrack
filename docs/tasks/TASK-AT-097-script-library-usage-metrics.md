@@ -1,7 +1,7 @@
 # TASK-AT-097 - Scriptoteca: metricas de uso e lacunas
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-097-script-library-usage-metrics.md
@@ -16,9 +16,9 @@ Medir uso da Scriptoteca para revelar scripts mais copiados, nunca usados e busc
 
 ## Escopo funcional
 1. Evento de copia por script. Status: entregue.
-2. Evento de busca com zero resultado. Status: pendente.
-3. Indicadores: mais copiados, nunca usados, desatualizados ha X dias, buscas sem resultado. Status: parcial.
-4. Painel simples para Supervisor/Admin. Status: pendente.
+2. Evento de busca com zero resultado. Status: entregue.
+3. Indicadores: mais copiados, nunca usados, desatualizados ha X dias, buscas sem resultado. Status: entregue.
+4. Painel simples para Supervisor/Admin. Status: entregue.
 5. Export ou resumo se for util. Status: pendente.
 
 ## Acceptance Criteria
@@ -32,6 +32,5 @@ Medir uso da Scriptoteca para revelar scripts mais copiados, nunca usados e busc
 - Coletar conteudo de atendimento indevido.
 - Transformar metrica em vigilancia individual em vez de melhoria operacional.
 
-## Execucao parcial
-- `usageCount` e eventos de copia ja existem para alimentar metricas futuras.
-- Proxima rodada deve agregar lacunas e buscas sem resultado sem expor texto sensivel.
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-097-script-library-usage-metrics.md

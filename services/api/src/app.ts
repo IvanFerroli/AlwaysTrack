@@ -164,7 +164,9 @@ import {
 import {
   copyOperationalScriptHandler,
   createOperationalScriptHandler,
+  createOperationalScriptSuggestionHandler,
   createScriptCategoryHandler,
+  decideOperationalScriptSuggestionHandler,
   listScriptLibraryHandler,
   obsoleteOperationalScriptHandler,
   updateOperationalScriptHandler,
@@ -254,6 +256,8 @@ export function createApp() {
   app.post("/v1/announcements/:announcementId/acknowledge", requireAuth, requireRole(commercialAllRoles), acknowledgeAnnouncementHandler);
   app.get("/v1/script-library", requireAuth, requireRole(commercialAllRoles), listScriptLibraryHandler);
   app.post("/v1/script-library/categories", requireAuth, requireRole(commercialManagerRoles), createScriptCategoryHandler);
+  app.post("/v1/script-library/suggestions", requireAuth, requireRole(commercialAllRoles), createOperationalScriptSuggestionHandler);
+  app.post("/v1/script-library/suggestions/:suggestionId/decision", requireAuth, requireRole(commercialManagerRoles), decideOperationalScriptSuggestionHandler);
   app.post("/v1/script-library/scripts", requireAuth, requireRole(commercialManagerRoles), createOperationalScriptHandler);
   app.patch("/v1/script-library/scripts/:scriptId", requireAuth, requireRole(commercialManagerRoles), updateOperationalScriptHandler);
   app.post("/v1/script-library/scripts/:scriptId/validate", requireAuth, requireRole(commercialManagerRoles), validateOperationalScriptHandler);

@@ -1,9 +1,9 @@
 # TASK-AT-075 - Playwright/CI limpo
 
 ## Metadata
-- status: proposed
+- status: completed-with-local-environment-note
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-075-playwright-ci-environment-cleanup.md
 
 ## Fase
@@ -51,4 +51,3 @@ Ajuda a provar maturidade tecnica e reduz medo de regressao.
 ## Riscos
 - Resolver dependencias locais pode variar por distro.
 - Suite longa pode ficar instavel se misturar muitos fluxos.
-

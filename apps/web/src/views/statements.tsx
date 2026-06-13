@@ -7,7 +7,6 @@ import {
   mergeUniqueGroups,
   salesFilterQuery,
   type SalesCampaignItem,
-  type SalesDocumentItem,
   type SalesFilters,
   type SalesStatementData
 } from "../sales";
@@ -24,31 +23,37 @@ function MetricCard({ label, value }: { label: string; value: ReactNode }) {
 export function StatementsView() {
   const [statement, setStatement] = useState<SalesStatementData | null>(null);
   const [campaigns, setCampaigns] = useState<SalesCampaignItem[] | null>(null);
-  const [referenceDocuments, setReferenceDocuments] = useState<SalesDocumentItem[]>([]);
+  const [sellers, setSellers] = useState<Array<{ id: string; name: string; group: { id: string; name: string } | null }>>([]);
   const [filters, setFilters] = useState<SalesFilters>({});
   const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   useEffect(() => {
     api<{ items: SalesCampaignItem[] }>("/v1/sales/campaigns").then((result) => setCampaigns(result.items)).catch(() => setCampaigns([]));
-    api<{ items: SalesDocumentItem[] }>("/v1/sales/documents").then((result) => setReferenceDocuments(result.items)).catch(() => setReferenceDocuments([]));
+    api<{ items: Array<{ id: string; displayName: string; salesGroup: { id: string; name: string } | null }> }>("/v1/sales/sellers")
+      .then((result) => setSellers(result.items.map((seller) => ({ id: seller.id, name: seller.displayName, group: seller.salesGroup }))))
+      .catch(() => setSellers([]));
   }, []);
 
   useEffect(() => {
-    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery(filters)}`)
+    api<SalesStatementData>(`/v1/sales/statements${salesFilterQuery({ ...filters, page, pageSize })}`)
       .then((result) => {
         setStatement(result);
-        setPage(1);
       })
       .catch(() => setStatement(null));
-  }, [filters]);
+  }, [filters, page]);
 
-  const groups = mergeUniqueGroups(campaigns, referenceDocuments);
-  const sellers = [...new Map(referenceDocuments.map((item) => [item.sellerProfile.id, item.sellerProfile.displayName])).entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const groups = mergeUniqueGroups(
+    campaigns,
+    sellers.map((seller) => ({ sellerProfile: { salesGroup: seller.group } }))
+  );
+  const sellerOptions = [...sellers].sort((a, b) => a.name.localeCompare(b.name));
   const csvHref = `${apiBaseUrl}/v1/sales/statements.csv${salesFilterQuery(filters)}`;
-  const pageSize = 12;
-  const paginatedStatementItems = statement?.items.slice((page - 1) * pageSize, page * pageSize) ?? [];
+
+  function updateFilters(next: SalesFilters) {
+    setPage(1);
+    setFilters(next);
+  }
 
   return (
     <div className="content-stack">
@@ -56,7 +61,7 @@ export function StatementsView() {
         <div className="filter-grid">
           <label>
             <span className="label-row">Campanha <InfoTip text="Filtra o extrato pela campanha usada para consolidar notas aprovadas." href="#extratos" /></span>
-            <select value={filters.campaignId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, campaignId: event.target.value || undefined }))}>
+            <select value={filters.campaignId ?? ""} onChange={(event) => updateFilters({ ...filters, campaignId: event.target.value || undefined })}>
               <option value="">Todas</option>
               {(campaigns ?? []).map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
@@ -67,7 +72,7 @@ export function StatementsView() {
           </label>
           <label>
             <span className="label-row">Grupo <InfoTip text="Use para conferir consolidado de um time comercial especifico." href="#extratos" /></span>
-            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
+            <select value={filters.salesGroupId ?? ""} onChange={(event) => updateFilters({ ...filters, salesGroupId: event.target.value || undefined })}>
               <option value="">Todos</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
@@ -78,9 +83,9 @@ export function StatementsView() {
           </label>
           <label>
             <span className="label-row">Vendedor <InfoTip text="Use para auditar vendas aprovadas de uma pessoa antes de comparar ranking." href="#extratos" /></span>
-            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
+            <select value={filters.sellerProfileId ?? ""} onChange={(event) => updateFilters({ ...filters, sellerProfileId: event.target.value || undefined })}>
               <option value="">Todos</option>
-              {sellers.map((seller) => (
+              {sellerOptions.map((seller) => (
                 <option key={seller.id} value={seller.id}>
                   {seller.name}
                 </option>
@@ -89,15 +94,15 @@ export function StatementsView() {
           </label>
           <label>
             De
-            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
+            <input type="date" value={filters.from ?? ""} onChange={(event) => updateFilters({ ...filters, from: event.target.value || undefined })} />
           </label>
           <label>
             Até
-            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
+            <input type="date" value={filters.to ?? ""} onChange={(event) => updateFilters({ ...filters, to: event.target.value || undefined })} />
           </label>
         </div>
         <div className="form-actions">
-          <button className="secondary" type="button" onClick={() => setFilters({})}>
+          <button className="secondary" type="button" onClick={() => updateFilters({})}>
             Limpar filtros
           </button>
         </div>
@@ -176,7 +181,7 @@ export function StatementsView() {
           <OperationalState state="empty" title="Nenhuma nota aprovada no extrato" detail="Aprove notas ou ajuste os filtros de período, grupo e vendedor." />
         ) : (
           <OperationalTable
-            items={paginatedStatementItems}
+            items={statement.items}
             getRowKey={(item) => item.id}
             columns={[
               { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
@@ -188,7 +193,7 @@ export function StatementsView() {
           />
         )}
         {statement && statement.items.length > 0 ? (
-          <PaginationControls page={page} pageSize={pageSize} total={statement.items.length} onPageChange={setPage} />
+          <PaginationControls page={page} pageSize={pageSize} total={statement.itemsTotal ?? statement.items.length} onPageChange={setPage} />
         ) : null}
       </section>
     </div>

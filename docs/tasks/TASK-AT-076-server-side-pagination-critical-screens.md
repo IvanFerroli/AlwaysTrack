@@ -1,9 +1,9 @@
 # TASK-AT-076 - Paginacao server-side em telas criticas
 
 ## Metadata
-- status: proposed
+- status: completed-critical-screens
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-076-server-side-pagination-critical-screens.md
 
 ## Fase
@@ -56,4 +56,3 @@ Pouco visivel, mas sustenta a promessa de ferramenta pronta para escala.
 ## Riscos
 - Quebrar filtros existentes por divergencia de parametros.
 - Queries sem indices ficarem lentas apos server-side.
-

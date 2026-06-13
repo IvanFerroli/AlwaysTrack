@@ -15,6 +15,7 @@ import {
   listSalesDocuments,
   listSalesSellers,
   parseSalesCampaignInput,
+  parseSalesDocumentFilters,
   parseSalesDocumentReviewInput,
   parseSalesDocumentUploadInput,
   reviewSalesDocument,
@@ -191,6 +192,14 @@ INFORMAÇÕES COMPLEMENTARES
     });
   });
 
+  it("parses sales document pagination filters", () => {
+    expect(parseSalesDocumentFilters({ status: " PENDING_REVIEW ", page: "2", pageSize: "12" })).toMatchObject({
+      status: "PENDING_REVIEW",
+      page: 2,
+      pageSize: 12
+    });
+  });
+
   it("deduplicates repeated access keys inside the same deterministic package", () => {
     const baseInvoice = {
       documentKind: "DANFE",
@@ -244,7 +253,9 @@ INFORMAÇÕES COMPLEMENTARES
       status: "PENDING_REVIEW",
       sellerProfileId: "seller-1",
       from: "2026-06-01",
-      to: "2026-06-08"
+      to: "2026-06-08",
+      page: 2,
+      pageSize: 10
     });
 
     expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(
@@ -255,7 +266,9 @@ INFORMAÇÕES COMPLEMENTARES
           sellerProfileId: "seller-1",
           createdAt: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) }),
           sellerProfile: expect.objectContaining({ organizationId: "org-1" })
-        })
+        }),
+        skip: 10,
+        take: 10
       })
     );
   });

@@ -30,6 +30,8 @@ model Organization {
   operationalScripts    OperationalScript[]
   operationalScriptRevisions OperationalScriptRevision[]
   operationalScriptEvents OperationalScriptEvent[]
+  operationalScriptSuggestions OperationalScriptSuggestion[]
+  operationalScriptSearchEvents OperationalScriptSearchEvent[]
   faqItems              FaqItem[]
   faqThreads            FaqThread[]
   faqComments           FaqComment[]
@@ -137,6 +139,9 @@ model User {
   operationalScriptsRecertified OperationalScript[] @relation("OperationalScriptRecertifiedBy")
   operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
+  operationalScriptSuggestionsAuthored OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionAuthor")
+  operationalScriptSuggestionsDecided OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionDecider")
+  operationalScriptSearchEvents OperationalScriptSearchEvent[] @relation("OperationalScriptSearchEventUser")
 
   @@index([organizationId])
   @@index([role])
@@ -678,6 +683,7 @@ model ScriptCategory {
   organization Organization @relation(fields: [organizationId], references: [id])
   createdBy    User         @relation("ScriptCategoryCreatedBy", fields: [createdById], references: [id])
   scripts      OperationalScript[]
+  suggestions  OperationalScriptSuggestion[]
 
   @@unique([organizationId, slug])
   @@unique([organizationId, name])
@@ -720,6 +726,7 @@ model OperationalScript {
   recertifiedBy User?       @relation("OperationalScriptRecertifiedBy", fields: [recertifiedById], references: [id])
   revisions    OperationalScriptRevision[]
   events       OperationalScriptEvent[]
+  suggestions  OperationalScriptSuggestion[]
 
   @@unique([organizationId, categoryId, title])
   @@index([organizationId])
@@ -775,6 +782,58 @@ model OperationalScriptEvent {
   @@index([scriptId])
   @@index([userId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model OperationalScriptSuggestion {
+  id             String   @id @default(cuid())
+  organizationId String
+  categoryId     String?
+  scriptId       String?
+  authorId       String
+  decidedById    String?
+  title          String
+  channel        String
+  body           String
+  tagsJson       String?
+  status         String   @default("SUGGESTED")
+  suggestionType String   @default("NEW")
+  decisionComment String?
+  createdScriptId String?
+  decidedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  category     ScriptCategory? @relation(fields: [categoryId], references: [id])
+  script       OperationalScript? @relation(fields: [scriptId], references: [id])
+  author       User @relation("OperationalScriptSuggestionAuthor", fields: [authorId], references: [id])
+  decidedBy    User? @relation("OperationalScriptSuggestionDecider", fields: [decidedById], references: [id])
+
+  @@index([organizationId])
+  @@index([categoryId])
+  @@index([scriptId])
+  @@index([authorId])
+  @@index([decidedById])
+  @@index([status])
+  @@index([suggestionType])
+}
+
+model OperationalScriptSearchEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  query          String?
+  filtersJson    String?
+  resultCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User @relation("OperationalScriptSearchEventUser", fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([resultCount])
   @@index([createdAt])
 }
 

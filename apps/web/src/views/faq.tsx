@@ -64,6 +64,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
   const [selectedTag, setSelectedTag] = useState("");
   const [recent, setRecent] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -79,7 +80,9 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     setStatus(initialStatus);
   }, [initialStatus]);
 
-  async function load(nextSelectedId = selectedId) {
+  const pageSize = 8;
+
+  async function load(nextSelectedId = selectedId, pageOverride = page) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
@@ -87,10 +90,13 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     if (status) search.set("status", status);
     if (selectedTag) search.set("tags", selectedTag);
     if (recent) search.set("recent", recent);
+    search.set("page", String(pageOverride));
+    search.set("pageSize", String(pageSize));
     try {
-      const result = await api<{ items: FaqThreadItem[]; total: number }>(`/v1/faq/threads?${search.toString()}`);
+      const result = await api<{ items: FaqThreadItem[]; total: number; page?: number }>(`/v1/faq/threads?${search.toString()}`);
       setThreads(result.items);
-      setPage(1);
+      setTotal(result.total);
+      setPage(result.page ?? pageOverride);
       const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id ?? "";
       setSelectedId(nextId);
     } catch (caught) {
@@ -173,13 +179,12 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     });
   }
 
-  const pageSize = 8;
   const unansweredThreads = threads.filter((thread) => thread.status === "OPEN" && thread.comments.length === 0);
   const promotedThreads = threads.filter((thread) => thread.wikiPage);
   const resolvedThreads = threads.filter((thread) => thread.status === "RESOLVED");
   const visibleThreads = unansweredOnly ? unansweredThreads : threads;
   const selected = visibleThreads.find((thread) => thread.id === selectedId) ?? threads.find((thread) => thread.id === selectedId) ?? null;
-  const paginatedThreads = visibleThreads.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedThreads = visibleThreads;
   const faqTags = [...new Set([...defaultKnowledgeTags, ...threads.flatMap((thread) => thread.tags ?? [])])].sort((a, b) => a.localeCompare(b));
   const statusOptions = [
     { value: "OPEN", label: "Aberta" },
@@ -216,7 +221,10 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
             onChange: setRecent
           }
         ]}
-        onSubmit={() => void load()}
+        onSubmit={() => {
+          setPage(1);
+          void load(undefined, 1);
+        }}
       />
       <div className="knowledge-curation-bar">
         <button
@@ -282,7 +290,15 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                   {thread.wikiPage ? <small>Wiki: /{thread.wikiPage.slug}</small> : null}
                 </button>
               ))}
-              <PaginationControls page={page} pageSize={pageSize} total={visibleThreads.length} onPageChange={setPage} />
+              <PaginationControls
+                page={page}
+                pageSize={pageSize}
+                total={unansweredOnly ? visibleThreads.length : total}
+                onPageChange={(nextPage) => {
+                  setPage(nextPage);
+                  void load(undefined, nextPage);
+                }}
+              />
             </div>
           )}
         </section>

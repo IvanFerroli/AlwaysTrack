@@ -84,7 +84,7 @@ describe("wiki service", () => {
       wikiPage: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
     };
 
-    await listWikiPages(prisma as never, admin, { query: "processo" });
+    await listWikiPages(prisma as never, admin, { query: "processo", page: 2, pageSize: 8 });
 
     expect(prisma.wikiPage.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -92,7 +92,9 @@ describe("wiki service", () => {
           organizationId: "org-1",
           active: true,
           OR: expect.arrayContaining([{ title: { contains: "processo" } }])
-        })
+        }),
+        skip: 8,
+        take: 8
       })
     );
   });

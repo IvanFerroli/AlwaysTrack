@@ -24,6 +24,8 @@ export interface FaqFilters {
   category?: string;
   query?: string;
   activeOnly?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface PublicHelpInput {
@@ -47,6 +49,8 @@ export interface FaqThreadFilters {
   status?: string;
   tags?: string[];
   recent?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface FaqCommentInput {
@@ -81,6 +85,18 @@ function cleanBoolean(value: unknown) {
 function cleanNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
   return Number.isInteger(parsed) ? parsed : undefined;
+}
+
+function cleanPositiveNumber(value: unknown) {
+  const parsed = cleanNumber(value);
+  return parsed && parsed > 0 ? parsed : undefined;
+}
+
+function paginationFor(input: { page?: number; pageSize?: number }) {
+  if (!input.page && !input.pageSize) return {};
+  const page = input.page ?? 1;
+  const pageSize = Math.min(Math.max(input.pageSize ?? 25, 1), 100);
+  return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
 function cleanThreadStatus(value: unknown) {
@@ -190,7 +206,9 @@ export function parseFaqFilters(query: Record<string, unknown>): FaqFilters {
     organizationId: cleanText(query.organizationId),
     category: cleanText(query.category),
     query: cleanText(query.query),
-    activeOnly: query.activeOnly === "false" ? false : true
+    activeOnly: query.activeOnly === "false" ? false : true,
+    page: cleanPositiveNumber(query.page),
+    pageSize: cleanPositiveNumber(query.pageSize)
   };
 }
 
@@ -220,7 +238,9 @@ export function parseFaqThreadFilters(query: Record<string, unknown>): FaqThread
     query: cleanText(query.query),
     status: cleanThreadStatus(query.status),
     tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
-    recent: cleanText(query.recent)
+    recent: cleanText(query.recent),
+    page: cleanPositiveNumber(query.page),
+    pageSize: cleanPositiveNumber(query.pageSize)
   };
 }
 
@@ -251,14 +271,17 @@ function faqWhere(organizationId: string, filters: FaqFilters): Prisma.FaqItemWh
 export async function listFaqItems(prisma: PrismaClient, actor: CurrentUser, filters: FaqFilters = {}) {
   const organizationId = actor.organizationId;
   const where = faqWhere(organizationId, { ...filters, activeOnly: filters.activeOnly ?? false });
+  const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
     prisma.faqItem.findMany({
       where,
-      orderBy: [{ active: "desc" }, { category: "asc" }, { order: "asc" }, { question: "asc" }]
+      orderBy: [{ active: "desc" }, { category: "asc" }, { order: "asc" }, { question: "asc" }],
+      skip: pagination.skip,
+      take: pagination.take
     }),
     prisma.faqItem.count({ where })
   ]);
-  return { items, total };
+  return { items, total, page: pagination.page ?? 1, pageSize: pagination.pageSize ?? items.length };
 }
 
 export async function listPublicFaqItems(prisma: PrismaClient, filters: FaqFilters) {
@@ -266,15 +289,18 @@ export async function listPublicFaqItems(prisma: PrismaClient, filters: FaqFilte
   const organization = await prisma.organization.findFirst({ where: { id: filters.organizationId, active: true } });
   if (!organization) throw new FaqError("NOT_FOUND");
   const where = faqWhere(filters.organizationId, { ...filters, activeOnly: true });
+  const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
     prisma.faqItem.findMany({
       where,
       select: { id: true, category: true, question: true, answer: true, order: true },
-      orderBy: [{ category: "asc" }, { order: "asc" }, { question: "asc" }]
+      orderBy: [{ category: "asc" }, { order: "asc" }, { question: "asc" }],
+      skip: pagination.skip,
+      take: pagination.take
     }),
     prisma.faqItem.count({ where })
   ]);
-  return { organization: { id: organization.id, name: organization.name }, items, total };
+  return { organization: { id: organization.id, name: organization.name }, items, total, page: pagination.page ?? 1, pageSize: pagination.pageSize ?? items.length };
 }
 
 export async function createFaqItem(prisma: PrismaClient, actor: CurrentUser, input: FaqInput) {
@@ -364,15 +390,18 @@ function faqThreadWhere(actor: CurrentUser, filters: FaqThreadFilters = {}): Pri
 
 export async function listFaqThreads(prisma: PrismaClient, actor: CurrentUser, filters: FaqThreadFilters = {}) {
   const where = faqThreadWhere(actor, filters);
+  const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
     prisma.faqThread.findMany({
       where,
       include: faqThreadInclude,
-      orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
+      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take
     }),
     prisma.faqThread.count({ where })
   ]);
-  return { items: items.map(withThreadTags), total };
+  return { items: items.map(withThreadTags), total, page: pagination.page ?? 1, pageSize: pagination.pageSize ?? items.length };
 }
 
 export async function createFaqThread(prisma: PrismaClient, actor: CurrentUser, input: FaqThreadInput) {

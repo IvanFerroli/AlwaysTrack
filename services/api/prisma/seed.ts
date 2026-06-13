@@ -503,6 +503,38 @@ async function ensureOperationalScript(input: {
   return script;
 }
 
+async function ensureOperationalScriptSuggestion(input: {
+  organizationId: string;
+  authorId: string;
+  categoryId?: string | null;
+  scriptId?: string | null;
+  title: string;
+  channel: string;
+  body: string;
+  tags: string[];
+  suggestionType: string;
+  status?: string;
+  decisionComment?: string | null;
+  decidedById?: string | null;
+}) {
+  const existing = await prisma.operationalScriptSuggestion.findFirst({ where: { organizationId: input.organizationId, title: input.title } });
+  const data = {
+    categoryId: input.categoryId ?? null,
+    scriptId: input.scriptId ?? null,
+    authorId: input.authorId,
+    title: input.title,
+    channel: input.channel,
+    body: input.body,
+    tagsJson: JSON.stringify(input.tags),
+    suggestionType: input.suggestionType,
+    status: input.status ?? "SUGGESTED",
+    decisionComment: input.decisionComment ?? null,
+    decidedById: input.decidedById ?? null,
+    decidedAt: input.decidedById ? daysAgo(0) : null
+  };
+  return existing ? prisma.operationalScriptSuggestion.update({ where: { id: existing.id }, data }) : prisma.operationalScriptSuggestion.create({ data: { organizationId: input.organizationId, ...data } });
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
@@ -1148,7 +1180,7 @@ async function main() {
     description: "Atendimento sobre produto, indicação e troca",
     order: 3
   });
-  await ensureOperationalScript({
+  const trackingScript = await ensureOperationalScript({
     organizationId: organization.id,
     categoryId: categoryDelivery.id,
     createdById: supervisor.id,
@@ -1186,6 +1218,30 @@ async function main() {
     faqThreadId: faqThread.id,
     reviewDueAt: daysAgo(2)
   });
+
+  await ensureOperationalScriptSuggestion({
+    organizationId: organization.id,
+    authorId: sac.id,
+    categoryId: categoryDelivery.id,
+    scriptId: trackingScript.id,
+    title: "Adicionar confirmação de endereço ao rastreio",
+    channel: "WHATSAPP",
+    body: "Olá {nome_cliente}, antes de seguir com o rastreio do pedido {numero_pedido}, confirma se o endereço de entrega segue correto?",
+    tags: ["entrega", "rastreio", "endereco"],
+    suggestionType: "CHANGE"
+  });
+  const existingScriptSearchGap = await prisma.operationalScriptSearchEvent.findFirst({ where: { organizationId: organization.id, userId: sac.id, query: "troca de sabor" } });
+  if (!existingScriptSearchGap) {
+    await prisma.operationalScriptSearchEvent.create({
+      data: {
+        organizationId: organization.id,
+        userId: sac.id,
+        query: "troca de sabor",
+        filtersJson: JSON.stringify({ source: "seed-demo" }),
+        resultCount: 0
+      }
+    });
+  }
 
   await ensureAuditLog({
     organizationId: organization.id,

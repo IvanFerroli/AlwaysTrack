@@ -44,8 +44,38 @@ interface OperationalScriptItem {
 interface ScriptLibraryResponse {
   categories: ScriptCategoryItem[];
   scripts: OperationalScriptItem[];
+  suggestions: ScriptSuggestionItem[];
+  metrics: ScriptLibraryMetrics | null;
   total: number;
   canManage: boolean;
+}
+
+interface ScriptSuggestionItem {
+  id: string;
+  categoryId: string | null;
+  scriptId: string | null;
+  title: string;
+  channel: string;
+  body: string;
+  tags?: string[];
+  status: string;
+  suggestionType: string;
+  decisionComment: string | null;
+  createdScriptId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author: { id: string; name: string; role: string };
+  decidedBy: { id: string; name: string; role: string } | null;
+  category: { id: string; name: string } | null;
+  script: { id: string; title: string } | null;
+}
+
+interface ScriptLibraryMetrics {
+  mostCopied: Array<{ id: string; title: string; usageCount: number }>;
+  neverUsed: number;
+  reviewDue: number;
+  pendingSuggestions: number;
+  zeroSearches: Array<{ id: string; query: string | null; filtersJson: string | null; createdAt: string }>;
 }
 
 const channelOptions = [
@@ -82,6 +112,10 @@ function emptyScriptDraft(categoryId = "") {
   return { categoryId, wikiPageId: "", faqThreadId: "", title: "", channel: "WHATSAPP", body: "", tags: "", status: "DRAFT", reviewDueAt: "", comment: "" };
 }
 
+function emptySuggestionDraft(categoryId = "", scriptId = "") {
+  return { categoryId, scriptId, suggestionType: scriptId ? "CHANGE" : "NEW", title: "", channel: "WHATSAPP", body: "", tags: "" };
+}
+
 function dateInputValue(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
@@ -93,6 +127,8 @@ function payloadDate(value: string) {
 export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [categories, setCategories] = useState<ScriptCategoryItem[]>([]);
   const [scripts, setScripts] = useState<OperationalScriptItem[]>([]);
+  const [suggestions, setSuggestions] = useState<ScriptSuggestionItem[]>([]);
+  const [metrics, setMetrics] = useState<ScriptLibraryMetrics | null>(null);
   const [wikiPages, setWikiPages] = useState<Array<{ id: string; slug: string; title: string }>>([]);
   const [faqThreads, setFaqThreads] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [total, setTotal] = useState(0);
@@ -110,6 +146,8 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
+  const [suggestionDraft, setSuggestionDraft] = useState(emptySuggestionDraft());
+  const [decisionComment, setDecisionComment] = useState("");
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,6 +171,8 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       const result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
       setCategories(result.categories);
       setScripts(result.scripts);
+      setSuggestions(result.suggestions ?? []);
+      setMetrics(result.metrics ?? null);
       setTotal(result.total);
       setPage(1);
       const next = nextSelectedId && result.scripts.some((script) => script.id === nextSelectedId) ? nextSelectedId : result.scripts[0]?.id ?? "";
@@ -227,6 +267,42 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function createSuggestion(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("/v1/script-library/suggestions", {
+        method: "POST",
+        body: JSON.stringify({
+          ...suggestionDraft,
+          categoryId: suggestionDraft.categoryId || selectedCategoryId || null,
+          scriptId: suggestionDraft.scriptId || null,
+          tags: parseTags(suggestionDraft.tags)
+        })
+      });
+      setSuggestionDraft(emptySuggestionDraft(selectedCategoryId, ""));
+      await load();
+    });
+  }
+
+  async function decideSuggestion(suggestion: ScriptSuggestionItem, decision: "ACCEPTED" | "REJECTED" | "MERGED") {
+    await run(async () => {
+      await api(`/v1/script-library/suggestions/${suggestion.id}/decision`, {
+        method: "POST",
+        body: JSON.stringify({
+          decision,
+          decisionComment: decisionComment || null,
+          categoryId: suggestion.categoryId || selectedCategoryId || categories[0]?.id || null,
+          title: suggestion.title,
+          channel: suggestion.channel,
+          body: suggestion.body,
+          tags: suggestion.tags ?? []
+        })
+      });
+      setDecisionComment("");
+      await load(selectedId);
+    });
+  }
+
   async function validateScript() {
     if (!selected) return;
     await run(async () => {
@@ -300,6 +376,34 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
         <span>{scripts.reduce((sum, script) => sum + script.usageCount, 0)} copia(s)</span>
       </div>
       {error ? <OperationalState state="error" title="Falha na Scriptoteca" detail={error} /> : null}
+      {canManage && metrics ? (
+        <section className="panel script-metrics-panel">
+          <div>
+            <p className="eyebrow">Métricas</p>
+            <h2>Uso e lacunas</h2>
+          </div>
+          <div className="permission-matrix-summary">
+            <div><span>Sugestões pendentes</span><strong>{metrics.pendingSuggestions}</strong></div>
+            <div><span>Sem uso</span><strong>{metrics.neverUsed}</strong></div>
+            <div><span>Revisão vencida</span><strong>{metrics.reviewDue}</strong></div>
+          </div>
+          <div className="script-history-grid">
+            <div>
+              <h3>Mais copiados</h3>
+              <div className="script-history-list">
+                {metrics.mostCopied.map((item) => <span key={item.id}>{item.title} / {item.usageCount} copia(s)</span>)}
+              </div>
+            </div>
+            <div>
+              <h3>Buscas sem resultado</h3>
+              <div className="script-history-list">
+                {metrics.zeroSearches.map((item) => <span key={item.id}>{item.query || "Filtro sem texto"} / {formatDateBr(item.createdAt)}</span>)}
+                {metrics.zeroSearches.length ? null : <span className="muted">Sem lacunas recentes.</span>}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <div className="script-library-layout">
         <section className="panel table-panel">
           <div className="table-panel-toolbar">
@@ -445,6 +549,90 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           )}
         </section>
       </div>
+
+      <section className="panel form-panel">
+        <div className="table-panel-toolbar">
+          <div>
+            <p className="eyebrow">Sugestões</p>
+            <h2>Melhorias de script</h2>
+          </div>
+        </div>
+        <form onSubmit={createSuggestion}>
+          <div className="form-grid">
+            <label>
+              Tipo
+              <select value={suggestionDraft.suggestionType} onChange={(event) => setSuggestionDraft((current) => ({ ...current, suggestionType: event.target.value, scriptId: event.target.value === "NEW" ? "" : current.scriptId }))}>
+                <option value="NEW">Novo script</option>
+                <option value="CHANGE">Alterar existente</option>
+              </select>
+            </label>
+            <label>
+              Script relacionado
+              <select value={suggestionDraft.scriptId} onChange={(event) => setSuggestionDraft((current) => ({ ...current, scriptId: event.target.value, suggestionType: event.target.value ? "CHANGE" : "NEW" }))}>
+                <option value="">Nenhum</option>
+                {scripts.map((script) => <option key={script.id} value={script.id}>{script.title}</option>)}
+              </select>
+            </label>
+            <label>
+              Categoria
+              <select value={suggestionDraft.categoryId} onChange={(event) => setSuggestionDraft((current) => ({ ...current, categoryId: event.target.value }))}>
+                <option value="">Sem categoria</option>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+            </label>
+            <label>
+              Canal
+              <select value={suggestionDraft.channel} onChange={(event) => setSuggestionDraft((current) => ({ ...current, channel: event.target.value }))}>
+                {channelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label className="full-span">
+              Título
+              <input value={suggestionDraft.title} onChange={(event) => setSuggestionDraft((current) => ({ ...current, title: event.target.value }))} />
+            </label>
+            <label className="full-span">
+              Texto sugerido
+              <textarea rows={5} value={suggestionDraft.body} onChange={(event) => setSuggestionDraft((current) => ({ ...current, body: event.target.value }))} />
+            </label>
+            <label className="full-span">
+              Tags
+              <input value={suggestionDraft.tags} onChange={(event) => setSuggestionDraft((current) => ({ ...current, tags: event.target.value }))} />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button disabled={saving || !suggestionDraft.title.trim() || !suggestionDraft.body.trim()}>Enviar sugestão</button>
+          </div>
+        </form>
+        <div className="script-history-grid">
+          <div>
+            <h3>{canManage ? "Fila de decisão" : "Minhas sugestões"}</h3>
+            <div className="script-history-list">
+              {suggestions.map((suggestion) => (
+                <div className="script-history-item" key={suggestion.id}>
+                  <div>
+                    <strong>{suggestion.title} / {suggestion.status}</strong>
+                    <span>{suggestion.author.name} / {suggestion.suggestionType}{suggestion.decisionComment ? ` / ${suggestion.decisionComment}` : ""}</span>
+                  </div>
+                  {canManage && suggestion.status === "SUGGESTED" ? (
+                    <div className="row-actions">
+                      <button className="secondary" type="button" disabled={saving || suggestion.suggestionType === "CHANGE"} onClick={() => void decideSuggestion(suggestion, "ACCEPTED")}>Aceitar</button>
+                      <button className="secondary" type="button" disabled={saving || !suggestion.scriptId} onClick={() => void decideSuggestion(suggestion, "MERGED")}>Mesclar</button>
+                      <button className="secondary" type="button" disabled={saving} onClick={() => void decideSuggestion(suggestion, "REJECTED")}>Rejeitar</button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              {suggestions.length ? null : <span className="muted">Sem sugestões registradas.</span>}
+            </div>
+          </div>
+          {canManage ? (
+            <label>
+              Comentário da decisão
+              <input value={decisionComment} onChange={(event) => setDecisionComment(event.target.value)} />
+            </label>
+          ) : null}
+        </div>
+      </section>
 
       {canManage ? (
         <section className="panel form-panel">

@@ -3,13 +3,16 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
   createOperationalScript,
+  createOperationalScriptSuggestion,
   createScriptCategory,
+  decideOperationalScriptSuggestion,
   listScriptLibrary,
   obsoleteOperationalScript,
   parseOperationalScriptInput,
   parseScriptCategoryInput,
   parseScriptCopyInput,
   parseScriptFilters,
+  parseScriptSuggestionInput,
   recertifyOperationalScript,
   recordScriptCopy,
   restoreOperationalScriptRevision,
@@ -57,6 +60,22 @@ export async function createScriptCategoryHandler(request: Request, response: Re
 export async function createOperationalScriptHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await createOperationalScript(prisma, actorFrom(request), parseOperationalScriptInput(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function createOperationalScriptSuggestionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await createOperationalScriptSuggestion(prisma, actorFrom(request), parseScriptSuggestionInput(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function decideOperationalScriptSuggestionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await decideOperationalScriptSuggestion(prisma, actorFrom(request), routeParam(request.params.suggestionId), parseScriptSuggestionInput(request.body)));
   } catch (error) {
     return sendScriptError(response, error);
   }

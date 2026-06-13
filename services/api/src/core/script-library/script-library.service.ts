@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { emitInAppNotifications } from "../notifications/notifications.service.js";
 
 export class ScriptLibraryError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN" | "TITLE_TAKEN") {
@@ -44,8 +45,17 @@ export interface ScriptCopyInput {
   placeholders?: Record<string, string>;
 }
 
+export interface ScriptSuggestionInput extends OperationalScriptInput {
+  scriptId?: string;
+  suggestionType?: string;
+  decision?: string;
+  decisionComment?: string | null;
+}
+
 const statuses = new Set(["DRAFT", "VALIDATED", "OBSOLETE"]);
 const channels = new Set(["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"]);
+const suggestionStatuses = new Set(["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"]);
+const suggestionTypes = new Set(["NEW", "CHANGE"]);
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -94,6 +104,14 @@ function cleanDate(value: unknown) {
 
 function cleanChannel(value: unknown) {
   return typeof value === "string" && channels.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+}
+
+function cleanSuggestionStatus(value: unknown) {
+  return typeof value === "string" && suggestionStatuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+}
+
+function cleanSuggestionType(value: unknown) {
+  return typeof value === "string" && suggestionTypes.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
 }
 
 function normalizedTags(values: unknown[] = []) {
@@ -222,6 +240,58 @@ export function parseScriptCopyInput(payload: unknown): ScriptCopyInput {
   return { renderedText: cleanOptionalText(input.renderedText), placeholders };
 }
 
+export function parseScriptSuggestionInput(payload: unknown): ScriptSuggestionInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    ...parseOperationalScriptInput(payload),
+    scriptId: cleanText(input.scriptId),
+    suggestionType: cleanSuggestionType(input.suggestionType),
+    decision: cleanSuggestionStatus(input.decision),
+    decisionComment: cleanOptionalText(input.decisionComment)
+  };
+}
+
+async function recordSearchEvent(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters, resultCount: number) {
+  if (!filters.query && !filters.channel && !filters.categoryId && !filters.status && !filters.tags?.length && !filters.reviewDue) return;
+  await prisma.operationalScriptSearchEvent.create({
+    data: {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      query: filters.query ?? null,
+      filtersJson: JSON.stringify({
+        categoryId: filters.categoryId ?? null,
+        channel: filters.channel ?? null,
+        status: filters.status ?? null,
+        tags: filters.tags ?? [],
+        reviewDue: Boolean(filters.reviewDue)
+      }),
+      resultCount
+    }
+  });
+}
+
+async function scriptLibraryMetrics(prisma: PrismaClient, actor: CurrentUser) {
+  if (!isManager(actor)) return null;
+  const [mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches] = await Promise.all([
+    prisma.operationalScript.findMany({
+      where: { organizationId: actor.organizationId, status: "VALIDATED" },
+      orderBy: [{ usageCount: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+      select: { id: true, title: true, usageCount: true }
+    }),
+    prisma.operationalScript.count({ where: { organizationId: actor.organizationId, status: "VALIDATED", usageCount: 0 } }),
+    prisma.operationalScript.count({ where: { organizationId: actor.organizationId, status: "VALIDATED", reviewDueAt: { lte: new Date() } } }),
+    prisma.operationalScriptSuggestion.count({ where: { organizationId: actor.organizationId, status: "SUGGESTED" } }),
+    prisma.operationalScriptSearchEvent.findMany({
+      where: { organizationId: actor.organizationId, resultCount: 0 },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { id: true, query: true, filtersJson: true, createdAt: true }
+    })
+  ]);
+  return { mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches };
+}
+
 export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters = {}) {
   const scriptWhere: Prisma.OperationalScriptWhereInput = {
     ...scriptVisibilityWhere(actor),
@@ -244,7 +314,7 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
       filters.includeObsolete ? undefined : { status: { not: "OBSOLETE" } }
     ].filter(Boolean) as Prisma.OperationalScriptWhereInput[]
   };
-  const [categories, scripts, total] = await Promise.all([
+  const [categories, scripts, total, suggestions, metrics] = await Promise.all([
     prisma.scriptCategory.findMany({
       where: { organizationId: actor.organizationId, active: isManager(actor) ? undefined : true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
@@ -274,9 +344,34 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
       orderBy: [{ status: "asc" }, { reviewDueAt: "asc" }, { usageCount: "desc" }, { updatedAt: "desc" }, { title: "asc" }],
       take: 100
     }),
-    prisma.operationalScript.count({ where: scriptWhere })
+    prisma.operationalScript.count({ where: scriptWhere }),
+    isManager(actor)
+      ? prisma.operationalScriptSuggestion.findMany({
+          where: { organizationId: actor.organizationId },
+          orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+          take: 30,
+          include: {
+            category: { select: { id: true, name: true } },
+            script: { select: { id: true, title: true } },
+            author: { select: { id: true, name: true, role: true } },
+            decidedBy: { select: { id: true, name: true, role: true } }
+          }
+        })
+      : prisma.operationalScriptSuggestion.findMany({
+          where: { organizationId: actor.organizationId, authorId: actor.id },
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+          include: {
+            category: { select: { id: true, name: true } },
+            script: { select: { id: true, title: true } },
+            author: { select: { id: true, name: true, role: true } },
+            decidedBy: { select: { id: true, name: true, role: true } }
+          }
+        }),
+    scriptLibraryMetrics(prisma, actor)
   ]);
-  return { categories, scripts: scripts.map(withScriptFormat), total, canManage: isManager(actor) };
+  await recordSearchEvent(prisma, actor, filters, total);
+  return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map((item) => ({ ...item, tags: tagsFromJson(item.tagsJson) })), metrics, total, canManage: isManager(actor) };
 }
 
 export async function createScriptCategory(prisma: PrismaClient, actor: CurrentUser, input: ScriptCategoryInput) {
@@ -486,6 +581,107 @@ export async function restoreOperationalScriptRevision(prisma: PrismaClient, act
   });
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script.restore_revision", entityType: "OperationalScript", entityId: restored.id, metadata: { revisionId, version: revision.version } });
   return { script: withScriptFormat(restored) };
+}
+
+export async function createOperationalScriptSuggestion(prisma: PrismaClient, actor: CurrentUser, input: ScriptSuggestionInput) {
+  const suggestionType = input.suggestionType ?? (input.scriptId ? "CHANGE" : "NEW");
+  if (!input.title || !input.channel || !input.body) throw new ScriptLibraryError("INVALID_INPUT");
+  if (input.categoryId) await ensureCategory(prisma, actor, input.categoryId);
+  if (input.scriptId) {
+    const script = await prisma.operationalScript.findFirst({ where: { id: input.scriptId, organizationId: actor.organizationId } });
+    if (!script) throw new ScriptLibraryError("NOT_FOUND");
+  }
+  const suggestion = await prisma.operationalScriptSuggestion.create({
+    data: {
+      organizationId: actor.organizationId,
+      categoryId: input.categoryId ?? null,
+      scriptId: input.scriptId ?? null,
+      authorId: actor.id,
+      title: input.title,
+      channel: input.channel,
+      body: input.body,
+      tagsJson: tagsJsonFor(input.tags),
+      suggestionType
+    },
+    include: { author: { select: { id: true, name: true, role: true } }, category: { select: { id: true, name: true } }, script: { select: { id: true, title: true } } }
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientRoles: ["ADMIN", "SUPERVISOR"],
+    type: "script_library.suggestion.created",
+    title: "Nova sugestão de script",
+    body: `${actor.name} sugeriu: ${suggestion.title}`,
+    entityType: "OperationalScriptSuggestion",
+    entityId: suggestion.id,
+    href: "/scriptoteca",
+    dedupeKey: `script.suggestion.created:${suggestion.id}`
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_suggestion.create", entityType: "OperationalScriptSuggestion", entityId: suggestion.id, metadata: { title: suggestion.title, suggestionType } });
+  return { suggestion: { ...suggestion, tags: tagsFromJson(suggestion.tagsJson) } };
+}
+
+export async function decideOperationalScriptSuggestion(prisma: PrismaClient, actor: CurrentUser, suggestionId: string, input: ScriptSuggestionInput) {
+  ensureManager(actor);
+  const decision = input.decision;
+  if (!decision || !["ACCEPTED", "REJECTED", "MERGED"].includes(decision)) throw new ScriptLibraryError("INVALID_INPUT");
+  const suggestion = await prisma.operationalScriptSuggestion.findFirst({ where: { id: suggestionId, organizationId: actor.organizationId }, include: { author: true } });
+  if (!suggestion) throw new ScriptLibraryError("NOT_FOUND");
+  if (suggestion.status !== "SUGGESTED") throw new ScriptLibraryError("INVALID_INPUT");
+  let createdScriptId: string | null = null;
+  if (decision === "ACCEPTED") {
+    const categoryId = input.categoryId ?? suggestion.categoryId;
+    if (!categoryId) throw new ScriptLibraryError("INVALID_INPUT");
+    await ensureCategory(prisma, actor, categoryId);
+    const created = await createOperationalScript(prisma, actor, {
+      categoryId,
+      title: input.title ?? suggestion.title,
+      channel: input.channel ?? suggestion.channel,
+      body: input.body ?? suggestion.body,
+      tags: input.tags ?? tagsFromJson(suggestion.tagsJson),
+      status: "DRAFT"
+    });
+    createdScriptId = created.script.id;
+  }
+  if (decision === "MERGED") {
+    if (!suggestion.scriptId) throw new ScriptLibraryError("INVALID_INPUT");
+    const updated = await updateOperationalScript(prisma, actor, suggestion.scriptId, {
+      title: input.title ?? suggestion.title,
+      channel: input.channel ?? suggestion.channel,
+      body: input.body ?? suggestion.body,
+      tags: input.tags ?? tagsFromJson(suggestion.tagsJson),
+      status: "DRAFT"
+    });
+    createdScriptId = updated.script.id;
+  }
+  const updatedSuggestion = await prisma.operationalScriptSuggestion.update({
+    where: { id: suggestion.id },
+    data: {
+      status: decision,
+      decisionComment: input.decisionComment ?? null,
+      decidedById: actor.id,
+      decidedAt: new Date(),
+      createdScriptId
+    },
+    include: {
+      category: { select: { id: true, name: true } },
+      script: { select: { id: true, title: true } },
+      author: { select: { id: true, name: true, role: true } },
+      decidedBy: { select: { id: true, name: true, role: true } }
+    }
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    actorId: actor.id,
+    recipientIds: [suggestion.authorId],
+    type: "script_library.suggestion.decided",
+    title: decision === "REJECTED" ? "Sugestão de script rejeitada" : "Sugestão de script aceita",
+    body: input.decisionComment ?? `Decisão: ${decision}`,
+    entityType: "OperationalScriptSuggestion",
+    entityId: suggestion.id,
+    href: "/scriptoteca",
+    dedupeKey: `script.suggestion.decided:${suggestion.id}:${decision}`
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_suggestion.decide", entityType: "OperationalScriptSuggestion", entityId: suggestion.id, metadata: { decision, createdScriptId, comment: input.decisionComment ?? null } });
+  return { suggestion: { ...updatedSuggestion, tags: tagsFromJson(updatedSuggestion.tagsJson) } };
 }
 
 export async function recordScriptCopy(prisma: PrismaClient, actor: CurrentUser, scriptId: string, input: ScriptCopyInput = {}) {

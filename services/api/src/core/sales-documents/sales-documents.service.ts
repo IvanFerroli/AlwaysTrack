@@ -42,6 +42,8 @@ export interface SalesDocumentFilters {
   salesGroupId?: string;
   from?: string;
   to?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface SalesPeriodFilters extends SalesDocumentFilters {
@@ -93,6 +95,18 @@ function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function cleanPositiveInteger(value: unknown) {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function paginationFor(input: { page?: number; pageSize?: number }) {
+  if (!input.page && !input.pageSize) return {};
+  const page = input.page ?? 1;
+  const pageSize = Math.min(Math.max(input.pageSize ?? 25, 1), 100);
+  return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
 function safeFileName(fileName: string) {
@@ -397,7 +411,9 @@ export function parseSalesDocumentFilters(query: Record<string, unknown>): Sales
     sellerProfileId: cleanText(query.sellerProfileId),
     salesGroupId: cleanText(query.salesGroupId),
     from: cleanText(query.from),
-    to: cleanText(query.to)
+    to: cleanText(query.to),
+    page: cleanPositiveInteger(query.page),
+    pageSize: cleanPositiveInteger(query.pageSize)
   };
 }
 
@@ -640,6 +656,7 @@ async function resolveSellerProfile(prisma: PrismaClient, actor: CurrentUser, se
 export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUser, filters: SalesDocumentFilters = {}) {
   assertCommercialRole(actor);
   const where = salesDocumentWhere(actor, filters);
+  const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
     prisma.salesDocument.findMany({
       where,
@@ -650,11 +667,13 @@ export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUse
         items: true,
         extractions: { orderBy: { createdAt: "desc" }, take: 1 }
       },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }]
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      skip: pagination.skip,
+      take: pagination.take
     }),
     prisma.salesDocument.count({ where })
   ]);
-  return { items, total };
+  return { items, total, page: pagination.page ?? 1, pageSize: pagination.pageSize ?? items.length };
 }
 
 export async function listSalesSellers(prisma: PrismaClient, actor: CurrentUser) {
@@ -1629,11 +1648,23 @@ export async function getSalesRankingExplanation(prisma: PrismaClient, actor: Cu
 
 export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
   assertCommercialRole(actor);
+  const where = periodDocumentWhere(actor, filters);
+  const pagination = paginationFor(filters);
   const documents = await prisma.salesDocument.findMany({
-    where: periodDocumentWhere(actor, filters),
+    where,
     include: { sellerProfile: { include: { salesGroup: true } }, items: true },
     orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }]
   });
+  const items =
+    pagination.take === undefined
+      ? documents
+      : await prisma.salesDocument.findMany({
+          where,
+          include: { sellerProfile: { include: { salesGroup: true } }, items: true },
+          orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
+          skip: pagination.skip,
+          take: pagination.take
+        });
 
   const totalAmountCents = documents.reduce(
     (sum, document) => sum + (document.totalAmountCents ?? document.items.reduce((itemSum, item) => itemSum + item.totalAmountCents, 0)),
@@ -1645,7 +1676,10 @@ export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUse
     filters,
     summary: { documents: documents.length, totalAmountCents, totalItems },
     consolidations: buildSalesStatementConsolidations(documents),
-    items: documents
+    items,
+    itemsTotal: documents.length,
+    page: pagination.page ?? 1,
+    pageSize: pagination.pageSize ?? items.length
   };
 }
 

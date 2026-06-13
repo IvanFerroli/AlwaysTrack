@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
   createOperationalScript,
+  createOperationalScriptSuggestion,
+  decideOperationalScriptSuggestion,
   listScriptLibrary,
   parseOperationalScriptInput,
   parseScriptFilters,
@@ -56,6 +58,17 @@ function prismaMock() {
       create: vi.fn().mockResolvedValue(script),
       update: vi.fn().mockResolvedValue({ ...script, status: "VALIDATED", validatedById: "admin-1", validatedAt: new Date(), usageCount: 1 })
     },
+    operationalScriptSuggestion: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: "sug-1", organizationId: "org-1", authorId: "sac-1", title: "Sugestão", channel: "WHATSAPP", body: "Texto", tagsJson: "[]", status: "SUGGESTED", suggestionType: "NEW", category: null, script: null, author: sac }),
+      update: vi.fn().mockResolvedValue({ id: "sug-1", organizationId: "org-1", authorId: "sac-1", title: "Sugestão", channel: "WHATSAPP", body: "Texto", tagsJson: "[]", status: "ACCEPTED", suggestionType: "NEW", category: null, script: null, author: sac, decidedBy: admin })
+    },
+    operationalScriptSearchEvent: {
+      create: vi.fn().mockResolvedValue({ id: "search-1" }),
+      findMany: vi.fn().mockResolvedValue([])
+    },
     operationalScriptRevision: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: "rev-1" })
@@ -71,6 +84,13 @@ function prismaMock() {
     },
     auditLog: {
       create: vi.fn().mockResolvedValue({ id: "audit-1" })
+    },
+    user: {
+      findMany: vi.fn().mockResolvedValue([{ id: "admin-1" }])
+    },
+    inAppNotification: {
+      upsert: vi.fn().mockResolvedValue({ id: "notif-1" }),
+      create: vi.fn().mockResolvedValue({ id: "notif-1" })
     }
   };
 }
@@ -91,9 +111,10 @@ describe("script library service", () => {
 
   it("scopes SAC listing to validated scripts", async () => {
     const prisma = prismaMock();
-    await listScriptLibrary(prisma as never, sac, {});
+    await listScriptLibrary(prisma as never, sac, { query: "sem resultado" });
 
     expect(prisma.operationalScript.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "VALIDATED" }) }));
+    expect(prisma.operationalScriptSearchEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ query: "sem resultado", resultCount: 0 }) }));
   });
 
   it("creates and validates scripts with audit/revision", async () => {
@@ -139,5 +160,17 @@ describe("script library service", () => {
     expect(prisma.operationalScriptEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "restore" }) }));
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script.restore_revision" }) }));
     await expect(restoreOperationalScriptRevision(prisma as never, sac, "script-1", "rev-old")).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("creates and decides script suggestions", async () => {
+    const prisma = prismaMock();
+    await createOperationalScriptSuggestion(prisma as never, sac, { categoryId: "cat-1", title: "Sugestão", channel: "WHATSAPP", body: "Texto", tags: ["sac"] });
+    expect(prisma.operationalScriptSuggestion.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ authorId: "sac-1", suggestionType: "NEW", tagsJson: "[\"sac\"]" }) }));
+    expect(prisma.inAppNotification.upsert).toHaveBeenCalled();
+
+    prisma.operationalScriptSuggestion.findFirst.mockResolvedValueOnce({ id: "sug-1", organizationId: "org-1", authorId: "sac-1", title: "Sugestão", channel: "WHATSAPP", body: "Texto", tagsJson: "[]", status: "SUGGESTED", suggestionType: "NEW" });
+    await decideOperationalScriptSuggestion(prisma as never, admin, "sug-1", { decision: "REJECTED", decisionComment: "Duplicada" });
+    expect(prisma.operationalScriptSuggestion.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED", decisionComment: "Duplicada", decidedById: "admin-1" }) }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script_suggestion.decide" }) }));
   });
 });

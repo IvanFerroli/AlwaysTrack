@@ -14,7 +14,7 @@ Vitest e o runner padrao para unit, integration e regression tests em TypeScript
 
 Jest nao sera adotado agora. O projeto ja usa Vitest, a suite esta verde, e adicionar Jest duplicaria configuracao, mocks e padroes sem ganho concreto. Jest so deve ser reavaliado se uma dependencia futura exigir APIs ou ecossistema que Vitest nao cubra bem.
 
-Playwright sera o runner de browser/e2e na `TASK-AT-049`.
+Playwright e o runner de browser/e2e. O smoke rapido, dependencias de Chromium e artefatos de falha estao documentados em `docs/testing/playwright-ci.md`.
 
 Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao e ferramenta de carga; BullMQ entra para filas, backpressure e jobs pesados na `TASK-AT-052`.
 
@@ -34,6 +34,8 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `npm run test:integration`: roda o fluxo operacional principal service-level.
 - `npm run test:regression`: roda suites que protegem notas, Wiki, FAQ e notificacoes.
 - `npm run test:e2e`: roda Playwright com ambiente isolado.
+- `npm run test:e2e:smoke`: roda o smoke desktop usado no CI.
+- `npm run test:e2e:api`: roda os fluxos API pelo Playwright.
 - `npm run test:all`: roda `check` e docs TypeDoc.
 - `npm run check`: gate rapido atual de lint/typecheck/test.
 - `npm run check:docs`: gera TypeDoc e falha se a documentacao tecnica quebrar.

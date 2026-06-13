@@ -24,6 +24,8 @@
     "test:regression": "npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts wiki.service.test.ts faq.service.test.ts notifications.service.test.ts",
     "test:jobs:redis": "RUN_REDIS_JOBS_TESTS=true JOB_QUEUE_DRIVER=bullmq npm run test --workspace @alwaystrack/api -- queue.redis.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/app-smoke.spec.ts --project=desktop",
+    "test:e2e:api": "playwright test --project=api",
     "test:all": "npm run check && npm run check:docs",
     "docs:api": "typedoc --options typedoc.json",
     "db:test:migrations": "node scripts/test-migrations.js",

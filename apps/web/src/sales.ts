@@ -135,6 +135,8 @@ export interface SalesFilters {
   salesGroupId?: string;
   sellerProfileId?: string;
   bucket?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface SalesGroupSource {
@@ -185,6 +187,8 @@ export interface SalesDocumentListFilters {
   sellerProfileId?: string;
   from?: string;
   to?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface SalesDocumentExtractionFeedback {
@@ -369,6 +373,9 @@ export interface SalesStatementData {
     byGroup: SalesStatementGroupConsolidation[];
   };
   items: SalesDocumentItem[];
+  itemsTotal?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface RankingSnapshotPayload {

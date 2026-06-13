@@ -55,7 +55,9 @@ describe("faq service", () => {
       organizationId: "org-1",
       category: undefined,
       query: "envio",
-      activeOnly: false
+      activeOnly: false,
+      page: undefined,
+      pageSize: undefined
     });
     expect(parsePublicHelpInput({ organizationId: " org-1 ", problemType: "Upload", message: " Nao consigo " })).toEqual({
       organizationId: "org-1",
@@ -80,7 +82,9 @@ describe("faq service", () => {
       query: "nota",
       status: "OPEN",
       tags: ["nota-fiscal", "vendas"],
-      recent: "30"
+      recent: "30",
+      page: undefined,
+      pageSize: undefined
     });
     expect(parseFaqCommentInput({ body: " Resposta " })).toEqual({ body: "Resposta" });
     expect(parseFaqReactionInput({ targetType: "THREAD", targetId: "thread-1", type: "HELPFUL", active: false })).toEqual({
@@ -99,14 +103,16 @@ describe("faq service", () => {
       }
     };
 
-    await listFaqItems(prisma as never, admin, { query: "documento" });
+    await listFaqItems(prisma as never, admin, { query: "documento", page: 3, pageSize: 20 });
 
     expect(prisma.faqItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           organizationId: "org-1",
           OR: [{ question: { contains: "documento" } }, { answer: { contains: "documento" } }]
-        })
+        }),
+        skip: 40,
+        take: 20
       })
     );
   });
