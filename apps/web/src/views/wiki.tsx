@@ -89,6 +89,16 @@ function wikiTagsFor(item: { content: string; tags?: string[] }) {
   return item.tags?.length ? item.tags : extractWikiTags(item.content);
 }
 
+function faqSourceThreadId(content: string) {
+  return content.match(/Fonte:\s*FAQ interna,\s*thread\s+([a-z0-9_-]+)/i)?.[1] ?? null;
+}
+
+function validatedByLabel(page: WikiPageDetail) {
+  const revision = page.revisions.find((item) => item.version === page.version) ?? page.revisions[0];
+  const author = revision?.author ?? page.updatedBy;
+  return `${author.name} (${author.role})`;
+}
+
 function tagsText(value: string[]) {
   return value.join(", ");
 }
@@ -771,6 +781,13 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
     (selectedRequestId ? requests.find((request) => request.id === selectedRequestId) ?? selected?.editRequests.find((request) => request.id === selectedRequestId) : null) ??
     null;
   const reviewedForSelected = selected?.editRequests.filter((request) => request.status !== "PENDING") ?? [];
+  const selectedTags = selected ? wikiTagsFor(selected) : [];
+  const selectedFaqSource = selected ? faqSourceThreadId(selected.content) : null;
+  const relatedPages = selected
+    ? pages
+        .filter((item) => item.id !== selected.id && item.active && wikiTagsFor(item).some((tag) => selectedTags.includes(tag)))
+        .slice(0, 4)
+    : [];
 
   return (
     <div className="content-stack">
@@ -952,6 +969,7 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                   <strong>{page.title}</strong>
                   <span>v{page.version} / {formatDateBr(page.updatedAt)}</span>
                   {wikiTagsFor(page).length ? <span>{wikiTagsFor(page).map((tag) => `#${tag}`).join(" ")}</span> : null}
+                  <small>Validada por {page.updatedBy.name}</small>
                   {isRecentlyUpdated(page.updatedAt) ? <small>Atualizada recentemente</small> : null}
                   {!page.active ? <small>Arquivada</small> : null}
                   {page.editRequests.length ? <small>{page.editRequests.length} pendente(s)</small> : null}
@@ -980,16 +998,35 @@ export function WikiView({ user, initialSlug }: { user: CurrentUser; initialSlug
                 ) : null}
               </div>
               {!selected.active ? <OperationalState state="empty" title="Pagina arquivada" detail="Ela fica fora da Wiki padrao, mas historico e restauracao continuam disponiveis para admin." /> : null}
-              {wikiTagsFor(selected).length ? (
+              {selectedTags.length ? (
                 <div className="wiki-tag-row">
-                  {wikiTagsFor(selected).map((tag) => (
+                  {selectedTags.map((tag) => (
                     <button key={tag} type="button" onClick={() => setSelectedTag(tag)}>
                       #{tag}
                     </button>
                   ))}
                 </div>
               ) : null}
+              <div className="knowledge-governance-strip">
+                <span>Validada por {validatedByLabel(selected)}</span>
+                <span>{selected.readReceipts.length} leitura(s) registrada(s)</span>
+                <span>{pendingForSelected.length} pendencia(s)</span>
+                {selectedFaqSource ? <span>Origem FAQ: {selectedFaqSource}</span> : null}
+              </div>
               <WikiMarkdownContent content={selected.content} />
+              {relatedPages.length ? (
+                <div className="wiki-related-panel">
+                  <strong>Artigos relacionados</strong>
+                  <div className="wiki-chip-list">
+                    {relatedPages.map((item) => (
+                      <button key={item.id} type="button" onClick={() => void openPage(item.id)}>
+                        {item.title}
+                        <small>{wikiTagsFor(item).map((tag) => `#${tag}`).join(" ")}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="wiki-meta-grid">
                 <div>
                   <strong>Lendo agora</strong>

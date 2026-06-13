@@ -61,6 +61,21 @@ import { WikiView } from "./views/wiki";
 import type { SalesDocumentListFilters, SalesFilters } from "./sales";
 import "./styles.css";
 
+interface GlobalSearchResult {
+  type: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  meta?: string | null;
+}
+
+interface GlobalSearchGroup {
+  key: string;
+  label: string;
+  items: GlobalSearchResult[];
+}
+
 type ViewKey =
   | "dashboard"
   | "notes"
@@ -521,6 +536,84 @@ const iconComponents: Record<IconName, LucideIcon> = {
 function Icon({ name }: { name: IconName }) {
   const IconComponent = iconComponents[name];
   return <IconComponent className="icon" aria-hidden="true" strokeWidth={2.25} />;
+}
+
+function GlobalSearchBox({ onNavigate }: { onNavigate: (href?: string | null) => void }) {
+  const [query, setQuery] = useState("");
+  const [groups, setGroups] = useState<GlobalSearchGroup[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setGroups([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      api<{ groups: GlobalSearchGroup[] }>(`/v1/search?q=${encodeURIComponent(trimmed)}`)
+        .then((result) => {
+          if (!cancelled) {
+            setGroups(result.groups);
+            setOpen(true);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setGroups([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  function openResult(result: GlobalSearchResult) {
+    setOpen(false);
+    setQuery("");
+    onNavigate(result.href);
+  }
+
+  return (
+    <div className="global-search">
+      <label>
+        <ScanSearch className="icon" aria-hidden="true" strokeWidth={2.25} />
+        <input
+          aria-label="Busca global"
+          placeholder="Buscar..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onFocus={() => setOpen(query.trim().length >= 2)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+          }}
+        />
+      </label>
+      {open && query.trim().length >= 2 ? (
+        <div className="global-search-popover">
+          {loading ? <p className="muted">Buscando...</p> : null}
+          {!loading && groups.length === 0 ? <p className="muted">Nenhum resultado encontrado</p> : null}
+          {groups.map((group) => (
+            <section key={group.key}>
+              <strong>{group.label}</strong>
+              {group.items.map((item) => (
+                <button key={`${item.type}:${item.id}`} type="button" onClick={() => openResult(item)}>
+                  <span>{item.title}</span>
+                  <small>{item.subtitle}{item.meta ? ` · ${item.meta}` : ""}</small>
+                </button>
+              ))}
+            </section>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 document.title = appName;
@@ -4261,6 +4354,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
             </nav>
           </div>
           <div className="topbar-account user-actions">
+            <GlobalSearchBox onNavigate={openNotificationHref} />
             <NotificationCenter onNavigate={openNotificationHref} />
             <button className="profile-trigger secondary" type="button" onClick={() => openView("profile")} title="Perfil">
               {user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} /> : <span>{user.name.slice(0, 1).toUpperCase()}</span>}

@@ -1,10 +1,11 @@
 # TASK-AT-079 - Busca global simples
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-079-global-search-initial.md
+- execution: docs/tasks/EXEC-AT-079-global-search-initial.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -53,3 +54,8 @@ Mostra integracao: tudo esta conectado e consultavel.
 - Tentar fazer busca semantica antes da hora.
 - Vazamento de dados por escopo mal aplicado.
 
+## Resultado
+- Implementado endpoint `/v1/search` com resultados agrupados de notas, vendedores, campanhas, Wiki e FAQ.
+- Busca curta/vazia retorna estado controlado e cada grupo tem limite defensivo.
+- Header ganhou busca global com popover agrupado e navegacao para a tela correspondente.
+- Cobertura unitária adicionada para parsing, agrupamento e escopo de vendedor.

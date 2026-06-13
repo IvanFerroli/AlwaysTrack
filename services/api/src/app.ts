@@ -151,6 +151,7 @@ import {
   uploadWikiAttachmentHandler
 } from "./core/wiki/wiki.handlers.js";
 import { operationalTodayHandler } from "./core/operations/operations.handlers.js";
+import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
@@ -223,6 +224,7 @@ export function createApp() {
   app.get("/v1/audit-logs", requireAuth, requireRole(adminOnlyRoles), listAuditLogsHandler);
   app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(adminOnlyRoles), httpMetricsHandler);
   app.get("/v1/diagnostics/operations", requireAuth, requireRole(adminOnlyRoles), operationalObservabilityHandler);
+  app.get("/v1/search", requireAuth, requireRole(commercialAllRoles), globalSearchHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

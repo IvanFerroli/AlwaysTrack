@@ -1,10 +1,11 @@
 # TASK-AT-078 - Curadoria clara de Wiki/FAQ
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-078-wiki-faq-curation-governance.md
+- execution: docs/tasks/EXEC-AT-078-wiki-faq-curation-governance.md
 
 ## Fase
 - fase: C - Produto interno definitivo
@@ -52,3 +53,7 @@ Mostra transformacao de duvida operacional em conhecimento validado.
 - Criar selo de validacao falso se confundir "publicado" com "validado".
 - Relacionados ruins podem poluir a tela.
 
+## Resultado
+- Implementado MVP com sinais de validacao baseados no autor da revisao publicada/ultimo editor.
+- FAQ ganhou filtro operacional de perguntas sem resposta, contadores de promovidas/resolvidas e vinculo mais claro com Wiki.
+- Wiki ganhou faixa de governanca, origem FAQ quando detectada no conteudo e artigos relacionados por tags compartilhadas.

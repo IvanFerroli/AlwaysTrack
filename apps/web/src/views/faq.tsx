@@ -64,6 +64,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
   const [selectedTag, setSelectedTag] = useState("");
   const [recent, setRecent] = useState("");
   const [page, setPage] = useState(1);
+  const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tagDraft, setTagDraft] = useState("");
@@ -172,9 +173,13 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     });
   }
 
-  const selected = threads.find((thread) => thread.id === selectedId) ?? null;
   const pageSize = 8;
-  const paginatedThreads = threads.slice((page - 1) * pageSize, page * pageSize);
+  const unansweredThreads = threads.filter((thread) => thread.status === "OPEN" && thread.comments.length === 0);
+  const promotedThreads = threads.filter((thread) => thread.wikiPage);
+  const resolvedThreads = threads.filter((thread) => thread.status === "RESOLVED");
+  const visibleThreads = unansweredOnly ? unansweredThreads : threads;
+  const selected = visibleThreads.find((thread) => thread.id === selectedId) ?? threads.find((thread) => thread.id === selectedId) ?? null;
+  const paginatedThreads = visibleThreads.slice((page - 1) * pageSize, page * pageSize);
   const faqTags = [...new Set([...defaultKnowledgeTags, ...threads.flatMap((thread) => thread.tags ?? [])])].sort((a, b) => a.localeCompare(b));
   const statusOptions = [
     { value: "OPEN", label: "Aberta" },
@@ -182,6 +187,12 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     { value: "RESOLVED", label: "Resolvida" },
     { value: "ARCHIVED", label: "Arquivada" }
   ];
+
+  useEffect(() => {
+    if (!unansweredOnly) return;
+    const nextSelectedId = visibleThreads.some((thread) => thread.id === selectedId) ? selectedId : visibleThreads[0]?.id ?? "";
+    if (nextSelectedId !== selectedId) setSelectedId(nextSelectedId);
+  }, [selectedId, unansweredOnly, visibleThreads]);
 
   return (
     <div className="content-stack">
@@ -207,6 +218,20 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
         ]}
         onSubmit={() => void load()}
       />
+      <div className="knowledge-curation-bar">
+        <button
+          className={unansweredOnly ? "active" : ""}
+          type="button"
+          onClick={() => {
+            setPage(1);
+            setUnansweredOnly((current) => !current);
+          }}
+        >
+          Sem resposta ({unansweredThreads.length})
+        </button>
+        <span>{promotedThreads.length} promovida(s) para Wiki</span>
+        <span>{resolvedThreads.length} resolvida(s)</span>
+      </div>
       {error ? <OperationalState state="error" title="Falha na FAQ" detail={error} /> : null}
       <section className="panel form-panel">
         <form onSubmit={createThread}>
@@ -243,7 +268,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
           </div>
           {loading ? (
             <OperationalState state="loading" title="Carregando threads" />
-          ) : threads.length === 0 ? (
+          ) : visibleThreads.length === 0 ? (
             <OperationalState state="empty" title="Nenhuma pergunta encontrada" detail="Publique uma dúvida para abrir uma thread e criar conhecimento reutilizável." />
           ) : (
             <div className="wiki-page-list wiki-page-list-paginated">
@@ -253,10 +278,11 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                   {thread.tags?.length ? <small>{thread.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
                   <span>{thread.status} / {thread.comments.length} resposta(s)</span>
                   <small>{thread.author.name} em {formatDateBr(thread.createdAt)}</small>
+                  {thread.status === "OPEN" && thread.comments.length === 0 ? <small>Sem resposta</small> : null}
                   {thread.wikiPage ? <small>Wiki: /{thread.wikiPage.slug}</small> : null}
                 </button>
               ))}
-              <PaginationControls page={page} pageSize={pageSize} total={threads.length} onPageChange={setPage} />
+              <PaginationControls page={page} pageSize={pageSize} total={visibleThreads.length} onPageChange={setPage} />
             </div>
           )}
         </section>
@@ -301,6 +327,12 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                   ))}
                 </div>
               ) : null}
+              <div className="knowledge-governance-strip">
+                <span>Status: {selected.status}</span>
+                <span>{selected.comments.length} resposta(s)</span>
+                {selected.status === "OPEN" && selected.comments.length === 0 ? <span>Sem resposta</span> : null}
+                {selected.wikiPage ? <span>Wiki validada: /{selected.wikiPage.slug}</span> : null}
+              </div>
               <div className="row-actions">
                 <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("THREAD", selected.id, "SAME_DOUBT")}>
                   Tambem tenho ({faqReactionCount(selected.reactions, "SAME_DOUBT")})
@@ -310,7 +342,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                 </button>
               </div>
               {selected.wikiPage ? (
-                <OperationalState state="success" title="Promovida para Wiki" detail={`/${selected.wikiPage.slug}`} />
+                <OperationalState state="success" title="Promovida para Wiki" detail={`Wiki validada: ${selected.wikiPage.title} /${selected.wikiPage.slug}`} />
               ) : null}
               <div className="help-section-grid">
                 {selected.comments.map((item) => (

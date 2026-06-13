@@ -952,6 +952,133 @@ button .icon {
   position: relative;
 }
 
+.global-search {
+  min-width: min(320px, 28vw);
+  position: relative;
+}
+
+.global-search label {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 8px;
+  height: 40px;
+  margin: 0;
+  padding: 0 10px;
+}
+
+.global-search input {
+  border: 0;
+  box-shadow: none;
+  font-size: 14px;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.global-search-popover {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 12px;
+  max-height: min(560px, calc(100vh - 140px));
+  overflow: auto;
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(520px, calc(100vw - 32px));
+  z-index: 32;
+}
+
+.global-search-popover section {
+  display: grid;
+  gap: 6px;
+}
+
+.global-search-popover section > strong {
+  color: var(--color-heading);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.global-search-popover button {
+  align-items: start;
+  background: #f8fbfd;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--color-heading);
+  display: grid;
+  gap: 3px;
+  height: auto;
+  justify-items: start;
+  min-height: 0;
+  padding: 9px;
+  text-align: left;
+}
+
+.global-search-popover button span,
+.global-search-popover button small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.global-search-popover button small {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.knowledge-curation-bar,
+.knowledge-governance-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.knowledge-curation-bar {
+  background: white;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.knowledge-curation-bar button,
+.knowledge-curation-bar span,
+.knowledge-governance-strip span {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-pill);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  min-height: 32px;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+}
+
+.knowledge-curation-bar button {
+  box-shadow: none;
+}
+
+.knowledge-curation-bar button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.knowledge-governance-strip {
+  border-bottom: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--color-border-soft);
+  padding: 10px 0;
+}
+
 .notification-trigger {
   height: 40px;
   min-height: 40px;
@@ -2570,6 +2697,17 @@ legend {
 .wiki-meta-grid p {
   color: var(--color-muted);
   margin: 6px 0 0;
+}
+
+.wiki-related-panel {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.wiki-related-panel > strong {
+  display: block;
+  margin-bottom: 8px;
 }
 
 .wiki-edit-form {
