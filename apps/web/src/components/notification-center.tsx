@@ -14,6 +14,12 @@ interface InAppNotificationItem {
   createdAt: string;
 }
 
+interface NotificationGroup {
+  type: string;
+  total: number;
+  unread: number;
+}
+
 function formatDateTimeBr(value: string | null | undefined) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
@@ -22,14 +28,24 @@ function formatDateTimeBr(value: string | null | undefined) {
 export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string | null) => void }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<InAppNotificationItem[]>([]);
+  const [groups, setGroups] = useState<NotificationGroup[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
 
   async function loadNotifications() {
     setLoading(true);
     try {
-      const result = await api<{ items: InAppNotificationItem[]; unread: number }>("/v1/in-app-notifications");
+      const search = new URLSearchParams();
+      if (unreadOnly) search.set("unreadOnly", "1");
+      if (selectedType) search.set("type", selectedType);
+      const query = search.toString();
+      const result = await api<{ items: InAppNotificationItem[]; unread: number; groups: NotificationGroup[] }>(
+        `/v1/in-app-notifications${query ? `?${query}` : ""}`
+      );
       setItems(result.items);
+      setGroups(result.groups);
       setUnread(result.unread);
     } finally {
       setLoading(false);
@@ -38,7 +54,7 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
 
   useEffect(() => {
     void loadNotifications();
-  }, []);
+  }, [unreadOnly, selectedType]);
 
   async function markRead(item: InAppNotificationItem) {
     if (!item.readAt) {
@@ -75,13 +91,41 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
       {open ? (
         <div className="notification-popover">
           <div className="notification-popover-header">
-            <strong>Notificações</strong>
+            <span>
+              <strong>Notificações</strong>
+              <small>{unread} não lida(s)</small>
+            </span>
             <button className="link-button" disabled={unread === 0} type="button" onClick={() => void markAllRead()}>
               Marcar lidas
             </button>
           </div>
+          <div className="notification-controls">
+            <button className={unreadOnly ? "notification-filter active" : "notification-filter"} type="button" onClick={() => setUnreadOnly((current) => !current)}>
+              Não lidas
+            </button>
+            {selectedType ? (
+              <button className="notification-filter" type="button" onClick={() => setSelectedType("")}>
+                Todos os tipos
+              </button>
+            ) : null}
+          </div>
+          {groups.length > 0 ? (
+            <div className="notification-groups" aria-label="Tipos de notificações">
+              {groups.map((group) => (
+                <button
+                  className={selectedType === group.type ? "notification-group active" : "notification-group"}
+                  key={group.type}
+                  type="button"
+                  onClick={() => setSelectedType((current) => (current === group.type ? "" : group.type))}
+                >
+                  <span>{group.type}</span>
+                  <strong>{group.unread}/{group.total}</strong>
+                </button>
+              ))}
+            </div>
+          ) : null}
           {loading && items.length === 0 ? <p className="muted">Carregando...</p> : null}
-          {!loading && items.length === 0 ? <p className="muted">Nenhuma notificação</p> : null}
+          {!loading && items.length === 0 ? <p className="muted">Nenhuma notificação neste filtro</p> : null}
           <div className="notification-list">
             {items.map((item) => (
               <button className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} type="button" onClick={() => void openNotification(item)}>
@@ -90,6 +134,7 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
                   <small>{formatDateTimeBr(item.createdAt)} / {item.type}</small>
                 </span>
                 {item.body ? <em>{item.body}</em> : null}
+                {item.href ? <small className="notification-target">{item.href}</small> : null}
               </button>
             ))}
           </div>

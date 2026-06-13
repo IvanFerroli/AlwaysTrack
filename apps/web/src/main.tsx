@@ -4124,35 +4124,44 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
 
   function openNotificationHref(href?: string | null) {
     if (!href) return;
+    const path = href.split("?")[0].replace(/\/$/, "") || href;
     if (href.startsWith("/wiki/")) {
       window.location.assign(href);
       return;
     }
-    if (href === "/wiki") {
+    if (path === "/wiki") {
       openView("wiki");
       return;
     }
-    if (href === "/faq") {
+    if (path === "/faq") {
       openView("faq");
       return;
     }
-    if (href === "/notas") {
+    if (path === "/notas") {
       openView("notes");
       return;
     }
-    if (href === "/campanhas") {
+    if (path === "/campanhas") {
       openView("campaigns");
       return;
     }
-    if (href === "/ranking") {
+    if (path === "/ranking") {
       openView("ranking");
       return;
     }
-    if (href === "/extratos") {
+    if (path === "/extratos") {
       openView("statements");
       return;
     }
-    if (href === "/profile") {
+    if (path === "/audit") {
+      openView("audit");
+      return;
+    }
+    if (path === "/settings") {
+      openView("settings");
+      return;
+    }
+    if (path === "/profile") {
       openView("profile");
       return;
     }

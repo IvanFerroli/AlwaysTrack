@@ -65,6 +65,11 @@ export interface InAppNotificationInput {
   dedupeKey?: string | null;
 }
 
+export interface ListInAppNotificationsInput {
+  unreadOnly?: boolean;
+  type?: string;
+}
+
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -247,16 +252,46 @@ export async function emitInAppNotifications(prisma: PrismaClient, organizationI
   return created;
 }
 
-export async function listInAppNotifications(prisma: PrismaClient, actor: CurrentUser) {
+function normalizeNotificationType(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 80) : undefined;
+}
+
+export function parseListInAppNotificationsInput(query: Record<string, unknown>): ListInAppNotificationsInput {
+  return {
+    unreadOnly: query.unreadOnly === "1" || query.unreadOnly === "true",
+    type: normalizeNotificationType(query.type)
+  };
+}
+
+function notificationGroups(items: Array<{ type: string; readAt: Date | null }>) {
+  const groups = new Map<string, { type: string; total: number; unread: number }>();
+  for (const item of items) {
+    const current = groups.get(item.type) ?? { type: item.type, total: 0, unread: 0 };
+    current.total += 1;
+    current.unread += item.readAt ? 0 : 1;
+    groups.set(item.type, current);
+  }
+  return [...groups.values()].sort((left, right) => right.unread - left.unread || right.total - left.total || left.type.localeCompare(right.type));
+}
+
+export async function listInAppNotifications(prisma: PrismaClient, actor: CurrentUser, input: ListInAppNotificationsInput = {}) {
+  const baseWhere: Prisma.InAppNotificationWhereInput = { organizationId: actor.organizationId, recipientId: actor.id };
+  const where: Prisma.InAppNotificationWhereInput = {
+    ...baseWhere,
+    type: input.type,
+    readAt: input.unreadOnly ? null : undefined
+  };
   const [items, unread] = await Promise.all([
     prisma.inAppNotification.findMany({
-      where: { organizationId: actor.organizationId, recipientId: actor.id },
+      where,
       orderBy: { createdAt: "desc" },
-      take: 30
+      take: 50
     }),
-    prisma.inAppNotification.count({ where: { organizationId: actor.organizationId, recipientId: actor.id, readAt: null } })
+    prisma.inAppNotification.count({ where: { ...baseWhere, readAt: null } })
   ]);
-  return { items, unread };
+  return { items, unread, groups: notificationGroups(items) };
 }
 
 export async function markInAppNotificationRead(prisma: PrismaClient, actor: CurrentUser, notificationId: string) {

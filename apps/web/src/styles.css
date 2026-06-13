@@ -1001,6 +1001,61 @@ button .icon {
   justify-content: space-between;
 }
 
+.notification-popover-header span {
+  display: grid;
+  gap: 2px;
+}
+
+.notification-popover-header small,
+.notification-target {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notification-controls,
+.notification-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.notification-filter,
+.notification-group {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--color-heading);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 6px;
+  height: auto;
+  min-height: 30px;
+  padding: 6px 9px;
+  width: auto;
+}
+
+.notification-filter.active,
+.notification-group.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.notification-group span {
+  max-width: 135px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-group strong {
+  font-size: 11px;
+}
+
 .notification-list {
   display: grid;
   gap: 8px;
@@ -1038,6 +1093,10 @@ button .icon {
   color: var(--color-muted);
   font-size: 12px;
   font-style: normal;
+}
+
+.notification-target {
+  overflow-wrap: anywhere;
 }
 
 .profile-trigger {

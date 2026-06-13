@@ -10,6 +10,7 @@ import {
   markAllInAppNotificationsRead,
   markInAppNotificationRead,
   NotificationError,
+  parseListInAppNotificationsInput,
   parseNotificationRuleInput,
   parseNotificationTemplateInput,
   processNotificationJobs,
@@ -45,6 +46,17 @@ describe("notifications service", () => {
     expect(parseNotificationRuleInput({ daysBeforeExpiration: "30", repeatAfterExpiredDays: null, channel: "EMAIL" })).toEqual(
       expect.objectContaining({ daysBeforeExpiration: 30, repeatAfterExpiredDays: null, channel: "EMAIL" })
     );
+  });
+
+  it("parses in-app notification filters", () => {
+    expect(parseListInAppNotificationsInput({ unreadOnly: "1", type: " faq.thread.created " })).toEqual({
+      unreadOnly: true,
+      type: "faq.thread.created"
+    });
+    expect(parseListInAppNotificationsInput({ unreadOnly: "0", type: "" })).toEqual({
+      unreadOnly: false,
+      type: undefined
+    });
   });
 
   it("creates templates with audit", async () => {
@@ -127,7 +139,10 @@ describe("notifications service", () => {
   it("lists and marks in-app notifications as read", async () => {
     const prisma = {
       inAppNotification: {
-        findMany: vi.fn().mockResolvedValue([{ id: "notif-1", recipientId: "admin-1", readAt: null }]),
+        findMany: vi.fn().mockResolvedValue([
+          { id: "notif-1", recipientId: "admin-1", type: "faq.thread.created", readAt: null },
+          { id: "notif-2", recipientId: "admin-1", type: "wiki.review", readAt: new Date("2026-06-09T00:00:00.000Z") }
+        ]),
         count: vi.fn().mockResolvedValue(1),
         findFirst: vi.fn().mockResolvedValue({ id: "notif-1", recipientId: "admin-1", readAt: null }),
         update: vi.fn().mockResolvedValue({ id: "notif-1", readAt: new Date("2026-06-09T00:00:00.000Z") }),
@@ -135,15 +150,23 @@ describe("notifications service", () => {
       }
     };
 
-    await expect(listInAppNotifications(prisma as never, admin)).resolves.toEqual({
-      items: [{ id: "notif-1", recipientId: "admin-1", readAt: null }],
-      unread: 1
+    const listed = await listInAppNotifications(prisma as never, admin, { unreadOnly: true, type: "faq.thread.created" });
+    expect(listed).toMatchObject({
+      unread: 1,
+      groups: [
+        { type: "faq.thread.created", total: 1, unread: 1 },
+        { type: "wiki.review", total: 1, unread: 0 }
+      ]
     });
+    expect(listed.items).toHaveLength(2);
     await markInAppNotificationRead(prisma as never, admin, "notif-1");
     await expect(markAllInAppNotificationsRead(prisma as never, admin)).resolves.toEqual({ updated: 3 });
 
     expect(prisma.inAppNotification.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ organizationId: "org-1", recipientId: "admin-1" }) })
+    );
+    expect(prisma.inAppNotification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ type: "faq.thread.created", readAt: null }) })
     );
     expect(prisma.inAppNotification.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ readAt: null }) })

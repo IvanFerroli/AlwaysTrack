@@ -96,6 +96,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 77. `EXEC-AT-072`: modo demo guiado com reset local seguro, faixa visual opcional e roteiro atualizado (`TASK-AT-072`). Status: completed.
 78. `EXEC-AT-073`: diagnostico de DANFE com extracao, falhas, duplicidades, reprocessamento e correcao manual auditavel (`TASK-AT-073`). Status: completed.
 79. `EXEC-AT-081`: painel minimo de observabilidade operacional em Configuracoes, com metricas HTTP, volumes e falhas recentes (`TASK-AT-081`). Status: completed.
+80. `EXEC-AT-080`: notificacoes in-app com filtro de nao lidas, agrupamento por tipo e links internos mais confiaveis (`TASK-AT-080`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
@@ -103,16 +104,15 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 3. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
 4. `TASK-AT-078-wiki-faq-curation-governance.md`: Curadoria clara de Wiki/FAQ. Fase C, prioridade 10.
 5. `TASK-AT-079-global-search-initial.md`: Busca global simples. Fase C, prioridade 11.
-6. `TASK-AT-080-useful-notifications-v2.md`: Notificacoes mais uteis. Fase C, prioridade 12.
-7. `TASK-AT-082-announcements-center.md`: Aba de avisos e comunicados internos. Fase C, prioridade 13.
-8. `TASK-AT-083-announcements-data-model-and-permissions.md`: Avisos: modelo de dados e permissoes. Fase C, prioridade 13.1.
-9. `TASK-AT-084-announcements-rich-editor-and-reader.md`: Avisos: editor rico e leitura. Fase C, prioridade 13.2.
-10. `TASK-AT-085-announcements-notifications-and-acknowledgement.md`: Avisos: notificacoes e ciencia. Fase C, prioridade 13.3.
-11. `TASK-AT-086-announcements-operational-today-integration.md`: Avisos: integracao com Central Operacional Hoje. Fase C, prioridade 13.4.
-12. `TASK-AT-087-announcements-links-search-and-governance.md`: Avisos: vinculos, busca e governanca. Fase C, prioridade 13.5.
-13. `TASK-AT-088-sac-operational-script-library.md`: Scriptoteca Operacional do SAC. Fase C, prioridade 14.
-14. `TASK-AT-089-script-library-data-model-and-permissions.md`: Scriptoteca: modelo de dados e permissoes. Fase C, prioridade 14.1.
-15. `TASK-AT-090-script-library-navigation-preview.md`: Scriptoteca: navegacao por categoria e preview. Fase C, prioridade 14.2.
+6. `TASK-AT-082-announcements-center.md`: Aba de avisos e comunicados internos. Fase C, prioridade 13.
+7. `TASK-AT-083-announcements-data-model-and-permissions.md`: Avisos: modelo de dados e permissoes. Fase C, prioridade 13.1.
+8. `TASK-AT-084-announcements-rich-editor-and-reader.md`: Avisos: editor rico e leitura. Fase C, prioridade 13.2.
+9. `TASK-AT-085-announcements-notifications-and-acknowledgement.md`: Avisos: notificacoes e ciencia. Fase C, prioridade 13.3.
+10. `TASK-AT-086-announcements-operational-today-integration.md`: Avisos: integracao com Central Operacional Hoje. Fase C, prioridade 13.4.
+11. `TASK-AT-087-announcements-links-search-and-governance.md`: Avisos: vinculos, busca e governanca. Fase C, prioridade 13.5.
+12. `TASK-AT-088-sac-operational-script-library.md`: Scriptoteca Operacional do SAC. Fase C, prioridade 14.
+13. `TASK-AT-089-script-library-data-model-and-permissions.md`: Scriptoteca: modelo de dados e permissoes. Fase C, prioridade 14.1.
+14. `TASK-AT-090-script-library-navigation-preview.md`: Scriptoteca: navegacao por categoria e preview. Fase C, prioridade 14.2.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -147,7 +147,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 1. `TASK-AT-077`: Matriz visual de permissoes. Status: completed.
 2. `TASK-AT-078`: Curadoria clara de Wiki/FAQ. Status: proposed.
 3. `TASK-AT-079`: Busca global simples. Status: proposed.
-4. `TASK-AT-080`: Notificacoes mais uteis. Status: proposed.
+4. `TASK-AT-080`: Notificacoes mais uteis. Status: completed-mvp.
 5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: proposed.
 6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: proposed.
 7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: proposed.

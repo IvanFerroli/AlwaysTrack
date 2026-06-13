@@ -1,8 +1,8 @@
 # TASK-AT-080 - Notificacoes mais uteis
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-080-useful-notifications-v2.md
 
@@ -51,3 +51,5 @@ Mostra que o produto empurra o usuario para decisao, nao so armazena dados.
 - Agrupamento excessivo esconder contexto.
 - Link profundo quebrar quando entidade foi arquivada/removida.
 
+## Execucao
+- `EXEC-AT-080-useful-notifications-v2.md`

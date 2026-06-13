@@ -11,6 +11,7 @@ import {
   markAllInAppNotificationsRead,
   markInAppNotificationRead,
   NotificationError,
+  parseListInAppNotificationsInput,
   parseManualLicenseNotificationInput,
   parseNotificationRuleInput,
   parseNotificationScanInput,
@@ -54,7 +55,7 @@ export async function listNotificationConfigHandler(request: Request, response: 
 
 export async function listInAppNotificationsHandler(request: Request, response: Response) {
   try {
-    return sendOk(response, await listInAppNotifications(prisma, actorFrom(request)));
+    return sendOk(response, await listInAppNotifications(prisma, actorFrom(request), parseListInAppNotificationsInput(request.query)));
   } catch (error) {
     return sendNotificationError(response, error);
   }
