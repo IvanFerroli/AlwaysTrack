@@ -6,6 +6,7 @@ import {
   formatDateBr,
   formatMoneyFromCents,
   salesFilterQuery,
+  type SalesDocumentDiagnostics,
   type SalesDocumentExtractionFeedback,
   type SalesDocumentItem,
   type SalesDocumentListFilters,
@@ -139,6 +140,120 @@ function TimelinePanel({
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+function diagnosticsStatusLabel(status: string) {
+  if (status === "EXTRACTION_FAILED") return "Falha de extração";
+  if (status === "DUPLICATE_REVIEW") return "Duplicidade em revisão";
+  if (status === "EXTRACTED") return "Extraída";
+  if (status === "WAITING_EXTRACTION") return "Aguardando extração";
+  return status;
+}
+
+function DiagnosticPanel({
+  diagnostics,
+  document,
+  loading,
+  error,
+  correctionNote,
+  saving,
+  canCorrect,
+  onCorrectionNoteChange,
+  onClose,
+  onReprocess,
+  onSaveCorrection
+}: {
+  diagnostics: SalesDocumentDiagnostics | null;
+  document: SalesDocumentItem | null;
+  loading: boolean;
+  error: string | null;
+  correctionNote: string;
+  saving: boolean;
+  canCorrect: boolean;
+  onCorrectionNoteChange: (value: string) => void;
+  onClose: () => void;
+  onReprocess: () => void;
+  onSaveCorrection: () => void;
+}) {
+  if (loading) return <section className="panel danfe-diagnostics-panel"><OperationalState state="loading" title="Carregando diagnostico da DANFE" /></section>;
+  if (error) return <section className="panel danfe-diagnostics-panel"><OperationalState state="error" title="Falha no diagnostico" detail={error} /></section>;
+  if (!diagnostics || !document) return null;
+  return (
+    <section className="panel danfe-diagnostics-panel">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Diagnóstico DANFE</p>
+          <h2>{diagnostics.document.invoiceNumber ? `NF ${diagnostics.document.invoiceNumber}` : diagnostics.document.fileName}</h2>
+          <p className="muted">{diagnostics.document.sellerProfile.displayName} · {diagnosticsStatusLabel(diagnostics.operationalStatus)}</p>
+        </div>
+        <div className="table-panel-toggle-group">
+          <button className="secondary" disabled={saving} type="button" onClick={onReprocess}>Reprocessar IA</button>
+          <button className="secondary" type="button" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+      <div className="diagnostics-grid">
+        <div>
+          <h3>Arquivo e origem</h3>
+          <dl className="diagnostics-list">
+            <dt>Arquivo</dt><dd>{diagnostics.document.fileName}</dd>
+            <dt>Tipo</dt><dd>{diagnostics.document.mimeType}</dd>
+            <dt>Vendedor</dt><dd>{diagnostics.document.sellerProfile.displayName}</dd>
+            <dt>Status</dt><dd>{diagnostics.document.status}</dd>
+            <dt>Provider</dt><dd>{diagnostics.extraction?.provider ?? "-"}</dd>
+            <dt>Confiança</dt><dd>{formatPercent(diagnostics.extraction?.confidence)}</dd>
+          </dl>
+        </div>
+        <div>
+          <h3>Campos extraídos</h3>
+          <dl className="diagnostics-list">
+            <dt>Chave</dt><dd>{String(diagnostics.extraction?.fields.accessKey?.value ?? diagnostics.document.accessKey ?? "-")}</dd>
+            <dt>NF</dt><dd>{String(diagnostics.extraction?.fields.invoiceNumber?.value ?? diagnostics.document.invoiceNumber ?? "-")}</dd>
+            <dt>Emissão</dt><dd>{String(diagnostics.extraction?.fields.issuedAt?.value ?? formatDateBr(diagnostics.document.issuedAt))}</dd>
+            <dt>Total</dt><dd>{formatMoneyFromCents(diagnostics.document.totalAmountCents)}</dd>
+            <dt>Itens</dt><dd>{diagnostics.currentItems.length}</dd>
+          </dl>
+        </div>
+      </div>
+      <div className="diagnostics-alert info">
+        <strong>Itens atuais</strong>
+        <span>{diagnostics.currentItems.length} item(ns) estruturado(s) para revisao comercial.</span>
+        <span>Texto bruto: {diagnostics.extraction?.rawTextAvailable ? "disponivel" : "nao registrado"}</span>
+      </div>
+      {diagnostics.extractionFailures.length > 0 ? (
+        <div className="diagnostics-alert danger">
+          <strong>Falhas recentes</strong>
+          {diagnostics.extractionFailures.map((failure) => (
+            <span key={failure.id}>{formatDateTimeBr(failure.createdAt)} · {failure.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {diagnostics.duplicateCandidates.length > 0 ? (
+        <div className="diagnostics-alert warning">
+          <strong>Possíveis duplicidades</strong>
+          {diagnostics.duplicateCandidates.map((candidate) => (
+            <span key={candidate.id}>{candidate.invoiceNumber ?? candidate.fileName} · {candidate.sellerProfile.displayName} · {candidate.status}</span>
+          ))}
+        </div>
+      ) : null}
+      {canCorrect ? (
+        <div className="diagnostics-correction">
+          <label>
+            Comentário da correção manual
+            <textarea
+              value={correctionNote}
+              onChange={(event) => onCorrectionNoteChange(event.target.value)}
+              placeholder="Explique o que foi corrigido e por quê."
+            />
+          </label>
+          <button disabled={saving || !correctionNote.trim()} type="button" onClick={onSaveCorrection}>
+            {saving ? "Salvando..." : "Salvar correção auditável"}
+          </button>
+        </div>
+      ) : (
+        <OperationalState state="empty" title="Correção manual bloqueada" detail="Notas aprovadas não podem ser alteradas por aqui para não mudar ranking sem nova revisão." />
+      )}
     </section>
   );
 }
@@ -282,6 +397,12 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
   const [timeline, setTimeline] = useState<SalesDocumentTimeline | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<SalesDocumentDiagnostics | null>(null);
+  const [diagnosticsDocumentId, setDiagnosticsDocumentId] = useState<string | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  const [correctionNote, setCorrectionNote] = useState("");
+  const [correctionSaving, setCorrectionSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -471,6 +592,52 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
     }
   }
 
+  async function openDiagnostics(document: SalesDocumentItem) {
+    setDiagnosticsDocumentId(document.id);
+    setDiagnosticsLoading(true);
+    setDiagnosticsError(null);
+    setDiagnostics(null);
+    setCorrectionNote("");
+    try {
+      setDiagnostics(await api<SalesDocumentDiagnostics>(`/v1/sales/documents/${document.id}/diagnostics`));
+    } catch (caught) {
+      setDiagnosticsError(caught instanceof Error ? caught.message : "Falha ao carregar diagnostico.");
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }
+
+  async function reprocessFromDiagnostics() {
+    const document = items.find((item) => item.id === diagnosticsDocumentId);
+    if (!document) return;
+    await analyze(document, { forceAi: true });
+    await openDiagnostics(document);
+  }
+
+  async function saveManualCorrection() {
+    const document = items.find((item) => item.id === diagnosticsDocumentId);
+    if (!document) return;
+    const draft = reviewDrafts[document.id] ?? reviewDraftFromDocument(document);
+    setCorrectionSaving(true);
+    setError(null);
+    try {
+      await api<{ document: SalesDocumentItem }>(`/v1/sales/documents/${document.id}/manual-correction`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...reviewPayloadFromDraft(draft, "REJECTED"),
+          correctionNote,
+          reviewNote: correctionNote
+        })
+      });
+      await load();
+      await openDiagnostics(document);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar correcao manual.");
+    } finally {
+      setCorrectionSaving(false);
+    }
+  }
+
   return (
     <div className="content-stack">
       {user.role === "VENDEDOR" || canReview ? (
@@ -636,6 +803,9 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
                       <button className="ghost-button small" type="button" onClick={() => void openTimeline(item)}>
                         Timeline
                       </button>
+                      <button className="ghost-button small" type="button" onClick={() => void openDiagnostics(item)}>
+                        Diagnostico
+                      </button>
                       {canReview && item.status === "PENDING_REVIEW" ? (
                         <>
                           <button
@@ -707,6 +877,26 @@ export function NotesView({ user, initialFilters }: { user: CurrentUser; initial
             setTimeline(null);
             setTimelineError(null);
           }}
+        />
+      ) : null}
+      {diagnostics || diagnosticsLoading || diagnosticsError ? (
+        <DiagnosticPanel
+          diagnostics={diagnostics}
+          document={items.find((item) => item.id === diagnosticsDocumentId) ?? null}
+          loading={diagnosticsLoading}
+          error={diagnosticsError}
+          correctionNote={correctionNote}
+          saving={correctionSaving || actingId !== null}
+          canCorrect={canReview && diagnostics?.document.status !== "APPROVED"}
+          onCorrectionNoteChange={setCorrectionNote}
+          onClose={() => {
+            setDiagnostics(null);
+            setDiagnosticsError(null);
+            setDiagnosticsDocumentId(null);
+            setCorrectionNote("");
+          }}
+          onReprocess={() => void reprocessFromDiagnostics()}
+          onSaveCorrection={() => void saveManualCorrection()}
         />
       ) : null}
       {items.some((item) => item.accessKey || item.items.length > 0 || item.extractions?.length) ? (

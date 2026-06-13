@@ -1,8 +1,8 @@
 # TASK-AT-073 - Diagnostico de DANFE e correcao manual auditavel
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-073-danfe-diagnostics-and-manual-correction.md
 
@@ -27,10 +27,9 @@ Quando a IA/deterministico falhar, o usuario precisa ver o que aconteceu e corri
 
 ## Arquivos candidatos
 - `apps/web/src/views/notes.tsx`
-- `apps/api/src/**/sales*`
-- `apps/api/src/**/extraction*`
-- `apps/api/src/**/audit*`
-- `prisma/schema.prisma`
+- `services/api/src/core/sales-documents/**`
+- `services/api/src/core/audit/**`
+- `services/api/prisma/schema.prisma`
 - `packages/shared/src/**`
 
 ## Plano de execucao
@@ -55,3 +54,5 @@ Mostra que erro de DANFE nao vira caixa-preta; vira fila controlavel.
 - Correcao manual tocar campos que impactam ranking sem recalculo claro.
 - Expor erro tecnico cru demais para usuario final.
 
+## Execucao
+- `EXEC-AT-073-danfe-diagnostics-and-manual-correction.md`

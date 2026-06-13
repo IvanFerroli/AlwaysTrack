@@ -1459,6 +1459,99 @@ button .icon {
   border-color: var(--color-success-soft);
 }
 
+.danfe-diagnostics-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.danfe-diagnostics-panel .table-panel-toolbar {
+  border-bottom: 0;
+  padding: 0;
+}
+
+.diagnostics-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.diagnostics-grid > div,
+.diagnostics-alert,
+.diagnostics-correction {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.diagnostics-grid h3 {
+  color: var(--color-heading);
+  font-size: 16px;
+  margin: 0 0 10px;
+}
+
+.diagnostics-list {
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: minmax(90px, max-content) minmax(0, 1fr);
+  margin: 0;
+}
+
+.diagnostics-list dt {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.diagnostics-list dd {
+  color: var(--color-heading);
+  font-weight: 800;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics-alert {
+  display: grid;
+  gap: 6px;
+}
+
+.diagnostics-alert strong {
+  color: var(--color-heading);
+}
+
+.diagnostics-alert span {
+  color: var(--color-muted);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics-alert.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.diagnostics-alert.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.diagnostics-alert.info {
+  background: #ecfeff;
+  border-color: #bae6fd;
+}
+
+.diagnostics-correction {
+  display: grid;
+  gap: 12px;
+}
+
+.diagnostics-correction textarea {
+  min-height: 96px;
+}
+
 .sales-timeline-event.error .sales-timeline-marker,
 .sales-timeline-event.duplicate .sales-timeline-marker {
   background: var(--color-danger);
@@ -3018,6 +3111,10 @@ legend {
   .profile-readonly-grid {
     grid-template-columns: 1fr;
   }
+
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -3075,7 +3172,8 @@ legend {
   .wiki-review-grid,
   .wiki-conflict-grid,
   .wiki-compare-grid,
-  .wiki-meta-grid {
+  .wiki-meta-grid,
+  .diagnostics-grid {
     grid-template-columns: 1fr;
   }
 

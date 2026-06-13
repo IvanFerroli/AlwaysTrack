@@ -8,7 +8,9 @@ import { logEvent } from "../diagnostics/logger.js";
 import { enqueueRankingSnapshotJob, getRankingSnapshotJobStatus } from "../jobs/ranking-snapshot.jobs.js";
 import {
   analyzeSalesDocumentWithAi,
+  correctSalesDocumentManually,
   createSalesCampaign,
+  getSalesDocumentDiagnostics,
   getSalesRanking,
   getSalesRankingExplanation,
   getSalesDocumentTimeline,
@@ -19,6 +21,7 @@ import {
   listSalesDocuments,
   listSalesSellers,
   parseSalesCampaignInput,
+  parseSalesDocumentManualCorrectionInput,
   parseSalesDocumentFilters,
   parseSalesDocumentReviewInput,
   parseSalesPeriodFilters,
@@ -128,6 +131,46 @@ export async function salesDocumentTimelineHandler(request: Request, response: R
     return sendOk(response, result);
   } catch (error) {
     logHandlerError(request, "sales_document.timeline.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function salesDocumentDiagnosticsHandler(request: Request, response: Response) {
+  try {
+    const result = await getSalesDocumentDiagnostics(prisma, actorFrom(request), cleanRouteParam(request.params.documentId));
+    logEvent("info", "sales_document.diagnostics.read", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      documentId: request.params.documentId,
+      status: result.document.status,
+      operationalStatus: result.operationalStatus
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_document.diagnostics.failed", error);
+    return sendSalesDocumentError(request, response, error);
+  }
+}
+
+export async function salesDocumentManualCorrectionHandler(request: Request, response: Response) {
+  try {
+    const result = await correctSalesDocumentManually(
+      prisma,
+      actorFrom(request),
+      cleanRouteParam(request.params.documentId),
+      parseSalesDocumentManualCorrectionInput(request.body)
+    );
+    logEvent("info", "sales_document.manual_correction", {
+      requestId: request.context?.requestId,
+      actorId: request.user?.id,
+      actorRole: request.user?.role,
+      documentId: request.params.documentId,
+      status: result.document.status
+    });
+    return sendOk(response, result);
+  } catch (error) {
+    logHandlerError(request, "sales_document.manual_correction.failed", error);
     return sendSalesDocumentError(request, response, error);
   }
 }

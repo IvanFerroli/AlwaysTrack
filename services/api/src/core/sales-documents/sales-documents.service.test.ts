@@ -3,9 +3,11 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { extractDanfeFromText, extractNfeFromXml } from "./danfe-deterministic.js";
 import {
   analyzeSalesDocumentWithAi,
+  correctSalesDocumentManually,
   createRankingSnapshot,
   createSalesCampaign,
   getSalesDashboard,
+  getSalesDocumentDiagnostics,
   getSalesDocumentTimeline,
   getSalesRanking,
   getSalesRankingExplanation,
@@ -488,6 +490,144 @@ INFORMAÇÕES COMPLEMENTARES
       expect.objectContaining({ where: expect.objectContaining({ accessKey, id: { not: "doc-1" } }) })
     );
     expect(prisma.salesDocument.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ accessKey, status: "PENDING_REVIEW" }) }));
+  });
+
+  it("returns DANFE diagnostics with extraction, duplicates and failures", async () => {
+    const accessKey = "35260500000000000100550010000000011000000010";
+    const prisma = {
+      salesDocument: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "doc-1",
+          organizationId: "org-1",
+          sellerProfileId: "seller-1",
+          fileKey: "doc-1.pdf",
+          fileName: "danfe.pdf",
+          mimeType: "application/pdf",
+          size: 3,
+          status: "PENDING_REVIEW",
+          accessKey: null,
+          invoiceNumber: "1",
+          series: "1",
+          issuedAt: new Date("2026-05-22T00:00:00.000Z"),
+          issuerName: "Suplementos LTDA",
+          buyerName: "Cliente",
+          totalAmountCents: 15990,
+          rejectionReason: null,
+          createdAt: new Date("2026-06-12T10:00:00.000Z"),
+          reviewedAt: null,
+          sellerProfile: { id: "seller-1", displayName: "Ana", code: "ANA", salesGroup: null },
+          uploadedBy: { id: "seller-user-1", name: "Vendedor", email: "vendedor@example.com", role: "VENDEDOR" },
+          reviewedBy: null,
+          items: [{ id: "item-1", description: "Whey", quantity: 1, totalAmountCents: 15990 }],
+          extractions: [
+            {
+              id: "ext-1",
+              provider: "fake-sales",
+              confidence: 0.9,
+              createdAt: new Date("2026-06-12T10:01:00.000Z"),
+              rawText: "raw",
+              extractedJson: JSON.stringify({
+                fields: {
+                  accessKey: { value: accessKey, confidence: 0.99 },
+                  invoiceNumber: { value: "1", confidence: 0.9 }
+                }
+              })
+            }
+          ]
+        }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "doc-2",
+            fileName: "danfe-duplicada.pdf",
+            status: "APPROVED",
+            invoiceNumber: "1",
+            issuedAt: new Date("2026-05-22T00:00:00.000Z"),
+            createdAt: new Date("2026-06-12T09:00:00.000Z"),
+            sellerProfile: { id: "seller-2", displayName: "Bruno", code: "BRU", salesGroup: null }
+          }
+        ])
+      },
+      auditLog: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "audit-1",
+            createdAt: new Date("2026-06-12T10:02:00.000Z"),
+            actor: null,
+            metadataJson: JSON.stringify({ error: "Provider sem saida estruturada" })
+          }
+        ])
+      }
+    };
+
+    const result = await getSalesDocumentDiagnostics(prisma as never, admin, "doc-1");
+
+    expect(result.operationalStatus).toBe("EXTRACTION_FAILED");
+    expect(result.extraction).toMatchObject({ provider: "fake-sales", accessKey, rawTextAvailable: true });
+    expect(result.duplicateCandidates).toHaveLength(1);
+    expect(result.extractionFailures[0].message).toBe("Provider sem saida estruturada");
+    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ accessKey, id: { not: "doc-1" } }) }));
+  });
+
+  it("saves auditable manual DANFE corrections before final approval", async () => {
+    const accessKey = "35260500000000000100550010000000011000000010";
+    const document = {
+      id: "doc-1",
+      organizationId: "org-1",
+      sellerProfileId: "seller-1",
+      status: "REJECTED",
+      accessKey: null,
+      invoiceNumber: null,
+      series: null,
+      issuedAt: null,
+      issuerName: null,
+      buyerName: null,
+      totalAmountCents: null,
+      sellerProfile: { displayName: "Ana" },
+      uploadedBy: {},
+      reviewedBy: null,
+      items: [],
+      extractions: []
+    };
+    const prisma = {
+      salesDocument: {
+        findFirst: vi.fn().mockResolvedValueOnce(document).mockResolvedValueOnce(null),
+        update: vi.fn().mockResolvedValue({
+          ...document,
+          status: "PENDING_REVIEW",
+          accessKey,
+          invoiceNumber: "1",
+          totalAmountCents: 15990,
+          issuedAt: new Date("2026-05-22T00:00:00.000Z"),
+          items: [{ id: "item-1", description: "Whey", quantity: 1, totalAmountCents: 15990 }]
+        })
+      },
+      salesItem: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) },
+      $transaction: vi.fn(async (callback) => callback(prisma))
+    };
+
+    const result = await correctSalesDocumentManually(prisma as never, admin, "doc-1", {
+      correctionNote: "Corrigi chave, NF e item depois de conferir o XML.",
+      accessKey,
+      invoiceNumber: "1",
+      issuedAt: "2026-05-22",
+      totalAmountCents: 15990,
+      items: [{ description: "Whey", quantity: 1, totalAmountCents: 15990 }]
+    });
+
+    expect(result.document.status).toBe("PENDING_REVIEW");
+    expect(prisma.salesItem.deleteMany).toHaveBeenCalledWith({ where: { salesDocumentId: "doc-1" } });
+    expect(prisma.salesItem.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ description: "Whey" })] }));
+    expect(prisma.salesDocument.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "PENDING_REVIEW", accessKey }) }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "sales_document.manual_correction",
+          entityType: "SalesDocument",
+          metadataJson: expect.stringContaining("Corrigi chave")
+        })
+      })
+    );
   });
 
 

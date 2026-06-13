@@ -223,6 +223,56 @@ export interface SalesDocumentTimeline {
   total: number;
 }
 
+export interface SalesDocumentDiagnostics {
+  document: {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    status: string;
+    accessKey: string | null;
+    invoiceNumber: string | null;
+    series: string | null;
+    issuedAt: string | null;
+    issuerName: string | null;
+    buyerName: string | null;
+    totalAmountCents: number | null;
+    rejectionReason: string | null;
+    createdAt: string;
+    reviewedAt: string | null;
+    sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
+    uploadedBy: { id: string; name: string; email: string; role: string };
+    reviewedBy: { id: string; name: string; email: string; role: string } | null;
+  };
+  operationalStatus: "EXTRACTION_FAILED" | "DUPLICATE_REVIEW" | "EXTRACTED" | "WAITING_EXTRACTION" | string;
+  extraction: {
+    id: string;
+    provider: string;
+    confidence: number | null;
+    createdAt: string;
+    fields: Record<string, { value: unknown; confidence: unknown }>;
+    accessKey: string | null;
+    rawTextAvailable: boolean;
+  } | null;
+  currentItems: SalesDocumentItem["items"];
+  duplicateCandidates: Array<{
+    id: string;
+    fileName: string;
+    status: string;
+    invoiceNumber: string | null;
+    issuedAt: string | null;
+    createdAt: string;
+    sellerProfile: { id: string; displayName: string; code: string; salesGroup: { id: string; name: string } | null };
+  }>;
+  extractionFailures: Array<{
+    id: string;
+    createdAt: string;
+    actor: { id: string; name: string; email: string; role: string } | null;
+    message: string;
+    metadata: Record<string, unknown>;
+  }>;
+}
+
 export interface SalesDashboardData {
   metrics: {
     totalDocuments: number;
