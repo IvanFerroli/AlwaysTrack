@@ -1,9 +1,9 @@
 # TASK-AT-092 - Scriptoteca: copiar texto e placeholders
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-092-script-library-copy-and-placeholders.md
 
 ## Fase
@@ -31,3 +31,6 @@ Adicionar copia em um clique e suporte inicial a placeholders simples nos textos
 ## Riscos
 - Automacao de variaveis crescer demais.
 - Clipboard falhar em contexto nao seguro sem fallback.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-092-script-library-copy-and-placeholders.md

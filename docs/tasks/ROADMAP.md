@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -106,14 +106,19 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 87. `EXEC-AT-086`: Avisos na Central Operacional Hoje (`TASK-AT-086`). Status: completed.
 88. `EXEC-AT-087`: vinculos, busca e governanca simples de Avisos (`TASK-AT-087`). Status: completed.
 89. `EXEC-AT-098`: fechamento da frente de Avisos com vigencia, multiplos links, CTA profundo e testes (`TASK-AT-098`). Status: completed.
+90. `EXEC-AT-088`: Scriptoteca Operacional do SAC MVP com categorias, scripts, busca, preview, copia e seed demo (`TASK-AT-088`). Status: completed-mvp.
+91. `EXEC-AT-089`: modelo de dados e permissoes da Scriptoteca (`TASK-AT-089`). Status: completed.
+92. `EXEC-AT-090`: navegacao por categoria e preview da Scriptoteca (`TASK-AT-090`). Status: completed.
+93. `EXEC-AT-091`: busca, tags e filtros da Scriptoteca, incluindo busca global (`TASK-AT-091`). Status: completed.
+94. `EXEC-AT-092`: copia em um clique e placeholders da Scriptoteca (`TASK-AT-092`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 2. `TASK-AT-075-playwright-ci-environment-cleanup.md`: Playwright/CI limpo. Fase B, prioridade 7.
 3. `TASK-AT-076-server-side-pagination-critical-screens.md`: Paginacao server-side em telas criticas. Fase B, prioridade 8.
-4. `TASK-AT-088-sac-operational-script-library.md`: Scriptoteca Operacional do SAC. Fase C, prioridade 14.
-5. `TASK-AT-089-script-library-data-model-and-permissions.md`: Scriptoteca: modelo de dados e permissoes. Fase C, prioridade 14.1.
-6. `TASK-AT-090-script-library-navigation-preview.md`: Scriptoteca: navegacao por categoria e preview. Fase C, prioridade 14.2.
+4. `TASK-AT-093-script-library-crud-validation-flow.md`: Scriptoteca: sugestoes e decisao de novos scripts. Fase C, prioridade 14.5.
+5. `TASK-AT-095-script-library-wiki-faq-links.md`: Scriptoteca: vinculos com Wiki e FAQ. Fase C, prioridade 14.7.
+6. `TASK-AT-099-script-library-validity-governance.md`: Scriptoteca: validade e recertificacao de scripts. Fase C, prioridade 14.10.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -156,13 +161,14 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: completed.
 10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: completed.
 11. `TASK-AT-098`: Fechamento da frente de Avisos. Status: completed.
-12. `TASK-AT-088`: Scriptoteca Operacional do SAC. Status: proposed.
-13. `TASK-AT-089`: Scriptoteca - modelo de dados e permissoes. Status: proposed.
-14. `TASK-AT-090`: Scriptoteca - navegacao por categoria e preview. Status: proposed.
-15. `TASK-AT-091`: Scriptoteca - busca, tags e filtros. Status: proposed.
-16. `TASK-AT-092`: Scriptoteca - copiar texto e placeholders. Status: proposed.
+12. `TASK-AT-088`: Scriptoteca Operacional do SAC. Status: completed-mvp.
+13. `TASK-AT-089`: Scriptoteca - modelo de dados e permissoes. Status: completed.
+14. `TASK-AT-090`: Scriptoteca - navegacao por categoria e preview. Status: completed.
+15. `TASK-AT-091`: Scriptoteca - busca, tags e filtros. Status: completed.
+16. `TASK-AT-092`: Scriptoteca - copiar texto e placeholders. Status: completed.
 17. `TASK-AT-093`: Scriptoteca - CRUD, sugestoes e validacao. Status: proposed.
-18. `TASK-AT-094`: Scriptoteca - historico e versionamento simples. Status: proposed.
+18. `TASK-AT-094`: Scriptoteca - historico e versionamento simples. Status: completed-mvp.
 19. `TASK-AT-095`: Scriptoteca - vinculos com Wiki e FAQ. Status: proposed.
-20. `TASK-AT-096`: Scriptoteca - seeds e demo com scripts reais. Status: proposed.
-21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: proposed.
+20. `TASK-AT-096`: Scriptoteca - seeds e demo com scripts reais. Status: completed-mvp.
+21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: completed-mvp.
+22. `TASK-AT-099`: Scriptoteca - validade e recertificacao de scripts. Status: proposed.

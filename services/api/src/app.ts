@@ -162,6 +162,15 @@ import {
   updateAnnouncementHandler
 } from "./core/announcements/announcements.handlers.js";
 import {
+  copyOperationalScriptHandler,
+  createOperationalScriptHandler,
+  createScriptCategoryHandler,
+  listScriptLibraryHandler,
+  obsoleteOperationalScriptHandler,
+  updateOperationalScriptHandler,
+  validateOperationalScriptHandler
+} from "./core/script-library/script-library.handlers.js";
+import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
   createSalesCampaignHandler,
@@ -241,6 +250,13 @@ export function createApp() {
   app.post("/v1/announcements/:announcementId/publish", requireAuth, requireRole(commercialManagerRoles), publishAnnouncementHandler);
   app.post("/v1/announcements/:announcementId/archive", requireAuth, requireRole(commercialManagerRoles), archiveAnnouncementHandler);
   app.post("/v1/announcements/:announcementId/acknowledge", requireAuth, requireRole(commercialAllRoles), acknowledgeAnnouncementHandler);
+  app.get("/v1/script-library", requireAuth, requireRole(commercialAllRoles), listScriptLibraryHandler);
+  app.post("/v1/script-library/categories", requireAuth, requireRole(commercialManagerRoles), createScriptCategoryHandler);
+  app.post("/v1/script-library/scripts", requireAuth, requireRole(commercialManagerRoles), createOperationalScriptHandler);
+  app.patch("/v1/script-library/scripts/:scriptId", requireAuth, requireRole(commercialManagerRoles), updateOperationalScriptHandler);
+  app.post("/v1/script-library/scripts/:scriptId/validate", requireAuth, requireRole(commercialManagerRoles), validateOperationalScriptHandler);
+  app.post("/v1/script-library/scripts/:scriptId/obsolete", requireAuth, requireRole(commercialManagerRoles), obsoleteOperationalScriptHandler);
+  app.post("/v1/script-library/scripts/:scriptId/copy", requireAuth, requireRole(commercialAllRoles), copyOperationalScriptHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

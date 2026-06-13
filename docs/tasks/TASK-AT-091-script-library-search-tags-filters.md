@@ -1,9 +1,9 @@
 # TASK-AT-091 - Scriptoteca: busca, tags e filtros
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-091-script-library-search-tags-filters.md
 
 ## Fase
@@ -31,3 +31,6 @@ Permitir encontrar scripts por titulo, categoria, tags, canal e palavras dentro 
 ## Riscos
 - Fazer busca semantica antes do MVP.
 - Filtros client-side ficarem ruins com volume grande.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-091-script-library-search-tags-filters.md

@@ -1,9 +1,9 @@
 # TASK-AT-089 - Scriptoteca: modelo de dados e permissoes
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-089-script-library-data-model-and-permissions.md
 
 ## Fase
@@ -31,3 +31,6 @@ Criar o modelo de dados de scripts/categorias/status e as permissoes canonicas d
 ## Riscos
 - Modelar versionamento completo cedo demais.
 - Criar permissoes divergentes da matriz comercial.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-089-script-library-data-model-and-permissions.md

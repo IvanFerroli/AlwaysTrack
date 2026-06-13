@@ -7,7 +7,7 @@ export interface GlobalSearchInput {
 }
 
 export interface GlobalSearchResult {
-  type: "note" | "seller" | "campaign" | "wiki" | "faq" | "announcement";
+  type: "note" | "seller" | "campaign" | "wiki" | "faq" | "announcement" | "script";
   id: string;
   title: string;
   subtitle: string;
@@ -63,7 +63,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
     return { query: query ?? "", groups: [], total: 0 };
   }
 
-  const [notes, sellers, campaigns, wikiPages, faqThreads, announcements] = await Promise.all([
+  const [notes, sellers, campaigns, wikiPages, faqThreads, announcements, scripts] = await Promise.all([
     prisma.salesDocument.findMany({
       where: {
         ...salesDocumentScopeWhere(actor),
@@ -120,6 +120,16 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
         ]
       },
       orderBy: [{ pinned: "desc" }, { publishedAt: "desc" }],
+      take: limit
+    }),
+    prisma.operationalScript.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        status: "VALIDATED",
+        OR: containsQuery(["title", "body", "tagsJson", "channel"], query)
+      },
+      include: { category: true },
+      orderBy: [{ usageCount: "desc" }, { updatedAt: "desc" }],
       take: limit
     })
   ]);
@@ -206,6 +216,20 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
           subtitle: `${item.priority} · Aviso interno`,
           href: `/avisos/${item.slug}`,
           meta: item.summary
+        })
+      )
+    },
+    {
+      key: "scripts",
+      label: "Scriptoteca",
+      items: scripts.map(
+        (item): GlobalSearchResult => ({
+          type: "script",
+          id: item.id,
+          title: item.title,
+          subtitle: `${item.category.name} · ${item.channel}`,
+          href: "/scriptoteca",
+          meta: item.tagsJson
         })
       )
     }

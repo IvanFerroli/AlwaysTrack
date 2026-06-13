@@ -427,6 +427,73 @@ async function ensureAnnouncement(input: {
   });
 }
 
+async function ensureScriptCategory(input: { organizationId: string; createdById: string; slug: string; name: string; description: string; order: number }) {
+  return prisma.scriptCategory.upsert({
+    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
+    update: { name: input.name, description: input.description, order: input.order, active: true },
+    create: { ...input, active: true }
+  });
+}
+
+async function ensureOperationalScript(input: {
+  organizationId: string;
+  categoryId: string;
+  createdById: string;
+  updatedById: string;
+  validatedById: string;
+  title: string;
+  channel: string;
+  body: string;
+  tags: string[];
+}) {
+  const placeholders = [...new Set([...input.body.matchAll(/\{([a-zA-Z0-9_.-]+)\}/g)].map((match) => match[1]))].sort();
+  const script = await prisma.operationalScript.upsert({
+    where: { organizationId_categoryId_title: { organizationId: input.organizationId, categoryId: input.categoryId, title: input.title } },
+    update: {
+      channel: input.channel,
+      body: input.body,
+      tagsJson: JSON.stringify(input.tags),
+      placeholdersJson: JSON.stringify(placeholders),
+      status: "VALIDATED",
+      updatedById: input.updatedById,
+      validatedById: input.validatedById,
+      validatedAt: daysAgo(0)
+    },
+    create: {
+      organizationId: input.organizationId,
+      categoryId: input.categoryId,
+      title: input.title,
+      channel: input.channel,
+      body: input.body,
+      tagsJson: JSON.stringify(input.tags),
+      placeholdersJson: JSON.stringify(placeholders),
+      status: "VALIDATED",
+      createdById: input.createdById,
+      updatedById: input.updatedById,
+      validatedById: input.validatedById,
+      validatedAt: daysAgo(0)
+    }
+  });
+  const existingRevision = await prisma.operationalScriptRevision.findFirst({ where: { scriptId: script.id, version: 1 } });
+  if (!existingRevision) {
+    await prisma.operationalScriptRevision.create({
+      data: {
+        organizationId: input.organizationId,
+        scriptId: script.id,
+        authorId: input.updatedById,
+        version: 1,
+        title: script.title,
+        channel: script.channel,
+        body: script.body,
+        tagsJson: script.tagsJson,
+        placeholdersJson: script.placeholdersJson,
+        status: script.status
+      }
+    });
+  }
+  return script;
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
@@ -1046,6 +1113,64 @@ async function main() {
     entityId: dailyAnnouncement.id,
     href: "/avisos/prioridade-comercial-do-dia",
     dedupeKey: "seed:announcement-daily"
+  });
+
+  const categoryDelivery = await ensureScriptCategory({
+    organizationId: organization.id,
+    createdById: supervisor.id,
+    slug: "entrega-e-rastreio",
+    name: "Entrega e rastreio",
+    description: "Textos para prazo, rastreio e endereço",
+    order: 1
+  });
+  const categoryFinancial = await ensureScriptCategory({
+    organizationId: organization.id,
+    createdById: supervisor.id,
+    slug: "financeiro-e-estorno",
+    name: "Financeiro e estorno",
+    description: "Scripts para cobrança, reembolso e comprovantes",
+    order: 2
+  });
+  const categoryProduct = await ensureScriptCategory({
+    organizationId: organization.id,
+    createdById: supervisor.id,
+    slug: "produto-e-duvida",
+    name: "Produto e dúvida",
+    description: "Atendimento sobre produto, indicação e troca",
+    order: 3
+  });
+  await ensureOperationalScript({
+    organizationId: organization.id,
+    categoryId: categoryDelivery.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    validatedById: supervisor.id,
+    title: "Enviar código de rastreio",
+    channel: "WHATSAPP",
+    body: "Olá {nome_cliente}, tudo bem? Seu pedido {numero_pedido} já está em transporte. O código de rastreio é {codigo_rastreio}. O prazo estimado é {prazo}. Qualquer dúvida sigo por aqui.",
+    tags: ["entrega", "pedido", "rastreio", "whatsapp"]
+  });
+  await ensureOperationalScript({
+    organizationId: organization.id,
+    categoryId: categoryFinancial.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    validatedById: supervisor.id,
+    title: "Confirmar solicitação de estorno",
+    channel: "WHATSAPP",
+    body: "Oi {nome_cliente}. Recebemos sua solicitação de estorno do pedido {numero_pedido}. O valor de {valor} será analisado pelo financeiro e retornamos com a confirmação em até {prazo}.",
+    tags: ["estorno", "financeiro", "pedido", "whatsapp"]
+  });
+  await ensureOperationalScript({
+    organizationId: organization.id,
+    categoryId: categoryProduct.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    validatedById: supervisor.id,
+    title: "Orientação inicial sobre produto",
+    channel: "WHATSAPP",
+    body: "Olá {nome_cliente}. Sobre o produto {produto}, a orientação inicial é conferir modo de uso, objetivo e restrições no rótulo. Se quiser, posso encaminhar sua dúvida para um atendente especializado. Atendente: {atendente}.",
+    tags: ["produto", "sac", "treinamento", "whatsapp"]
   });
 
   await ensureAuditLog({

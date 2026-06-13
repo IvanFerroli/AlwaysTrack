@@ -56,6 +56,7 @@ import { NotesView } from "./views/notes";
 import { ProfileView } from "./views/profile";
 import { RankingView } from "./views/ranking";
 import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResponse } from "./views/settings";
+import { ScriptLibraryView } from "./views/script-library";
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
@@ -84,6 +85,7 @@ type ViewKey =
   | "campaigns"
   | "statements"
   | "announcements"
+  | "scriptLibrary"
   | "wiki"
   | "faq"
   | "users"
@@ -488,6 +490,7 @@ const navItems: NavItem[] = [
   { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialManagerRoles },
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialAllRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
+  { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: adminOnlyRoles },
@@ -4259,6 +4262,10 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       openView("announcements");
       return;
     }
+    if (path === "/scriptoteca") {
+      openView("scriptLibrary");
+      return;
+    }
     if (path === "/faq") {
       openView("faq");
       return;
@@ -4409,6 +4416,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           <StatementsView />
         ) : activeItem.key === "announcements" ? (
           <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
+        ) : activeItem.key === "scriptLibrary" ? (
+          <ScriptLibraryView user={user} />
         ) : activeItem.key === "users" ? (
           <UsersTeamsView />
         ) : activeItem.key === "professionals" ? (

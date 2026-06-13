@@ -1,9 +1,9 @@
-# TASK-AT-093 - Scriptoteca: CRUD, sugestoes e validacao
+# TASK-AT-093 - Scriptoteca: sugestoes e decisao de novos scripts
 
 ## Metadata
 - status: proposed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-093-script-library-crud-validation-flow.md
 
 ## Fase
@@ -12,21 +12,24 @@
 - dependencias: `TASK-AT-089`, `TASK-AT-090`
 
 ## Objetivo unico
-Permitir que Supervisor/Admin criem e validem scripts, e que SAC sugira novos textos ou alteracoes.
+Permitir que SAC sugira novos scripts ou alteracoes, sem publicar diretamente, e que Supervisor/Admin decidam com comentario e rastro.
 
 ## Escopo funcional
-1. Criar/editar script para Supervisor/Admin.
-2. Sugerir script/alteracao para SAC.
-3. Acoes de validar, voltar para rascunho e marcar obsoleto.
-4. Comentario opcional de decisao.
-5. Auditoria e notificacao basica quando sugestao for decidida.
+1. Formulario de sugestao liberado para SAC, Vendas, Supervisor e Admin.
+2. Sugestao pode ser novo script ou alteracao de script existente.
+3. Estados: `SUGGESTED`, `ACCEPTED`, `REJECTED`, `MERGED`.
+4. Acoes de aceitar, rejeitar e mesclar para Supervisor/Admin.
+5. Comentario opcional de decisao, visivel para quem sugeriu.
+6. Auditoria e notificacao basica quando sugestao for decidida.
+7. Evitar duplicar CRUD gerencial ja entregue no MVP; focar na esteira de sugestao.
 
 ## Acceptance Criteria
 1. SAC nao publica script validado diretamente.
-2. Supervisor/Admin valida com selo visivel.
+2. Supervisor/Admin transforma sugestao aceita em script validado ou rascunho.
 3. Obsoleto sai da recomendacao principal.
 4. Sugestao rejeitada mantém rastro.
 5. Permissoes possuem testes.
+6. Usuario que sugeriu recebe notificacao de decisao.
 
 ## Riscos
 - Duplicar fluxo de Wiki review sem necessidade.

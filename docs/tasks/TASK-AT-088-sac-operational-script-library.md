@@ -1,9 +1,9 @@
 # TASK-AT-088 - Scriptoteca Operacional do SAC
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-088-sac-operational-script-library.md
 
 ## Fase
@@ -29,15 +29,16 @@ Dor real trazida pelo Maicon: scripts/textos de atendimento ficam soltos em bloc
 9. Permissoes: SAC visualiza/copia/sugere; Supervisor cria/edita/aprova; Admin controla tudo.
 
 ## Subtasks planejadas
-1. `TASK-AT-089`: modelo de dados, status e permissoes.
-2. `TASK-AT-090`: tela de listagem, menu lateral por categoria e preview.
-3. `TASK-AT-091`: busca, filtros e tags.
-4. `TASK-AT-092`: copiar texto e placeholders.
-5. `TASK-AT-093`: CRUD, sugestoes e fluxo de validacao.
-6. `TASK-AT-094`: historico/versionamento de scripts.
-7. `TASK-AT-095`: vinculos com Wiki/FAQ.
-8. `TASK-AT-096`: seeds/demo com scripts reais.
-9. `TASK-AT-097`: metricas de uso da Scriptoteca.
+1. `TASK-AT-089`: modelo de dados, status e permissoes. Status: completed.
+2. `TASK-AT-090`: tela de listagem, menu lateral por categoria e preview. Status: completed.
+3. `TASK-AT-091`: busca, filtros e tags. Status: completed.
+4. `TASK-AT-092`: copiar texto e placeholders. Status: completed.
+5. `TASK-AT-093`: CRUD, sugestoes e fluxo de validacao. Status: proposed.
+6. `TASK-AT-094`: historico e versionamento de scripts. Status: completed-mvp; faltam restauracao/compare visual.
+7. `TASK-AT-095`: vinculos com Wiki/FAQ. Status: proposed.
+8. `TASK-AT-096`: seeds/demo com scripts reais. Status: completed-mvp; pode enriquecer dados reais depois.
+9. `TASK-AT-097`: metricas de uso da Scriptoteca. Status: completed-mvp; faltam buscas sem resultado e painel agregado.
+10. `TASK-AT-099`: governanca de validade e recertificacao dos scripts. Status: proposed.
 
 ## Acceptance Criteria macro
 1. SAC encontra script por categoria.
@@ -58,3 +59,12 @@ Mostra que o AlwaysTrack resolve dor real do SAC alem de vendas/ranking: padroni
 - Virar CMS grande demais antes do MVP.
 - Misturar procedimento completo de Wiki com texto pronto de atendimento.
 - Scripts obsoletos continuarem em destaque.
+
+## Resultado MVP entregue em 2026-06-13
+1. Nova aba `Scriptoteca` no produto para roles comerciais.
+2. Modelo Prisma de categorias, scripts, revisoes e eventos.
+3. Permissoes compartilhadas `scriptLibrary.read`, `scriptLibrary.copy` e `scriptLibrary.manage`.
+4. API `/v1/script-library` com listagem, criacao, edicao, validacao, obsolescencia e copia.
+5. UI com categorias, filtros, tags, preview, placeholders e copia em um clique.
+6. Busca global passa a retornar scripts validados.
+7. Seed local cria categorias e scripts demo para apresentacao.

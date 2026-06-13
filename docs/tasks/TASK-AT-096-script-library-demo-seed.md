@@ -1,9 +1,9 @@
 # TASK-AT-096 - Scriptoteca: seeds e demo com scripts reais
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-096-script-library-demo-seed.md
 
 ## Fase
@@ -31,3 +31,7 @@ Adicionar dados demo previsiveis para apresentar a Scriptoteca com categorias re
 ## Riscos
 - Usar texto real com dados sensiveis.
 - Seed ficar pesado demais para ambiente local.
+
+## Execucao parcial
+- Seed local ja cria categorias e scripts validados de entrega/rastreio, financeiro/estorno e produto/duvida.
+- Proxima rodada pode trocar ou ampliar os textos com exemplos reais anonimizados do SAC.

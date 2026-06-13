@@ -46,6 +46,9 @@ function prismaMock() {
     },
     announcement: {
       findMany: vi.fn().mockResolvedValue([{ id: "ann-1", title: "Aviso DANFE", summary: "Conferir hoje", slug: "aviso-danfe", priority: "HIGH" }])
+    },
+    operationalScript: {
+      findMany: vi.fn().mockResolvedValue([{ id: "script-1", title: "Script DANFE", channel: "WHATSAPP", tagsJson: "[\"notas\"]", category: { name: "Notas" } }])
     }
   };
 }
@@ -60,8 +63,8 @@ describe("global search service", () => {
     const prisma = prismaMock();
     const result = await globalSearch(prisma as never, admin, { query: "danfe", limit: 5 });
 
-    expect(result.total).toBe(6);
-    expect(result.groups.map((group) => group.key)).toEqual(["notes", "sellers", "campaigns", "wiki", "faq", "announcements"]);
+    expect(result.total).toBe(7);
+    expect(result.groups.map((group) => group.key)).toEqual(["notes", "sellers", "campaigns", "wiki", "faq", "announcements", "scripts"]);
     expect(result.groups[0].items[0]).toMatchObject({ type: "note", title: "NF 703444", href: "/notas" });
     expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
   });

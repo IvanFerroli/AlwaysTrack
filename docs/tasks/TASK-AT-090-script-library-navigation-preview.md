@@ -1,9 +1,9 @@
 # TASK-AT-090 - Scriptoteca: navegacao por categoria e preview
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- last-updated: 2026-06-13
 - source-of-truth: docs/tasks/TASK-AT-090-script-library-navigation-preview.md
 
 ## Fase
@@ -31,3 +31,6 @@ Criar a tela da Scriptoteca com menu lateral/indice por categoria, lista central
 ## Riscos
 - Criar pagina bonita mas lenta para uso diario.
 - Esconder scripts importantes em menus profundos.
+
+## Execucao
+- execution-log: docs/tasks/EXEC-AT-090-script-library-navigation-preview.md

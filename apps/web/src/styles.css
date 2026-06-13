@@ -2739,6 +2739,32 @@ legend {
   padding: 8px;
 }
 
+.script-library-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr) minmax(360px, 1.4fr);
+}
+
+.script-placeholder-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.script-preview {
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.55;
+  margin: 0;
+  min-height: 180px;
+  overflow-wrap: anywhere;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
 .wiki-edit-form {
   display: grid;
   gap: 12px;

@@ -26,6 +26,10 @@ model Organization {
   inAppNotifications    InAppNotification[]
   announcements         Announcement[]
   announcementReadReceipts AnnouncementReadReceipt[]
+  scriptCategories      ScriptCategory[]
+  operationalScripts    OperationalScript[]
+  operationalScriptRevisions OperationalScriptRevision[]
+  operationalScriptEvents OperationalScriptEvent[]
   faqItems              FaqItem[]
   faqThreads            FaqThread[]
   faqComments           FaqComment[]
@@ -126,6 +130,12 @@ model User {
   announcementsAuthored Announcement[] @relation("AnnouncementAuthor")
   announcementsUpdated  Announcement[] @relation("AnnouncementUpdatedBy")
   announcementReadReceipts AnnouncementReadReceipt[] @relation("AnnouncementReadReceiptUser")
+  scriptCategoriesCreated ScriptCategory[] @relation("ScriptCategoryCreatedBy")
+  operationalScriptsCreated OperationalScript[] @relation("OperationalScriptCreatedBy")
+  operationalScriptsUpdated OperationalScript[] @relation("OperationalScriptUpdatedBy")
+  operationalScriptsValidated OperationalScript[] @relation("OperationalScriptValidatedBy")
+  operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
+  operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
 
   @@index([organizationId])
   @@index([role])
@@ -650,6 +660,109 @@ model AnnouncementReadReceipt {
   @@index([announcementId])
   @@index([userId])
   @@index([acknowledgedAt])
+}
+
+model ScriptCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdById    String
+  slug           String
+  name           String
+  description    String?
+  order          Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdBy    User         @relation("ScriptCategoryCreatedBy", fields: [createdById], references: [id])
+  scripts      OperationalScript[]
+
+  @@unique([organizationId, slug])
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([active])
+  @@index([order])
+}
+
+model OperationalScript {
+  id             String    @id @default(cuid())
+  organizationId String
+  categoryId     String
+  title          String
+  channel        String
+  body           String
+  tagsJson       String?
+  placeholdersJson String?
+  status         String    @default("DRAFT")
+  createdById    String
+  updatedById    String
+  validatedById  String?
+  validatedAt    DateTime?
+  usageCount     Int       @default(0)
+  copiedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  category     ScriptCategory @relation(fields: [categoryId], references: [id])
+  createdBy    User         @relation("OperationalScriptCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("OperationalScriptUpdatedBy", fields: [updatedById], references: [id])
+  validatedBy  User?        @relation("OperationalScriptValidatedBy", fields: [validatedById], references: [id])
+  revisions    OperationalScriptRevision[]
+  events       OperationalScriptEvent[]
+
+  @@unique([organizationId, categoryId, title])
+  @@index([organizationId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([channel])
+  @@index([validatedById])
+  @@index([usageCount])
+}
+
+model OperationalScriptRevision {
+  id             String   @id @default(cuid())
+  organizationId String
+  scriptId       String
+  authorId       String
+  version        Int
+  title          String
+  channel        String
+  body           String
+  tagsJson       String?
+  placeholdersJson String?
+  status         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  script       OperationalScript @relation(fields: [scriptId], references: [id])
+  author       User         @relation("OperationalScriptRevisionAuthor", fields: [authorId], references: [id])
+
+  @@unique([scriptId, version])
+  @@index([organizationId])
+  @@index([scriptId])
+  @@index([authorId])
+}
+
+model OperationalScriptEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  scriptId       String
+  userId         String
+  action         String
+  metadataJson   String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  script       OperationalScript @relation(fields: [scriptId], references: [id])
+  user         User @relation("OperationalScriptEventUser", fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([scriptId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model FaqItem {
