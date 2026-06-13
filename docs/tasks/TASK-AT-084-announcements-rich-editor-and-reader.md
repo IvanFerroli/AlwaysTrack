@@ -1,7 +1,7 @@
 # TASK-AT-084 - Avisos: editor rico e leitura
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-084-announcements-rich-editor-and-reader.md

@@ -60,6 +60,22 @@ function prismaMock() {
       count: vi.fn().mockResolvedValue(2),
       findMany: vi.fn().mockResolvedValue([{ id: "notif-1", type: "sales.approved", title: "Nota aprovada", body: null, href: "/notas", createdAt: new Date() }])
     },
+    announcement: {
+      count: vi.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(1),
+      findMany: vi.fn().mockResolvedValue([
+        {
+          id: "ann-1",
+          slug: "aviso-do-dia",
+          title: "Aviso do dia",
+          summary: "Prioridade comercial",
+          priority: "HIGH",
+          pinned: true,
+          requiresAck: true,
+          publishedAt: new Date("2026-06-12T08:00:00.000Z"),
+          expiresAt: null
+        }
+      ])
+    },
     salesItem: {
       findMany: vi.fn().mockResolvedValue([
         {
@@ -86,6 +102,8 @@ describe("operations service", () => {
     expect(result.metrics.duplicates).toBe(1);
     expect(result.metrics.wikiPendingReviews).toBe(1);
     expect(result.metrics.faqUnanswered).toBe(1);
+    expect(result.metrics.activeAnnouncements).toBe(2);
+    expect(result.queues.activeAnnouncements[0]).toMatchObject({ slug: "aviso-do-dia", priority: "HIGH" });
     expect(result.queues.ranking[0]).toMatchObject({ sellerName: "Ana", totalAmountCents: 10000, documents: 1 });
     expect(result.queues.alerts.some((alert) => alert?.title === "Falhas de extracao hoje")).toBe(true);
   });

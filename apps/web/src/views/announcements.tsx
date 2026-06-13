@@ -47,9 +47,7 @@ interface AnnouncementDraft {
   startsAt: string;
   expiresAt: string;
   targetRoles: UserRole[];
-  linkLabel: string;
-  linkHref: string;
-  linkType: string;
+  linksText: string;
 }
 
 const priorityOptions = [
@@ -83,14 +81,28 @@ function emptyDraft(): AnnouncementDraft {
     startsAt: "",
     expiresAt: "",
     targetRoles: [...commercialAllRoles],
-    linkLabel: "",
-    linkHref: "",
-    linkType: "WIKI"
+    linksText: ""
   };
 }
 
 function parseTags(value: string) {
   return [...new Set(value.split(",").map((tag) => tag.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function parseLinksText(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [type = "URL", label = "", href = ""] = line.split("|").map((part) => part.trim());
+      return { type: type.toUpperCase(), label, href };
+    })
+    .filter((item) => item.label && item.href);
+}
+
+function linksTextFor(links: AnnouncementLink[] | undefined) {
+  return (links ?? []).map((link) => `${link.type}|${link.label}|${link.href}`).join("\n");
 }
 
 function statusLabel(value: string) {
@@ -145,7 +157,6 @@ function AnnouncementContent({ content }: { content: string }) {
 }
 
 function draftFrom(item: AnnouncementItem): AnnouncementDraft {
-  const firstLink = item.links?.[0];
   return {
     title: item.title,
     slug: item.slug,
@@ -159,9 +170,7 @@ function draftFrom(item: AnnouncementItem): AnnouncementDraft {
     startsAt: item.startsAt?.slice(0, 10) ?? "",
     expiresAt: item.expiresAt?.slice(0, 10) ?? "",
     targetRoles: item.targetRoles?.length ? item.targetRoles : [...commercialAllRoles],
-    linkLabel: firstLink?.label ?? "",
-    linkHref: firstLink?.href ?? "",
-    linkType: firstLink?.type ?? "WIKI"
+    linksText: linksTextFor(item.links)
   };
 }
 
@@ -244,14 +253,13 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
   }
 
   function payloadFromDraft() {
-    const links = draft.linkLabel.trim() && draft.linkHref.trim() ? [{ type: draft.linkType, label: draft.linkLabel, href: draft.linkHref }] : [];
     return {
       title: draft.title,
       slug: draft.slug || null,
       summary: draft.summary || null,
       content: draft.content,
       tags: parseTags(draft.tags),
-      links,
+      links: parseLinksText(draft.linksText),
       targetRoles: draft.targetRoles,
       priority: draft.priority,
       status: draft.status,
@@ -521,19 +529,14 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   {commercialAllRoles.map((role) => <option key={role} value={role}>{role}</option>)}
                 </select>
               </label>
-              <label>
-                Tipo do link
-                <select value={draft.linkType} onChange={(event) => setDraft((current) => ({ ...current, linkType: event.target.value }))}>
-                  {["WIKI", "FAQ", "ANNOUNCEMENT", "CAMPAIGN", "NOTE", "URL"].map((type) => <option key={type} value={type}>{type}</option>)}
-                </select>
-              </label>
-              <label>
-                Link relacionado
-                <input value={draft.linkHref} onChange={(event) => setDraft((current) => ({ ...current, linkHref: event.target.value }))} placeholder="/wiki/conferencia" />
-              </label>
               <label className="full-span">
-                Nome do link
-                <input value={draft.linkLabel} onChange={(event) => setDraft((current) => ({ ...current, linkLabel: event.target.value }))} placeholder="Procedimento relacionado" />
+                Links relacionados
+                <textarea
+                  rows={3}
+                  value={draft.linksText}
+                  onChange={(event) => setDraft((current) => ({ ...current, linksText: event.target.value }))}
+                  placeholder="WIKI|Procedimento relacionado|/wiki/conferencia-de-danfe"
+                />
               </label>
               <label className="checkbox-row">
                 <input type="checkbox" checked={draft.pinned} onChange={(event) => setDraft((current) => ({ ...current, pinned: event.target.checked }))} />

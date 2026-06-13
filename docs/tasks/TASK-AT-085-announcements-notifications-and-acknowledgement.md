@@ -1,7 +1,7 @@
 # TASK-AT-085 - Avisos: notificacoes e ciencia
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-085-announcements-notifications-and-acknowledgement.md

@@ -186,6 +186,10 @@ function visibleAnnouncementWhere(actor: CurrentUser, now = new Date()): Prisma.
   };
 }
 
+function activeWindowWhere(now = new Date()): Prisma.AnnouncementWhereInput[] {
+  return [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] }];
+}
+
 function tagWhere(tags: string[] | undefined) {
   const normalized = normalizedTags(tags ?? []);
   return normalized.length ? normalized.map((tag) => ({ tagsJson: { contains: `"${tag}"` } })) : undefined;
@@ -236,26 +240,28 @@ export function parseAnnouncementFilters(query: Record<string, unknown>): Announ
 
 export async function listAnnouncements(prisma: PrismaClient, actor: CurrentUser, filters: AnnouncementFilters = {}) {
   const now = new Date();
+  const baseWhere = visibleAnnouncementWhere(actor, now);
+  const andFilters: Prisma.AnnouncementWhereInput[] = [
+    ...(Array.isArray(baseWhere.AND) ? baseWhere.AND : baseWhere.AND ? [baseWhere.AND] : []),
+    filters.query
+      ? {
+          OR: [
+            { title: { contains: filters.query } },
+            { summary: { contains: filters.query } },
+            { content: { contains: filters.query } },
+            { tagsJson: { contains: filters.query } }
+          ]
+        }
+      : undefined,
+    tagWhere(filters.tags)?.length ? { OR: tagWhere(filters.tags) } : undefined,
+    ...(filters.activeOnly ? activeWindowWhere(now) : [])
+  ].filter(Boolean) as Prisma.AnnouncementWhereInput[];
   const where: Prisma.AnnouncementWhereInput = {
-    ...visibleAnnouncementWhere(actor, now),
+    ...baseWhere,
     status: filters.status ?? (filters.activeOnly ? "PUBLISHED" : undefined),
     priority: filters.priority,
     updatedAt: filters.recent ? { gte: recentSince(filters.recent) } : undefined,
-    AND: [
-      filters.query
-        ? {
-            OR: [
-              { title: { contains: filters.query } },
-              { summary: { contains: filters.query } },
-              { content: { contains: filters.query } },
-              { tagsJson: { contains: filters.query } }
-            ]
-          }
-        : undefined,
-      tagWhere(filters.tags)?.length ? { OR: tagWhere(filters.tags) } : undefined,
-      filters.activeOnly ? { OR: [{ startsAt: null }, { startsAt: { lte: now } }] } : undefined,
-      filters.activeOnly ? { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] } : undefined
-    ].filter(Boolean) as Prisma.AnnouncementWhereInput[]
+    AND: andFilters.length ? andFilters : undefined
   };
 
   const [items, total] = await Promise.all([
@@ -264,7 +270,7 @@ export async function listAnnouncements(prisma: PrismaClient, actor: CurrentUser
       include: {
         createdBy: { select: { id: true, name: true, email: true, role: true } },
         updatedBy: { select: { id: true, name: true, email: true, role: true } },
-        readReceipts: { where: { userId: actor.id }, take: 1 }
+        readReceipts: isManager(actor) ? { orderBy: { updatedAt: "desc" } } : { where: { userId: actor.id }, take: 1 }
       },
       orderBy: [{ pinned: "desc" }, { priority: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
       take: 100

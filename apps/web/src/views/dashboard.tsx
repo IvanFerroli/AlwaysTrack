@@ -17,6 +17,7 @@ type DashboardOpenOptions = {
   notes?: SalesDocumentListFilters;
   ranking?: SalesFilters;
   faq?: { status?: string };
+  announcements?: { slug?: string | null };
 };
 
 function MetricCard({ label, value }: { label: string; value: ReactNode }) {
@@ -211,7 +212,7 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
                   className={`today-alert ${item.priority === "CRITICAL" ? "danger" : item.priority === "HIGH" ? "warning" : "info"}`}
                   key={item.id}
                   type="button"
-                  onClick={() => onOpen("announcements")}
+                  onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}
                 >
                   <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
                   <span>{item.summary ?? "Abrir comunicado interno"}</span>

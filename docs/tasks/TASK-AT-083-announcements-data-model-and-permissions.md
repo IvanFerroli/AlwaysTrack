@@ -1,7 +1,7 @@
 # TASK-AT-083 - Avisos: modelo de dados e permissoes
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-083-announcements-data-model-and-permissions.md

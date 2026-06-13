@@ -113,7 +113,11 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
         organizationId: actor.organizationId,
         status: "PUBLISHED",
         targetRolesJson: { contains: `"${actor.role}"` },
-        OR: containsQuery(["title", "summary", "content", "tagsJson", "priority"], query)
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: new Date() } }] },
+          { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+          { OR: containsQuery(["title", "summary", "content", "tagsJson", "priority"], query) }
+        ]
       },
       orderBy: [{ pinned: "desc" }, { publishedAt: "desc" }],
       take: limit

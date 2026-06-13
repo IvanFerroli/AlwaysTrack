@@ -1,7 +1,7 @@
 # TASK-AT-087 - Avisos: vinculos, busca e governanca
 
 ## Metadata
-- status: completed-mvp
+- status: completed
 - owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-087-announcements-links-search-and-governance.md

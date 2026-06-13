@@ -105,6 +105,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 86. `EXEC-AT-085`: notificacoes e ciencia de Avisos (`TASK-AT-085`). Status: completed.
 87. `EXEC-AT-086`: Avisos na Central Operacional Hoje (`TASK-AT-086`). Status: completed.
 88. `EXEC-AT-087`: vinculos, busca e governanca simples de Avisos (`TASK-AT-087`). Status: completed.
+89. `EXEC-AT-098`: fechamento da frente de Avisos com vigencia, multiplos links, CTA profundo e testes (`TASK-AT-098`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
@@ -148,19 +149,20 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 2. `TASK-AT-078`: Curadoria clara de Wiki/FAQ. Status: completed-mvp.
 3. `TASK-AT-079`: Busca global simples. Status: completed-mvp.
 4. `TASK-AT-080`: Notificacoes mais uteis. Status: completed-mvp.
-5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: completed-mvp.
-6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: completed-mvp.
-7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: completed-mvp.
-8. `TASK-AT-085`: Avisos - notificacoes e ciencia. Status: completed-mvp.
-9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: completed-mvp.
-10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: completed-mvp.
-11. `TASK-AT-088`: Scriptoteca Operacional do SAC. Status: proposed.
-12. `TASK-AT-089`: Scriptoteca - modelo de dados e permissoes. Status: proposed.
-13. `TASK-AT-090`: Scriptoteca - navegacao por categoria e preview. Status: proposed.
-14. `TASK-AT-091`: Scriptoteca - busca, tags e filtros. Status: proposed.
-15. `TASK-AT-092`: Scriptoteca - copiar texto e placeholders. Status: proposed.
-16. `TASK-AT-093`: Scriptoteca - CRUD, sugestoes e validacao. Status: proposed.
-17. `TASK-AT-094`: Scriptoteca - historico e versionamento simples. Status: proposed.
-18. `TASK-AT-095`: Scriptoteca - vinculos com Wiki e FAQ. Status: proposed.
-19. `TASK-AT-096`: Scriptoteca - seeds e demo com scripts reais. Status: proposed.
-20. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: proposed.
+5. `TASK-AT-082`: Aba de avisos e comunicados internos. Status: completed.
+6. `TASK-AT-083`: Avisos - modelo de dados e permissoes. Status: completed.
+7. `TASK-AT-084`: Avisos - editor rico e leitura. Status: completed.
+8. `TASK-AT-085`: Avisos - notificacoes e ciencia. Status: completed.
+9. `TASK-AT-086`: Avisos - integracao com Central Operacional Hoje. Status: completed.
+10. `TASK-AT-087`: Avisos - vinculos, busca e governanca. Status: completed.
+11. `TASK-AT-098`: Fechamento da frente de Avisos. Status: completed.
+12. `TASK-AT-088`: Scriptoteca Operacional do SAC. Status: proposed.
+13. `TASK-AT-089`: Scriptoteca - modelo de dados e permissoes. Status: proposed.
+14. `TASK-AT-090`: Scriptoteca - navegacao por categoria e preview. Status: proposed.
+15. `TASK-AT-091`: Scriptoteca - busca, tags e filtros. Status: proposed.
+16. `TASK-AT-092`: Scriptoteca - copiar texto e placeholders. Status: proposed.
+17. `TASK-AT-093`: Scriptoteca - CRUD, sugestoes e validacao. Status: proposed.
+18. `TASK-AT-094`: Scriptoteca - historico e versionamento simples. Status: proposed.
+19. `TASK-AT-095`: Scriptoteca - vinculos com Wiki e FAQ. Status: proposed.
+20. `TASK-AT-096`: Scriptoteca - seeds e demo com scripts reais. Status: proposed.
+21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: proposed.
