@@ -1,8 +1,8 @@
 # TASK-AT-081 - Painel minimo de observabilidade operacional
 
 ## Metadata
-- status: proposed
-- owner: olympus_taskyfier
+- status: completed-mvp
+- owner: olympus_orchestrator
 - last-updated: 2026-06-12
 - source-of-truth: docs/tasks/TASK-AT-081-minimum-operational-observability-panel.md
 
@@ -52,3 +52,5 @@ Mostra que a ferramenta nao apenas opera, mas tambem se monitora.
 - Virar dashboard tecnico amplo demais.
 - Mostrar metricas incompletas sem explicar escopo.
 
+## Execucao
+- `EXEC-AT-081-minimum-operational-observability-panel.md`

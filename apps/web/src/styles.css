@@ -1872,7 +1872,8 @@ button .icon {
 }
 
 .campaign-form-panel,
-.organization-settings-panel {
+.organization-settings-panel,
+.observability-panel {
   padding: 18px;
 }
 
@@ -1885,6 +1886,90 @@ button .icon {
 .organization-settings-panel form {
   display: grid;
   gap: 13px;
+}
+
+.observability-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.observability-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.observability-metrics div {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.observability-metrics div.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.observability-metrics span,
+.observability-list span,
+.observability-footer span {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.observability-metrics strong {
+  color: var(--color-heading);
+  font-size: 24px;
+}
+
+.observability-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.observability-grid > div {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+  padding: 14px;
+}
+
+.observability-grid h3 {
+  color: var(--color-heading);
+  font-size: 16px;
+  margin: 0 0 10px;
+}
+
+.observability-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.observability-list li {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.observability-list strong,
+.observability-list span {
+  overflow-wrap: anywhere;
+}
+
+.observability-footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
 }
 
 .filter-panel {

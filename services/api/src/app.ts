@@ -10,6 +10,7 @@ import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
 import { sendError, sendOk } from "./core/http/responses.js";
 import { httpMetricsHandler, httpMetricsMiddleware } from "./core/diagnostics/http-metrics.js";
+import { operationalObservabilityHandler } from "./core/diagnostics/operational-observability.handlers.js";
 import { listAuditLogsHandler } from "./core/audit/audit.handlers.js";
 import {
   googleLoginCallbackHandler,
@@ -221,6 +222,7 @@ export function createApp() {
 
   app.get("/v1/audit-logs", requireAuth, requireRole(adminOnlyRoles), listAuditLogsHandler);
   app.get("/v1/diagnostics/http-metrics", requireAuth, requireRole(adminOnlyRoles), httpMetricsHandler);
+  app.get("/v1/diagnostics/operations", requireAuth, requireRole(adminOnlyRoles), operationalObservabilityHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

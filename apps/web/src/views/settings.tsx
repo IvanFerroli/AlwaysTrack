@@ -25,6 +25,58 @@ export interface OrganizationSettingsResponse {
   };
 }
 
+interface OperationalObservabilityResponse {
+  generatedAt: string;
+  metrics: {
+    documents24h: number;
+    approvals24h: number;
+    rejections24h: number;
+    extractionFailures24h: number;
+    openFaqThreads: number;
+    pendingWikiReviews: number;
+    unreadNotifications: number;
+    observedRoutes: number;
+  };
+  http: {
+    slowestRoutes: Array<{
+      method: string;
+      route: string;
+      count: number;
+      errorCount: number;
+      maxDurationMs: number;
+      avgDurationMs: number;
+      lastStatus: number;
+      lastSeenAt: string;
+    }>;
+    errorRoutes: Array<{
+      method: string;
+      route: string;
+      count: number;
+      errorCount: number;
+      maxDurationMs: number;
+      avgDurationMs: number;
+      lastStatus: number;
+      lastSeenAt: string;
+    }>;
+  };
+  recentFailures: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    actor: { id: string; name: string; email: string; role: string } | null;
+  }>;
+  recentAuditLogs: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    actor: { id: string; name: string; email: string; role: string } | null;
+  }>;
+}
+
 function parseTags(value: string) {
   return [
     ...new Set(
@@ -128,7 +180,102 @@ function PermissionMatrix() {
   );
 }
 
-export function SettingsView({ onSaved }: { onSaved?: (settings: OrganizationSettingsResponse) => void }) {
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function ObservabilityPanel({ onOpenAudit }: { onOpenAudit?: () => void }) {
+  const [observability, setObservability] = useState<OperationalObservabilityResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      setObservability(await api<OperationalObservabilityResponse>("/v1/diagnostics/operations"));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar observabilidade.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  return (
+    <section className="panel observability-panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Observabilidade</p>
+          <h2>Saúde operacional</h2>
+          <p className="muted">Sinais mínimos das últimas 24h e falhas recentes para administração.</p>
+        </div>
+        <button className="secondary" type="button" onClick={() => void load()}>
+          Atualizar
+        </button>
+      </div>
+      {loading ? <OperationalState state="loading" title="Carregando sinais operacionais" /> : null}
+      {error ? <OperationalState state="error" title="Falha na observabilidade" detail={error} /> : null}
+      {observability && !loading ? (
+        <>
+          <div className="observability-metrics">
+            <div><span>DANFEs 24h</span><strong>{observability.metrics.documents24h}</strong></div>
+            <div><span>Aprovadas 24h</span><strong>{observability.metrics.approvals24h}</strong></div>
+            <div><span>Rejeitadas 24h</span><strong>{observability.metrics.rejections24h}</strong></div>
+            <div className={observability.metrics.extractionFailures24h > 0 ? "warning" : ""}><span>Falhas extração</span><strong>{observability.metrics.extractionFailures24h}</strong></div>
+            <div><span>FAQ abertas</span><strong>{observability.metrics.openFaqThreads}</strong></div>
+            <div><span>Wiki pendente</span><strong>{observability.metrics.pendingWikiReviews}</strong></div>
+            <div><span>Notificações não lidas</span><strong>{observability.metrics.unreadNotifications}</strong></div>
+            <div><span>Rotas observadas</span><strong>{observability.metrics.observedRoutes}</strong></div>
+          </div>
+          <div className="observability-grid">
+            <div>
+              <h3>Rotas mais lentas</h3>
+              {observability.http.slowestRoutes.length === 0 ? (
+                <p className="muted">Sem tráfego observado nesta sessão.</p>
+              ) : (
+                <ul className="observability-list">
+                  {observability.http.slowestRoutes.map((route) => (
+                    <li key={`${route.method}:${route.route}`}>
+                      <strong>{route.method} {route.route}</strong>
+                      <span>{route.count} req · média {route.avgDurationMs}ms · pico {route.maxDurationMs}ms</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3>Falhas recentes</h3>
+              {observability.recentFailures.length === 0 ? (
+                <p className="muted">Nenhuma falha crítica registrada nos últimos 7 dias.</p>
+              ) : (
+                <ul className="observability-list">
+                  {observability.recentFailures.map((item) => (
+                    <li key={item.id}>
+                      <strong>{item.action}</strong>
+                      <span>{item.entityType} {item.entityId} · {formatDateTime(item.createdAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <div className="observability-footer">
+            <span>Gerado em {formatDateTime(observability.generatedAt)}</span>
+            <button className="secondary small" type="button" onClick={onOpenAudit}>
+              Abrir auditoria
+            </button>
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+export function SettingsView({ onSaved, onOpenAudit }: { onSaved?: (settings: OrganizationSettingsResponse) => void; onOpenAudit?: () => void }) {
   const [settings, setSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [name, setName] = useState("");
   const [document, setDocument] = useState("");
@@ -275,6 +422,7 @@ export function SettingsView({ onSaved }: { onSaved?: (settings: OrganizationSet
           </form>
         ) : null}
       </section>
+      <ObservabilityPanel onOpenAudit={onOpenAudit} />
       <PermissionMatrix />
     </div>
   );
