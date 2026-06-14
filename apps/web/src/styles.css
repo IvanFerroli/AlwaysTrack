@@ -2750,6 +2750,80 @@ legend {
   gap: 16px;
 }
 
+.script-metrics-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.script-metric-card {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 6px;
+  min-height: 82px;
+  padding: 14px;
+}
+
+.script-metric-card span {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.script-metric-card strong {
+  color: var(--color-heading);
+  font-size: clamp(1.6rem, 3vw, 2.15rem);
+  line-height: 1;
+}
+
+.script-metrics-columns {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.script-metric-list {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.script-metric-list h3 {
+  margin: 0;
+}
+
+.script-metric-list > div {
+  display: grid;
+  gap: 8px;
+}
+
+.script-metric-list span:not(.muted) {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.script-metric-list strong,
+.script-metric-list small {
+  overflow-wrap: anywhere;
+}
+
+.script-metric-list small {
+  color: var(--color-muted);
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+
 .script-placeholder-grid {
   display: grid;
   gap: 10px;
@@ -3252,6 +3326,16 @@ legend {
 .wiki-reader-panel .detail-header > .row-actions button:not(.ui-info-button),
 .wiki-reader-panel .detail-header > .row-actions select {
   width: min(220px, 100%);
+}
+
+.wiki-reader-panel .detail-header > .row-actions .script-copy-button {
+  align-items: center;
+  align-self: flex-end;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  min-width: 118px;
+  width: auto;
 }
 
 .detail-grid {

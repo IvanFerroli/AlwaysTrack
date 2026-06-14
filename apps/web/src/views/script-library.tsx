@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
@@ -382,22 +383,27 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
             <p className="eyebrow">Métricas</p>
             <h2>Uso e lacunas</h2>
           </div>
-          <div className="permission-matrix-summary">
-            <div><span>Sugestões pendentes</span><strong>{metrics.pendingSuggestions}</strong></div>
-            <div><span>Sem uso</span><strong>{metrics.neverUsed}</strong></div>
-            <div><span>Revisão vencida</span><strong>{metrics.reviewDue}</strong></div>
+          <div className="script-metrics-grid">
+            <div className="script-metric-card"><span>Sugestões pendentes</span><strong>{metrics.pendingSuggestions}</strong></div>
+            <div className="script-metric-card"><span>Sem uso</span><strong>{metrics.neverUsed}</strong></div>
+            <div className="script-metric-card"><span>Revisão vencida</span><strong>{metrics.reviewDue}</strong></div>
           </div>
-          <div className="script-history-grid">
-            <div>
+          <div className="script-metrics-columns">
+            <div className="script-metric-list">
               <h3>Mais copiados</h3>
-              <div className="script-history-list">
-                {metrics.mostCopied.map((item) => <span key={item.id}>{item.title} / {item.usageCount} copia(s)</span>)}
+              <div>
+                {metrics.mostCopied.map((item) => (
+                  <span key={item.id}><strong>{item.title}</strong><small>{item.usageCount} copia(s)</small></span>
+                ))}
+                {metrics.mostCopied.length ? null : <span className="muted">Sem copias registradas.</span>}
               </div>
             </div>
-            <div>
+            <div className="script-metric-list">
               <h3>Buscas sem resultado</h3>
-              <div className="script-history-list">
-                {metrics.zeroSearches.map((item) => <span key={item.id}>{item.query || "Filtro sem texto"} / {formatDateBr(item.createdAt)}</span>)}
+              <div>
+                {metrics.zeroSearches.map((item) => (
+                  <span key={item.id}><strong>{item.query || "Filtro sem texto"}</strong><small>{formatDateBr(item.createdAt)}</small></span>
+                ))}
                 {metrics.zeroSearches.length ? null : <span className="muted">Sem lacunas recentes.</span>}
               </div>
             </div>
@@ -471,7 +477,10 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   <p className="muted">{selected.channel} · {reviewStateLabels[selected.reviewState] ?? selected.status}</p>
                 </div>
                 <div className="row-actions">
-                  <button type="button" onClick={() => void copyScript()}>{copyFeedback || "Copiar"}</button>
+                  <button className="script-copy-button" type="button" onClick={() => void copyScript()} aria-label="Copiar script para a area de transferencia" title="Copiar script">
+                    {copyFeedback ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+                    <span>{copyFeedback || "Copiar"}</span>
+                  </button>
                   {canManage ? (
                     <>
                       <button className="secondary" type="button" disabled={saving || selected.status === "VALIDATED"} onClick={() => void validateScript()}>Validar</button>

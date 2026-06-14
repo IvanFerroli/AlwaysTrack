@@ -118,10 +118,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 99. `EXEC-AT-076`: paginacao server-side nas telas criticas sem tocar Scriptoteca (`TASK-AT-076`). Status: completed-critical-screens.
 100. `EXEC-AT-093`: sugestoes e decisao de scripts SAC (`TASK-AT-093`). Status: completed.
 101. `EXEC-AT-097`: metricas de uso e lacunas da Scriptoteca (`TASK-AT-097`). Status: completed.
+102. `EXEC-AT-100`: polimento visual das metricas da Scriptoteca e botao compacto de copia (`TASK-AT-100`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-2. Nenhuma task executavel restante fora de `TASK-AT-074` no backlog atual.
+1. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
+2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -175,3 +176,5 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 20. `TASK-AT-096`: Scriptoteca - seeds e demo com scripts reais. Status: completed-mvp.
 21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: completed.
 22. `TASK-AT-099`: Scriptoteca - validade e recertificacao de scripts. Status: completed-mvp.
+23. `TASK-AT-100`: Scriptoteca - polimento visual de metricas e copia. Status: completed.
+24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: proposed-backlog.
