@@ -6,6 +6,7 @@ Este TypeDoc e a porta de entrada para entender o AlwaysTrack de ponta a ponta. 
 - `docs/architecture/README.md`: mapa arquitetural.
 - `docs/architecture/domains.md`: dominios do produto.
 - `docs/architecture/maintenance-map.md`: onde mexer quando algo quebrar.
+- `docs/architecture/flow-deep-dive.md`: leitura ponta a ponta dos fluxos principais.
 - `docs/architecture/testing-and-docs.md`: comandos de teste e documentacao.
 - `docs/tasks/ROADMAP.md`: backlog e historico vivo.
 - `docs/testing/strategy.md`: piramide de testes.
@@ -44,3 +45,12 @@ Antes de editar, encontre:
 - view React correspondente;
 - teste mais proximo;
 - task/exec que explica por que aquilo existe.
+
+## Como transformar duvida em leitura
+Quando voce nao souber por onde comecar, formule a duvida como fluxo:
+
+- "Quem pode fazer isso?" leva a `packages/shared`, `auth/access-policy` e `requireRole`.
+- "De onde esse dado vem?" leva ao service do dominio e ao schema Prisma.
+- "Por que a tela mostra isso?" leva a view React, endpoint handler e parser de filtros.
+- "Por que isso nao atualizou?" leva a auditoria, notificacoes, jobs e dedupe.
+- "Isso e seguro?" leva a tasks `AT-102` a `AT-116`.

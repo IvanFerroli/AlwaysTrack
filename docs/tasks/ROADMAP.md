@@ -121,6 +121,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 102. `EXEC-AT-100`: polimento visual das metricas da Scriptoteca e botao compacto de copia (`TASK-AT-100`). Status: completed.
 103. `TASK-AT-117`: TypeDoc robusto para onboarding tecnico. Status: completed.
 104. `TASK-AT-118`: `npm run up` como bancada de estudo local. Status: completed.
+105. `TASK-AT-119`: deep dive de fluxos de manutencao para onboarding. Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-102-security-threat-model-and-baseline-audit.md`: Modelo de ameacas e auditoria base da fase de seguranca. Primeira task recomendada antes de qualquer implementacao.
@@ -206,3 +207,4 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 ### Fase E - Onboarding e estudo do mantenedor
 1. `TASK-AT-117`: TypeDoc robusto para onboarding tecnico. Status: completed.
 2. `TASK-AT-118`: `npm run up` como bancada de estudo local. Status: completed.
+3. `TASK-AT-119`: Deep dive de fluxos de manutencao. Status: completed.
