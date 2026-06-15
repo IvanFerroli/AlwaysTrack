@@ -121,8 +121,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 102. `EXEC-AT-100`: polimento visual das metricas da Scriptoteca e botao compacto de copia (`TASK-AT-100`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
-2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+1. `TASK-AT-102-security-threat-model-and-baseline-audit.md`: Modelo de ameacas e auditoria base da fase de seguranca. Primeira task recomendada antes de qualquer implementacao.
+2. `TASK-AT-103-http-security-headers-cors-perimeter.md`: Headers HTTP, CORS e perimetro web.
+3. `TASK-AT-104-auth-session-and-login-hardening.md`: Hardening de login, senha e sessao.
+4. `TASK-AT-105-csrf-origin-protection-for-cookie-api.md`: Protecao CSRF e validacao de origem.
+5. `TASK-AT-106-rate-limit-and-abuse-protection.md`: Rate limit e protecao contra abuso.
+6. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
+7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -178,3 +183,20 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 22. `TASK-AT-099`: Scriptoteca - validade e recertificacao de scripts. Status: completed-mvp.
 23. `TASK-AT-100`: Scriptoteca - polimento visual de metricas e copia. Status: completed.
 24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: proposed-backlog.
+
+### Fase D - Cyber seguranca e exposicao externa
+1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: proposed.
+2. `TASK-AT-103`: Headers HTTP, CORS e perimetro web. Status: proposed.
+3. `TASK-AT-104`: Hardening de login, senha e sessao. Status: proposed.
+4. `TASK-AT-105`: Protecao CSRF e validacao de origem. Status: proposed.
+5. `TASK-AT-106`: Rate limit e protecao contra abuso. Status: proposed.
+6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: proposed.
+7. `TASK-AT-108`: Hardening de uploads e arquivos. Status: proposed.
+8. `TASK-AT-109`: Autorizacao, tenancy e testes anti-IDOR. Status: proposed.
+9. `TASK-AT-110`: Segredos, envs e deploy de producao. Status: proposed.
+10. `TASK-AT-111`: Auditoria, monitoramento e alertas de seguranca. Status: proposed.
+11. `TASK-AT-112`: Dependencias, SCA e gates no CI. Status: proposed.
+12. `TASK-AT-113`: Banco, backup e protecao de dados. Status: proposed.
+13. `TASK-AT-114`: Integracoes externas, webhooks e IA. Status: proposed.
+14. `TASK-AT-115`: Runbook de incidente e operacao segura. Status: proposed.
+15. `TASK-AT-116`: Gate antes de exposicao externa. Status: proposed.
