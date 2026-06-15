@@ -1,6 +1,7 @@
 import { exec, spawn } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = "services/api/prisma/schema.prisma";
@@ -9,6 +10,7 @@ const fullSchemaSqlPath = ".tmp-alwaystrack-dev-schema.sql";
 const incrementalSchemaSqlPath = ".tmp-alwaystrack-dev-migration.sql";
 const setupOnly = process.argv.includes("--setup-only");
 const noStudio = process.argv.includes("--no-studio");
+const noDocs = process.argv.includes("--no-docs");
 const defaultDatabaseUrl = "file:./dev.db";
 
 const env = {
@@ -111,6 +113,11 @@ function openUrl(url) {
   });
 }
 
+function openLocalFile(filePath) {
+  if (!existsSync(resolve(rootDir, filePath))) return;
+  openUrl(pathToFileURL(resolve(rootDir, filePath)).href);
+}
+
 async function prepareDatabase() {
   await run(`npx prisma generate --schema ${schemaPath}`, "Gerando Prisma Client");
 
@@ -151,6 +158,9 @@ async function main() {
 
   await run("fuser -k 3333/tcp 5173/tcp 5555/tcp 2>/dev/null || true", "Limpando portas locais do app");
   await prepareDatabase();
+  if (!noDocs) {
+    await run("npm run docs:api", "Gerando documentacao TypeDoc de onboarding");
+  }
 
   if (setupOnly) {
     console.log("\n[AlwaysTrack Setup] Setup finalizado. Use `npm run up` para subir API, Web e Prisma Studio.");
@@ -173,14 +183,28 @@ async function main() {
     console.log("\n[AlwaysTrack Setup] URLs:");
     console.log("- Web: http://localhost:5173");
     console.log("- API: http://localhost:3333/health");
+    if (!noDocs) {
+      console.log("- TypeDoc: docs/generated/typedoc/index.html");
+      console.log("- Testes: docs/testing/strategy.md");
+      console.log("- Carga: docs/performance/README.md");
+    }
     if (!noStudio) {
       console.log("- Prisma Studio: http://localhost:5555");
     }
 
     if (!process.argv.includes("--no-open")) {
       openUrl("http://localhost:5173");
+      openUrl("http://localhost:3333/health");
       if (!noStudio) {
         openUrl("http://localhost:5555");
+      }
+      if (!noDocs) {
+        openLocalFile("docs/generated/typedoc/index.html");
+        openLocalFile("docs/testing/strategy.md");
+        openLocalFile("docs/testing/playwright-ci.md");
+        openLocalFile("docs/performance/README.md");
+        openLocalFile("playwright-report/index.html");
+        openLocalFile("test-results/playwright-report/index.html");
       }
     }
   }, 2500);
