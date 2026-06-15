@@ -7,6 +7,7 @@ Este TypeDoc e a porta de entrada para entender o AlwaysTrack de ponta a ponta. 
 - `docs/architecture/domains.md`: dominios do produto.
 - `docs/architecture/maintenance-map.md`: onde mexer quando algo quebrar.
 - `docs/architecture/flow-deep-dive.md`: leitura ponta a ponta dos fluxos principais.
+- `docs/architecture/quick-diagnostic-checklist.md`: checklist curto para voltar ao projeto e diagnosticar falhas.
 - `docs/architecture/testing-and-docs.md`: comandos de teste e documentacao.
 - `docs/tasks/ROADMAP.md`: backlog e historico vivo.
 - `docs/testing/strategy.md`: piramide de testes.
