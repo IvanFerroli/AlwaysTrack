@@ -7,6 +7,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { logEvent } from "../diagnostics/logger.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import type { StorageProvider } from "../documents/storage.js";
+import { extensionForAllowedFileKind, FileValidationError, validateAllowedFile } from "../documents/file-validation.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 import { extractDanfeDeterministic } from "./danfe-deterministic.js";
 
@@ -89,7 +90,7 @@ export interface SalesDocumentManualCorrectionInput extends SalesDocumentReviewI
   correctionNote?: string | null;
 }
 
-const allowedMimeTypes = new Set(["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"]);
+const allowedFileKinds = new Set(["pdf", "xml", "jpeg", "png", "webp"] as const);
 
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
@@ -113,13 +114,25 @@ function safeFileName(fileName: string) {
   return path.basename(fileName).replace(/[^\w.\- ]/g, "_").slice(0, 180) || "danfe";
 }
 
-function extensionFor(mimeType: string) {
-  if (mimeType === "application/pdf") return ".pdf";
-  if (mimeType === "application/xml" || mimeType === "text/xml") return ".xml";
-  if (mimeType === "image/jpeg") return ".jpg";
-  if (mimeType === "image/png") return ".png";
-  if (mimeType === "image/webp") return ".webp";
-  return "";
+function validateSalesDocumentFile(input: { body: Buffer; mimeType: string }) {
+  try {
+    return validateAllowedFile({
+      body: input.body,
+      mimeType: input.mimeType,
+      allowedKinds: allowedFileKinds,
+      configuredMaxBytes: loadEnv().documentMaxBytes
+    });
+  } catch (error) {
+    if (error instanceof FileValidationError) {
+      logEvent("warn", "sales_document.upload.rejected", {
+        reason: error.code,
+        mimeType: input.mimeType,
+        size: input.body.length
+      });
+      throw new SalesDocumentError(error.code);
+    }
+    throw error;
+  }
 }
 
 function digitsOnly(value: string | number | null | undefined) {
@@ -1095,12 +1108,13 @@ export async function uploadSalesDocument(
   input: SalesDocumentUploadInput
 ) {
   if (!input.body || input.body.length === 0) throw new SalesDocumentError("INVALID_INPUT");
-  if (!input.mimeType || !allowedMimeTypes.has(input.mimeType)) throw new SalesDocumentError("UNSUPPORTED_TYPE");
-  if (input.body.length > loadEnv().documentMaxBytes) throw new SalesDocumentError("FILE_TOO_LARGE");
+  if (!input.mimeType) throw new SalesDocumentError("UNSUPPORTED_TYPE");
+  const validation = validateSalesDocumentFile({ body: input.body, mimeType: input.mimeType });
 
   const seller = await resolveSellerProfile(prisma, actor, input.sellerProfileId);
-  const fileName = safeFileName(input.fileName ?? `danfe${extensionFor(input.mimeType)}`);
-  const fileKey = `${actor.organizationId}/sales-documents/${seller.id}/${randomUUID()}${extensionFor(input.mimeType)}`;
+  const extension = extensionForAllowedFileKind(validation.kind);
+  const fileName = safeFileName(input.fileName ?? `danfe${extension}`);
+  const fileKey = `${actor.organizationId}/sales-documents/${seller.id}/${randomUUID()}${extension}`;
 
   logEvent("info", "sales_document.upload.start", {
     actorId: actor.id,

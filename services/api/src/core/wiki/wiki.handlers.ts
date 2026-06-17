@@ -203,6 +203,8 @@ export async function getWikiAttachmentFileHandler(request: Request, response: R
     const file = await getWikiAttachmentFile(prisma, getStorageProvider(), actorFrom(request), routeParam(request.params.attachmentId));
     response.setHeader("content-type", file.mimeType);
     response.setHeader("content-length", String(file.size));
+    response.setHeader("x-content-type-options", "nosniff");
+    response.setHeader("cache-control", "private, max-age=0, must-revalidate");
     response.setHeader("content-disposition", `inline; filename="${file.fileName.replaceAll('"', "")}"`);
     return response.status(200).send(file.body);
   } catch (error) {

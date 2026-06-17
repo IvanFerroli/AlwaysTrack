@@ -5,7 +5,9 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { canAccessScopedResource } from "../auth/access-policy.js";
+import { logEvent } from "../diagnostics/logger.js";
 import { recalculateLicenses } from "../licenses/licenses.service.js";
+import { extensionForAllowedFileKind, FileValidationError, validateAllowedFile } from "./file-validation.js";
 import type { StorageProvider } from "./storage.js";
 
 export class DocumentError extends Error {
@@ -41,7 +43,7 @@ export interface ValidateDocumentInput {
   rejectionReason?: string | null;
 }
 
-const allowedMimeTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const allowedFileKinds = new Set(["pdf", "jpeg", "png", "webp"] as const);
 
 function cleanText(value: unknown) {
   if (typeof value !== "string") return undefined;
@@ -60,22 +62,24 @@ function safeFileName(fileName: string) {
   return path.basename(fileName).replace(/[^\w.\- ]/g, "_").slice(0, 180) || "documento";
 }
 
-function extensionFor(mimeType: string) {
-  if (mimeType === "application/pdf") return ".pdf";
-  if (mimeType === "image/jpeg") return ".jpg";
-  if (mimeType === "image/png") return ".png";
-  if (mimeType === "image/webp") return ".webp";
-  return "";
-}
-
 export function validateDocumentFile(input: { body: Buffer; mimeType: string }) {
-  if (!allowedMimeTypes.has(input.mimeType)) {
+  try {
+    return validateAllowedFile({
+      body: input.body,
+      mimeType: input.mimeType,
+      allowedKinds: allowedFileKinds,
+      configuredMaxBytes: loadEnv().documentMaxBytes
+    });
+  } catch (error) {
+    if (error instanceof FileValidationError) {
+      logEvent("warn", "document.upload.rejected", {
+        reason: error.code,
+        mimeType: input.mimeType,
+        size: input.body.length
+      });
+      throw new DocumentError(error.code);
+    }
     throw new DocumentError("UNSUPPORTED_TYPE");
-  }
-
-  const env = loadEnv();
-  if (input.body.length > env.documentMaxBytes) {
-    throw new DocumentError("FILE_TOO_LARGE");
   }
 }
 
@@ -209,13 +213,12 @@ export async function uploadDocument(
   if (!mimeType) {
     throw new DocumentError("UNSUPPORTED_TYPE");
   }
-  validateDocumentFile({ body: input.body, mimeType });
+  const validation = validateDocumentFile({ body: input.body, mimeType });
 
   const license = await ensureDocumentScope(prisma, actor, input.professionalId, input.licenseId);
-  const fileName = safeFileName(input.fileName ?? `documento${extensionFor(mimeType)}`);
-  const fileKey = `${license.professional.organizationId}/${input.professionalId}/${input.licenseId}/${randomUUID()}${extensionFor(
-    mimeType
-  )}`;
+  const extension = extensionForAllowedFileKind(validation.kind);
+  const fileName = safeFileName(input.fileName ?? `documento${extension}`);
+  const fileKey = `${license.professional.organizationId}/${input.professionalId}/${input.licenseId}/${randomUUID()}${extension}`;
 
   await storage.put({ fileKey, body: input.body, mimeType });
 

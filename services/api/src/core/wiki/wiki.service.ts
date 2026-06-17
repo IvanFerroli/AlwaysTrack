@@ -3,7 +3,9 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { FileValidationError, validateAllowedFile } from "../documents/file-validation.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
+import { logEvent } from "../diagnostics/logger.js";
 import type { StorageProvider } from "../documents/storage.js";
 
 /** Domain error returned by Wiki pages, revisions, attachments and review actions. */
@@ -67,7 +69,7 @@ export interface WikiFilters {
 }
 
 const wikiContentFormat = "MARKDOWN";
-const allowedWikiAttachmentMimeTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+const allowedWikiAttachmentFileKinds = new Set(["png", "jpeg", "webp"] as const);
 
 function normalizedTags(values: unknown[] = []) {
   const tags = new Set<string>();
@@ -797,8 +799,26 @@ export async function heartbeatWikiPresence(prisma: PrismaClient, actor: Current
 
 export async function uploadWikiAttachment(prisma: PrismaClient, storage: StorageProvider, actor: CurrentUser, input: WikiAttachmentUploadInput) {
   if (!input.body || input.body.length === 0) throw new WikiError("INVALID_INPUT");
-  if (!input.mimeType || !allowedWikiAttachmentMimeTypes.has(input.mimeType)) throw new WikiError("UNSUPPORTED_TYPE");
-  if (input.body.length > loadEnv().documentMaxBytes) throw new WikiError("FILE_TOO_LARGE");
+  if (!input.mimeType) throw new WikiError("UNSUPPORTED_TYPE");
+  try {
+    validateAllowedFile({
+      body: input.body,
+      mimeType: input.mimeType,
+      allowedKinds: allowedWikiAttachmentFileKinds,
+      configuredMaxBytes: loadEnv().documentMaxBytes
+    });
+  } catch (error) {
+    if (error instanceof FileValidationError) {
+      logEvent("warn", "wiki.attachment.upload.rejected", {
+        reason: error.code,
+        actorId: actor.id,
+        mimeType: input.mimeType,
+        size: input.body.length
+      });
+      throw new WikiError(error.code);
+    }
+    throw error;
+  }
   if (input.pageId) {
     const page = await prisma.wikiPage.findFirst({
       where: { id: input.pageId, organizationId: actor.organizationId, active: actor.role === "ADMIN" ? undefined : true }

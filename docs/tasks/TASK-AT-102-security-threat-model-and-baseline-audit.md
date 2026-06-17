@@ -1,9 +1,9 @@
 # TASK-AT-102 - Seguranca: modelo de ameacas e auditoria base
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-102-security-threat-model-and-baseline-audit.md
 
 ## Modo
@@ -81,6 +81,12 @@ No AlwaysTrack, os ativos incluem DANFEs, ranking, usuarios, senha, sessoes, ane
 - Matriz de riscos com severidade.
 - Lista de assets e trust boundaries.
 - Lista priorizada de hardening.
+
+## Execucao
+- EXEC: docs/tasks/EXEC-AT-102-security-threat-model-and-baseline-audit.md
+- Artefatos:
+  - docs/security/threat-model.md
+  - docs/security/security-baseline-audit.md
 
 ## Riscos
 - Virar documento generico demais e nao guiar execucao.

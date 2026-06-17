@@ -1,9 +1,9 @@
 # TASK-AT-104 - Seguranca: hardening de login, senha e sessao
 
 ## Metadata
-- status: proposed
+- status: implemented
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-104-auth-session-and-login-hardening.md
 
 ## Modo
@@ -89,3 +89,14 @@ Cookie `maxAge` pede para o navegador jogar a sessao fora depois de um tempo. Ma
 ## Retorno esperado
 - Resumo da politica final de sessao/senha.
 - Instrucoes para configurar envs de sessao em producao.
+
+## Execucao 2026-06-17
+- Sessao: o servidor valida `issuedAt` no parser de token assinado. O tempo padrao segue 8 horas e pode ser reduzido por `SESSION_MAX_AGE_SECONDS`; valores acima de 12 horas sao limitados a 12 horas.
+- Cookie: `maxAge` do cookie usa a mesma duracao validada no servidor.
+- Senha: criacao e reset administrativo exigem pelo menos 12 caracteres, combinacao minima de 3 classes entre minusculas/maiusculas/numeros/simbolos, bloqueio de senhas obvias e bloqueio de senha igual/derivada do email.
+- Reset: `User.passwordChangedAt` e atualizado no reset administrativo; sessoes emitidas antes desse instante passam a falhar no `requireAuth`.
+- Auditoria: login local falho para usuario conhecido, login Google falho por usuario inativo, reset de senha e logout ficam registrados sem senha em metadata.
+
+## Validacao 2026-06-17
+- OK: `npm run test --workspace @alwaystrack/api -- auth users.service.test.ts`
+- Parcial: `npm run typecheck --workspace @alwaystrack/api` nao reporta erros dos arquivos alterados por TASK-AT-104 apos `npx prisma generate --schema services/api/prisma/schema.prisma`, mas segue falhando em fixtures `ApiEnv` fora do escopo desta task (`google-login.service.test.ts`, `google-sheets-template.service.test.ts`, `google-oauth.service.test.ts`) por campos obrigatorios de rate limit/CORS adicionados em outro trabalho.

@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { loadEnv, type ApiEnv } from "../../config/env.js";
 
 export const sessionCookieName = "alwaystrack_session";
+export const defaultSessionMaxAgeSeconds = 60 * 60 * 8;
+export const maximumSessionMaxAgeSeconds = 60 * 60 * 12;
 
 export function getSessionCookieName(env: ApiEnv = loadEnv()) {
   return env.sessionCookieName;
@@ -13,6 +15,11 @@ export interface SessionPayload {
   organizationId: string;
   role: UserRole;
   issuedAt: number;
+}
+
+export interface ParseSessionOptions {
+  now?: number;
+  maxAgeSeconds?: number;
 }
 
 function base64UrlEncode(value: string) {
@@ -32,7 +39,26 @@ export function createSessionToken(payload: SessionPayload, secret: string) {
   return `${body}.${sign(body, secret)}`;
 }
 
-export function parseSessionToken(token: string | undefined, secret: string): SessionPayload | null {
+export function getSessionMaxAgeSeconds(source: Partial<Record<"SESSION_MAX_AGE_SECONDS", string | undefined>> = process.env) {
+  const configured = Number(source.SESSION_MAX_AGE_SECONDS ?? "");
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return defaultSessionMaxAgeSeconds;
+  }
+  return Math.min(Math.floor(configured), maximumSessionMaxAgeSeconds);
+}
+
+function isValidSessionPayload(value: unknown): value is SessionPayload {
+  const payload = value as Partial<SessionPayload>;
+  return (
+    typeof payload.userId === "string" &&
+    typeof payload.organizationId === "string" &&
+    typeof payload.role === "string" &&
+    typeof payload.issuedAt === "number" &&
+    Number.isFinite(payload.issuedAt)
+  );
+}
+
+export function parseSessionToken(token: string | undefined, secret: string, options: ParseSessionOptions = {}): SessionPayload | null {
   if (!token) {
     return null;
   }
@@ -50,7 +76,16 @@ export function parseSessionToken(token: string | undefined, secret: string): Se
   }
 
   try {
-    return JSON.parse(base64UrlDecode(body)) as SessionPayload;
+    const payload = JSON.parse(base64UrlDecode(body));
+    if (!isValidSessionPayload(payload)) {
+      return null;
+    }
+    const maxAgeMs = (options.maxAgeSeconds ?? getSessionMaxAgeSeconds()) * 1000;
+    const now = options.now ?? Date.now();
+    if (payload.issuedAt > now || now - payload.issuedAt > maxAgeMs) {
+      return null;
+    }
+    return payload;
   } catch {
     return null;
   }

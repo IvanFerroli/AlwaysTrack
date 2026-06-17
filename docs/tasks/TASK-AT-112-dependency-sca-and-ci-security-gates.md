@@ -1,9 +1,9 @@
 # TASK-AT-112 - Seguranca: dependencias, SCA e gates no CI
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-112-dependency-sca-and-ci-security-gates.md
 
 ## Modo
@@ -84,3 +84,8 @@ Mesmo codigo bom pode ficar vulneravel se uma dependencia ganha CVE. O CI precis
 ## Retorno esperado
 - Politica de severidade.
 - Como rodar e interpretar os checks.
+
+## Execucao
+- completed-by: ops/ci/security-docs-slice
+- exec: docs/tasks/EXEC-AT-112-security-dependency-ci-gates.md
+- notes: `security:deps` e secret-pattern hygiene implementados; `.github/workflows` ficou documentado como recomendacao por estar fora do escopo de escrita informado.

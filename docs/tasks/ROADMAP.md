@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-13
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -123,13 +123,23 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 104. `TASK-AT-118`: `npm run up` como bancada de estudo local. Status: completed.
 105. `TASK-AT-119`: deep dive de fluxos de manutencao para onboarding. Status: completed.
 106. `TASK-AT-120`: checklist rapido de diagnostico para retomada e manutencao. Status: completed.
+107. `EXEC-AT-102`: modelo de ameacas e auditoria base da fase de seguranca (`TASK-AT-102`). Status: completed.
+108. `EXEC-AT-103`: headers HTTP, CORS e perimetro web (`TASK-AT-103`). Status: completed.
+109. `EXEC-AT-104`: hardening de login, senha e sessao (`TASK-AT-104`). Status: completed.
+110. `EXEC-AT-105`: protecao CSRF e validacao de origem (`TASK-AT-105`). Status: completed.
+111. `EXEC-AT-106`: rate limit e protecao contra abuso (`TASK-AT-106`). Status: completed.
+112. `EXEC-AT-108`: hardening de uploads e arquivos (`TASK-AT-108`). Status: completed.
+113. `EXEC-AT-109`: autorizacao, tenancy e testes anti-IDOR (`TASK-AT-109`). Status: completed.
+114. `EXEC-AT-110`: segredos, envs e deploy de producao (`TASK-AT-110`). Status: completed.
+115. `EXEC-AT-111`: auditoria, monitoramento e alertas (`TASK-AT-111`). Status: completed.
+116. `EXEC-AT-112`: dependencias, SCA e gates no CI (`TASK-AT-112`). Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-102-security-threat-model-and-baseline-audit.md`: Modelo de ameacas e auditoria base da fase de seguranca. Primeira task recomendada antes de qualquer implementacao.
-2. `TASK-AT-103-http-security-headers-cors-perimeter.md`: Headers HTTP, CORS e perimetro web.
-3. `TASK-AT-104-auth-session-and-login-hardening.md`: Hardening de login, senha e sessao.
-4. `TASK-AT-105-csrf-origin-protection-for-cookie-api.md`: Protecao CSRF e validacao de origem.
-5. `TASK-AT-106-rate-limit-and-abuse-protection.md`: Rate limit e protecao contra abuso.
+1. `TASK-AT-107-runtime-input-validation-contracts.md`: Validacao runtime de entrada e contratos de API.
+2. `TASK-AT-113-database-backup-and-data-protection-hardening.md`: Banco, backup e protecao de dados.
+3. `TASK-AT-114-external-integrations-webhooks-and-ai-security.md`: Integracoes externas, webhooks e IA.
+4. `TASK-AT-115-incident-response-and-security-operations-runbook.md`: Runbook de incidente e operacao segura.
+5. `TASK-AT-116-security-release-gate-before-external-exposure.md`: Gate antes de exposicao externa.
 6. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
 7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 
@@ -189,17 +199,17 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: proposed-backlog.
 
 ### Fase D - Cyber seguranca e exposicao externa
-1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: proposed.
-2. `TASK-AT-103`: Headers HTTP, CORS e perimetro web. Status: proposed.
-3. `TASK-AT-104`: Hardening de login, senha e sessao. Status: proposed.
-4. `TASK-AT-105`: Protecao CSRF e validacao de origem. Status: proposed.
-5. `TASK-AT-106`: Rate limit e protecao contra abuso. Status: proposed.
+1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.
+2. `TASK-AT-103`: Headers HTTP, CORS e perimetro web. Status: completed.
+3. `TASK-AT-104`: Hardening de login, senha e sessao. Status: completed.
+4. `TASK-AT-105`: Protecao CSRF e validacao de origem. Status: completed.
+5. `TASK-AT-106`: Rate limit e protecao contra abuso. Status: completed.
 6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: proposed.
-7. `TASK-AT-108`: Hardening de uploads e arquivos. Status: proposed.
-8. `TASK-AT-109`: Autorizacao, tenancy e testes anti-IDOR. Status: proposed.
-9. `TASK-AT-110`: Segredos, envs e deploy de producao. Status: proposed.
-10. `TASK-AT-111`: Auditoria, monitoramento e alertas de seguranca. Status: proposed.
-11. `TASK-AT-112`: Dependencias, SCA e gates no CI. Status: proposed.
+7. `TASK-AT-108`: Hardening de uploads e arquivos. Status: completed.
+8. `TASK-AT-109`: Autorizacao, tenancy e testes anti-IDOR. Status: completed.
+9. `TASK-AT-110`: Segredos, envs e deploy de producao. Status: completed.
+10. `TASK-AT-111`: Auditoria, monitoramento e alertas de seguranca. Status: completed.
+11. `TASK-AT-112`: Dependencias, SCA e gates no CI. Status: completed.
 12. `TASK-AT-113`: Banco, backup e protecao de dados. Status: proposed.
 13. `TASK-AT-114`: Integracoes externas, webhooks e IA. Status: proposed.
 14. `TASK-AT-115`: Runbook de incidente e operacao segura. Status: proposed.

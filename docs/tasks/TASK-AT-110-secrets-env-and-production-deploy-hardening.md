@@ -1,9 +1,9 @@
 # TASK-AT-110 - Seguranca: segredos, envs e deploy de producao
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-110-secrets-env-and-production-deploy-hardening.md
 
 ## Modo
@@ -94,3 +94,8 @@ Muitos ataques nao quebram criptografia; eles encontram uma chave esquecida, sen
 ## Retorno esperado
 - Lista de variaveis obrigatorias para producao.
 - Passo a passo para o usuario configurar com seguranca.
+
+## Execucao
+- completed-by: ops/ci/security-docs-slice
+- exec: docs/tasks/EXEC-AT-110-security-secrets-env-production.md
+- notes: Gate de producao reforcado em `scripts/check-env.js`; `.env.production.example` ficou como recomendacao porque esta fora do escopo de escrita informado.

@@ -8,6 +8,7 @@ export interface ApiEnv {
   sessionCookieName: string;
   port: number;
   corsOrigin?: string;
+  corsOrigins?: string[];
   storageProvider: "local";
   storageLocalDir: string;
   documentMaxBytes: number;
@@ -42,6 +43,13 @@ export interface ApiEnv {
   jobQueueDriver?: "inline" | "bullmq";
   redisUrl?: string;
   jobConcurrency?: number;
+  rateLimitWindowMs?: number;
+  rateLimitLoginMax?: number;
+  rateLimitUploadMax?: number;
+  rateLimitAiMax?: number;
+  rateLimitSearchMax?: number;
+  rateLimitInteractionMax?: number;
+  rateLimitAdminMax?: number;
 }
 
 let dotEnvLoaded = false;
@@ -70,6 +78,10 @@ function loadDotEnv() {
 
 export function loadEnv(source = process.env): ApiEnv {
   loadDotEnv();
+  const corsOrigins = (source.CORS_ORIGIN ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   return {
     appName: source.APP_NAME?.trim() || "AlwaysTrack",
     databaseUrl: source.DATABASE_URL ?? "file:./dev.db",
@@ -77,6 +89,7 @@ export function loadEnv(source = process.env): ApiEnv {
     sessionCookieName: source.SESSION_COOKIE_NAME ?? "alwaystrack_session",
     port: Number(source.API_PORT ?? "3333"),
     corsOrigin: source.CORS_ORIGIN,
+    corsOrigins,
     storageProvider: "local",
     storageLocalDir: source.STORAGE_LOCAL_DIR ?? ".storage/private",
     documentMaxBytes: Number(source.DOCUMENT_MAX_BYTES ?? String(10 * 1024 * 1024)),
@@ -118,6 +131,13 @@ export function loadEnv(source = process.env): ApiEnv {
     prismaSlowQueryMs: Number(source.PRISMA_SLOW_QUERY_MS ?? "200"),
     jobQueueDriver: source.JOB_QUEUE_DRIVER === "bullmq" ? "bullmq" : "inline",
     redisUrl: source.REDIS_URL,
-    jobConcurrency: Number(source.JOB_CONCURRENCY ?? "2")
+    jobConcurrency: Number(source.JOB_CONCURRENCY ?? "2"),
+    rateLimitWindowMs: Number(source.RATE_LIMIT_WINDOW_MS ?? String(60 * 1000)),
+    rateLimitLoginMax: Number(source.RATE_LIMIT_LOGIN_MAX ?? "10"),
+    rateLimitUploadMax: Number(source.RATE_LIMIT_UPLOAD_MAX ?? "20"),
+    rateLimitAiMax: Number(source.RATE_LIMIT_AI_MAX ?? "10"),
+    rateLimitSearchMax: Number(source.RATE_LIMIT_SEARCH_MAX ?? "120"),
+    rateLimitInteractionMax: Number(source.RATE_LIMIT_INTERACTION_MAX ?? "60"),
+    rateLimitAdminMax: Number(source.RATE_LIMIT_ADMIN_MAX ?? "90")
   };
 }

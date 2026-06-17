@@ -1,9 +1,9 @@
 # TASK-AT-103 - Seguranca: headers HTTP, CORS e perimetro web
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-103-http-security-headers-cors-perimeter.md
 
 ## Modo
@@ -89,3 +89,10 @@ CORS diz "qual site pode chamar minha API pelo navegador". Headers de seguranca 
 ## Retorno esperado
 - Lista dos headers adicionados.
 - Observacoes de compatibilidade com Google login e assets locais.
+
+## Execucao 2026-06-17
+- Implementado middleware proprio em `services/api/src/core/http/security.ts`.
+- API e nginx enviam CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP e CORP.
+- CORS agora responde somente para origem configurada em `CORS_ORIGIN`; preflight de origem inesperada retorna `403`.
+- `scripts/check-env.js --production` valida `CORS_ORIGIN` e `VITE_API_BASE_URL` como URLs HTTPS publicas.
+- Documentacao operacional: `docs/security/http-perimeter.md`.

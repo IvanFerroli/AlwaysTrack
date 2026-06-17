@@ -96,6 +96,7 @@ model User {
   phone           String?
   avatarUrl       String?
   active          Boolean  @default(true)
+  passwordChangedAt DateTime @default(now())
   organizationId  String
   unitScopeJson   String?
   sectorScopeJson String?

@@ -30,6 +30,7 @@
     "docs:api": "typedoc --options typedoc.json",
     "db:test:migrations": "node scripts/test-migrations.js",
     "repo:hygiene": "node scripts/check-repo-hygiene.js",
+    "security:deps": "npm audit --audit-level=high --omit=dev",
     "perf:smoke": "artillery run tests/performance/alwaystrack-smoke.yml",
     "perf:1000": "artillery run tests/performance/alwaystrack-1000.yml",
     "perf:smoke:report": "node scripts/perf-report.js smoke",

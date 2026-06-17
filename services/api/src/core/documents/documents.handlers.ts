@@ -72,6 +72,8 @@ export async function downloadDocumentHandler(request: Request, response: Respon
     );
     response.setHeader("content-type", download.mimeType);
     response.setHeader("content-length", String(download.size));
+    response.setHeader("x-content-type-options", "nosniff");
+    response.setHeader("cache-control", "private, max-age=0, must-revalidate");
     response.setHeader("content-disposition", `inline; filename="${download.fileName.replaceAll('"', "")}"`);
     return response.status(200).send(download.body);
   } catch (error) {

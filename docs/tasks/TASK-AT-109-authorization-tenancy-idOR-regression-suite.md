@@ -1,9 +1,9 @@
 # TASK-AT-109 - Seguranca: autorizacao, tenancy e testes anti-IDOR
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-109-authorization-tenancy-idOR-regression-suite.md
 
 ## Modo
@@ -93,3 +93,17 @@ Login responde "quem e voce?". Autorizacao responde "o que voce pode fazer?". Te
 ## Retorno esperado
 - Matriz de permissao testada.
 - Lista de gaps de autorizacao restantes.
+
+## Resultado 2026-06-17
+
+Matriz coberta neste slice:
+
+| Area | Regressao |
+| --- | --- |
+| Documentos | Download de documento de outra organizacao retorna `FORBIDDEN` antes de ler storage. |
+| DANFE comercial | Lookup de documento por vendedor inclui `organizationId` e `sellerProfile.userId`, retornando `NOT_FOUND` para outro vendedor. |
+| Wiki anexos | Download de anexo consulta por `id` e `organizationId` do ator. |
+
+Gaps restantes para tarefas futuras:
+- Cobertura API/e2e multi-organizacao completa para FAQ, avisos, Scriptoteca, notificacoes e usuarios/configuracoes.
+- Matriz de escopo detalhada para ranking/extratos por supervisor com fixture real multi-organizacao.

@@ -12,7 +12,7 @@ import {
   isGoogleLoginConfigured,
   resolveGoogleLoginProfile
 } from "./google-login.service.js";
-import { getSessionCookieName } from "./session.js";
+import { getSessionCookieName, getSessionMaxAgeSeconds } from "./session.js";
 
 const googleLoginStateCookieName = "alwaystrack_google_login_state";
 
@@ -22,7 +22,7 @@ function sessionCookie(token: string, env = loadEnv()) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8
+    maxAge: getSessionMaxAgeSeconds()
   });
 }
 

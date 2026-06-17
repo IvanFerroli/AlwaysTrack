@@ -63,15 +63,37 @@ function sessionForUser(user: { id: string; organizationId: string; role: string
   );
 }
 
+async function recordAuthFailure(
+  prisma: PrismaClient,
+  user: { id: string; email: string; organizationId: string },
+  action: "auth.login_failed" | "auth.google_login_failed",
+  reason: string
+) {
+  await recordAuditLog(prisma, {
+    organizationId: user.organizationId,
+    actorId: user.id,
+    action,
+    entityType: "User",
+    entityId: user.id,
+    metadata: { email: user.email, reason }
+  });
+}
+
 export async function loginUser(prisma: PrismaClient, input: LoginInput, sessionSecret: string) {
   const normalizedEmail = normalizeEmail(input.email);
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-  if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
+  if (!user) {
+    throw new AuthError("INVALID_CREDENTIALS");
+  }
+
+  if (!(await verifyPassword(input.password, user.passwordHash))) {
+    await recordAuthFailure(prisma, user, "auth.login_failed", "invalid_credentials");
     throw new AuthError("INVALID_CREDENTIALS");
   }
 
   if (!user.active) {
+    await recordAuthFailure(prisma, user, "auth.login_failed", "inactive_user");
     throw new AuthError("INACTIVE_USER");
   }
 
@@ -112,6 +134,7 @@ export async function loginUserByVerifiedGoogleEmail(
   }
 
   if (!user.active) {
+    await recordAuthFailure(prisma, user, "auth.google_login_failed", "inactive_user");
     throw new AuthError("INACTIVE_USER");
   }
 

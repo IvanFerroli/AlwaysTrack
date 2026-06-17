@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { commercialUserRoles, userRoles, type UserRole } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
-import { hashPassword } from "../auth/password.js";
+import { hashPassword, validatePasswordPolicy } from "../auth/password.js";
 import { parseScopeIds } from "../auth/scope.js";
 
 export class UserManagementError extends Error {
@@ -80,7 +80,7 @@ function isCommercialRole(role: string): role is UserRole {
 
 function cleanPassword(value: unknown) {
   const password = cleanText(value);
-  return password && password.length >= 8 ? password : undefined;
+  return password;
 }
 
 function serializeScopeIds(role: UserRole, scopeIds: string[] | undefined) {
@@ -284,6 +284,9 @@ export async function createManagedUser(prisma: PrismaClient, actor: ActorContex
   if (!input.name || !input.email || !input.password || !input.role) {
     throw new UserManagementError("INVALID_INPUT");
   }
+  if (!validatePasswordPolicy(input.password, { email: input.email }).valid) {
+    throw new UserManagementError("INVALID_INPUT");
+  }
   if (!["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"].includes(input.role)) {
     throw new UserManagementError("INVALID_INPUT");
   }
@@ -414,10 +417,13 @@ export async function resetManagedUserPassword(
   if (!existing) {
     throw new UserManagementError("NOT_FOUND");
   }
+  if (!validatePasswordPolicy(password, { email: existing.email }).valid) {
+    throw new UserManagementError("INVALID_INPUT");
+  }
 
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await hashPassword(password) }
+    data: { passwordHash: await hashPassword(password), passwordChangedAt: new Date() }
   });
 
   await recordAuditLog(prisma, {

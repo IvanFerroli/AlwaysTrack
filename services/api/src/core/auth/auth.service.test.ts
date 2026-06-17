@@ -61,11 +61,57 @@ describe("auth service", () => {
           unitScopeJson: null,
           sectorScopeJson: null
         })
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({ id: "audit-1" })
       }
     };
 
     await expect(loginUser(prisma as never, { email: "admin@example.com", password: "secret" }, "secret")).rejects.toBeInstanceOf(
       AuthError
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "auth.login_failed",
+          actorId: "user-1",
+          metadataJson: expect.stringContaining("inactive_user")
+        })
+      })
+    );
+  });
+
+  it("audits failed password attempts for known users", async () => {
+    const passwordHash = await hashPassword("secret");
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "admin@example.com",
+          passwordHash,
+          role: "ADMIN",
+          active: true,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null
+        })
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({ id: "audit-1" })
+      }
+    };
+
+    await expect(loginUser(prisma as never, { email: "admin@example.com", password: "wrong" }, "secret")).rejects.toMatchObject({
+      code: "INVALID_CREDENTIALS"
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "auth.login_failed",
+          actorId: "user-1",
+          metadataJson: expect.stringContaining("invalid_credentials")
+        })
+      })
     );
   });
 
@@ -128,5 +174,42 @@ describe("auth service", () => {
     await expect(
       loginUserByVerifiedGoogleEmail(prisma as never, { email: "admin@example.com", emailVerified: true, allowedDomains: ["example.com"] }, "secret")
     ).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
+  });
+
+  it("audits inactive Google login attempts for known users", async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "admin@example.com",
+          passwordHash: "unused",
+          role: "ADMIN",
+          active: false,
+          organizationId: "org-1",
+          unitScopeJson: null,
+          sectorScopeJson: null
+        })
+      },
+      auditLog: {
+        create: vi.fn().mockResolvedValue({ id: "audit-1" })
+      }
+    };
+
+    await expect(
+      loginUserByVerifiedGoogleEmail(
+        prisma as never,
+        { email: "admin@example.com", emailVerified: true, allowedDomains: ["example.com"] },
+        "secret"
+      )
+    ).rejects.toMatchObject({ code: "INACTIVE_USER" });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "auth.google_login_failed",
+          actorId: "user-1",
+          metadataJson: expect.stringContaining("inactive_user")
+        })
+      })
+    );
   });
 });

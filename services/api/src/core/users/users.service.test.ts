@@ -18,7 +18,7 @@ describe("users service", () => {
       parseCreateUserInput({
         name: " Admin ",
         email: " ADMIN@EXAMPLE.COM ",
-        password: "12345678",
+        password: "Rastro#Seguro2026",
         role: "VENDEDOR",
         phone: "",
         unitScopeIds: ["unit-1", "unit-1", ""],
@@ -27,7 +27,7 @@ describe("users service", () => {
     ).toEqual({
       name: "Admin",
       email: "admin@example.com",
-      password: "12345678",
+      password: "Rastro#Seguro2026",
       role: "VENDEDOR",
       phone: null,
       active: undefined,
@@ -89,7 +89,7 @@ describe("users service", () => {
     const user = await createManagedUser(prisma as never, actor, {
       name: "SAC",
       email: "sac@example.com",
-      password: "12345678",
+      password: "Rastro#Seguro2026",
       role: "SAC",
       unitScopeIds: ["unit-1"]
     });
@@ -121,11 +121,28 @@ describe("users service", () => {
       createManagedUser(prisma as never, actor, {
         name: "RT",
         email: "rt@example.com",
-        password: "12345678",
+        password: "Rastro#Seguro2026",
         role: "RT",
         unitScopeIds: ["unit-out"]
       })
     ).rejects.toEqual(new UserManagementError("INVALID_INPUT"));
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects weak user creation passwords before writing", async () => {
+    const prisma = {
+      user: { findUnique: vi.fn(), create: vi.fn() }
+    };
+
+    await expect(
+      createManagedUser(prisma as never, actor, {
+        name: "SAC",
+        email: "sac@example.com",
+        password: "password123",
+        role: "SAC"
+      })
+    ).rejects.toEqual(new UserManagementError("INVALID_INPUT"));
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
@@ -159,7 +176,7 @@ describe("users service", () => {
     await createManagedUser(prisma as never, actor, {
       name: "Ana",
       email: "ana@example.com",
-      password: "12345678",
+      password: "Rastro#Seguro2026",
       role: "VENDEDOR",
       phone: "+5583999999999",
       sellerCode: "VD-004",
@@ -230,7 +247,7 @@ describe("users service", () => {
   it("resets password without requiring or returning the old password", async () => {
     const prisma = {
       user: {
-        findFirst: vi.fn().mockResolvedValue({ id: "user-1" }),
+        findFirst: vi.fn().mockResolvedValue({ id: "user-1", email: "sup@example.com" }),
         update: vi.fn().mockResolvedValue({
           id: "user-1",
           name: "Supervisor",
@@ -249,11 +266,11 @@ describe("users service", () => {
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
-    const user = await resetManagedUserPassword(prisma as never, actor, "user-1", "12345678");
+    const user = await resetManagedUserPassword(prisma as never, actor, "user-1", "Rastro#Seguro2026");
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
-      data: { passwordHash: expect.stringMatching(/^scrypt:/) }
+      data: { passwordHash: expect.stringMatching(/^scrypt:/), passwordChangedAt: expect.any(Date) }
     });
     expect(user).not.toHaveProperty("passwordHash");
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
@@ -280,6 +297,20 @@ describe("users service", () => {
       new UserManagementError("INVALID_INPUT")
     );
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects weak password resets after loading the target email", async () => {
+    const prisma = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({ id: "user-1", email: "user@example.com" }),
+        update: vi.fn()
+      }
+    };
+
+    await expect(resetManagedUserPassword(prisma as never, actor, "user-1", "user@example.com")).rejects.toEqual(
+      new UserManagementError("INVALID_INPUT")
+    );
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 

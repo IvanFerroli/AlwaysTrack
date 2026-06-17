@@ -1,9 +1,9 @@
 # TASK-AT-108 - Seguranca: hardening de uploads e arquivos
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-108-upload-file-security-hardening.md
 
 ## Modo
@@ -91,3 +91,23 @@ Nao confie no cracha que o arquivo mostra. Verifique o conteudo. Um arquivo pode
 ## Retorno esperado
 - Tabela de tipos aceitos e limites.
 - Lista de rotas de upload protegidas.
+
+## Resultado 2026-06-17
+
+Tipos aceitos e limites por arquivo, sempre limitados tambem por `DOCUMENT_MAX_BYTES`:
+
+| Tipo | MIME aceito | Limite |
+| --- | --- | --- |
+| PDF | `application/pdf` | 10 MB |
+| XML NF-e | `application/xml`, `text/xml` | 2 MB |
+| JPEG | `image/jpeg` | 5 MB |
+| PNG | `image/png` | 5 MB |
+| WebP | `image/webp` | 5 MB |
+
+Rotas protegidas neste slice:
+- `POST /v1/documents`
+- `POST /v1/public-upload/:token`
+- `POST /v1/sales/documents`
+- `POST /v1/wiki/attachments`
+
+Arquivos autenticados de documentos e anexos Wiki tambem passam a responder com `X-Content-Type-Options: nosniff` e `Cache-Control: private, max-age=0, must-revalidate`.

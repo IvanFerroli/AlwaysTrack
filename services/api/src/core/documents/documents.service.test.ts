@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
   DocumentError,
+  getDocumentDownload,
   listDocuments,
   parseDocumentFilters,
   parseDocumentUploadInput,
@@ -12,6 +13,7 @@ import {
   uploadDocument,
   validateDocument
 } from "./documents.service.js";
+import { detectAllowedFileType } from "./file-validation.js";
 import { LocalStorageProvider, type StorageProvider } from "./storage.js";
 
 const admin: CurrentUser = {
@@ -25,6 +27,8 @@ const admin: CurrentUser = {
 };
 
 let tempDirs: string[] = [];
+const pdfBody = Buffer.from("%PDF-1.7\n%%EOF\n");
+const pngBody = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
 
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -55,7 +59,7 @@ function prismaMock() {
         fileKey: "org-1/pro-1/lic-1/file.pdf",
         fileName: "documento.pdf",
         mimeType: "application/pdf",
-        size: 4,
+        size: pdfBody.length,
         status: "UPLOADED"
       })
     },
@@ -91,14 +95,14 @@ describe("documents service", () => {
       parseDocumentUploadInput({
         query: { professionalId: " pro-1 ", licenseId: "lic-1", fileName: "arquivo.pdf" },
         headers: { "content-type": "application/pdf; charset=binary" },
-        body: Buffer.from("file")
+        body: pdfBody
       })
     ).toEqual({
       professionalId: "pro-1",
       licenseId: "lic-1",
       fileName: "arquivo.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("file")
+      body: pdfBody
     });
   });
 
@@ -143,13 +147,13 @@ describe("documents service", () => {
       licenseId: "lic-1",
       fileName: "../registro.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("file")
+      body: pdfBody
     });
 
     expect(storage.put).toHaveBeenCalledWith(
       expect.objectContaining({
         fileKey: expect.stringContaining("org-1/pro-1/lic-1/"),
-        body: Buffer.from("file"),
+        body: pdfBody,
         mimeType: "application/pdf"
       })
     );
@@ -159,7 +163,7 @@ describe("documents service", () => {
           fileKey: expect.stringContaining("org-1/pro-1/lic-1/"),
           fileName: "registro.pdf",
           mimeType: "application/pdf",
-          size: 4,
+          size: pdfBody.length,
           status: "UPLOADED",
           uploadedByUserId: "admin-1"
         })
@@ -194,10 +198,35 @@ describe("documents service", () => {
         licenseId: "lic-1",
         fileName: "arquivo.pdf",
         mimeType: "application/pdf",
-        body: Buffer.from("file")
+        body: pdfBody
       })
     ).rejects.toEqual(new DocumentError("FILE_TOO_LARGE"));
     expect(storage.put).not.toHaveBeenCalled();
+  });
+
+  it("rejects files whose content does not match the claimed mime type", async () => {
+    const prisma = prismaMock();
+    const storage: StorageProvider = { put: vi.fn(), get: vi.fn() };
+
+    await expect(
+      uploadDocument(prisma as never, storage, admin, {
+        professionalId: "pro-1",
+        licenseId: "lic-1",
+        fileName: "fake.png",
+        mimeType: "image/png",
+        body: Buffer.from("<html>not an image</html>")
+      })
+    ).rejects.toEqual(new DocumentError("UNSUPPORTED_TYPE"));
+    expect(storage.put).not.toHaveBeenCalled();
+  });
+
+  it("detects allowed upload file signatures", () => {
+    expect(detectAllowedFileType(pdfBody)).toBe("pdf");
+    expect(detectAllowedFileType(pngBody)).toBe("png");
+    expect(detectAllowedFileType(Buffer.from([0xff, 0xd8, 0xff, 0xdb]))).toBe("jpeg");
+    expect(detectAllowedFileType(Buffer.from("RIFFxxxxWEBPvp8 "))).toBe("webp");
+    expect(detectAllowedFileType(Buffer.from("<nfeProc><NFe><infNFe Id=\"NFe1\" /></NFe></nfeProc>"))).toBe("xml");
+    expect(detectAllowedFileType(Buffer.from("<svg></svg>"))).toBeNull();
   });
 
   it("reads back files from local private storage", async () => {
@@ -212,6 +241,32 @@ describe("documents service", () => {
       mimeType: "application/octet-stream"
     });
     await expect(storage.get("../outside.pdf")).rejects.toThrow("INVALID_FILE_KEY");
+  });
+
+  it("blocks document downloads outside the actor organization before storage read", async () => {
+    const prisma = {
+      document: {
+        findFirst: vi.fn().mockResolvedValue(
+          uploadedDocument({
+            fileKey: "org-2/pro-1/lic-1/file.pdf",
+            fileName: "documento.pdf",
+            mimeType: "application/pdf",
+            size: pdfBody.length,
+            professional: {
+              id: "pro-1",
+              organizationId: "org-2",
+              responsibleRtId: null,
+              unitId: "unit-1",
+              sectorId: "sector-1"
+            }
+          })
+        )
+      }
+    };
+    const storage: StorageProvider = { put: vi.fn(), get: vi.fn() };
+
+    await expect(getDocumentDownload(prisma as never, storage, admin, "doc-foreign")).rejects.toEqual(new DocumentError("FORBIDDEN"));
+    expect(storage.get).not.toHaveBeenCalled();
   });
 
   it("approves uploaded documents with audit and license recalculation", async () => {

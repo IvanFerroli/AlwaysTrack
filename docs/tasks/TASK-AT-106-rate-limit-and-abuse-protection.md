@@ -1,9 +1,9 @@
 # TASK-AT-106 - Seguranca: rate limit e protecao contra abuso
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-106-rate-limit-and-abuse-protection.md
 
 ## Modo
@@ -99,3 +99,10 @@ Rate limit e uma catraca. Usuario normal quase nunca percebe. Bot ou atacante ba
 ## Retorno esperado
 - Tabela de limites por rota.
 - Como ajustar envs sem alterar codigo.
+
+## Execucao 2026-06-17
+- Implementado limitador reutilizavel em memoria em `services/api/src/core/http/rate-limit.ts`.
+- Politicas aplicadas para login, Google login, uploads publicos/autenticados, IA/reprocessamento, busca, comentarios/reacoes/copia e rotas administrativas sensiveis.
+- Resposta padrao de excesso: `429 TOO_MANY_REQUESTS` com `Retry-After` e headers `RateLimit-*`.
+- Limites configuraveis por `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_LOGIN_MAX`, `RATE_LIMIT_UPLOAD_MAX`, `RATE_LIMIT_AI_MAX`, `RATE_LIMIT_SEARCH_MAX`, `RATE_LIMIT_INTERACTION_MAX` e `RATE_LIMIT_ADMIN_MAX`.
+- Limitador em memoria documentado como MVP single-instance; producao multi-instancia deve usar store compartilhado ou limite de borda.

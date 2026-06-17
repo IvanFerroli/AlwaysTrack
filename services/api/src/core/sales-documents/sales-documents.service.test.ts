@@ -21,6 +21,7 @@ import {
   reviewSalesDocument,
   salesDashboardCsv,
   salesExportFileName,
+  SalesDocumentError,
   salesRankingCsv,
   salesStatementsCsv,
   uniqueSalesInvoicesByAccessKey,
@@ -46,6 +47,9 @@ const seller: CurrentUser = {
   unitScopeIds: [],
   sectorScopeIds: []
 };
+
+const pdfBody = Buffer.from("%PDF-1.7\n%%EOF\n");
+const nfeXmlBody = Buffer.from("<nfeProc><NFe><infNFe Id=\"NFe35260500000000000100550010000000011000000010\" /></NFe></nfeProc>");
 
 describe("sales documents service", () => {
   it("extracts searchable DANFE text without AI", () => {
@@ -137,13 +141,13 @@ INFORMAÇÕES COMPLEMENTARES
       parseSalesDocumentUploadInput({
         query: { sellerProfileId: " seller-1 ", fileName: "danfe.pdf" },
         headers: { "content-type": "application/xml; charset=utf-8" },
-        body: Buffer.from("pdf")
+        body: nfeXmlBody
       })
     ).toEqual({
       sellerProfileId: "seller-1",
       fileName: "danfe.pdf",
       mimeType: "application/xml",
-      body: Buffer.from("pdf")
+      body: nfeXmlBody
     });
   });
 
@@ -316,7 +320,7 @@ INFORMAÇÕES COMPLEMENTARES
     const result = await uploadSalesDocument(prisma as never, storage, seller, {
       fileName: "../danfe.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("pdf")
+      body: pdfBody
     });
 
     expect(result.status).toBe("UPLOADED");
@@ -328,6 +332,44 @@ INFORMAÇÕES COMPLEMENTARES
     );
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "sales_document.upload", entityType: "SalesDocument" }) })
+    );
+  });
+
+  it("rejects DANFE uploads whose bytes do not match the claimed mime type", async () => {
+    const prisma = {
+      sellerProfile: { findFirst: vi.fn() },
+      salesDocument: { create: vi.fn() },
+      auditLog: { create: vi.fn() }
+    };
+    const storage = { put: vi.fn(), get: vi.fn() };
+
+    await expect(
+      uploadSalesDocument(prisma as never, storage, seller, {
+        fileName: "fake.png",
+        mimeType: "image/png",
+        body: Buffer.from("<html>not an image</html>")
+      })
+    ).rejects.toEqual(new SalesDocumentError("UNSUPPORTED_TYPE"));
+    expect(storage.put).not.toHaveBeenCalled();
+    expect(prisma.sellerProfile.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("keeps seller document lookups scoped to the actor organization and seller profile", async () => {
+    const prisma = {
+      salesDocument: { findFirst: vi.fn().mockResolvedValue(null) }
+    };
+
+    await expect(getSalesDocumentDiagnostics(prisma as never, seller, "doc-from-another-seller")).rejects.toEqual(
+      new SalesDocumentError("NOT_FOUND")
+    );
+    expect(prisma.salesDocument.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "doc-from-another-seller",
+          organizationId: "org-1",
+          sellerProfile: expect.objectContaining({ organizationId: "org-1", userId: "seller-user-1" })
+        })
+      })
     );
   });
 

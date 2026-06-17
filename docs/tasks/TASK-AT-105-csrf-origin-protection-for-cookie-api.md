@@ -1,9 +1,9 @@
 # TASK-AT-105 - Seguranca: protecao CSRF e validacao de origem
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-105-csrf-origin-protection-for-cookie-api.md
 
 ## Modo
@@ -79,3 +79,10 @@ CSRF e tipo alguem colocar um formulario escondido num site qualquer dizendo "ap
 ## Retorno esperado
 - Lista de rotas protegidas e rotas excepcionadas.
 - Orientacao de env para producao.
+
+## Execucao 2026-06-17
+- Implementado guard de origem em `services/api/src/core/http/security.ts` para `POST`, `PATCH`, `PUT` e `DELETE`.
+- Em producao, mutacoes exigem `Origin` ou `Referer` confiavel conforme `CORS_ORIGIN`.
+- Ambiente local aceita loopback e chamadas sem origem para preservar scripts e curl.
+- Excecoes publicas: `POST /v1/webhooks/meta-whatsapp`, `POST /v1/public-help/wa-link`, `POST /v1/public-upload/:token`.
+- Testes cobrem origem valida, origem ausente em producao, preflight invalido e excecao publica.

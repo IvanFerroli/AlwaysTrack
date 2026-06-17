@@ -42,6 +42,8 @@ const rt: CurrentUser = {
   sectorScopeIds: []
 };
 
+const pngBody = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+
 describe("wiki service", () => {
   it("parses page and request payloads", () => {
     expect(parseWikiPageInput({ title: " Guia ", content: " Conteudo ", baseVersion: "2" })).toEqual({
@@ -68,14 +70,14 @@ describe("wiki service", () => {
       parseWikiAttachmentUploadInput({
         query: { pageId: " page-1 " },
         headers: { "content-type": "image/png; charset=binary", "x-file-name": "foto.png" },
-        body: Buffer.from("file")
+        body: pngBody
       })
     ).toEqual({
       pageId: "page-1",
       requestId: undefined,
       fileName: "foto.png",
       mimeType: "image/png",
-      body: Buffer.from("file")
+      body: pngBody
     });
   });
 
@@ -448,7 +450,7 @@ describe("wiki service", () => {
           fileName: "foto.png",
           fileKey: "org-1/wiki-attachments/file.png",
           mimeType: "image/png",
-          size: 4
+          size: pngBody.length
         })
       },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
@@ -459,7 +461,7 @@ describe("wiki service", () => {
       pageId: "page-1",
       fileName: "foto.png",
       mimeType: "image/png",
-      body: Buffer.from("file")
+      body: pngBody
     });
 
     expect(attachment.markdownUrl).toBe("/v1/wiki/attachments/att-1/file");
@@ -470,6 +472,27 @@ describe("wiki service", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: "wiki.attachment.upload" }) })
     );
+  });
+
+  it("rejects wiki attachments whose bytes do not match the claimed image type", async () => {
+    const prisma = {
+      wikiPage: { findFirst: vi.fn() },
+      wikiEditRequest: { findFirst: vi.fn() },
+      wikiAttachment: { create: vi.fn() },
+      auditLog: { create: vi.fn() }
+    };
+    const storage = { put: vi.fn(), get: vi.fn() };
+
+    await expect(
+      uploadWikiAttachment(prisma as never, storage as never, admin, {
+        pageId: "page-1",
+        fileName: "fake.png",
+        mimeType: "image/png",
+        body: Buffer.from("<html>not an image</html>")
+      })
+    ).rejects.toEqual(new WikiError("UNSUPPORTED_TYPE"));
+    expect(storage.put).not.toHaveBeenCalled();
+    expect(prisma.wikiPage.findFirst).not.toHaveBeenCalled();
   });
 
   it("downloads wiki attachments only from the actor organization", async () => {

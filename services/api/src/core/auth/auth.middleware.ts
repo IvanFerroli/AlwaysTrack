@@ -28,6 +28,10 @@ export async function requireAuth(request: Request, response: Response, next: Ne
     return sendError(response, 401, "UNAUTHENTICATED", "Login required.");
   }
 
+  if (user.passwordChangedAt && session.issuedAt < user.passwordChangedAt.getTime()) {
+    return sendError(response, 401, "UNAUTHENTICATED", "Login required.");
+  }
+
   if (!userRoles.includes(user.role as UserRole)) {
     return sendError(response, 401, "UNAUTHENTICATED", "Login required.");
   }

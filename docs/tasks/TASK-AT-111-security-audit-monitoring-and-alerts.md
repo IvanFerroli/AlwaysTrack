@@ -1,9 +1,9 @@
 # TASK-AT-111 - Seguranca: auditoria, monitoramento e alertas
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-111-security-audit-monitoring-and-alerts.md
 
 ## Modo
@@ -93,3 +93,8 @@ Seguranca nao e so impedir ataque; e perceber quando algo estranho acontece. Se 
 ## Retorno esperado
 - Lista de eventos de seguranca instrumentados.
 - Guia rapido de investigacao para admin.
+
+## Execucao
+- completed-by: ops/ci/security-docs-slice
+- exec: docs/tasks/EXEC-AT-111-security-audit-monitoring-alerts.md
+- notes: Taxonomia e runbook criados; instrumentacao de codigo/painel ficou como pendencia explicita por esta fatia ser documental/ops.

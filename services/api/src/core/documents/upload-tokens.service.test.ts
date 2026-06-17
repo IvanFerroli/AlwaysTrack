@@ -31,6 +31,8 @@ const supervisor: CurrentUser = {
   sectorScopeIds: []
 };
 
+const pdfBody = Buffer.from("%PDF-1.7\n%%EOF\n");
+
 function license() {
   return {
     id: "lic-1",
@@ -164,7 +166,7 @@ describe("upload tokens service", () => {
         update: vi.fn().mockResolvedValue({ id: "tok-1", active: false })
       },
       document: {
-        create: vi.fn().mockResolvedValue({ id: "doc-1", size: 4 })
+        create: vi.fn().mockResolvedValue({ id: "doc-1", size: pdfBody.length })
       },
       license: { update: vi.fn().mockResolvedValue({ id: "lic-1", status: "PENDING_VALIDATION" }) },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
@@ -175,7 +177,7 @@ describe("upload tokens service", () => {
       token: "raw",
       fileName: "registro.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("file")
+      body: pdfBody
     });
 
     expect(document.id).toBe("doc-1");
@@ -198,13 +200,13 @@ describe("upload tokens service", () => {
         token: "raw",
         query: { fileName: "registro.pdf" },
         headers: { "content-type": "application/pdf" },
-        body: Buffer.from("file")
+        body: pdfBody
       })
     ).toEqual({
       token: "raw",
       fileName: "registro.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("file")
+      body: pdfBody
     });
   });
 });
