@@ -45,7 +45,8 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 - Lacuna recomendada: adicionar coverage gate formal somente se o projeto decidir um alvo minimo por modulo. Hoje a prioridade e smoke confiavel e testes direcionados por risco.
 
 ## Backlog ativo apos auditoria
-1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: bloqueada por prints reais de acabamento visual.
+1. `TASK-AT-142-script-library-packs-regression-performance.md`: cobertura E2E/API e Artillery para pacotes recentes da Scriptoteca.
+2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: bloqueada por prints reais de acabamento visual.
 
 ## Follow-ups ainda nao taskificados
 1. Coverage formal com HTML gerado por comando padrao.
@@ -55,4 +56,4 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 5. Padronizacao de timeout/redaction em integracoes externas.
 
 ## Decisao
-Nao abrir novas tasks automaticamente nesta auditoria. As lacunas acima sao conhecidas, mas nao impedem a apresentacao local nem o estudo do projeto. Formalizar apenas quando o usuario decidir priorizar uma dessas frentes.
+Auditoria reaberta em 18/06/2026 apos `TASK-AT-126`, `TASK-AT-140` e `TASK-AT-141`. A cobertura existente continua suficiente para DANFE, Wiki/FAQ, seguranca, docs e validacao runtime da Scriptoteca em nivel unit/service. Porem, os pacotes/roteiros novos ainda nao aparecem nos cenarios Playwright/Artillery, entao foi criada `TASK-AT-142` como task unica de extensao de testes/stress. As demais lacunas seguem como follow-ups conscientes, sem task formal nova nesta rodada.
