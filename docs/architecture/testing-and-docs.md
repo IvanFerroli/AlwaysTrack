@@ -1,7 +1,7 @@
 # Testing and Docs Maintenance
 
 ## Comandos principais
-- `npm run up`: bancada local completa; instala, prepara banco/seed/docs, sobe API/Web/Studio e abre app/docs/reports no navegador.
+- `npm run up`: bancada local completa; instala, prepara banco/seed/docs, sobe API/Web/Studio e abre uma pagina central com app/docs/reports no navegador.
 - `npm run up -- --skip-install --no-open --no-perf-smoke`: variante rapida para subir sem abas e sem carga local.
 - `npm run setup`: prepara ambiente e banco sem subir servicos.
 - `npm run check`: gate rapido atual.
@@ -18,11 +18,12 @@
 - App: `http://localhost:5173`
 - API health: `http://localhost:3333/health`
 - Prisma Studio: `http://localhost:5555`
+- Bancada local: `docs/generated/local-workbench/index.html`
 - TypeDoc: `docs/generated/typedoc/index.html`
 - Testes: `docs/testing/strategy.md` e `docs/testing/playwright-ci.md`
 - Performance: `docs/performance/README.md`, `docs/performance/report-template.md` e ultimo HTML/MD em `docs/performance/reports/`
 - Seguranca/operacao: gate de exposicao, backup/restore e incidente
-- Reports existentes: Playwright e coverage quando ja estiverem no disco
+- Reports existentes: Playwright, coverage e performance quando ja estiverem no disco
 
 ## Auditoria recente
 O mapa atual de cobertura e lacunas recentes fica em `docs/architecture/recent-test-doc-coverage-audit.md`.

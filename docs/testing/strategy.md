@@ -52,8 +52,8 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 2. gera Prisma Client, aplica diff de schema local e roda seed;
 3. gera TypeDoc;
 4. sobe API, Web e Prisma Studio;
-5. abre Web, API health, Prisma Studio, TypeDoc, estrategia de testes, docs de performance, runbooks de seguranca e reports locais existentes;
-6. dispara `scripts/perf-report.js smoke` em background apos `/health` responder e abre o ultimo report gerado.
+5. abre a pagina central `docs/generated/local-workbench/index.html`, com links para Web, API health, Prisma Studio, TypeDoc, estrategia de testes, docs de performance, runbooks de seguranca e reports locais existentes;
+6. dispara `scripts/perf-report.js smoke --quiet` em background apos `/health` responder e abre o HTML de performance gerado pelo AlwaysTrack.
 
 Flags uteis:
 - `--skip-install`: pula `npm install`;
@@ -63,7 +63,7 @@ Flags uteis:
 - `--no-docs`: nao gera/abre TypeDoc e docs;
 - `--setup-only`: prepara ambiente e sai.
 
-Coverage HTML ainda e best-effort: o `up` abre `coverage/index.html`, `services/api/coverage/index.html` e `apps/web/coverage/index.html` se esses artefatos ja existirem.
+Coverage HTML ainda e best-effort: a bancada local mostra links para `coverage/index.html`, `services/api/coverage/index.html` e `apps/web/coverage/index.html` se esses artefatos ja existirem.
 
 ## O que testar primeiro
 1. Invariante de tenancy: usuario nunca ve organizacao alheia.

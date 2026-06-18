@@ -1,5 +1,5 @@
 import { exec, spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -8,6 +8,7 @@ const schemaPath = "services/api/prisma/schema.prisma";
 const devDatabasePath = "services/api/prisma/dev.db";
 const fullSchemaSqlPath = ".tmp-alwaystrack-dev-schema.sql";
 const incrementalSchemaSqlPath = ".tmp-alwaystrack-dev-migration.sql";
+const localWorkbenchPath = "docs/generated/local-workbench/index.html";
 const setupOnly = process.argv.includes("--setup-only");
 const noStudio = process.argv.includes("--no-studio");
 const noDocs = process.argv.includes("--no-docs");
@@ -133,6 +134,10 @@ function openLocalFile(filePath) {
   openUrl(pathToFileURL(resolve(rootDir, filePath)).href);
 }
 
+function fileUrl(filePath) {
+  return pathToFileURL(resolve(rootDir, filePath)).href;
+}
+
 function latestFile(dirPath, predicate) {
   const absolute = resolve(rootDir, dirPath);
   if (!existsSync(absolute)) return null;
@@ -148,32 +153,97 @@ function latestFile(dirPath, predicate) {
     .sort((left, right) => statSync(right.path).mtimeMs - statSync(left.path).mtimeMs)[0]?.path ?? null;
 }
 
-function openGeneratedArtifacts() {
-  const files = [
-    "docs/generated/typedoc/index.html",
-    "docs/testing/strategy.md",
-    "docs/testing/playwright-ci.md",
-    "docs/architecture/testing-and-docs.md",
-    "docs/performance/README.md",
-    "docs/performance/report-template.md",
-    "docs/security/external-exposure-release-gate.md",
-    "docs/operations/backup-restore-runbook.md",
-    "docs/operations/security-incident-runbook.md",
-    "playwright-report/index.html",
-    "test-results/playwright-report/index.html",
-    "coverage/index.html",
-    "services/api/coverage/index.html",
-    "apps/web/coverage/index.html"
-  ];
+function htmlEscape(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
 
-  for (const file of files) {
-    openLocalFile(file);
+function maybeFileLink(label, filePath) {
+  if (!existsSync(resolve(rootDir, filePath))) {
+    return `<span class="muted">${htmlEscape(label)} indisponivel</span>`;
   }
+  return `<a href="${fileUrl(filePath)}">${htmlEscape(label)}</a>`;
+}
 
+function latestPerformanceLinks() {
   const latestPerfHtml = latestFile("docs/performance/reports", (name) => name.endsWith(".html"));
   const latestPerfSummary = latestFile("docs/performance/reports", (name) => name.endsWith(".md"));
-  if (latestPerfHtml) openUrl(pathToFileURL(latestPerfHtml).href);
-  if (latestPerfSummary) openUrl(pathToFileURL(latestPerfSummary).href);
+  const links = [];
+  if (latestPerfHtml) links.push(`<a href="${pathToFileURL(latestPerfHtml).href}">Ultimo relatorio HTML</a>`);
+  if (latestPerfSummary) links.push(`<a href="${pathToFileURL(latestPerfSummary).href}">Resumo Markdown</a>`);
+  return links.length ? links.join("") : `<span class="muted">Nenhum relatorio gerado ainda; o smoke abrira o HTML ao terminar.</span>`;
+}
+
+function writeLocalWorkbenchPage() {
+  const outputPath = resolve(rootDir, localWorkbenchPath);
+  mkdirSync(resolve(rootDir, "docs/generated/local-workbench"), { recursive: true });
+  writeFileSync(
+    outputPath,
+    `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlwaysTrack Local Workbench</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #102a33; background: #eef5f5; }
+    body { margin: 0; padding: 32px; }
+    main { max-width: 1120px; margin: 0 auto; }
+    header, section { background: #fff; border: 1px solid #d7e3e7; border-radius: 10px; padding: 24px; margin-bottom: 18px; box-shadow: 0 18px 40px rgba(16, 42, 51, 0.08); }
+    h1, h2 { margin: 0 0 10px; line-height: 1.1; }
+    p { color: #637083; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { border: 1px solid #d7e3e7; border-radius: 8px; padding: 16px; background: #f8fbfb; }
+    a { display: inline-flex; margin: 6px 8px 6px 0; padding: 10px 12px; border-radius: 7px; border: 1px solid #c7d8de; color: #0b4c5c; text-decoration: none; font-weight: 800; background: #fff; }
+    a.primary { background: #0b4c5c; color: #fff; border-color: #0b4c5c; }
+    .muted { color: #7a8798; display: block; margin-top: 8px; }
+    code { background: #edf4f6; padding: 2px 6px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p>AlwaysTrack Local</p>
+      <h1>Bancada de estudo e validacao</h1>
+      <p>Gerada por <code>npm run up</code> em ${htmlEscape(new Date().toLocaleString("pt-BR"))}. Use esta pagina como hub unico para abrir app, docs, reports e diagnosticos.</p>
+      <a class="primary" href="http://localhost:5173">Abrir aplicativo</a>
+      <a href="http://localhost:3333/health">API health</a>
+      ${noStudio ? "" : '<a href="http://localhost:5555">Prisma Studio</a>'}
+    </header>
+    <section>
+      <h2>Documentacao</h2>
+      <div class="grid">
+        <div class="card">${maybeFileLink("TypeDoc", "docs/generated/typedoc/index.html")}${maybeFileLink("Arquitetura de testes/docs", "docs/architecture/testing-and-docs.md")}${maybeFileLink("Auditoria recente", "docs/architecture/recent-test-doc-coverage-audit.md")}</div>
+        <div class="card">${maybeFileLink("Estrategia de testes", "docs/testing/strategy.md")}${maybeFileLink("Playwright/CI", "docs/testing/playwright-ci.md")}${maybeFileLink("Performance", "docs/performance/README.md")}</div>
+        <div class="card">${maybeFileLink("Gate de exposicao externa", "docs/security/external-exposure-release-gate.md")}${maybeFileLink("Backup e restore", "docs/operations/backup-restore-runbook.md")}${maybeFileLink("Incidente de seguranca", "docs/operations/security-incident-runbook.md")}</div>
+      </div>
+    </section>
+    <section>
+      <h2>Stress test local</h2>
+      <p>O smoke de carga roda em background depois que a API responde. O HTML abaixo abre automaticamente quando o teste termina.</p>
+      ${latestPerformanceLinks()}
+    </section>
+    <section>
+      <h2>Reports existentes</h2>
+      ${maybeFileLink("Playwright report", "playwright-report/index.html")}
+      ${maybeFileLink("Playwright report alternativo", "test-results/playwright-report/index.html")}
+      ${maybeFileLink("Coverage raiz", "coverage/index.html")}
+      ${maybeFileLink("Coverage API", "services/api/coverage/index.html")}
+      ${maybeFileLink("Coverage Web", "apps/web/coverage/index.html")}
+    </section>
+  </main>
+</body>
+</html>
+`
+  );
+  return outputPath;
+}
+
+function openGeneratedArtifacts() {
+  openLocalFile(localWorkbenchPath);
 }
 
 async function waitForUrl(url, { timeoutMs = 30_000, intervalMs = 750 } = {}) {
@@ -238,6 +308,7 @@ async function main() {
   await prepareDatabase();
   if (!noDocs) {
     await run("npm run docs:api", "Gerando documentacao TypeDoc de onboarding");
+    writeLocalWorkbenchPage();
   }
 
   if (setupOnly) {
@@ -263,6 +334,7 @@ async function main() {
     console.log("- API: http://localhost:3333/health");
     if (!noDocs) {
       console.log("- TypeDoc: docs/generated/typedoc/index.html");
+      console.log(`- Bancada local: ${localWorkbenchPath}`);
       console.log("- Testes: docs/testing/strategy.md");
       console.log("- Carga: docs/performance/README.md");
       console.log("- Coverage: coverage/index.html, services/api/coverage/index.html ou apps/web/coverage/index.html quando existirem");
@@ -291,16 +363,15 @@ async function main() {
         console.warn("\n[AlwaysTrack Setup] API nao respondeu a tempo; smoke de carga local nao foi iniciado.");
         return;
       }
-      const perf = runDetached("perf", "node", ["scripts/perf-report.js", "smoke", "--target=http://localhost:3333"], "36");
+      const perf = runDetached("perf", "node", ["scripts/perf-report.js", "smoke", "--target=http://localhost:3333", "--quiet"], "36");
       processes.push(perf);
       perf.on("exit", (code) => {
         if (code === 0) {
           console.log("\n[AlwaysTrack Setup] Smoke de carga local concluido.");
           if (!noOpen && !noDocs) {
+            writeLocalWorkbenchPage();
             const latestPerfHtml = latestFile("docs/performance/reports", (name) => name.endsWith(".html"));
-            const latestPerfSummary = latestFile("docs/performance/reports", (name) => name.endsWith(".md"));
             if (latestPerfHtml) openUrl(pathToFileURL(latestPerfHtml).href);
-            if (latestPerfSummary) openUrl(pathToFileURL(latestPerfSummary).href);
           }
         } else {
           console.warn("\n[AlwaysTrack Setup] Smoke de carga local terminou com falha. O app continua rodando.");

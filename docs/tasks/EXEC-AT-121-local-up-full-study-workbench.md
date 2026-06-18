@@ -18,8 +18,8 @@
 2. Senhas seed locais deterministicas sao definidas quando ausentes, permitindo login e smoke de carga local.
 3. Setup local continua gerando Prisma Client, aplicando diff de schema, rodando seed e TypeDoc.
 4. API, Web e Prisma Studio sobem como antes.
-5. O navegador abre Web, API health, Prisma Studio, TypeDoc, docs de testes, docs de performance, runbooks/gates de seguranca, Playwright report, coverage e ultimo report de performance quando existirem.
-6. Smoke Artillery local roda em background apos `/health` responder, salvo `--no-perf-smoke`.
+5. O navegador abre uma pagina central de bancada local com links para Web, API health, Prisma Studio, TypeDoc, docs de testes, docs de performance, runbooks/gates de seguranca, Playwright report, coverage e ultimo report de performance quando existirem.
+6. Smoke Artillery local roda em background apos `/health` responder, salvo `--no-perf-smoke`, e gera HTML proprio do AlwaysTrack em vez de depender do comando depreciado `artillery report`.
 7. Falhas de abertura de navegador/report ou smoke local nao derrubam os servicos principais.
 8. Docs de testes, performance e arquitetura foram atualizadas.
 
@@ -37,6 +37,10 @@
 - `npm run typecheck --workspace @alwaystrack/api`
 - `npm run typecheck --workspace @alwaystrack/web`
 - `git diff --check`
+
+## Follow-up aplicado
+- 2026-06-18: substituido o fluxo de abrir varios arquivos soltos por `docs/generated/local-workbench/index.html`.
+- 2026-06-18: `scripts/perf-report.js` passou a aceitar `--quiet`, salvar log em arquivo e gerar relatorio HTML proprio.
 
 ## Risco residual
 - Coverage HTML so abre se ja existir; plugin/gate de coverage dedicado fica como follow-up.
