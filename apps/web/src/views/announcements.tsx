@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialAllRoles, commercialManagerRoles, type CurrentUser, type UserRole } from "@alwaystrack/shared";
-import { api } from "../api";
+import { api, uploadWikiImage } from "../api";
+import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
 
@@ -111,49 +112,6 @@ function statusLabel(value: string) {
 
 function priorityLabel(value: string) {
   return priorityOptions.find((option) => option.value === value)?.label ?? value;
-}
-
-function markdownBlocks(content: string) {
-  return content.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
-}
-
-function InlineText({ text }: { text: string }) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
-  return (
-    <>
-      {parts.map((part, index) => {
-        const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-        if (!match) return <span key={`${part}-${index}`}>{part}</span>;
-        return (
-          <a key={`${part}-${index}`} href={match[2]}>
-            {match[1]}
-          </a>
-        );
-      })}
-    </>
-  );
-}
-
-function AnnouncementContent({ content }: { content: string }) {
-  return (
-    <div className="wiki-content announcement-content">
-      {markdownBlocks(content).map((block, index) => {
-        if (block.startsWith("### ")) return <h4 key={index}>{block.replace(/^###\s+/, "")}</h4>;
-        if (block.startsWith("## ")) return <h3 key={index}>{block.replace(/^##\s+/, "")}</h3>;
-        if (block.startsWith("# ")) return <h2 key={index}>{block.replace(/^#\s+/, "")}</h2>;
-        if (block.split("\n").every((line) => line.trim().startsWith("- "))) {
-          return (
-            <ul key={index}>
-              {block.split("\n").map((line) => (
-                <li key={line}><InlineText text={line.replace(/^-\s+/, "")} /></li>
-              ))}
-            </ul>
-          );
-        }
-        return <p key={index}><InlineText text={block} /></p>;
-      })}
-    </div>
-  );
 }
 
 function draftFrom(item: AnnouncementItem): AnnouncementDraft {
@@ -432,7 +390,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                 {selected.expiresAt ? <span>Vigente ate {formatDateBr(selected.expiresAt)}</span> : <span>Sem expiração</span>}
                 <span>{selected.targetRoles?.join(", ") || "Todos"}</span>
               </div>
-              <AnnouncementContent content={selected.content} />
+              <MarkdownContent content={selected.content} />
               {selected.links?.length ? (
                 <div className="wiki-related-panel">
                   <strong>Links relacionados</strong>
@@ -511,10 +469,15 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                 Resumo
                 <input value={draft.summary} onChange={(event) => setDraft((current) => ({ ...current, summary: event.target.value }))} />
               </label>
-              <label className="full-span">
-                Conteudo
-                <textarea rows={8} value={draft.content} onChange={(event) => setDraft((current) => ({ ...current, content: event.target.value }))} />
-              </label>
+              <div className="full-span">
+                <MarkdownEditor
+                  label="Conteudo"
+                  rows={8}
+                  value={draft.content}
+                  onChange={(value) => setDraft((current) => ({ ...current, content: value }))}
+                  onUploadImage={(file) => uploadWikiImage(file)}
+                />
+              </div>
               <label>
                 Tags
                 <input value={draft.tags} onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))} placeholder="vendas, processo" />

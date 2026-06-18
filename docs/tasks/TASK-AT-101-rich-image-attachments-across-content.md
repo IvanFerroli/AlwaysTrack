@@ -1,9 +1,9 @@
 # TASK-AT-101 - Anexos de imagem transversais em conteudo operacional
 
 ## Metadata
-- status: proposed-backlog
+- status: completed-mvp-slice
 - owner: olympus_taskyfier
-- last-updated: 2026-06-13
+- last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-101-rich-image-attachments-across-content.md
 
 ## Fase
@@ -54,3 +54,9 @@ Ajuda a transformar conhecimento operacional em material visual consultavel: pri
 3. Integrar Avisos e FAQ.
 4. Integrar Scriptoteca.
 5. Atualizar demo, docs e testes de regressao.
+
+## Execucao 2026-06-18
+- Slice MVP concluido em `docs/tasks/EXEC-AT-101-rich-image-attachments-across-content.md`.
+- O editor/renderer Markdown foi extraido para componente compartilhado.
+- FAQ, Avisos e Scriptoteca usam o mesmo upload autenticado de imagem da Wiki.
+- Pendencias fora do MVP: remocao auditavel de arquivo, entidade generica de anexo e seeds visuais.

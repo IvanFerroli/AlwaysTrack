@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
-import { api } from "../api";
+import { api, uploadWikiImage } from "../api";
+import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
 
@@ -253,10 +254,9 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
             Pergunta
             <input value={title} onChange={(event) => setTitle(event.target.value)} />
           </label>
-          <label>
-            Contexto
-            <textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
-          </label>
+          <div className="full-span">
+            <MarkdownEditor label="Contexto" rows={3} value={body} onChange={setBody} onUploadImage={(file) => uploadWikiImage(file)} />
+          </div>
           <label>
             Tags
             <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="vendas, processo, treinamento" />
@@ -333,7 +333,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                   ) : null}
                 </div>
               </div>
-              {selected.body ? <p>{selected.body}</p> : null}
+              {selected.body ? <MarkdownContent content={selected.body} /> : null}
               {selected.tags?.length ? (
                 <div className="wiki-tag-filter">
                   {selected.tags.map((tag) => (
@@ -364,7 +364,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
                 {selected.comments.map((item) => (
                   <article className="panel help-card" key={item.id}>
                     <p className="eyebrow">{item.author.name} / {formatDateTimeBr(item.createdAt)}</p>
-                    <p>{item.body}</p>
+                    <MarkdownContent content={item.body} />
                     <button className="secondary small" type="button" disabled={saving} onClick={() => void setReaction("COMMENT", item.id, "THANKS")}>
                       Obrigado ({faqReactionCount(item.reactions, "THANKS")})
                     </button>
@@ -373,7 +373,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
               </div>
               <form className="wiki-edit-form" onSubmit={addComment}>
                 <h3>Responder</h3>
-                <textarea rows={4} value={comment} onChange={(event) => setComment(event.target.value)} />
+                <MarkdownEditor label="Resposta" rows={4} value={comment} onChange={setComment} onUploadImage={(file) => uploadWikiImage(file)} />
                 <div className="form-actions">
                   <button disabled={saving || !comment.trim()}>Publicar resposta</button>
                 </div>

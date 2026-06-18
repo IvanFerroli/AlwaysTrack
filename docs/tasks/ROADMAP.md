@@ -138,10 +138,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 119. `EXEC-AT-114`: integracoes externas, webhooks e IA (`TASK-AT-114`). Status: completed.
 120. `EXEC-AT-115`: runbook de incidente e operacao segura (`TASK-AT-115`). Status: completed.
 121. `EXEC-AT-116`: gate antes de exposicao externa (`TASK-AT-116`). Status: completed-no-go-until-prod.
+122. `EXEC-AT-101`: anexos de imagem transversais em conteudo operacional (`TASK-AT-101`). Status: completed-mvp-slice.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
-2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+2. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
 3. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
 4. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
 5. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
@@ -171,8 +172,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 
 ### Fase B - Confiabilidade operacional
 1. `TASK-AT-073`: Diagnostico de DANFE e correcao manual auditavel. Status: completed-mvp.
-2. `TASK-AT-075`: Playwright/CI limpo. Status: proposed.
-3. `TASK-AT-076`: Paginacao server-side em telas criticas. Status: proposed.
+2. `TASK-AT-075`: Playwright/CI limpo. Status: completed-with-local-environment-note.
+3. `TASK-AT-076`: Paginacao server-side em telas criticas. Status: completed-critical-screens.
 4. `TASK-AT-081`: Painel minimo de observabilidade operacional. Status: completed-mvp.
 
 ### Fase C - Produto interno definitivo
@@ -199,7 +200,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: completed.
 22. `TASK-AT-099`: Scriptoteca - validade e recertificacao de scripts. Status: completed-mvp.
 23. `TASK-AT-100`: Scriptoteca - polimento visual de metricas e copia. Status: completed.
-24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: proposed-backlog.
+24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: completed-mvp-slice.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

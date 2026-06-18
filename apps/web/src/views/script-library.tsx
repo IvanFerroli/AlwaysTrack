@@ -1,7 +1,8 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
-import { api } from "../api";
+import { api, uploadWikiImage } from "../api";
+import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
 
@@ -513,7 +514,9 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   ))}
                 </div>
               ) : null}
-              <pre className="script-preview">{rendered}</pre>
+              <div className="script-preview">
+                <MarkdownContent content={rendered} emptyText="Sem texto publicado." />
+              </div>
               {selected.tags?.length ? (
                 <div className="wiki-tag-row">
                   {selected.tags.map((tag) => <button key={tag} type="button" onClick={() => { setSelectedTag(tag); setPage(1); }}>#{tag}</button>)}
@@ -599,10 +602,15 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
               Título
               <input value={suggestionDraft.title} onChange={(event) => setSuggestionDraft((current) => ({ ...current, title: event.target.value }))} />
             </label>
-            <label className="full-span">
-              Texto sugerido
-              <textarea rows={5} value={suggestionDraft.body} onChange={(event) => setSuggestionDraft((current) => ({ ...current, body: event.target.value }))} />
-            </label>
+            <div className="full-span">
+              <MarkdownEditor
+                label="Texto sugerido"
+                rows={5}
+                value={suggestionDraft.body}
+                onChange={(value) => setSuggestionDraft((current) => ({ ...current, body: value }))}
+                onUploadImage={(file) => uploadWikiImage(file)}
+              />
+            </div>
             <label className="full-span">
               Tags
               <input value={suggestionDraft.tags} onChange={(event) => setSuggestionDraft((current) => ({ ...current, tags: event.target.value }))} />
@@ -713,10 +721,15 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                 Comentário de recertificação
                 <input value={scriptDraft.comment} onChange={(event) => setScriptDraft((current) => ({ ...current, comment: event.target.value }))} />
               </label>
-              <label className="full-span">
-                Texto
-                <textarea rows={8} value={scriptDraft.body} onChange={(event) => setScriptDraft((current) => ({ ...current, body: event.target.value }))} placeholder="Olá {nome_cliente}, tudo bem?" />
-              </label>
+              <div className="full-span">
+                <MarkdownEditor
+                  label="Texto"
+                  rows={8}
+                  value={scriptDraft.body}
+                  onChange={(value) => setScriptDraft((current) => ({ ...current, body: value }))}
+                  onUploadImage={(file) => uploadWikiImage(file)}
+                />
+              </div>
               <label className="full-span">
                 Tags
                 <input value={scriptDraft.tags} onChange={(event) => setScriptDraft((current) => ({ ...current, tags: event.target.value }))} placeholder="entrega, pedido, whatsapp" />
