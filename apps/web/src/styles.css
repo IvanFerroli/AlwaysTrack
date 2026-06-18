@@ -158,6 +158,18 @@ button.ghost-button,
   gap: 6px;
 }
 
+.sr-only {
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .button-link {
   align-items: center;
   background: white;
@@ -3331,11 +3343,19 @@ legend {
 .wiki-reader-panel .detail-header > .row-actions .script-copy-button {
   align-items: center;
   align-self: flex-end;
+  aspect-ratio: 1;
   display: inline-flex;
-  gap: 8px;
   justify-content: center;
-  min-width: 118px;
-  width: auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  width: 44px;
+}
+
+.wiki-reader-panel .detail-header > .row-actions .script-copy-button.copied {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: white;
 }
 
 .detail-grid {

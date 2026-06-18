@@ -1,4 +1,4 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Clipboard } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadWikiImage } from "../api";
@@ -478,9 +478,15 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   <p className="muted">{selected.channel} · {reviewStateLabels[selected.reviewState] ?? selected.status}</p>
                 </div>
                 <div className="row-actions">
-                  <button className="script-copy-button" type="button" onClick={() => void copyScript()} aria-label="Copiar script para a area de transferencia" title="Copiar script">
-                    {copyFeedback ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-                    <span>{copyFeedback || "Copiar"}</span>
+                  <button
+                    className={copyFeedback ? "script-copy-button copied" : "script-copy-button"}
+                    type="button"
+                    onClick={() => void copyScript()}
+                    aria-label={copyFeedback || "Copiar script para a area de transferencia"}
+                    title={copyFeedback || "Copiar script"}
+                  >
+                    {copyFeedback ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                    <span className="sr-only">{copyFeedback || "Copiar script"}</span>
                   </button>
                   {canManage ? (
                     <>
