@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-17
+- last-updated: 2026-06-18
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -139,13 +139,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 120. `EXEC-AT-115`: runbook de incidente e operacao segura (`TASK-AT-115`). Status: completed.
 121. `EXEC-AT-116`: gate antes de exposicao externa (`TASK-AT-116`). Status: completed-no-go-until-prod.
 122. `EXEC-AT-101`: anexos de imagem transversais em conteudo operacional (`TASK-AT-101`). Status: completed-mvp-slice.
+123. `EXEC-AT-121`: `npm run up` como bancada completa de estudo, com instalacao, setup, TypeDoc, app, Prisma Studio, reports existentes e smoke local opcional (`TASK-AT-121`). Status: completed.
+124. `EXEC-AT-122`: auditoria de testes/documentacao das mudancas recentes e mapa de lacunas residuais (`TASK-AT-122`). Status: completed.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-2. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
-3. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
-4. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
-5. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
+2. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
+3. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
+4. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+5. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
+6. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.

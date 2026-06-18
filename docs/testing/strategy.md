@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: quality-maintainers
-- last-updated: 2026-06-09
+- last-updated: 2026-06-18
 - source-of-truth: docs/testing/strategy.md
 
 ## Objetivo
@@ -30,6 +30,9 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 | Load | Artillery | 1000 usuarios, latencia, throughput e erro | `*.artillery.yml` | `TASK-AT-051` |
 
 ## Scripts atuais
+- `npm run up`: instala dependencias, prepara banco/seed/docs, sobe API/Web/Prisma Studio e abre a bancada local no navegador.
+- `npm run up -- --skip-install --no-open --no-perf-smoke`: sobe a bancada sem reinstalar, sem abrir abas e sem smoke de carga.
+- `npm run setup`: prepara dependencias, Prisma, banco e seed sem subir servicos.
 - `npm run test:unit`: roda testes Vitest rapidos excluindo `src/core/quality`.
 - `npm run test:integration`: roda o fluxo operacional principal service-level.
 - `npm run test:regression`: roda suites que protegem notas, Wiki, FAQ e notificacoes.
@@ -39,6 +42,28 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `npm run test:all`: roda `check` e docs TypeDoc.
 - `npm run check`: gate rapido atual de lint/typecheck/test.
 - `npm run check:docs`: gera TypeDoc e falha se a documentacao tecnica quebrar.
+- `npm run repo:hygiene`: verifica arquivos sensiveis, bancos locais, docs gerados e padroes obvios de segredo.
+- `npm run security:deps`: bloqueia vulnerabilidades altas/criticas em dependencias de producao.
+
+## Bancada local de estudo
+`npm run up` e o ponto de entrada para estudar e apresentar o produto localmente. Por padrao ele:
+
+1. roda `npm install`;
+2. gera Prisma Client, aplica diff de schema local e roda seed;
+3. gera TypeDoc;
+4. sobe API, Web e Prisma Studio;
+5. abre Web, API health, Prisma Studio, TypeDoc, estrategia de testes, docs de performance, runbooks de seguranca e reports locais existentes;
+6. dispara `scripts/perf-report.js smoke` em background apos `/health` responder e abre o ultimo report gerado.
+
+Flags uteis:
+- `--skip-install`: pula `npm install`;
+- `--no-open`: nao abre navegador;
+- `--no-perf-smoke`: nao roda Artillery local;
+- `--no-studio`: nao sobe Prisma Studio;
+- `--no-docs`: nao gera/abre TypeDoc e docs;
+- `--setup-only`: prepara ambiente e sai.
+
+Coverage HTML ainda e best-effort: o `up` abre `coverage/index.html`, `services/api/coverage/index.html` e `apps/web/coverage/index.html` se esses artefatos ja existirem.
 
 ## O que testar primeiro
 1. Invariante de tenancy: usuario nunca ve organizacao alheia.
@@ -70,3 +95,4 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `TASK-AT-050`: migration/rollback tests.
 - `TASK-AT-051`: Artillery load gate.
 - `TASK-AT-052`: BullMQ backpressure tests.
+- Follow-up recomendado: decidir se coverage HTML deve virar script/gate proprio com plugin Vitest dedicado.

@@ -1,5 +1,5 @@
 import { exec, spawn } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -11,13 +11,23 @@ const incrementalSchemaSqlPath = ".tmp-alwaystrack-dev-migration.sql";
 const setupOnly = process.argv.includes("--setup-only");
 const noStudio = process.argv.includes("--no-studio");
 const noDocs = process.argv.includes("--no-docs");
+const noOpen = process.argv.includes("--no-open");
+const skipInstall = process.argv.includes("--skip-install") || process.argv.includes("--no-install");
+const noPerfSmoke = process.argv.includes("--no-perf-smoke");
 const defaultDatabaseUrl = "file:./dev.db";
+const devSeedPassword = "AlwaysTrackDev123!";
 
 const env = {
   ...process.env,
   DATABASE_URL: process.env.DATABASE_URL ?? defaultDatabaseUrl,
   SESSION_SECRET: process.env.SESSION_SECRET ?? "dev-session-secret",
-  API_PORT: process.env.API_PORT ?? "3333"
+  API_PORT: process.env.API_PORT ?? "3333",
+  SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD ?? devSeedPassword,
+  SEED_SAC_PASSWORD: process.env.SEED_SAC_PASSWORD ?? devSeedPassword,
+  SEED_FINANCEIRO_PASSWORD: process.env.SEED_FINANCEIRO_PASSWORD ?? devSeedPassword,
+  SEED_SELLER_PASSWORD: process.env.SEED_SELLER_PASSWORD ?? devSeedPassword,
+  SEED_SUPERVISOR_PASSWORD: process.env.SEED_SUPERVISOR_PASSWORD ?? devSeedPassword,
+  SEED_RT_PASSWORD: process.env.SEED_RT_PASSWORD ?? devSeedPassword
 };
 
 function shellQuote(value) {
@@ -100,6 +110,11 @@ function spawnService(name, command, args, colorCode) {
   return child;
 }
 
+function runDetached(name, command, args, colorCode) {
+  console.log(`\n[AlwaysTrack Setup] Rodando ${name} em background...`);
+  return spawnService(name, command, args, colorCode);
+}
+
 function openUrl(url) {
   const command =
     process.platform === "darwin"
@@ -116,6 +131,63 @@ function openUrl(url) {
 function openLocalFile(filePath) {
   if (!existsSync(resolve(rootDir, filePath))) return;
   openUrl(pathToFileURL(resolve(rootDir, filePath)).href);
+}
+
+function latestFile(dirPath, predicate) {
+  const absolute = resolve(rootDir, dirPath);
+  if (!existsSync(absolute)) return null;
+  return readdirSync(absolute)
+    .map((name) => ({ name, path: resolve(absolute, name) }))
+    .filter((item) => {
+      try {
+        return statSync(item.path).isFile() && predicate(item.name);
+      } catch {
+        return false;
+      }
+    })
+    .sort((left, right) => statSync(right.path).mtimeMs - statSync(left.path).mtimeMs)[0]?.path ?? null;
+}
+
+function openGeneratedArtifacts() {
+  const files = [
+    "docs/generated/typedoc/index.html",
+    "docs/testing/strategy.md",
+    "docs/testing/playwright-ci.md",
+    "docs/architecture/testing-and-docs.md",
+    "docs/performance/README.md",
+    "docs/performance/report-template.md",
+    "docs/security/external-exposure-release-gate.md",
+    "docs/operations/backup-restore-runbook.md",
+    "docs/operations/security-incident-runbook.md",
+    "playwright-report/index.html",
+    "test-results/playwright-report/index.html",
+    "coverage/index.html",
+    "services/api/coverage/index.html",
+    "apps/web/coverage/index.html"
+  ];
+
+  for (const file of files) {
+    openLocalFile(file);
+  }
+
+  const latestPerfHtml = latestFile("docs/performance/reports", (name) => name.endsWith(".html"));
+  const latestPerfSummary = latestFile("docs/performance/reports", (name) => name.endsWith(".md"));
+  if (latestPerfHtml) openUrl(pathToFileURL(latestPerfHtml).href);
+  if (latestPerfSummary) openUrl(pathToFileURL(latestPerfSummary).href);
+}
+
+async function waitForUrl(url, { timeoutMs = 30_000, intervalMs = 750 } = {}) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return true;
+    } catch {
+      // Keep waiting while the service boots.
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));
+  }
+  return false;
 }
 
 async function prepareDatabase() {
@@ -156,6 +228,12 @@ async function main() {
   console.log("ALWAYSTRACK - STARTUP LOCAL");
   console.log("====================================================\n");
 
+  if (!skipInstall) {
+    await run("npm install", "Instalando/atualizando dependencias");
+  } else {
+    console.log("\n[AlwaysTrack Setup] Pulando npm install por flag --skip-install.");
+  }
+
   await run("fuser -k 3333/tcp 5173/tcp 5555/tcp 2>/dev/null || true", "Limpando portas locais do app");
   await prepareDatabase();
   if (!noDocs) {
@@ -163,7 +241,7 @@ async function main() {
   }
 
   if (setupOnly) {
-    console.log("\n[AlwaysTrack Setup] Setup finalizado. Use `npm run up` para subir API, Web e Prisma Studio.");
+    console.log("\n[AlwaysTrack Setup] Setup finalizado. Use `npm run up` para subir API, Web, Prisma Studio e bancada de estudo.");
     return;
   }
 
@@ -187,27 +265,51 @@ async function main() {
       console.log("- TypeDoc: docs/generated/typedoc/index.html");
       console.log("- Testes: docs/testing/strategy.md");
       console.log("- Carga: docs/performance/README.md");
+      console.log("- Coverage: coverage/index.html, services/api/coverage/index.html ou apps/web/coverage/index.html quando existirem");
+      console.log("- Playwright report: playwright-report/index.html quando existir");
+      console.log("- Performance report: docs/performance/reports/*.html quando existir");
     }
     if (!noStudio) {
       console.log("- Prisma Studio: http://localhost:5555");
     }
 
-    if (!process.argv.includes("--no-open")) {
+    if (!noOpen) {
       openUrl("http://localhost:5173");
       openUrl("http://localhost:3333/health");
       if (!noStudio) {
         openUrl("http://localhost:5555");
       }
       if (!noDocs) {
-        openLocalFile("docs/generated/typedoc/index.html");
-        openLocalFile("docs/testing/strategy.md");
-        openLocalFile("docs/testing/playwright-ci.md");
-        openLocalFile("docs/performance/README.md");
-        openLocalFile("playwright-report/index.html");
-        openLocalFile("test-results/playwright-report/index.html");
+        openGeneratedArtifacts();
       }
     }
   }, 2500);
+
+  if (!noPerfSmoke) {
+    waitForUrl("http://localhost:3333/health").then((ready) => {
+      if (!ready) {
+        console.warn("\n[AlwaysTrack Setup] API nao respondeu a tempo; smoke de carga local nao foi iniciado.");
+        return;
+      }
+      const perf = runDetached("perf", "node", ["scripts/perf-report.js", "smoke", "--target=http://localhost:3333"], "36");
+      processes.push(perf);
+      perf.on("exit", (code) => {
+        if (code === 0) {
+          console.log("\n[AlwaysTrack Setup] Smoke de carga local concluido.");
+          if (!noOpen && !noDocs) {
+            const latestPerfHtml = latestFile("docs/performance/reports", (name) => name.endsWith(".html"));
+            const latestPerfSummary = latestFile("docs/performance/reports", (name) => name.endsWith(".md"));
+            if (latestPerfHtml) openUrl(pathToFileURL(latestPerfHtml).href);
+            if (latestPerfSummary) openUrl(pathToFileURL(latestPerfSummary).href);
+          }
+        } else {
+          console.warn("\n[AlwaysTrack Setup] Smoke de carga local terminou com falha. O app continua rodando.");
+        }
+      });
+    });
+  } else {
+    console.log("\n[AlwaysTrack Setup] Smoke de carga local desativado por flag --no-perf-smoke.");
+  }
 
   process.on("SIGINT", () => {
     console.log("\n[AlwaysTrack Setup] Encerrando servicos...");
