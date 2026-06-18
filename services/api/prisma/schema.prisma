@@ -8,59 +8,61 @@ datasource db {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  document  String?
-  logoUrl   String?
+  id           String   @id @default(cuid())
+  name         String
+  document     String?
+  logoUrl      String?
   settingsJson String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  users                 User[]
-  units                 Unit[]
-  licenseTypes          LicenseType[]
-  notificationTemplates NotificationTemplate[]
-  notificationRules     NotificationRule[]
-  notificationJobs      NotificationJob[]
-  inAppNotifications    InAppNotification[]
-  announcements         Announcement[]
-  announcementReadReceipts AnnouncementReadReceipt[]
-  scriptCategories      ScriptCategory[]
-  operationalScripts    OperationalScript[]
-  serviceFlows          ServiceFlow[]
-  serviceFlowSteps      ServiceFlowStep[]
-  serviceFlowStepScripts ServiceFlowStepScript[]
-  serviceFlowSessions   ServiceFlowSession[]
-  serviceFlowSessionSteps ServiceFlowSessionStep[]
-  serviceFlowRevisions  ServiceFlowRevision[]
-  serviceFlowSearchEvents ServiceFlowSearchEvent[]
-  personalScripts       PersonalScript[]
-  personalScriptFlows   PersonalScriptFlow[]
-  operationalScriptRevisions OperationalScriptRevision[]
-  operationalScriptEvents OperationalScriptEvent[]
-  operationalScriptSuggestions OperationalScriptSuggestion[]
+  users                         User[]
+  units                         Unit[]
+  licenseTypes                  LicenseType[]
+  notificationTemplates         NotificationTemplate[]
+  notificationRules             NotificationRule[]
+  notificationJobs              NotificationJob[]
+  inAppNotifications            InAppNotification[]
+  announcements                 Announcement[]
+  announcementReadReceipts      AnnouncementReadReceipt[]
+  scriptCategories              ScriptCategory[]
+  scriptPacks                   ScriptPack[]
+  scriptPackItems               ScriptPackItem[]
+  operationalScripts            OperationalScript[]
+  serviceFlows                  ServiceFlow[]
+  serviceFlowSteps              ServiceFlowStep[]
+  serviceFlowStepScripts        ServiceFlowStepScript[]
+  serviceFlowSessions           ServiceFlowSession[]
+  serviceFlowSessionSteps       ServiceFlowSessionStep[]
+  serviceFlowRevisions          ServiceFlowRevision[]
+  serviceFlowSearchEvents       ServiceFlowSearchEvent[]
+  personalScripts               PersonalScript[]
+  personalScriptFlows           PersonalScriptFlow[]
+  operationalScriptRevisions    OperationalScriptRevision[]
+  operationalScriptEvents       OperationalScriptEvent[]
+  operationalScriptSuggestions  OperationalScriptSuggestion[]
   operationalScriptSearchEvents OperationalScriptSearchEvent[]
-  faqItems              FaqItem[]
-  faqThreads            FaqThread[]
-  faqComments           FaqComment[]
-  faqReactions          FaqReaction[]
-  wikiPages             WikiPage[]
-  wikiEditRequests      WikiEditRequest[]
-  wikiReadReceipts      WikiReadReceipt[]
-  wikiPresences         WikiPresence[]
-  wikiRevisions         WikiRevision[]
-  wikiAttachments       WikiAttachment[]
-  professionals         Professional[]
-  auditLogs             AuditLog[]
-  documentAiExtractions DocumentAiExtraction[]
-  googleConnections     GoogleConnection[]
-  googleOauthStates     GoogleOauthState[]
-  sellerProfiles        SellerProfile[]
-  salesGroups           SalesGroup[]
-  salesDocuments        SalesDocument[]
-  salesCampaigns        SalesCampaign[]
-  rankingSnapshots      RankingSnapshot[]
+  faqItems                      FaqItem[]
+  faqThreads                    FaqThread[]
+  faqComments                   FaqComment[]
+  faqReactions                  FaqReaction[]
+  wikiPages                     WikiPage[]
+  wikiEditRequests              WikiEditRequest[]
+  wikiReadReceipts              WikiReadReceipt[]
+  wikiPresences                 WikiPresence[]
+  wikiRevisions                 WikiRevision[]
+  wikiAttachments               WikiAttachment[]
+  professionals                 Professional[]
+  auditLogs                     AuditLog[]
+  documentAiExtractions         DocumentAiExtraction[]
+  googleConnections             GoogleConnection[]
+  googleOauthStates             GoogleOauthState[]
+  sellerProfiles                SellerProfile[]
+  salesGroups                   SalesGroup[]
+  salesDocuments                SalesDocument[]
+  salesCampaigns                SalesCampaign[]
+  rankingSnapshots              RankingSnapshot[]
 }
 
 model Unit {
@@ -97,68 +99,70 @@ model Sector {
 }
 
 model User {
-  id              String   @id @default(cuid())
-  name            String
-  email           String   @unique
-  passwordHash    String
-  role            String
-  phone           String?
-  avatarUrl       String?
-  active          Boolean  @default(true)
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  passwordHash      String
+  role              String
+  phone             String?
+  avatarUrl         String?
+  active            Boolean  @default(true)
   passwordChangedAt DateTime @default(now())
-  organizationId  String
-  unitScopeJson   String?
-  sectorScopeJson String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  organizationId    String
+  unitScopeJson     String?
+  sectorScopeJson   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  organization        Organization   @relation(fields: [organizationId], references: [id])
-  auditLogs           AuditLog[]
-  professionalsAsRt   Professional[] @relation("ProfessionalResponsibleRt")
-  professionalAccount Professional?  @relation("ProfessionalUser")
-  validatedLicenses   License[]      @relation("LicenseValidatedBy")
-  uploadedDocuments   Document[]     @relation("DocumentUploadedByUser")
-  validatedDocuments  Document[]     @relation("DocumentValidatedBy")
-  appliedExtractions  DocumentAiExtraction[] @relation("DocumentAiExtractionAppliedBy")
-  googleConnection    GoogleConnection?
-  googleOauthStates   GoogleOauthState[]
-  wikiPagesCreated    WikiPage[] @relation("WikiPageCreatedBy")
-  wikiPagesUpdated    WikiPage[] @relation("WikiPageUpdatedBy")
-  wikiEditRequestsAuthored WikiEditRequest[] @relation("WikiEditRequestAuthor")
-  wikiEditRequestsReviewed WikiEditRequest[] @relation("WikiEditRequestReviewer")
-  wikiReadReceipts    WikiReadReceipt[] @relation("WikiReadReceiptUser")
-  wikiPresences       WikiPresence[] @relation("WikiPresenceUser")
-  wikiRevisions       WikiRevision[] @relation("WikiRevisionAuthor")
-  wikiAttachments     WikiAttachment[] @relation("WikiAttachmentUploader")
-  sellerProfile       SellerProfile? @relation("SellerProfileUser")
-  supervisedSalesGroups SalesGroup[] @relation("SalesGroupSupervisor")
-  uploadedSalesDocuments SalesDocument[] @relation("SalesDocumentUploadedBy")
-  reviewedSalesDocuments SalesDocument[] @relation("SalesDocumentReviewedBy")
-  faqThreadsAuthored    FaqThread[] @relation("FaqThreadAuthor")
-  faqThreadsPromoted    FaqThread[] @relation("FaqThreadPromoter")
-  faqCommentsAuthored   FaqComment[] @relation("FaqCommentAuthor")
-  faqReactionsAuthored  FaqReaction[] @relation("FaqReactionUser")
-  inAppNotifications    InAppNotification[] @relation("InAppNotificationRecipient")
-  announcementsAuthored Announcement[] @relation("AnnouncementAuthor")
-  announcementsUpdated  Announcement[] @relation("AnnouncementUpdatedBy")
-  announcementReadReceipts AnnouncementReadReceipt[] @relation("AnnouncementReadReceiptUser")
-  scriptCategoriesCreated ScriptCategory[] @relation("ScriptCategoryCreatedBy")
-  operationalScriptsCreated OperationalScript[] @relation("OperationalScriptCreatedBy")
-  operationalScriptsUpdated OperationalScript[] @relation("OperationalScriptUpdatedBy")
-  operationalScriptsValidated OperationalScript[] @relation("OperationalScriptValidatedBy")
-  operationalScriptsRecertified OperationalScript[] @relation("OperationalScriptRecertifiedBy")
-  serviceFlowsCreated ServiceFlow[] @relation("ServiceFlowCreatedBy")
-  serviceFlowsUpdated ServiceFlow[] @relation("ServiceFlowUpdatedBy")
-  serviceFlowsReviewed ServiceFlow[] @relation("ServiceFlowReviewedBy")
-  serviceFlowRevisionsAuthored ServiceFlowRevision[] @relation("ServiceFlowRevisionAuthor")
-  serviceFlowSearchEvents ServiceFlowSearchEvent[] @relation("ServiceFlowSearchEventUser")
-  serviceFlowSessions ServiceFlowSession[] @relation("ServiceFlowSessionUser")
-  personalScripts PersonalScript[] @relation("PersonalScriptOwner")
-  operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
-  operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
-  operationalScriptSuggestionsAuthored OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionAuthor")
-  operationalScriptSuggestionsDecided OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionDecider")
-  operationalScriptSearchEvents OperationalScriptSearchEvent[] @relation("OperationalScriptSearchEventUser")
+  organization                         Organization                   @relation(fields: [organizationId], references: [id])
+  auditLogs                            AuditLog[]
+  professionalsAsRt                    Professional[]                 @relation("ProfessionalResponsibleRt")
+  professionalAccount                  Professional?                  @relation("ProfessionalUser")
+  validatedLicenses                    License[]                      @relation("LicenseValidatedBy")
+  uploadedDocuments                    Document[]                     @relation("DocumentUploadedByUser")
+  validatedDocuments                   Document[]                     @relation("DocumentValidatedBy")
+  appliedExtractions                   DocumentAiExtraction[]         @relation("DocumentAiExtractionAppliedBy")
+  googleConnection                     GoogleConnection?
+  googleOauthStates                    GoogleOauthState[]
+  wikiPagesCreated                     WikiPage[]                     @relation("WikiPageCreatedBy")
+  wikiPagesUpdated                     WikiPage[]                     @relation("WikiPageUpdatedBy")
+  wikiEditRequestsAuthored             WikiEditRequest[]              @relation("WikiEditRequestAuthor")
+  wikiEditRequestsReviewed             WikiEditRequest[]              @relation("WikiEditRequestReviewer")
+  wikiReadReceipts                     WikiReadReceipt[]              @relation("WikiReadReceiptUser")
+  wikiPresences                        WikiPresence[]                 @relation("WikiPresenceUser")
+  wikiRevisions                        WikiRevision[]                 @relation("WikiRevisionAuthor")
+  wikiAttachments                      WikiAttachment[]               @relation("WikiAttachmentUploader")
+  sellerProfile                        SellerProfile?                 @relation("SellerProfileUser")
+  supervisedSalesGroups                SalesGroup[]                   @relation("SalesGroupSupervisor")
+  uploadedSalesDocuments               SalesDocument[]                @relation("SalesDocumentUploadedBy")
+  reviewedSalesDocuments               SalesDocument[]                @relation("SalesDocumentReviewedBy")
+  faqThreadsAuthored                   FaqThread[]                    @relation("FaqThreadAuthor")
+  faqThreadsPromoted                   FaqThread[]                    @relation("FaqThreadPromoter")
+  faqCommentsAuthored                  FaqComment[]                   @relation("FaqCommentAuthor")
+  faqReactionsAuthored                 FaqReaction[]                  @relation("FaqReactionUser")
+  inAppNotifications                   InAppNotification[]            @relation("InAppNotificationRecipient")
+  announcementsAuthored                Announcement[]                 @relation("AnnouncementAuthor")
+  announcementsUpdated                 Announcement[]                 @relation("AnnouncementUpdatedBy")
+  announcementReadReceipts             AnnouncementReadReceipt[]      @relation("AnnouncementReadReceiptUser")
+  scriptCategoriesCreated              ScriptCategory[]               @relation("ScriptCategoryCreatedBy")
+  scriptPacksCreated                   ScriptPack[]                   @relation("ScriptPackCreatedBy")
+  scriptPacksUpdated                   ScriptPack[]                   @relation("ScriptPackUpdatedBy")
+  operationalScriptsCreated            OperationalScript[]            @relation("OperationalScriptCreatedBy")
+  operationalScriptsUpdated            OperationalScript[]            @relation("OperationalScriptUpdatedBy")
+  operationalScriptsValidated          OperationalScript[]            @relation("OperationalScriptValidatedBy")
+  operationalScriptsRecertified        OperationalScript[]            @relation("OperationalScriptRecertifiedBy")
+  serviceFlowsCreated                  ServiceFlow[]                  @relation("ServiceFlowCreatedBy")
+  serviceFlowsUpdated                  ServiceFlow[]                  @relation("ServiceFlowUpdatedBy")
+  serviceFlowsReviewed                 ServiceFlow[]                  @relation("ServiceFlowReviewedBy")
+  serviceFlowRevisionsAuthored         ServiceFlowRevision[]          @relation("ServiceFlowRevisionAuthor")
+  serviceFlowSearchEvents              ServiceFlowSearchEvent[]       @relation("ServiceFlowSearchEventUser")
+  serviceFlowSessions                  ServiceFlowSession[]           @relation("ServiceFlowSessionUser")
+  personalScripts                      PersonalScript[]               @relation("PersonalScriptOwner")
+  operationalScriptRevisionsAuthored   OperationalScriptRevision[]    @relation("OperationalScriptRevisionAuthor")
+  operationalScriptEvents              OperationalScriptEvent[]       @relation("OperationalScriptEventUser")
+  operationalScriptSuggestionsAuthored OperationalScriptSuggestion[]  @relation("OperationalScriptSuggestionAuthor")
+  operationalScriptSuggestionsDecided  OperationalScriptSuggestion[]  @relation("OperationalScriptSuggestionDecider")
+  operationalScriptSearchEvents        OperationalScriptSearchEvent[] @relation("OperationalScriptSearchEventUser")
 
   @@index([organizationId])
   @@index([role])
@@ -166,24 +170,24 @@ model User {
 }
 
 model SellerProfile {
-  id             String   @id @default(cuid())
-  organizationId String
-  userId         String?  @unique
-  salesGroupId   String?
-  code           String
-  displayName    String
-  document       String?
-  email          String?
-  phone          String?
-  active         Boolean  @default(true)
+  id               String   @id @default(cuid())
+  organizationId   String
+  userId           String?  @unique
+  salesGroupId     String?
+  code             String
+  displayName      String
+  document         String?
+  email            String?
+  phone            String?
+  active           Boolean  @default(true)
   monthlyGoalCents Int?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  user         User?        @relation("SellerProfileUser", fields: [userId], references: [id])
-  salesGroup   SalesGroup?  @relation(fields: [salesGroupId], references: [id])
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  user         User?           @relation("SellerProfileUser", fields: [userId], references: [id])
+  salesGroup   SalesGroup?     @relation(fields: [salesGroupId], references: [id])
   documents    SalesDocument[]
   items        SalesItem[]
 
@@ -202,8 +206,8 @@ model SalesGroup {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  supervisor   User?        @relation("SalesGroupSupervisor", fields: [supervisorId], references: [id])
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  supervisor   User?           @relation("SalesGroupSupervisor", fields: [supervisorId], references: [id])
   sellers      SellerProfile[]
   campaigns    SalesCampaign[]
 
@@ -214,35 +218,35 @@ model SalesGroup {
 }
 
 model SalesDocument {
-  id             String   @id @default(cuid())
-  organizationId String
-  sellerProfileId String
-  uploadedById   String
-  reviewedById   String?
-  fileKey        String
-  fileName       String
-  mimeType       String
-  size           Int
-  status         String   @default("UPLOADED")
-  accessKey      String?
-  invoiceNumber  String?
-  series         String?
-  issuedAt       DateTime?
-  issuerName     String?
-  buyerName      String?
-  totalAmountCents Int?
+  id                   String    @id @default(cuid())
+  organizationId       String
+  sellerProfileId      String
+  uploadedById         String
+  reviewedById         String?
+  fileKey              String
+  fileName             String
+  mimeType             String
+  size                 Int
+  status               String    @default("UPLOADED")
+  accessKey            String?
+  invoiceNumber        String?
+  series               String?
+  issuedAt             DateTime?
+  issuerName           String?
+  buyerName            String?
+  totalAmountCents     Int?
   extractionConfidence Float?
-  rejectionReason String?
-  reviewedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  rejectionReason      String?
+  reviewedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id])
-  uploadedBy   User @relation("SalesDocumentUploadedBy", fields: [uploadedById], references: [id])
-  reviewedBy   User? @relation("SalesDocumentReviewedBy", fields: [reviewedById], references: [id])
-  extractions  SalesDocumentExtraction[]
-  items        SalesItem[]
+  organization  Organization              @relation(fields: [organizationId], references: [id])
+  sellerProfile SellerProfile             @relation(fields: [sellerProfileId], references: [id])
+  uploadedBy    User                      @relation("SalesDocumentUploadedBy", fields: [uploadedById], references: [id])
+  reviewedBy    User?                     @relation("SalesDocumentReviewedBy", fields: [reviewedById], references: [id])
+  extractions   SalesDocumentExtraction[]
+  items         SalesItem[]
 
   @@unique([organizationId, accessKey])
   @@index([organizationId])
@@ -254,13 +258,13 @@ model SalesDocument {
 }
 
 model SalesDocumentExtraction {
-  id             String   @id @default(cuid())
+  id              String   @id @default(cuid())
   salesDocumentId String
-  provider       String
-  rawText        String?
-  extractedJson  String
-  confidence     Float?
-  createdAt      DateTime @default(now())
+  provider        String
+  rawText         String?
+  extractedJson   String
+  confidence      Float?
+  createdAt       DateTime @default(now())
 
   salesDocument SalesDocument @relation(fields: [salesDocumentId], references: [id])
 
@@ -269,16 +273,16 @@ model SalesDocumentExtraction {
 }
 
 model SalesItem {
-  id             String   @id @default(cuid())
-  salesDocumentId String
-  sellerProfileId String
-  sku            String?
-  description    String
-  category       String?
-  quantity       Float
-  unitAmountCents Int?
+  id               String   @id @default(cuid())
+  salesDocumentId  String
+  sellerProfileId  String
+  sku              String?
+  description      String
+  category         String?
+  quantity         Float
+  unitAmountCents  Int?
   totalAmountCents Int
-  createdAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   salesDocument SalesDocument @relation(fields: [salesDocumentId], references: [id])
   sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id])
@@ -302,8 +306,8 @@ model SalesCampaign {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  salesGroup   SalesGroup?  @relation(fields: [salesGroupId], references: [id])
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  salesGroup       SalesGroup?       @relation(fields: [salesGroupId], references: [id])
   rankingSnapshots RankingSnapshot[]
 
   @@index([organizationId])
@@ -324,7 +328,7 @@ model RankingSnapshot {
   payloadJson    String
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization   @relation(fields: [organizationId], references: [id])
   campaign     SalesCampaign? @relation(fields: [campaignId], references: [id])
 
   @@index([organizationId])
@@ -437,11 +441,11 @@ model Document {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  professional   Professional @relation(fields: [professionalId], references: [id])
-  license        License      @relation(fields: [licenseId], references: [id])
-  uploadedByUser User?        @relation("DocumentUploadedByUser", fields: [uploadedByUserId], references: [id])
-  uploadToken    UploadToken? @relation(fields: [uploadTokenId], references: [id])
-  validatedBy    User?        @relation("DocumentValidatedBy", fields: [validatedById], references: [id])
+  professional   Professional           @relation(fields: [professionalId], references: [id])
+  license        License                @relation(fields: [licenseId], references: [id])
+  uploadedByUser User?                  @relation("DocumentUploadedByUser", fields: [uploadedByUserId], references: [id])
+  uploadToken    UploadToken?           @relation(fields: [uploadTokenId], references: [id])
+  validatedBy    User?                  @relation("DocumentValidatedBy", fields: [validatedById], references: [id])
   aiExtractions  DocumentAiExtraction[]
 
   @@index([professionalId])
@@ -628,31 +632,31 @@ model InAppNotification {
 }
 
 model Announcement {
-  id             String    @id @default(cuid())
-  organizationId String
-  slug           String
-  title          String
-  summary        String?
-  content        String
-  tagsJson       String?
-  linksJson      String?
+  id              String    @id @default(cuid())
+  organizationId  String
+  slug            String
+  title           String
+  summary         String?
+  content         String
+  tagsJson        String?
+  linksJson       String?
   targetRolesJson String?
-  status         String    @default("DRAFT")
-  priority       String    @default("NORMAL")
-  pinned         Boolean   @default(false)
-  requiresAck    Boolean   @default(false)
-  startsAt       DateTime?
-  expiresAt      DateTime?
-  publishedAt    DateTime?
-  archivedAt     DateTime?
-  createdById    String
-  updatedById    String
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  status          String    @default("DRAFT")
+  priority        String    @default("NORMAL")
+  pinned          Boolean   @default(false)
+  requiresAck     Boolean   @default(false)
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdById     String
+  updatedById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdBy    User         @relation("AnnouncementAuthor", fields: [createdById], references: [id])
-  updatedBy    User         @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id])
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  createdBy    User                      @relation("AnnouncementAuthor", fields: [createdById], references: [id])
+  updatedBy    User                      @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id])
   readReceipts AnnouncementReadReceipt[]
 
   @@unique([organizationId, slug])
@@ -666,17 +670,17 @@ model Announcement {
 }
 
 model AnnouncementReadReceipt {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   announcementId String
   userId         String
   acknowledgedAt DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  announcement Announcement  @relation(fields: [announcementId], references: [id])
-  user         User          @relation("AnnouncementReadReceiptUser", fields: [userId], references: [id])
+  announcement Announcement @relation(fields: [announcementId], references: [id])
+  user         User         @relation("AnnouncementReadReceiptUser", fields: [userId], references: [id])
 
   @@unique([announcementId, userId])
   @@index([organizationId])
@@ -697,9 +701,10 @@ model ScriptCategory {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdBy    User         @relation("ScriptCategoryCreatedBy", fields: [createdById], references: [id])
+  organization Organization                  @relation(fields: [organizationId], references: [id])
+  createdBy    User                          @relation("ScriptCategoryCreatedBy", fields: [createdById], references: [id])
   scripts      OperationalScript[]
+  packs        ScriptPack[]
   suggestions  OperationalScriptSuggestion[]
 
   @@unique([organizationId, slug])
@@ -709,42 +714,98 @@ model ScriptCategory {
   @@index([order])
 }
 
-model OperationalScript {
-  id             String    @id @default(cuid())
+model ScriptPack {
+  id             String   @id @default(cuid())
   organizationId String
-  categoryId     String
+  categoryId     String?
   wikiPageId     String?
   faqThreadId    String?
-  title          String
-  channel        String
-  body           String
-  tagsJson       String?
-  placeholdersJson String?
-  status         String    @default("DRAFT")
   createdById    String
   updatedById    String
-  validatedById  String?
-  validatedAt    DateTime?
-  reviewDueAt    DateTime?
-  recertifiedById String?
-  recertifiedAt  DateTime?
-  usageCount     Int       @default(0)
-  copiedAt       DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  slug           String
+  title          String
+  summary        String?
+  tagsJson       String?
+  status         String   @default("ACTIVE")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  category     ScriptCategory @relation(fields: [categoryId], references: [id])
-  wikiPage     WikiPage?    @relation("OperationalScriptWikiPage", fields: [wikiPageId], references: [id])
-  faqThread    FaqThread?   @relation("OperationalScriptFaqThread", fields: [faqThreadId], references: [id])
-  createdBy    User         @relation("OperationalScriptCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("OperationalScriptUpdatedBy", fields: [updatedById], references: [id])
-  validatedBy  User?        @relation("OperationalScriptValidatedBy", fields: [validatedById], references: [id])
-  recertifiedBy User?       @relation("OperationalScriptRecertifiedBy", fields: [recertifiedById], references: [id])
-  revisions    OperationalScriptRevision[]
-  events       OperationalScriptEvent[]
-  suggestions  OperationalScriptSuggestion[]
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  category     ScriptCategory?  @relation(fields: [categoryId], references: [id])
+  wikiPage     WikiPage?        @relation("ScriptPackWikiPage", fields: [wikiPageId], references: [id])
+  faqThread    FaqThread?       @relation("ScriptPackFaqThread", fields: [faqThreadId], references: [id])
+  createdBy    User             @relation("ScriptPackCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User             @relation("ScriptPackUpdatedBy", fields: [updatedById], references: [id])
+  items        ScriptPackItem[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([categoryId])
+  @@index([wikiPageId])
+  @@index([faqThreadId])
+  @@index([status])
+  @@index([order])
+}
+
+model ScriptPackItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  packId         String
+  scriptId       String
+  label          String?
+  order          Int      @default(0)
+  required       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  pack         ScriptPack        @relation(fields: [packId], references: [id], onDelete: Cascade)
+  script       OperationalScript @relation(fields: [scriptId], references: [id])
+
+  @@unique([packId, scriptId])
+  @@index([organizationId])
+  @@index([packId])
+  @@index([scriptId])
+  @@index([order])
+}
+
+model OperationalScript {
+  id               String    @id @default(cuid())
+  organizationId   String
+  categoryId       String
+  wikiPageId       String?
+  faqThreadId      String?
+  title            String
+  channel          String
+  body             String
+  tagsJson         String?
+  placeholdersJson String?
+  status           String    @default("DRAFT")
+  createdById      String
+  updatedById      String
+  validatedById    String?
+  validatedAt      DateTime?
+  reviewDueAt      DateTime?
+  recertifiedById  String?
+  recertifiedAt    DateTime?
+  usageCount       Int       @default(0)
+  copiedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization           Organization                  @relation(fields: [organizationId], references: [id])
+  category               ScriptCategory                @relation(fields: [categoryId], references: [id])
+  wikiPage               WikiPage?                     @relation("OperationalScriptWikiPage", fields: [wikiPageId], references: [id])
+  faqThread              FaqThread?                    @relation("OperationalScriptFaqThread", fields: [faqThreadId], references: [id])
+  createdBy              User                          @relation("OperationalScriptCreatedBy", fields: [createdById], references: [id])
+  updatedBy              User                          @relation("OperationalScriptUpdatedBy", fields: [updatedById], references: [id])
+  validatedBy            User?                         @relation("OperationalScriptValidatedBy", fields: [validatedById], references: [id])
+  recertifiedBy          User?                         @relation("OperationalScriptRecertifiedBy", fields: [recertifiedById], references: [id])
+  revisions              OperationalScriptRevision[]
+  events                 OperationalScriptEvent[]
+  suggestions            OperationalScriptSuggestion[]
   serviceFlowStepScripts ServiceFlowStepScript[]
+  scriptPackItems        ScriptPackItem[]
 
   @@unique([organizationId, categoryId, title])
   @@index([organizationId])
@@ -760,7 +821,7 @@ model OperationalScript {
 }
 
 model ServiceFlow {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   wikiPageId     String?
   title          String
@@ -768,9 +829,9 @@ model ServiceFlow {
   summary        String?
   content        String?
   tagsJson       String?
-  status         String   @default("DRAFT")
-  priority       Int      @default(0)
-  version        Int      @default(1)
+  status         String    @default("DRAFT")
+  priority       Int       @default(0)
+  version        Int       @default(1)
   reviewComment  String?
   reviewDueAt    DateTime?
   reviewedById   String?
@@ -778,18 +839,18 @@ model ServiceFlow {
   createdById    String
   updatedById    String
   publishedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  wikiPage     WikiPage? @relation("ServiceFlowWikiPage", fields: [wikiPageId], references: [id])
-  createdBy    User @relation("ServiceFlowCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User @relation("ServiceFlowUpdatedBy", fields: [updatedById], references: [id])
-  reviewedBy   User? @relation("ServiceFlowReviewedBy", fields: [reviewedById], references: [id])
-  steps        ServiceFlowStep[]
-  sessions     ServiceFlowSession[]
-  revisions    ServiceFlowRevision[]
-  searchEvents ServiceFlowSearchEvent[]
+  organization        Organization             @relation(fields: [organizationId], references: [id])
+  wikiPage            WikiPage?                @relation("ServiceFlowWikiPage", fields: [wikiPageId], references: [id])
+  createdBy           User                     @relation("ServiceFlowCreatedBy", fields: [createdById], references: [id])
+  updatedBy           User                     @relation("ServiceFlowUpdatedBy", fields: [updatedById], references: [id])
+  reviewedBy          User?                    @relation("ServiceFlowReviewedBy", fields: [reviewedById], references: [id])
+  steps               ServiceFlowStep[]
+  sessions            ServiceFlowSession[]
+  revisions           ServiceFlowRevision[]
+  searchEvents        ServiceFlowSearchEvent[]
   personalScriptFlows PersonalScriptFlow[]
 
   @@unique([organizationId, slug])
@@ -816,8 +877,8 @@ model ServiceFlowStep {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  flow         ServiceFlow @relation(fields: [flowId], references: [id])
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  flow         ServiceFlow              @relation(fields: [flowId], references: [id])
   scripts      ServiceFlowStepScript[]
   sessionSteps ServiceFlowSessionStep[]
 
@@ -837,8 +898,8 @@ model ServiceFlowStepScript {
   required       Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  step         ServiceFlowStep @relation(fields: [stepId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  step         ServiceFlowStep   @relation(fields: [stepId], references: [id])
   script       OperationalScript @relation(fields: [scriptId], references: [id])
 
   @@unique([stepId, scriptId])
@@ -849,19 +910,19 @@ model ServiceFlowStepScript {
 }
 
 model ServiceFlowSession {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   flowId         String
   userId         String
-  status         String   @default("OPEN")
-  startedAt      DateTime @default(now())
+  status         String    @default("OPEN")
+  startedAt      DateTime  @default(now())
   completedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  flow         ServiceFlow @relation(fields: [flowId], references: [id])
-  user         User        @relation("ServiceFlowSessionUser", fields: [userId], references: [id])
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  flow         ServiceFlow              @relation(fields: [flowId], references: [id])
+  user         User                     @relation("ServiceFlowSessionUser", fields: [userId], references: [id])
   steps        ServiceFlowSessionStep[]
 
   @@index([organizationId])
@@ -872,20 +933,20 @@ model ServiceFlowSession {
 }
 
 model ServiceFlowSessionStep {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   sessionId      String
   stepId         String
-  status         String   @default("PENDING")
+  status         String    @default("PENDING")
   decision       String?
   note           String?
   completedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id])
   session      ServiceFlowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  step         ServiceFlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  step         ServiceFlowStep    @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, stepId])
   @@index([organizationId])
@@ -906,8 +967,8 @@ model ServiceFlowRevision {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  flow         ServiceFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  author       User @relation("ServiceFlowRevisionAuthor", fields: [authorId], references: [id])
+  flow         ServiceFlow  @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  author       User         @relation("ServiceFlowRevisionAuthor", fields: [authorId], references: [id])
 
   @@unique([flowId, version])
   @@index([organizationId])
@@ -928,7 +989,7 @@ model ServiceFlowSearchEvent {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   flow         ServiceFlow? @relation(fields: [flowId], references: [id], onDelete: SetNull)
-  user         User? @relation("ServiceFlowSearchEventUser", fields: [userId], references: [id], onDelete: SetNull)
+  user         User?        @relation("ServiceFlowSearchEventUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([flowId])
@@ -938,21 +999,21 @@ model ServiceFlowSearchEvent {
 }
 
 model PersonalScript {
-  id             String   @id @default(cuid())
-  organizationId String
-  ownerId        String
-  title          String
-  channel        String   @default("WHATSAPP")
-  body           String
-  tagsJson       String?
+  id               String    @id @default(cuid())
+  organizationId   String
+  ownerId          String
+  title            String
+  channel          String    @default("WHATSAPP")
+  body             String
+  tagsJson         String?
   placeholdersJson String?
-  suggestionId   String?
-  suggestedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  suggestionId     String?
+  suggestedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  owner        User @relation("PersonalScriptOwner", fields: [ownerId], references: [id])
+  organization Organization                 @relation(fields: [organizationId], references: [id])
+  owner        User                         @relation("PersonalScriptOwner", fields: [ownerId], references: [id])
   suggestion   OperationalScriptSuggestion? @relation("PersonalScriptSuggestion", fields: [suggestionId], references: [id])
   flows        PersonalScriptFlow[]
 
@@ -965,15 +1026,15 @@ model PersonalScript {
 }
 
 model PersonalScriptFlow {
-  id             String   @id @default(cuid())
-  organizationId String
+  id               String   @id @default(cuid())
+  organizationId   String
   personalScriptId String
-  flowId         String
-  createdAt      DateTime @default(now())
+  flowId           String
+  createdAt        DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
   personalScript PersonalScript @relation(fields: [personalScriptId], references: [id], onDelete: Cascade)
-  flow         ServiceFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  flow           ServiceFlow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
   @@unique([personalScriptId, flowId])
   @@index([organizationId])
@@ -981,22 +1042,22 @@ model PersonalScriptFlow {
 }
 
 model OperationalScriptRevision {
-  id             String   @id @default(cuid())
-  organizationId String
-  scriptId       String
-  authorId       String
-  version        Int
-  title          String
-  channel        String
-  body           String
-  tagsJson       String?
+  id               String   @id @default(cuid())
+  organizationId   String
+  scriptId         String
+  authorId         String
+  version          Int
+  title            String
+  channel          String
+  body             String
+  tagsJson         String?
   placeholdersJson String?
-  status         String
-  createdAt      DateTime @default(now())
+  status           String
+  createdAt        DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
   script       OperationalScript @relation(fields: [scriptId], references: [id])
-  author       User         @relation("OperationalScriptRevisionAuthor", fields: [authorId], references: [id])
+  author       User              @relation("OperationalScriptRevisionAuthor", fields: [authorId], references: [id])
 
   @@unique([scriptId, version])
   @@index([organizationId])
@@ -1013,9 +1074,9 @@ model OperationalScriptEvent {
   metadataJson   String?
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
   script       OperationalScript @relation(fields: [scriptId], references: [id])
-  user         User @relation("OperationalScriptEventUser", fields: [userId], references: [id])
+  user         User              @relation("OperationalScriptEventUser", fields: [userId], references: [id])
 
   @@index([organizationId])
   @@index([scriptId])
@@ -1025,30 +1086,30 @@ model OperationalScriptEvent {
 }
 
 model OperationalScriptSuggestion {
-  id             String   @id @default(cuid())
-  organizationId String
-  categoryId     String?
-  scriptId       String?
-  authorId       String
-  decidedById    String?
-  title          String
-  channel        String
-  body           String
-  tagsJson       String?
-  status         String   @default("SUGGESTED")
-  suggestionType String   @default("NEW")
+  id              String    @id @default(cuid())
+  organizationId  String
+  categoryId      String?
+  scriptId        String?
+  authorId        String
+  decidedById     String?
+  title           String
+  channel         String
+  body            String
+  tagsJson        String?
+  status          String    @default("SUGGESTED")
+  suggestionType  String    @default("NEW")
   decisionComment String?
   createdScriptId String?
-  decidedAt      DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  category     ScriptCategory? @relation(fields: [categoryId], references: [id])
-  script       OperationalScript? @relation(fields: [scriptId], references: [id])
-  author       User @relation("OperationalScriptSuggestionAuthor", fields: [authorId], references: [id])
-  decidedBy    User? @relation("OperationalScriptSuggestionDecider", fields: [decidedById], references: [id])
-  personalScripts PersonalScript[] @relation("PersonalScriptSuggestion")
+  organization    Organization       @relation(fields: [organizationId], references: [id])
+  category        ScriptCategory?    @relation(fields: [categoryId], references: [id])
+  script          OperationalScript? @relation(fields: [scriptId], references: [id])
+  author          User               @relation("OperationalScriptSuggestionAuthor", fields: [authorId], references: [id])
+  decidedBy       User?              @relation("OperationalScriptSuggestionDecider", fields: [decidedById], references: [id])
+  personalScripts PersonalScript[]   @relation("PersonalScriptSuggestion")
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1069,7 +1130,7 @@ model OperationalScriptSearchEvent {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  user         User @relation("OperationalScriptSearchEventUser", fields: [userId], references: [id])
+  user         User         @relation("OperationalScriptSearchEventUser", fields: [userId], references: [id])
 
   @@index([organizationId])
   @@index([userId])
@@ -1096,26 +1157,27 @@ model FaqItem {
 }
 
 model FaqThread {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   authorId       String
   title          String
   body           String?
   tagsJson       String?
-  status         String   @default("OPEN")
+  status         String    @default("OPEN")
   wikiPageId     String?
   promotedAt     DateTime?
   promotedById   String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  author       User         @relation("FaqThreadAuthor", fields: [authorId], references: [id])
-  wikiPage     WikiPage?    @relation("FaqThreadWikiPage", fields: [wikiPageId], references: [id])
-  promotedBy   User?        @relation("FaqThreadPromoter", fields: [promotedById], references: [id])
-  comments     FaqComment[]
-  reactions    FaqReaction[]
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  author             User                @relation("FaqThreadAuthor", fields: [authorId], references: [id])
+  wikiPage           WikiPage?           @relation("FaqThreadWikiPage", fields: [wikiPageId], references: [id])
+  promotedBy         User?               @relation("FaqThreadPromoter", fields: [promotedById], references: [id])
+  comments           FaqComment[]
+  reactions          FaqReaction[]
   operationalScripts OperationalScript[] @relation("OperationalScriptFaqThread")
+  scriptPacks        ScriptPack[]        @relation("ScriptPackFaqThread")
 
   @@index([organizationId])
   @@index([authorId])
@@ -1134,9 +1196,9 @@ model FaqComment {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  thread       FaqThread   @relation(fields: [threadId], references: [id])
-  author       User        @relation("FaqCommentAuthor", fields: [authorId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  thread       FaqThread     @relation(fields: [threadId], references: [id])
+  author       User          @relation("FaqCommentAuthor", fields: [authorId], references: [id])
   reactions    FaqReaction[]
 
   @@index([organizationId])
@@ -1157,9 +1219,9 @@ model FaqReaction {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  thread       FaqThread   @relation(fields: [threadId], references: [id])
-  comment      FaqComment? @relation(fields: [commentId], references: [id])
-  user         User        @relation("FaqReactionUser", fields: [userId], references: [id])
+  thread       FaqThread    @relation(fields: [threadId], references: [id])
+  comment      FaqComment?  @relation(fields: [commentId], references: [id])
+  user         User         @relation("FaqReactionUser", fields: [userId], references: [id])
 
   @@unique([organizationId, targetType, targetId, userId, type])
   @@index([organizationId])
@@ -1186,17 +1248,18 @@ model WikiPage {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdBy    User         @relation("WikiPageCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("WikiPageUpdatedBy", fields: [updatedById], references: [id])
-  editRequests WikiEditRequest[]
-  readReceipts WikiReadReceipt[]
-  presences    WikiPresence[]
-  revisions    WikiRevision[]
-  attachments  WikiAttachment[]
-  faqThreads   FaqThread[] @relation("FaqThreadWikiPage")
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  createdBy          User                @relation("WikiPageCreatedBy", fields: [createdById], references: [id])
+  updatedBy          User                @relation("WikiPageUpdatedBy", fields: [updatedById], references: [id])
+  editRequests       WikiEditRequest[]
+  readReceipts       WikiReadReceipt[]
+  presences          WikiPresence[]
+  revisions          WikiRevision[]
+  attachments        WikiAttachment[]
+  faqThreads         FaqThread[]         @relation("FaqThreadWikiPage")
   operationalScripts OperationalScript[] @relation("OperationalScriptWikiPage")
-  serviceFlows ServiceFlow[] @relation("ServiceFlowWikiPage")
+  serviceFlows       ServiceFlow[]       @relation("ServiceFlowWikiPage")
+  scriptPacks        ScriptPack[]        @relation("ScriptPackWikiPage")
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -1220,11 +1283,11 @@ model WikiRevision {
   author       User             @relation("WikiRevisionAuthor", fields: [authorId], references: [id])
   request      WikiEditRequest? @relation(fields: [requestId], references: [id])
 
+  @@unique([pageId, version])
   @@index([organizationId])
   @@index([pageId])
   @@index([authorId])
   @@index([requestId])
-  @@unique([pageId, version])
 }
 
 model WikiAttachment {
@@ -1265,10 +1328,10 @@ model WikiEditRequest {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
-  page         WikiPage       @relation(fields: [pageId], references: [id])
-  author       User           @relation("WikiEditRequestAuthor", fields: [authorId], references: [id])
-  reviewer     User?          @relation("WikiEditRequestReviewer", fields: [reviewerId], references: [id])
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  page         WikiPage         @relation(fields: [pageId], references: [id])
+  author       User             @relation("WikiEditRequestAuthor", fields: [authorId], references: [id])
+  reviewer     User?            @relation("WikiEditRequestReviewer", fields: [reviewerId], references: [id])
   revisions    WikiRevision[]
   attachments  WikiAttachment[]
 
@@ -1321,17 +1384,17 @@ model WikiPresence {
 }
 
 model GoogleConnection {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   organizationId        String
-  userId                String   @unique
+  userId                String    @unique
   provider              String
   refreshTokenEncrypted String
   scopesJson            String
-  connectedAt           DateTime @default(now())
+  connectedAt           DateTime  @default(now())
   lastUsedAt            DateTime?
   revokedAt             DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
@@ -1343,15 +1406,15 @@ model GoogleConnection {
 }
 
 model GoogleOauthState {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   userId         String
   provider       String
-  stateHash      String   @unique
+  stateHash      String    @unique
   codeVerifier   String
   expiresAt      DateTime
   usedAt         DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User         @relation(fields: [userId], references: [id])

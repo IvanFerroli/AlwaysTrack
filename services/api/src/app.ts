@@ -169,10 +169,12 @@ import {
   createOperationalScriptHandler,
   createOperationalScriptSuggestionHandler,
   createScriptCategoryHandler,
+  createScriptPackHandler,
   decideOperationalScriptSuggestionHandler,
   listScriptLibraryHandler,
   listPersonalScriptsHandler,
   obsoleteOperationalScriptHandler,
+  updateScriptPackHandler,
   updateOperationalScriptHandler,
   recertifyOperationalScriptHandler,
   restoreOperationalScriptRevisionHandler,
@@ -276,6 +278,8 @@ export function createApp() {
   app.post("/v1/script-library/personal-scripts", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createPersonalScriptHandler);
   app.post("/v1/script-library/personal-scripts/:personalScriptId/suggest", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, suggestPersonalScriptHandler);
   app.post("/v1/script-library/categories", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createScriptCategoryHandler);
+  app.post("/v1/script-library/packs", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createScriptPackHandler);
+  app.patch("/v1/script-library/packs/:packId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateScriptPackHandler);
   app.post("/v1/script-library/suggestions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createOperationalScriptSuggestionHandler);
   app.post("/v1/script-library/suggestions/:suggestionId/decision", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, decideOperationalScriptSuggestionHandler);
   app.post("/v1/script-library/scripts", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createOperationalScriptHandler);

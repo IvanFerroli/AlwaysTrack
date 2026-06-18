@@ -535,6 +535,62 @@ async function ensureOperationalScriptSuggestion(input: {
   return existing ? prisma.operationalScriptSuggestion.update({ where: { id: existing.id }, data }) : prisma.operationalScriptSuggestion.create({ data: { organizationId: input.organizationId, ...data } });
 }
 
+async function ensureScriptPack(input: {
+  organizationId: string;
+  categoryId?: string | null;
+  wikiPageId?: string | null;
+  faqThreadId?: string | null;
+  createdById: string;
+  updatedById: string;
+  slug: string;
+  title: string;
+  summary: string;
+  tags: string[];
+  status?: string;
+  order?: number;
+  scriptIds: string[];
+}) {
+  const pack = await prisma.scriptPack.upsert({
+    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
+    update: {
+      categoryId: input.categoryId ?? null,
+      wikiPageId: input.wikiPageId ?? null,
+      faqThreadId: input.faqThreadId ?? null,
+      title: input.title,
+      summary: input.summary,
+      tagsJson: JSON.stringify(input.tags),
+      status: input.status ?? "ACTIVE",
+      order: input.order ?? 0,
+      updatedById: input.updatedById
+    },
+    create: {
+      organizationId: input.organizationId,
+      categoryId: input.categoryId ?? null,
+      wikiPageId: input.wikiPageId ?? null,
+      faqThreadId: input.faqThreadId ?? null,
+      createdById: input.createdById,
+      updatedById: input.updatedById,
+      slug: input.slug,
+      title: input.title,
+      summary: input.summary,
+      tagsJson: JSON.stringify(input.tags),
+      status: input.status ?? "ACTIVE",
+      order: input.order ?? 0
+    }
+  });
+  await prisma.scriptPackItem.deleteMany({ where: { packId: pack.id } });
+  await prisma.scriptPackItem.createMany({
+    data: input.scriptIds.map((scriptId, index) => ({
+      organizationId: input.organizationId,
+      packId: pack.id,
+      scriptId,
+      order: index + 1,
+      required: index === 0
+    }))
+  });
+  return pack;
+}
+
 async function ensureServiceFlow(input: {
   organizationId: string;
   createdById: string;
@@ -1327,6 +1383,21 @@ async function main() {
     tags: ["saude", "reversa", "troca", "estorno"],
     wikiPageId: faqWikiPage.id,
     reviewDueAt: addDays(45)
+  });
+
+  await ensureScriptPack({
+    organizationId: organization.id,
+    categoryId: categoryProduct.id,
+    wikiPageId: faqWikiPage.id,
+    faqThreadId: faqThread.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    slug: "triagem-saude-reversa",
+    title: "Triagem de saúde com possível reversa",
+    summary: "Sequência curta para coletar relato, orientar produto e conduzir reversa quando houver frasco fechado.",
+    tags: ["saude", "reversa", "sac", "triagem"],
+    order: 1,
+    scriptIds: [healthUsageScript.id, productGuidanceScript.id, reverseScript.id]
   });
 
   await ensureServiceFlow({

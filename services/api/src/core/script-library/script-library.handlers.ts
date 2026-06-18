@@ -5,6 +5,7 @@ import {
   createPersonalScript,
   createOperationalScript,
   createOperationalScriptSuggestion,
+  createScriptPack,
   createScriptCategory,
   decideOperationalScriptSuggestion,
   listScriptLibrary,
@@ -14,6 +15,7 @@ import {
   parseScriptCategoryInput,
   parseScriptCopyInput,
   parseScriptFilters,
+  parseScriptPackInput,
   parseScriptSuggestionInput,
   parsePersonalScriptInput,
   recertifyOperationalScript,
@@ -21,6 +23,7 @@ import {
   restoreOperationalScriptRevision,
   ScriptLibraryError,
   suggestPersonalScriptAsCanonical,
+  updateScriptPack,
   updateOperationalScript,
   validateOperationalScript
 } from "./script-library.service.js";
@@ -80,6 +83,22 @@ export async function suggestPersonalScriptHandler(request: Request, response: R
 export async function createScriptCategoryHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await createScriptCategory(prisma, actorFrom(request), parseScriptCategoryInput(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function createScriptPackHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await createScriptPack(prisma, actorFrom(request), parseScriptPackInput(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function updateScriptPackHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await updateScriptPack(prisma, actorFrom(request), routeParam(request.params.packId), parseScriptPackInput(request.body)));
   } catch (error) {
     return sendScriptError(response, error);
   }

@@ -43,9 +43,24 @@ interface OperationalScriptItem {
   events?: Array<{ id: string; action: string; metadataJson: string | null; createdAt: string; user: { id: string; name: string; role: string } }>;
 }
 
+interface ScriptPackItem {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  status: string;
+  order: number;
+  tags?: string[];
+  category: { id: string; name: string } | null;
+  wikiPage: { id: string; slug: string; title: string; active: boolean } | null;
+  faqThread: { id: string; title: string; status: string; wikiPage: { id: string; slug: string; title: string } | null } | null;
+  items: Array<{ id: string; label: string | null; order: number; required: boolean; script: OperationalScriptItem }>;
+}
+
 interface ScriptLibraryResponse {
   categories: ScriptCategoryItem[];
   scripts: OperationalScriptItem[];
+  packs: ScriptPackItem[];
   suggestions: ScriptSuggestionItem[];
   metrics: ScriptLibraryMetrics | null;
   total: number;
@@ -175,6 +190,10 @@ function emptySuggestionDraft(categoryId = "", scriptId = "") {
   return { categoryId, scriptId, suggestionType: scriptId ? "CHANGE" : "NEW", title: "", channel: "WHATSAPP", body: "", tags: "" };
 }
 
+function emptyPackDraft(categoryId = "") {
+  return { categoryId, wikiPageId: "", faqThreadId: "", title: "", summary: "", tags: "", status: "ACTIVE", scriptIds: [] as string[] };
+}
+
 function dateInputValue(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
@@ -186,6 +205,7 @@ function payloadDate(value: string) {
 export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [categories, setCategories] = useState<ScriptCategoryItem[]>([]);
   const [scripts, setScripts] = useState<OperationalScriptItem[]>([]);
+  const [packs, setPacks] = useState<ScriptPackItem[]>([]);
   const [suggestions, setSuggestions] = useState<ScriptSuggestionItem[]>([]);
   const [metrics, setMetrics] = useState<ScriptLibraryMetrics | null>(null);
   const [wikiPages, setWikiPages] = useState<Array<{ id: string; slug: string; title: string }>>([]);
@@ -193,6 +213,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [total, setTotal] = useState(0);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [selectedPackId, setSelectedPackId] = useState("");
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState("");
   const [status, setStatus] = useState("");
@@ -207,6 +228,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
   const [suggestionDraft, setSuggestionDraft] = useState(emptySuggestionDraft());
+  const [packDraft, setPackDraft] = useState(emptyPackDraft());
   const [decisionComment, setDecisionComment] = useState("");
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,6 +253,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       const result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
       setCategories(result.categories);
       setScripts(result.scripts);
+      setPacks(result.packs ?? []);
       setSuggestions(result.suggestions ?? []);
       setMetrics(result.metrics ?? null);
       setTotal(result.total);
@@ -268,11 +291,14 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   }, [canManage]);
 
   const selected = scripts.find((script) => script.id === selectedId) ?? null;
+  const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? null;
   const tags = useMemo(() => [...new Set([...defaultTags, ...scripts.flatMap((script) => script.tags ?? [])])].sort((left, right) => left.localeCompare(right)), [scripts]);
   const paginatedScripts = scripts.slice((page - 1) * pageSize, page * pageSize);
   const rendered = selected ? renderScript(selected.body, placeholderValues) : "";
   const channelPreview = selected ? formatScriptForChannel(rendered, selected.channel) : { text: "", warnings: [], plain: false };
-  const missingRequiredPlaceholders = selected?.placeholders?.filter((placeholder) => labelForPlaceholder(placeholder).required && !placeholderValues[placeholder]?.trim()) ?? [];
+  const packPlaceholders = selectedPack ? [...new Set(selectedPack.items.flatMap((item) => item.script.placeholders ?? []))].sort((left, right) => left.localeCompare(right)) : [];
+  const activePlaceholders = selectedPack ? packPlaceholders : selected?.placeholders ?? [];
+  const missingRequiredPlaceholders = activePlaceholders.filter((placeholder) => labelForPlaceholder(placeholder).required && !placeholderValues[placeholder]?.trim());
 
   function draftFrom(script: OperationalScriptItem) {
     setEditingScriptId(script.id);
@@ -346,6 +372,26 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function savePack(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      const result = await api<{ pack: ScriptPackItem }>("/v1/script-library/packs", {
+        method: "POST",
+        body: JSON.stringify({
+          ...packDraft,
+          categoryId: packDraft.categoryId || selectedCategoryId || null,
+          wikiPageId: packDraft.wikiPageId || null,
+          faqThreadId: packDraft.faqThreadId || null,
+          tags: parseTags(packDraft.tags)
+        })
+      });
+      setPackDraft(emptyPackDraft(selectedCategoryId));
+      setSelectedPackId(result.pack.id);
+      setSelectedId("");
+      await load(selectedId);
+    });
+  }
+
   async function decideSuggestion(suggestion: ScriptSuggestionItem, decision: "ACCEPTED" | "REJECTED" | "MERGED") {
     await run(async () => {
       await api(`/v1/script-library/suggestions/${suggestion.id}/decision`, {
@@ -409,6 +455,19 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     window.setTimeout(() => setCopyFeedback(""), 1800);
   }
 
+  async function copyPackStep(script: OperationalScriptItem) {
+    const renderedStep = renderScript(script.body, placeholderValues);
+    const formatted = formatScriptForChannel(renderedStep, script.channel);
+    try {
+      await navigator.clipboard.writeText(formatted.text);
+      setCopyFeedback("Copiado");
+    } catch {
+      setCopyFeedback("Copie manualmente");
+    }
+    await api(`/v1/script-library/scripts/${script.id}/copy`, { method: "POST", body: JSON.stringify({ renderedText: formatted.text, placeholders: placeholderValues }) }).catch(() => null);
+    window.setTimeout(() => setCopyFeedback(""), 1800);
+  }
+
   async function restoreRevision(revisionId: string) {
     if (!selected) return;
     await run(async () => {
@@ -453,15 +512,36 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       {mode === "attendance" ? (
         <section className="panel script-attendance-panel">
           <div className="script-chip-row">
-            <button className={!selectedCategoryId ? "active" : ""} type="button" onClick={() => { setSelectedCategoryId(""); setPage(1); }}>Todas</button>
+            <button className={!selectedCategoryId ? "active" : ""} type="button" onClick={() => { setSelectedCategoryId(""); setSelectedPackId(""); setPage(1); }}>Todas</button>
             {categories.map((category) => (
-              <button className={selectedCategoryId === category.id ? "active" : ""} key={category.id} type="button" onClick={() => { setSelectedCategoryId(category.id); setPage(1); }}>
+              <button className={selectedCategoryId === category.id ? "active" : ""} key={category.id} type="button" onClick={() => { setSelectedCategoryId(category.id); setSelectedPackId(""); setPage(1); }}>
                 {category.name}
               </button>
             ))}
           </div>
           <div className="script-attendance-layout">
             <div className="script-attendance-results">
+              {packs.length ? (
+                <>
+                  <h2>Roteiros</h2>
+                  {packs.map((pack) => (
+                    <button
+                      className={selectedPackId === pack.id ? "wiki-page-button active" : "wiki-page-button"}
+                      key={pack.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPackId(pack.id);
+                        setSelectedId("");
+                        setPlaceholderValues({});
+                      }}
+                    >
+                      <strong>{pack.title}</strong>
+                      {pack.summary ? <small>{pack.summary}</small> : null}
+                      <small>{pack.items.length} passo(s){pack.category ? ` / ${pack.category.name}` : ""}</small>
+                    </button>
+                  ))}
+                </>
+              ) : null}
               <h2>Scripts do atendimento</h2>
               {loading ? <OperationalState state="loading" title="Carregando scripts" /> : null}
               {paginatedScripts.map((script) => (
@@ -471,6 +551,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   type="button"
                   onClick={() => {
                     setSelectedId(script.id);
+                    setSelectedPackId("");
                     setPlaceholderValues({});
                     setScriptDraft(draftFrom(script));
                   }}
@@ -484,7 +565,70 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
               <PaginationControls page={page} pageSize={pageSize} total={scripts.length} onPageChange={setPage} />
             </div>
             <div className="script-attendance-reader">
-              {selected ? (
+              {selectedPack ? (
+                <>
+                  <div className="detail-header">
+                    <div>
+                      <p className="eyebrow">{selectedPack.category?.name ?? "Roteiro"}</p>
+                      <h2>{selectedPack.title}</h2>
+                      {selectedPack.summary ? <p className="muted">{selectedPack.summary}</p> : null}
+                    </div>
+                  </div>
+                  {(selectedPack.wikiPage || selectedPack.faqThread) ? (
+                    <div className="script-link-row">
+                      {selectedPack.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selectedPack.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
+                      {selectedPack.faqThread ? <button className="secondary" type="button" onClick={() => window.location.assign("/faq")}>Abrir FAQ</button> : null}
+                      {selectedPack.faqThread?.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selectedPack.faqThread!.wikiPage!.slug}`)}>Wiki da FAQ</button> : null}
+                    </div>
+                  ) : null}
+                  {activePlaceholders.length ? (
+                    <div className="script-placeholder-grid">
+                      {activePlaceholders.map((placeholder) => {
+                        const meta = labelForPlaceholder(placeholder);
+                        const missing = meta.required && !placeholderValues[placeholder]?.trim();
+                        return (
+                          <label className={missing ? "placeholder-missing" : ""} key={placeholder}>
+                            {meta.label}{meta.required ? " *" : ""}
+                            <input placeholder={meta.example} value={placeholderValues[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [placeholder]: event.target.value }))} />
+                            {meta.help ? <small>{meta.help}</small> : null}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {missingRequiredPlaceholders.length ? <p className="form-warning">Preencha os campos obrigatórios para evitar envio de texto incompleto.</p> : null}
+                  <div className="script-pack-steps">
+                    {selectedPack.items.map((item, index) => {
+                      const renderedStep = renderScript(item.script.body, placeholderValues);
+                      const formattedStep = formatScriptForChannel(renderedStep, item.script.channel);
+                      return (
+                        <article className="script-pack-step" key={item.id}>
+                          <div>
+                            <span>{index + 1}</span>
+                            <div>
+                              <strong>{item.label || item.script.title}</strong>
+                              <small>{item.script.channel} / {item.script.category.name}</small>
+                            </div>
+                            <button className="script-copy-button" type="button" onClick={() => void copyPackStep(item.script)} aria-label={`Copiar passo ${index + 1}`} title="Copiar passo">
+                              {copyFeedback ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                              <span className="sr-only">Copiar passo</span>
+                            </button>
+                          </div>
+                          {formattedStep.warnings.length ? <div className="script-channel-warnings">{formattedStep.warnings.map((warning) => <span key={warning}>{warning}</span>)}</div> : null}
+                          <div className="script-preview">
+                            {formattedStep.plain ? <pre className="script-channel-preview">{formattedStep.text}</pre> : <MarkdownContent content={formattedStep.text} emptyText="Sem texto publicado." />}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  {selectedPack.tags?.length ? (
+                    <div className="wiki-tag-row">
+                      {selectedPack.tags.map((tag) => <button key={tag} type="button" onClick={() => { setSelectedTag(tag); setPage(1); }}>#{tag}</button>)}
+                    </div>
+                  ) : null}
+                </>
+              ) : selected ? (
                 <>
                   <div className="detail-header">
                     <div>
@@ -617,6 +761,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   type="button"
                   onClick={() => {
                     setSelectedId(script.id);
+                    setSelectedPackId("");
                     setPlaceholderValues({});
                     setScriptDraft(draftFrom(script));
                   }}
@@ -851,6 +996,89 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           ) : null}
         </div>
       </section> : null}
+
+      {mode === "management" && canManage ? (
+        <section className="panel form-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Roteiros</p>
+              <h2>Pacotes de atendimento</h2>
+            </div>
+          </div>
+          <form onSubmit={savePack}>
+            <div className="form-grid">
+              <label>
+                Categoria
+                <select value={packDraft.categoryId} onChange={(event) => setPackDraft((current) => ({ ...current, categoryId: event.target.value }))}>
+                  <option value="">Sem categoria</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
+              <label>
+                Status
+                <select value={packDraft.status} onChange={(event) => setPackDraft((current) => ({ ...current, status: event.target.value }))}>
+                  <option value="ACTIVE">Ativo</option>
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="ARCHIVED">Arquivado</option>
+                </select>
+              </label>
+              <label>
+                Wiki relacionada
+                <select value={packDraft.wikiPageId} onChange={(event) => setPackDraft((current) => ({ ...current, wikiPageId: event.target.value }))}>
+                  <option value="">Nenhuma</option>
+                  {wikiPages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}
+                </select>
+              </label>
+              <label>
+                FAQ relacionada
+                <select value={packDraft.faqThreadId} onChange={(event) => setPackDraft((current) => ({ ...current, faqThreadId: event.target.value }))}>
+                  <option value="">Nenhuma</option>
+                  {faqThreads.map((thread) => <option key={thread.id} value={thread.id}>{thread.title}</option>)}
+                </select>
+              </label>
+              <label className="full-span">
+                Título
+                <input value={packDraft.title} onChange={(event) => setPackDraft((current) => ({ ...current, title: event.target.value }))} />
+              </label>
+              <label className="full-span">
+                Resumo
+                <textarea rows={3} value={packDraft.summary} onChange={(event) => setPackDraft((current) => ({ ...current, summary: event.target.value }))} />
+              </label>
+              <label className="full-span">
+                Tags
+                <input value={packDraft.tags} onChange={(event) => setPackDraft((current) => ({ ...current, tags: event.target.value }))} placeholder="saude, reversa, triagem" />
+              </label>
+            </div>
+            <div className="script-pack-builder">
+              <h3>Scripts do roteiro</h3>
+              <div>
+                {scripts.map((script) => {
+                  const checked = packDraft.scriptIds.includes(script.id);
+                  return (
+                    <label key={script.id}>
+                      <input
+                        checked={checked}
+                        type="checkbox"
+                        onChange={(event) => setPackDraft((current) => ({
+                          ...current,
+                          scriptIds: event.target.checked ? [...current.scriptIds, script.id] : current.scriptIds.filter((scriptId) => scriptId !== script.id)
+                        }))}
+                      />
+                      <span>{script.title}</span>
+                      <small>{script.category.name} / {script.channel}</small>
+                    </label>
+                  );
+                })}
+              </div>
+              <small className="muted">A ordem segue a sequência em que os scripts aparecem na lista filtrada.</small>
+            </div>
+            <div className="form-actions">
+              <button disabled={saving || !packDraft.title.trim() || packDraft.scriptIds.length === 0}>Criar roteiro</button>
+              <button className="secondary" type="button" onClick={() => setPackDraft(emptyPackDraft(selectedCategoryId))}>Limpar</button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       {mode === "management" && canManage ? (
         <section className="panel form-panel">

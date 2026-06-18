@@ -157,10 +157,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 138. `EXEC-AT-128`: revisao rica de sugestoes da Scriptoteca (`TASK-AT-128`). Status: completed-mvp.
 139. `EXEC-AT-129`: formatacao por canal na Scriptoteca (`TASK-AT-129`). Status: completed-mvp.
 140. `EXEC-AT-139`: emoji picker transversal nos editores ricos (`TASK-AT-139`). Status: completed-mvp.
+141. `EXEC-AT-126`: pacotes e roteiros de atendimento na Scriptoteca (`TASK-AT-126`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-126-script-library-script-packs.md`: pacotes e roteiros de atendimento.
-2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+2. Follow-up de Scriptoteca: edicao visual de pacotes existentes e reordenacao manual por drag/drop ou controles.
 3. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
 4. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
 5. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
@@ -224,7 +225,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 25. `TASK-AT-123`: Scriptoteca - clipe de copia rapida. Status: completed.
 26. `TASK-AT-124`: Scriptoteca - modo atendimento rapido. Status: completed-mvp.
 27. `TASK-AT-125`: Scriptoteca - qualidade de placeholders. Status: completed-mvp.
-28. `TASK-AT-126`: Scriptoteca - pacotes e roteiros de atendimento. Status: proposed.
+28. `TASK-AT-126`: Scriptoteca - pacotes e roteiros de atendimento. Status: completed-mvp.
 29. `TASK-AT-127`: Scriptoteca - painel de governanca. Status: completed-mvp.
 30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: completed-mvp.
 31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: completed-mvp.

@@ -61,10 +61,24 @@ export interface PersonalScriptInput {
   flowIds?: string[];
 }
 
+export interface ScriptPackInput {
+  categoryId?: string | null;
+  wikiPageId?: string | null;
+  faqThreadId?: string | null;
+  title?: string;
+  slug?: string | null;
+  summary?: string | null;
+  tags?: string[];
+  status?: string;
+  order?: number;
+  scriptIds?: string[];
+}
+
 const statuses = new Set(["DRAFT", "VALIDATED", "OBSOLETE"]);
 const channels = new Set(["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"]);
 const suggestionStatuses = new Set(["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"]);
 const suggestionTypes = new Set(["NEW", "CHANGE"]);
+const packStatuses = new Set(["ACTIVE", "DRAFT", "ARCHIVED"]);
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -121,6 +135,10 @@ function cleanSuggestionStatus(value: unknown) {
 
 function cleanSuggestionType(value: unknown) {
   return typeof value === "string" && suggestionTypes.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+}
+
+function cleanPackStatus(value: unknown) {
+  return typeof value === "string" && packStatuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
 }
 
 function normalizedTags(values: unknown[] = []) {
@@ -291,6 +309,22 @@ export function parsePersonalScriptInput(payload: unknown): PersonalScriptInput 
   };
 }
 
+export function parseScriptPackInput(payload: unknown): ScriptPackInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    categoryId: cleanOptionalText(input.categoryId),
+    wikiPageId: cleanOptionalText(input.wikiPageId),
+    faqThreadId: cleanOptionalText(input.faqThreadId),
+    title: cleanText(input.title),
+    slug: cleanOptionalText(input.slug),
+    summary: cleanOptionalText(input.summary),
+    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
+    status: cleanPackStatus(input.status),
+    order: cleanNumber(input.order),
+    scriptIds: Array.isArray(input.scriptIds) ? [...new Set(input.scriptIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0))] : undefined
+  };
+}
+
 async function recordSearchEvent(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters, resultCount: number) {
   if (!filters.query && !filters.channel && !filters.categoryId && !filters.status && !filters.tags?.length && !filters.reviewDue) return;
   await prisma.operationalScriptSearchEvent.create({
@@ -347,6 +381,36 @@ async function scriptLibraryMetrics(prisma: PrismaClient, actor: CurrentUser) {
   return { mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches, probableDuplicates };
 }
 
+function scriptPackInclude() {
+  return {
+    category: { select: { id: true, name: true } },
+    wikiPage: { select: { id: true, slug: true, title: true, active: true } },
+    faqThread: { select: { id: true, title: true, status: true, wikiPage: { select: { id: true, slug: true, title: true } } } },
+    items: {
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      include: {
+        script: {
+          include: {
+            category: true,
+            wikiPage: { select: { id: true, slug: true, title: true, active: true } },
+            faqThread: { select: { id: true, title: true, status: true, wikiPage: { select: { id: true, slug: true, title: true } } } },
+            validatedBy: { select: { id: true, name: true, role: true } },
+            recertifiedBy: { select: { id: true, name: true, role: true } }
+          }
+        }
+      }
+    }
+  } satisfies Prisma.ScriptPackInclude;
+}
+
+function withScriptPackFormat<T extends { tagsJson?: string | null; items?: Array<{ script: Parameters<typeof withScriptFormat>[0] }> }>(item: T) {
+  return {
+    ...item,
+    tags: tagsFromJson(item.tagsJson),
+    items: item.items?.map((packItem) => ({ ...packItem, script: withScriptFormat(packItem.script) })) ?? []
+  };
+}
+
 export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters = {}) {
   const scriptWhere: Prisma.OperationalScriptWhereInput = {
     ...scriptVisibilityWhere(actor),
@@ -369,7 +433,26 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
       filters.includeObsolete ? undefined : { status: { not: "OBSOLETE" } }
     ].filter(Boolean) as Prisma.OperationalScriptWhereInput[]
   };
-  const [categories, scripts, total, suggestions, metrics] = await Promise.all([
+  const packWhere: Prisma.ScriptPackWhereInput = {
+    organizationId: actor.organizationId,
+    categoryId: filters.categoryId,
+    status: isManager(actor) ? filters.status && packStatuses.has(filters.status) ? filters.status : { not: "ARCHIVED" } : "ACTIVE",
+    AND: [
+      filters.query
+        ? {
+            OR: [
+              { title: { contains: filters.query } },
+              { summary: { contains: filters.query } },
+              { tagsJson: { contains: filters.query } },
+              { category: { name: { contains: filters.query } } },
+              { items: { some: { script: { OR: [{ title: { contains: filters.query } }, { body: { contains: filters.query } }] } } } }
+            ]
+          }
+        : undefined,
+      tagWhere(filters.tags)?.length ? { OR: tagWhere(filters.tags) } : undefined
+    ].filter(Boolean) as Prisma.ScriptPackWhereInput[]
+  };
+  const [categories, scripts, total, suggestions, packs, metrics] = await Promise.all([
     prisma.scriptCategory.findMany({
       where: { organizationId: actor.organizationId, active: isManager(actor) ? undefined : true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
@@ -423,10 +506,95 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
             decidedBy: { select: { id: true, name: true, role: true } }
           }
         }),
+    prisma.scriptPack.findMany({
+      where: packWhere,
+      orderBy: [{ order: "asc" }, { updatedAt: "desc" }, { title: "asc" }],
+      take: 50,
+      include: scriptPackInclude()
+    }),
     scriptLibraryMetrics(prisma, actor)
   ]);
   await recordSearchEvent(prisma, actor, filters, total);
-  return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map(withSuggestionFormat), metrics, total, canManage: isManager(actor) };
+  return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map(withSuggestionFormat), packs: packs.map(withScriptPackFormat), metrics, total, canManage: isManager(actor) };
+}
+
+async function ensureScripts(prisma: PrismaClient, actor: CurrentUser, scriptIds: string[]) {
+  const count = await prisma.operationalScript.count({ where: { organizationId: actor.organizationId, id: { in: scriptIds }, status: { not: "OBSOLETE" } } });
+  if (count !== scriptIds.length) throw new ScriptLibraryError("NOT_FOUND");
+}
+
+async function ensurePackRelations(prisma: PrismaClient, actor: CurrentUser, input: ScriptPackInput) {
+  if (input.categoryId) await ensureCategory(prisma, actor, input.categoryId);
+  await ensureWikiPage(prisma, actor, input.wikiPageId);
+  await ensureFaqThread(prisma, actor, input.faqThreadId);
+  if (input.scriptIds) await ensureScripts(prisma, actor, input.scriptIds);
+}
+
+export async function createScriptPack(prisma: PrismaClient, actor: CurrentUser, input: ScriptPackInput) {
+  ensureManager(actor);
+  if (!input.title || !input.scriptIds?.length) throw new ScriptLibraryError("INVALID_INPUT");
+  await ensurePackRelations(prisma, actor, input);
+  const slug = slugify(input.slug ?? input.title);
+  const existing = await prisma.scriptPack.findFirst({ where: { organizationId: actor.organizationId, slug } });
+  if (existing) throw new ScriptLibraryError("SLUG_TAKEN");
+  const pack = await prisma.scriptPack.create({
+    data: {
+      organizationId: actor.organizationId,
+      categoryId: input.categoryId ?? null,
+      wikiPageId: input.wikiPageId ?? null,
+      faqThreadId: input.faqThreadId ?? null,
+      createdById: actor.id,
+      updatedById: actor.id,
+      slug,
+      title: input.title,
+      summary: input.summary ?? null,
+      tagsJson: tagsJsonFor(input.tags),
+      status: input.status ?? "ACTIVE",
+      order: input.order ?? 0,
+      items: {
+        create: input.scriptIds.map((scriptId, index) => ({ organizationId: actor.organizationId, scriptId, order: index + 1 }))
+      }
+    },
+    include: scriptPackInclude()
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_pack.create", entityType: "ScriptPack", entityId: pack.id, metadata: { title: pack.title, scriptIds: input.scriptIds } });
+  return { pack: withScriptPackFormat(pack) };
+}
+
+export async function updateScriptPack(prisma: PrismaClient, actor: CurrentUser, packId: string, input: ScriptPackInput) {
+  ensureManager(actor);
+  const current = await prisma.scriptPack.findFirst({ where: { id: packId, organizationId: actor.organizationId } });
+  if (!current) throw new ScriptLibraryError("NOT_FOUND");
+  await ensurePackRelations(prisma, actor, input);
+  const slug = input.slug === undefined ? undefined : slugify(input.slug ?? input.title ?? current.title);
+  if (slug && slug !== current.slug) {
+    const existing = await prisma.scriptPack.findFirst({ where: { organizationId: actor.organizationId, slug } });
+    if (existing) throw new ScriptLibraryError("SLUG_TAKEN");
+  }
+  const pack = await prisma.$transaction(async (tx) => {
+    if (input.scriptIds) {
+      await tx.scriptPackItem.deleteMany({ where: { packId: current.id } });
+    }
+    return tx.scriptPack.update({
+      where: { id: current.id },
+      data: {
+        categoryId: input.categoryId,
+        wikiPageId: input.wikiPageId,
+        faqThreadId: input.faqThreadId,
+        slug,
+        title: input.title,
+        summary: input.summary,
+        tagsJson: input.tags ? tagsJsonFor(input.tags) : undefined,
+        status: input.status,
+        order: input.order,
+        updatedById: actor.id,
+        items: input.scriptIds ? { create: input.scriptIds.map((scriptId, index) => ({ organizationId: actor.organizationId, scriptId, order: index + 1 })) } : undefined
+      },
+      include: scriptPackInclude()
+    });
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_pack.update", entityType: "ScriptPack", entityId: pack.id, metadata: { title: pack.title, scriptIds: input.scriptIds ?? null } });
+  return { pack: withScriptPackFormat(pack) };
 }
 
 async function ensureServiceFlows(prisma: PrismaClient, actor: CurrentUser, flowIds: string[]) {

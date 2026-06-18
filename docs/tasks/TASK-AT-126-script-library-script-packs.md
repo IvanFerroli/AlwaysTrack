@@ -1,7 +1,7 @@
 # TASK-AT-126 - Scriptoteca: pacotes e roteiros de atendimento
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-126-script-library-script-packs.md
@@ -26,6 +26,11 @@ Nem todo atendimento e um unico texto. Muitas vezes o SAC segue uma sequencia: s
 2. SAC navega pelos passos sem perder contexto.
 3. Cada copia continua auditada por script.
 4. Pacote nao duplica corpo dos scripts; referencia scripts existentes.
+
+## Execucao
+- entregue em: EXEC-AT-126
+- resumo: criado modelo `ScriptPack`/`ScriptPackItem`, rotas administrativas, seed demo, formulario de gestao e leitura em modo atendimento com passos numerados e copia auditada por script.
+- ressalva: edicao visual de pacotes existentes ficou fora do MVP; a API ja possui update para evolucao posterior.
 
 ## Riscos
 - Virar construtor complexo de fluxo. MVP deve ser lista ordenada simples.

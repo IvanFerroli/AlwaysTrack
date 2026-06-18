@@ -3,6 +3,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import {
   createOperationalScript,
   createOperationalScriptSuggestion,
+  createScriptPack,
   decideOperationalScriptSuggestion,
   listScriptLibrary,
   parseOperationalScriptInput,
@@ -57,6 +58,26 @@ function prismaMock() {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue(script),
       update: vi.fn().mockResolvedValue({ ...script, status: "VALIDATED", validatedById: "admin-1", validatedAt: new Date(), usageCount: 1 })
+    },
+    scriptPack: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({
+        id: "pack-1",
+        organizationId: "org-1",
+        categoryId: "cat-1",
+        title: "Roteiro",
+        slug: "roteiro",
+        summary: "Sequencia",
+        tagsJson: "[\"sac\"]",
+        status: "ACTIVE",
+        items: [{ id: "item-1", script, order: 1, required: false }]
+      }),
+      update: vi.fn()
+    },
+    scriptPackItem: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn()
     },
     operationalScriptSuggestion: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -140,6 +161,21 @@ describe("script library service", () => {
         metadataJson: JSON.stringify({ filledPlaceholders: ["nome_cliente"], serviceFlowSessionId: null, serviceFlowId: null, rendered: true })
       })
     }));
+  });
+
+  it("creates ordered script packs without duplicating script bodies", async () => {
+    const prisma = prismaMock();
+    prisma.operationalScript.count.mockResolvedValueOnce(1);
+    await createScriptPack(prisma as never, admin, { categoryId: "cat-1", title: "Roteiro", summary: "Sequencia", tags: ["sac"], scriptIds: ["script-1"] });
+
+    expect(prisma.scriptPack.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        title: "Roteiro",
+        slug: "roteiro",
+        items: { create: [{ organizationId: "org-1", scriptId: "script-1", order: 1 }] }
+      })
+    }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script_pack.create" }) }));
   });
 
   it("recertifies scripts with audit and event", async () => {
