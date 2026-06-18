@@ -3,6 +3,13 @@ import { commercialUserRoles, userRoles, type UserRole } from "@alwaystrack/shar
 import { recordAuditLog } from "../audit/audit.service.js";
 import { hashPassword, validatePasswordPolicy } from "../auth/password.js";
 import { parseScopeIds } from "../auth/scope.js";
+import {
+  optionalBoolean,
+  optionalEnum,
+  optionalString,
+  optionalStringArray,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 export class UserManagementError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "EMAIL_TAKEN" | "SELF_DEACTIVATE") {
@@ -119,50 +126,46 @@ function profileSelect() {
 }
 
 export function parseCreateUserInput(payload: unknown): UserManagementInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    email: cleanText(input.email)?.toLowerCase(),
-    password: cleanPassword(input.password),
-    role: cleanCommercialCreateRole(input.role),
-    phone: cleanOptionalText(input.phone),
-    active: cleanBoolean(input.active),
-    unitScopeIds: cleanScopeIds(input.unitScopeIds),
-    sectorScopeIds: cleanScopeIds(input.sectorScopeIds),
-    sellerCode: cleanText(input.sellerCode),
-    sellerDisplayName: cleanText(input.sellerDisplayName),
-    salesGroupId: cleanOptionalText(input.salesGroupId)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    email: optionalString(input, "email", { maxLength: 320 })?.toLowerCase(),
+    password: optionalString(input, "password", { maxLength: 256 }),
+    role: cleanCommercialCreateRole(optionalEnum(input, "role", userRoles)),
+    phone: optionalString(input, "phone", { maxLength: 40, nullable: true }),
+    active: optionalBoolean(input, "active"),
+    unitScopeIds: cleanScopeIds(optionalStringArray(input, "unitScopeIds", { maxItems: 100, itemMaxLength: 80 })),
+    sectorScopeIds: cleanScopeIds(optionalStringArray(input, "sectorScopeIds", { maxItems: 100, itemMaxLength: 80 })),
+    sellerCode: optionalString(input, "sellerCode", { maxLength: 40 }),
+    sellerDisplayName: optionalString(input, "sellerDisplayName", { maxLength: 120 }),
+    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true })
+  }));
 }
 
 export function parseUpdateUserInput(payload: unknown): UserManagementInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    email: cleanText(input.email)?.toLowerCase(),
-    role: cleanRole(input.role),
-    phone: cleanOptionalText(input.phone),
-    active: cleanBoolean(input.active),
-    unitScopeIds: cleanScopeIds(input.unitScopeIds),
-    sectorScopeIds: cleanScopeIds(input.sectorScopeIds),
-    sellerCode: cleanText(input.sellerCode),
-    sellerDisplayName: cleanText(input.sellerDisplayName),
-    salesGroupId: cleanOptionalText(input.salesGroupId)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    email: optionalString(input, "email", { maxLength: 320 })?.toLowerCase(),
+    role: optionalEnum(input, "role", userRoles),
+    phone: optionalString(input, "phone", { maxLength: 40, nullable: true }),
+    active: optionalBoolean(input, "active"),
+    unitScopeIds: cleanScopeIds(optionalStringArray(input, "unitScopeIds", { maxItems: 100, itemMaxLength: 80 })),
+    sectorScopeIds: cleanScopeIds(optionalStringArray(input, "sectorScopeIds", { maxItems: 100, itemMaxLength: 80 })),
+    sellerCode: optionalString(input, "sellerCode", { maxLength: 40 }),
+    sellerDisplayName: optionalString(input, "sellerDisplayName", { maxLength: 120 }),
+    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true })
+  }));
 }
 
 export function parseProfileInput(payload: unknown): UserManagementInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    phone: cleanOptionalText(input.phone),
-    avatarUrl: cleanAvatarUrl(input.avatarUrl)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    phone: optionalString(input, "phone", { maxLength: 40, nullable: true }),
+    avatarUrl: cleanAvatarUrl(optionalString(input, "avatarUrl", { maxLength: 500, nullable: true }))
+  }));
 }
 
 export function parseResetPasswordInput(payload: unknown) {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return { password: cleanPassword(input.password) };
+  return parseObjectPayload(payload, (input) => ({ password: optionalString(input, "password", { maxLength: 256 }) }));
 }
 
 async function ensureEmailAvailable(prisma: PrismaClient, email: string, exceptUserId?: string) {

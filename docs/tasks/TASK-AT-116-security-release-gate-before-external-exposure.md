@@ -1,10 +1,11 @@
 # TASK-AT-116 - Seguranca: gate antes de exposicao externa
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-15
 - source-of-truth: docs/tasks/TASK-AT-116-security-release-gate-before-external-exposure.md
+- execution-log: docs/tasks/EXEC-AT-116-security-release-gate-before-external-exposure.md
 
 ## Modo
 - mode: verification
@@ -93,3 +94,9 @@ E o "nao sobe sem cinto, freio e documento". Antes de abrir para acesso externo,
 ## Retorno esperado
 - Resumo executivo para superiores.
 - Lista curta do que falta para exposicao externa segura.
+
+## Resultado
+- completed: 2026-06-17
+- exec: docs/tasks/EXEC-AT-116-security-release-gate-before-external-exposure.md
+- entrega: docs/security/external-exposure-release-gate.md
+- dry-run: `no-go` para exposicao externa enquanto dominio/HTTPS/prod env/backup/restore/deploy final nao existirem.

@@ -1,9 +1,9 @@
 # TASK-AT-114 - Seguranca: integracoes externas, webhooks e IA
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-114-external-integrations-webhooks-and-ai-security.md
 
 ## Modo
@@ -91,3 +91,12 @@ Sempre que o sistema fala com outro servico, existem duas perguntas: "tenho cert
 ## Retorno esperado
 - Lista de integracoes aprovadas para producao.
 - Lista de integracoes que devem ficar desligadas.
+
+## Resultado de execucao
+- execution: docs/tasks/EXEC-AT-114-external-integrations-webhooks-and-ai-security.md
+- review: docs/security/external-integrations-security-review.md
+- status: completed em 2026-06-17
+- validacao:
+  - `npm run test --workspace @alwaystrack/api -- google`
+  - `npm run test --workspace @alwaystrack/api -- notifications`
+  - `npm run test --workspace @alwaystrack/api -- document-ai`

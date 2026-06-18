@@ -3,7 +3,7 @@
 ## Metadata
 - status: accepted
 - owner: olympus_orchestrator
-- last-updated: 2026-05-28
+- last-updated: 2026-06-17
 - source-of-truth: docs/adr/ADR-003-contrato-banco-producao.md
 
 ## Contexto
@@ -31,15 +31,16 @@ Para producao real com multiplos usuarios simultaneos, o contrato correto e **Po
 - positivas: starter continua funcionando localmente sem dependencia externa; onboarding e rapido.
 - negativas: producao com multiplos usuarios exige migracao antes de beta serio.
 - trade-offs: complexidade zero agora, migracao controlada quando houver volume real.
+- operacionais: enquanto SQLite for usado fora de dev, o ambiente precisa seguir `docs/operations/backup-restore-runbook.md` com volume persistente, backup testado, RPO/RTO aceito e restore dry-run periodico.
 
 ## Impacto em artefatos
 - specs relacionadas: n/a
 - tasks relacionadas: docs/tasks/ROADMAP.md item 4
-- runbooks relacionados: docs/runbooks/RUNBOOK-001-ambiente-local.md, docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md
+- runbooks relacionados: docs/runbooks/RUNBOOK-001-ambiente-local.md, docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md, docs/operations/backup-restore-runbook.md
 
 ## Validacao e evidencia esperada
 - validacao: `npx prisma validate --schema services/api/prisma/schema.prisma` passa com provider sqlite.
-- evidencia: este ADR registrado, ROADMAP item 4 fechado.
+- evidencia: este ADR registrado, ROADMAP item 4 fechado; politica de backup/restore registrada em `docs/operations/backup-restore-runbook.md`.
 
 ## Fora de escopo
 Esta ADR nao executa a migracao para Postgres. A migracao deve ser feita em task propria quando houver decisao de beta com multiplos usuarios simultaneos.

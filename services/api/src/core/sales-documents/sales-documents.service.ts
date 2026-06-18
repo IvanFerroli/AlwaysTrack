@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { campaignStatuses, salesDocumentStatuses, type CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { logEvent } from "../diagnostics/logger.js";
@@ -10,6 +10,15 @@ import type { StorageProvider } from "../documents/storage.js";
 import { extensionForAllowedFileKind, FileValidationError, validateAllowedFile } from "../documents/file-validation.js";
 import type { DocumentAiProvider, SalesDocumentAiResult } from "../document-ai/provider.js";
 import { extractDanfeDeterministic } from "./danfe-deterministic.js";
+import {
+  InputValidationError,
+  optionalArray,
+  optionalEnum,
+  optionalInteger,
+  optionalNumber,
+  optionalString,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 /** Domain error surfaced by DANFE upload, extraction, review and ranking flows. */
 export class SalesDocumentError extends Error {
@@ -420,13 +429,13 @@ export function parseSalesDocumentUploadInput(input: {
 
 export function parseSalesDocumentFilters(query: Record<string, unknown>): SalesDocumentFilters {
   return {
-    status: cleanText(query.status),
-    sellerProfileId: cleanText(query.sellerProfileId),
-    salesGroupId: cleanText(query.salesGroupId),
-    from: cleanText(query.from),
-    to: cleanText(query.to),
-    page: cleanPositiveInteger(query.page),
-    pageSize: cleanPositiveInteger(query.pageSize)
+    status: optionalEnum(query, "status", salesDocumentStatuses),
+    sellerProfileId: optionalString(query, "sellerProfileId", { maxLength: 80 }),
+    salesGroupId: optionalString(query, "salesGroupId", { maxLength: 80 }),
+    from: optionalString(query, "from", { maxLength: 10 }),
+    to: optionalString(query, "to", { maxLength: 10 }),
+    page: optionalInteger(query, "page", { min: 1 }),
+    pageSize: optionalInteger(query, "pageSize", { min: 1, max: 100 })
   };
 }
 
@@ -441,57 +450,61 @@ export function parseSalesPeriodFilters(query: Record<string, unknown>): SalesPe
 }
 
 export function parseSalesCampaignInput(body: unknown): SalesCampaignInput {
-  if (!body || typeof body !== "object") return {};
-  const input = body as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    description: cleanText(input.description) ?? null,
-    metric: cleanText(input.metric),
-    status: cleanText(input.status),
-    startsAt: cleanText(input.startsAt),
-    endsAt: cleanText(input.endsAt),
-    salesGroupId: cleanText(input.salesGroupId) ?? null
-  };
+  return parseObjectPayload(body, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    description: optionalString(input, "description", { maxLength: 1000, nullable: true }) ?? null,
+    metric: optionalEnum(input, "metric", ["totalAmountCents", "quantity", "documents"]),
+    status: optionalEnum(input, "status", campaignStatuses),
+    startsAt: optionalString(input, "startsAt", { maxLength: 10 }),
+    endsAt: optionalString(input, "endsAt", { maxLength: 10 }),
+    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true }) ?? null
+  }));
 }
 
 export function parseSalesDocumentReviewInput(body: unknown): SalesDocumentReviewInput {
-  if (!body || typeof body !== "object") return {};
-  const input = body as Record<string, unknown>;
-  const items = Array.isArray(input.items)
-    ? input.items.map((item) => {
-        const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  return parseObjectPayload(body, (input) => {
+    const rawItems = optionalArray(input, "items", { maxItems: 200 });
+    const items = rawItems
+      ? rawItems.map((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item) || Buffer.isBuffer(item)) {
+          throw new InputValidationError([{ field: `items.${index}`, code: "INVALID_TYPE" }]);
+        }
+        const row = item as Record<string, unknown>;
         return {
-          sku: cleanText(row.sku) ?? null,
-          description: cleanText(row.description) ?? null,
-          category: cleanText(row.category) ?? null,
-          quantity: typeof row.quantity === "number" ? row.quantity : row.quantity ? Number(row.quantity) : null,
-          unitAmountCents: typeof row.unitAmountCents === "number" ? row.unitAmountCents : row.unitAmountCents ? Number(row.unitAmountCents) : null,
-          totalAmountCents: typeof row.totalAmountCents === "number" ? row.totalAmountCents : row.totalAmountCents ? Number(row.totalAmountCents) : null
+          sku: optionalString(row, "sku", { maxLength: 80, nullable: true }) ?? null,
+          description: optionalString(row, "description", { maxLength: 240, nullable: true }) ?? null,
+          category: optionalString(row, "category", { maxLength: 80, nullable: true }) ?? null,
+          quantity: optionalNumber(row, "quantity", { min: 0, max: 100000, nullable: true }) ?? null,
+          unitAmountCents: optionalInteger(row, "unitAmountCents", { min: 0, max: 1_000_000_000 }) ?? null,
+          totalAmountCents: optionalInteger(row, "totalAmountCents", { min: 0, max: 1_000_000_000 }) ?? null
         };
       })
-    : undefined;
+      : undefined;
 
-  return {
-    status: cleanText(input.status),
-    accessKey: cleanText(input.accessKey) ?? null,
-    invoiceNumber: cleanText(input.invoiceNumber) ?? null,
-    series: cleanText(input.series) ?? null,
-    issuedAt: cleanText(input.issuedAt) ?? null,
-    issuerName: cleanText(input.issuerName) ?? null,
-    buyerName: cleanText(input.buyerName) ?? null,
-    totalAmountCents: typeof input.totalAmountCents === "number" ? input.totalAmountCents : input.totalAmountCents ? Number(input.totalAmountCents) : null,
-    rejectionReason: cleanText(input.rejectionReason) ?? null,
-    reviewNote: cleanText(input.reviewNote) ?? null,
-    items
-  };
+    return {
+      status: optionalEnum(input, "status", ["APPROVED", "REJECTED", "DUPLICATE"]),
+      accessKey: optionalString(input, "accessKey", { maxLength: 60, nullable: true }) ?? null,
+      invoiceNumber: optionalString(input, "invoiceNumber", { maxLength: 60, nullable: true }) ?? null,
+      series: optionalString(input, "series", { maxLength: 20, nullable: true }) ?? null,
+      issuedAt: optionalString(input, "issuedAt", { maxLength: 10, nullable: true }) ?? null,
+      issuerName: optionalString(input, "issuerName", { maxLength: 240, nullable: true }) ?? null,
+      buyerName: optionalString(input, "buyerName", { maxLength: 240, nullable: true }) ?? null,
+      totalAmountCents: optionalInteger(input, "totalAmountCents", { min: 0, max: 1_000_000_000 }) ?? null,
+      rejectionReason: optionalString(input, "rejectionReason", { maxLength: 1000, nullable: true }) ?? null,
+      reviewNote: optionalString(input, "reviewNote", { maxLength: 1000, nullable: true }) ?? null,
+      items
+    };
+  });
 }
 
 export function parseSalesDocumentManualCorrectionInput(body: unknown): SalesDocumentManualCorrectionInput {
-  const input = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  return {
+  return parseObjectPayload(body, (input) => ({
     ...parseSalesDocumentReviewInput(body),
-    correctionNote: cleanText(input.correctionNote) ?? cleanText(input.reviewNote) ?? null
-  };
+    correctionNote:
+      optionalString(input, "correctionNote", { maxLength: 1000, nullable: true }) ??
+      optionalString(input, "reviewNote", { maxLength: 1000, nullable: true }) ??
+      null
+  }));
 }
 
 function sellerScopeWhere(actor: CurrentUser): Prisma.SellerProfileWhereInput {

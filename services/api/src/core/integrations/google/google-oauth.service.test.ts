@@ -99,6 +99,27 @@ describe("google oauth service", () => {
     expect(prisma.googleOauthState.update).toHaveBeenCalledOnce();
   });
 
+  it("rejects callback with invalid state before token exchange", async () => {
+    const prisma = {
+      googleOauthState: {
+        findUnique: vi.fn().mockResolvedValue(null)
+      }
+    };
+    const fetcher = vi.fn();
+
+    await expect(
+      handleGoogleOauthCallback(
+        prisma as never,
+        { code: "code-123", state: "unknown-state" },
+        baseEnv(),
+        fetcher as never
+      )
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+
+    expect(prisma.googleOauthState.findUnique).toHaveBeenCalledOnce();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("prefers user oauth when a connection exists", async () => {
     const prisma = {
       googleConnection: {

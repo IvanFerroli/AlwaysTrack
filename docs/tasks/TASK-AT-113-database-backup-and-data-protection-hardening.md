@@ -1,10 +1,11 @@
 # TASK-AT-113 - Seguranca: banco, backup e protecao de dados
 
 ## Metadata
-- status: proposed
+- status: completed
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-113-database-backup-and-data-protection-hardening.md
+- execution: docs/tasks/EXEC-AT-113-database-backup-and-data-protection-hardening.md
 
 ## Modo
 - mode: audit
@@ -77,6 +78,16 @@ Seguranca tambem e disponibilidade e recuperacao. Se der problema no servidor, r
 ## Evidencia esperada
 - Checklist de restore concluido.
 - Tempo aproximado de backup/restore.
+
+## Evidencia de execucao
+- Runbook criado: `docs/operations/backup-restore-runbook.md`.
+- ADR-003 e ADR-004 atualizadas com referencia operacional ao runbook.
+- Restore local seguro validado via `npm run db:test:migrations`, que cria SQLite temporario, aplica schema/seed demo, copia backup e confirma restore path sem dados reais.
+- Checklist documental concluido em `docs/tasks/EXEC-AT-113-database-backup-and-data-protection-hardening.md`.
+
+## Follow-up recomendado
+- Abrir task propria para migracao PostgreSQL antes de producao externa/multiusuario.
+- Abrir task propria para provider externo de storage antes de deploy multi-instancia ou sem filesystem persistente.
 
 ## Riscos
 - Backup sem teste da falsa sensacao de seguranca.

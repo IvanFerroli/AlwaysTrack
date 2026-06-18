@@ -3,7 +3,7 @@
 ## Metadata
 - status: accepted
 - owner: olympus_orchestrator
-- last-updated: 2026-05-28
+- last-updated: 2026-06-17
 - source-of-truth: docs/adr/ADR-004-contrato-storage-producao.md
 
 ## Contexto
@@ -30,15 +30,16 @@ A interface `StorageProvider` ja existe no codigo e permite substituicao futura.
 - positivas: starter funciona localmente sem credenciais externas; arquivos nunca saem do servidor na demo.
 - negativas: deploy multi-instancia ou container efemero perde arquivos se o volume nao for persistido externamente.
 - trade-offs: zero dependencia externa agora, migracao de provider quando houver necessidade real de escala ou resiliencia.
+- operacionais: enquanto storage local for usado fora de dev, o ambiente precisa seguir `docs/operations/backup-restore-runbook.md` com volume persistente, backup coordenado com o banco, permissao restrita e restore dry-run periodico.
 
 ## Impacto em artefatos
 - specs relacionadas: n/a
 - tasks relacionadas: docs/tasks/ROADMAP.md item 4
-- runbooks relacionados: docs/runbooks/RUNBOOK-001-ambiente-local.md, docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md
+- runbooks relacionados: docs/runbooks/RUNBOOK-001-ambiente-local.md, docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md, docs/operations/backup-restore-runbook.md
 
 ## Validacao e evidencia esperada
 - validacao: `STORAGE_PROVIDER=local` em `.env.example`; `LocalStorageProvider` e o unico adapter presente.
-- evidencia: este ADR registrado, ROADMAP item 4 fechado.
+- evidencia: este ADR registrado, ROADMAP item 4 fechado; politica de backup/restore registrada em `docs/operations/backup-restore-runbook.md`.
 
 ## Fora de escopo
 Esta ADR nao implementa o provider externo. A implementacao deve ser feita em task propria quando houver decisao de deploy sem filesystem local persistente.

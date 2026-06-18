@@ -7,6 +7,13 @@ import { FileValidationError, validateAllowedFile } from "../documents/file-vali
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import { logEvent } from "../diagnostics/logger.js";
 import type { StorageProvider } from "../documents/storage.js";
+import {
+  optionalEnum,
+  optionalInteger,
+  optionalString,
+  optionalStringArray,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 /** Domain error returned by Wiki pages, revisions, attachments and review actions. */
 export class WikiError extends Error {
@@ -264,34 +271,33 @@ function wikiRequestInclude() {
 }
 
 export function parseWikiPageInput(payload: unknown): WikiPageInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    title: cleanText(input.title),
-    content: cleanText(input.content),
-    slug: cleanText(input.slug),
-    baseVersion: cleanNumber(input.baseVersion),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined
-  };
+  return parseObjectPayload(payload, (input) => {
+    const tags = optionalStringArray(input, "tags", { maxItems: 20, itemMaxLength: 40 });
+    return {
+      title: optionalString(input, "title", { maxLength: 180 }),
+      content: optionalString(input, "content", { maxLength: 20000 }),
+      slug: optionalString(input, "slug", { maxLength: 120 }),
+      baseVersion: optionalInteger(input, "baseVersion", { min: 1 }),
+      tags: tags ? normalizedTags(tags) : undefined
+    };
+  });
 }
 
 export function parseWikiEditRequestInput(payload: unknown): WikiEditRequestInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    pageId: cleanText(input.pageId),
-    title: cleanText(input.title),
-    content: cleanText(input.content),
-    baseVersion: cleanNumber(input.baseVersion)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    pageId: optionalString(input, "pageId", { maxLength: 80 }),
+    title: optionalString(input, "title", { maxLength: 180 }),
+    content: optionalString(input, "content", { maxLength: 20000 }),
+    baseVersion: optionalInteger(input, "baseVersion", { min: 1 })
+  }));
 }
 
 export function parseWikiDecisionInput(payload: unknown): WikiDecisionInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return { decisionNote: cleanOptionalText(input.decisionNote) };
+  return parseObjectPayload(payload, (input) => ({ decisionNote: optionalString(input, "decisionNote", { maxLength: 1000, nullable: true }) }));
 }
 
 export function parseWikiPresenceInput(payload: unknown): WikiPresenceInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return { mode: cleanMode(input.mode) };
+  return parseObjectPayload(payload, (input) => ({ mode: optionalEnum(input, "mode", ["READING", "EDITING"]) }));
 }
 
 export function parseWikiAttachmentUploadInput(input: { query: Record<string, unknown>; headers: Record<string, unknown>; body: unknown }): WikiAttachmentUploadInput {
@@ -307,14 +313,16 @@ export function parseWikiAttachmentUploadInput(input: { query: Record<string, un
 }
 
 export function parseWikiFilters(query: Record<string, unknown>): WikiFilters {
+  const tags = optionalString(query, "tags", { maxLength: 500 });
+  const status = optionalString(query, "status", { maxLength: 20 });
   return {
-    query: cleanText(query.query),
-    tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
-    recent: cleanText(query.recent),
-    status: cleanStatus(query.status),
-    pageStatus: cleanPageStatus(query.status),
-    page: cleanNumber(query.page),
-    pageSize: cleanNumber(query.pageSize)
+    query: optionalString(query, "query", { maxLength: 120 }),
+    tags: normalizedTags(String(tags ?? "").split(",")),
+    recent: optionalEnum(query, "recent", ["7", "30"]),
+    status: cleanStatus(status),
+    pageStatus: cleanPageStatus(status),
+    page: optionalInteger(query, "page", { min: 1 }),
+    pageSize: optionalInteger(query, "pageSize", { min: 1, max: 100 })
   };
 }
 

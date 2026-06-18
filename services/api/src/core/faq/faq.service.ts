@@ -3,6 +3,14 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
+import {
+  optionalBoolean,
+  optionalEnum,
+  optionalInteger,
+  optionalString,
+  optionalStringArray,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 /** Domain error for FAQ articles, discussion threads, comments and reactions. */
 export class FaqError extends Error {
@@ -191,72 +199,71 @@ function ensureAdmin(actor: CurrentUser) {
 }
 
 export function parseFaqInput(payload: unknown): FaqInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    category: cleanText(input.category),
-    question: cleanText(input.question),
-    answer: cleanText(input.answer),
-    order: cleanNumber(input.order),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    category: optionalString(input, "category", { maxLength: 80 }),
+    question: optionalString(input, "question", { maxLength: 240 }),
+    answer: optionalString(input, "answer", { maxLength: 4000 }),
+    order: optionalInteger(input, "order", { min: 0, max: 10000 }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseFaqFilters(query: Record<string, unknown>): FaqFilters {
   return {
-    organizationId: cleanText(query.organizationId),
-    category: cleanText(query.category),
-    query: cleanText(query.query),
+    organizationId: optionalString(query, "organizationId", { maxLength: 80 }),
+    category: optionalString(query, "category", { maxLength: 80 }),
+    query: optionalString(query, "query", { maxLength: 120 }),
     activeOnly: query.activeOnly === "false" ? false : true,
-    page: cleanPositiveNumber(query.page),
-    pageSize: cleanPositiveNumber(query.pageSize)
+    page: optionalInteger(query, "page", { min: 1 }),
+    pageSize: optionalInteger(query, "pageSize", { min: 1, max: 100 })
   };
 }
 
 export function parsePublicHelpInput(payload: unknown): PublicHelpInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    organizationId: cleanText(input.organizationId),
-    professionalId: cleanText(input.professionalId),
-    licenseId: cleanText(input.licenseId),
-    problemType: cleanText(input.problemType),
-    message: cleanText(input.message)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    organizationId: optionalString(input, "organizationId", { maxLength: 80 }),
+    professionalId: optionalString(input, "professionalId", { maxLength: 80 }),
+    licenseId: optionalString(input, "licenseId", { maxLength: 80 }),
+    problemType: optionalString(input, "problemType", { maxLength: 80 }),
+    message: optionalString(input, "message", { maxLength: 1000 })
+  }));
 }
 
 export function parseFaqThreadInput(payload: unknown): FaqThreadInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    title: cleanText(input.title),
-    body: cleanOptionalText(input.body),
-    status: cleanThreadStatus(input.status),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined
-  };
+  return parseObjectPayload(payload, (input) => {
+    const tags = optionalStringArray(input, "tags", { maxItems: 20, itemMaxLength: 40 });
+    return {
+      title: optionalString(input, "title", { maxLength: 180 }),
+      body: optionalString(input, "body", { maxLength: 4000, nullable: true }),
+      status: optionalEnum(input, "status", ["OPEN", "ANSWERED", "RESOLVED", "ARCHIVED"]),
+      tags: tags ? normalizedTags(tags) : undefined
+    };
+  });
 }
 
 export function parseFaqThreadFilters(query: Record<string, unknown>): FaqThreadFilters {
+  const tags = optionalString(query, "tags", { maxLength: 500 });
   return {
-    query: cleanText(query.query),
-    status: cleanThreadStatus(query.status),
-    tags: normalizedTags(String(cleanText(query.tags) ?? "").split(",")),
-    recent: cleanText(query.recent),
-    page: cleanPositiveNumber(query.page),
-    pageSize: cleanPositiveNumber(query.pageSize)
+    query: optionalString(query, "query", { maxLength: 120 }),
+    status: optionalEnum(query, "status", ["OPEN", "ANSWERED", "RESOLVED", "ARCHIVED"]),
+    tags: normalizedTags(String(tags ?? "").split(",")),
+    recent: optionalEnum(query, "recent", ["7", "30"]),
+    page: optionalInteger(query, "page", { min: 1 }),
+    pageSize: optionalInteger(query, "pageSize", { min: 1, max: 100 })
   };
 }
 
 export function parseFaqCommentInput(payload: unknown): FaqCommentInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return { body: cleanText(input.body) };
+  return parseObjectPayload(payload, (input) => ({ body: optionalString(input, "body", { maxLength: 4000 }) }));
 }
 
 export function parseFaqReactionInput(payload: unknown): FaqReactionInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    targetType: cleanTargetType(input.targetType),
-    targetId: cleanText(input.targetId),
-    type: cleanReactionType(input.type),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload, (input) => ({
+    targetType: optionalEnum(input, "targetType", ["THREAD", "COMMENT"]),
+    targetId: optionalString(input, "targetId", { maxLength: 80 }),
+    type: optionalEnum(input, "type", ["HELPFUL", "SAME_DOUBT", "THANKS"]),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 function faqWhere(organizationId: string, filters: FaqFilters): Prisma.FaqItemWhereInput {

@@ -5,7 +5,8 @@ import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
-import { AuthError, loginUser, loginUserByVerifiedGoogleEmail } from "./auth.service.js";
+import { AuthError, loginUser, loginUserByVerifiedGoogleEmail, parseLoginInput } from "./auth.service.js";
+import { isInputValidationError, sendInputValidationError } from "../validation/input-validation.js";
 import {
   createGoogleLoginStart,
   GoogleLoginError,
@@ -89,12 +90,11 @@ function authErrorMessage(error: AuthError) {
 }
 
 export async function loginHandler(request: Request, response: Response) {
-  const body = request.body as Partial<{ email: string; password: string }>;
-  if (!body.email || !body.password) {
-    return sendError(response, 400, "INVALID_INPUT", "Email and password are required.");
-  }
-
   try {
+    const body = parseLoginInput(request.body);
+    if (!body.email || !body.password) {
+      return sendError(response, 400, "INVALID_INPUT", "Email and password are required.");
+    }
     const env = loadEnv();
     const result = await loginUser(prisma, { email: body.email, password: body.password }, env.sessionSecret);
     response.setHeader(
@@ -106,6 +106,7 @@ export async function loginHandler(request: Request, response: Response) {
     if (error instanceof AuthError) {
       return sendError(response, 401, error.code, "Invalid email, password, or user status.");
     }
+    if (isInputValidationError(error)) return sendInputValidationError(response);
     throw error;
   }
 }

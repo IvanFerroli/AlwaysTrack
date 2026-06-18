@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
+import { isInputValidationError, sendInputValidationError } from "../validation/input-validation.js";
 import {
   createManagedUser,
   getUserProfile,
@@ -31,6 +32,7 @@ function routeParam(value: string | string[] | undefined) {
 }
 
 function sendUserManagementError(response: Response, error: unknown) {
+  if (isInputValidationError(error)) return sendInputValidationError(response);
   if (error instanceof UserManagementError) {
     if (error.code === "NOT_FOUND") {
       return sendError(response, 404, "NOT_FOUND", "User not found.");

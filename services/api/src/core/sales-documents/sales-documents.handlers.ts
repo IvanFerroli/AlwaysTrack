@@ -6,6 +6,7 @@ import { getStorageProvider } from "../documents/storage.provider.js";
 import { getDocumentAiProvider } from "../document-ai/provider.js";
 import { logEvent } from "../diagnostics/logger.js";
 import { enqueueRankingSnapshotJob, getRankingSnapshotJobStatus } from "../jobs/ranking-snapshot.jobs.js";
+import { isInputValidationError, sendInputValidationError } from "../validation/input-validation.js";
 import {
   analyzeSalesDocumentWithAi,
   correctSalesDocumentManually,
@@ -56,6 +57,7 @@ function logHandlerError(request: Request, event: string, error: unknown) {
 }
 
 function sendSalesDocumentError(request: Request, response: Response, error: unknown) {
+  if (isInputValidationError(error)) return sendInputValidationError(response);
   if (error instanceof SalesDocumentError) {
     if (error.code === "FORBIDDEN") return sendError(response, 403, "FORBIDDEN", "Access denied.");
     if (error.code === "NOT_FOUND") return sendError(response, 404, "NOT_FOUND", "Sales document not found.");

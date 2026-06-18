@@ -70,6 +70,10 @@ const emptyResult: DocumentAiResult = {
   warnings: []
 };
 
+function aiRequestSignal() {
+  return AbortSignal.timeout(30_000);
+}
+
 export class FakeDocumentAiProvider implements DocumentAiProvider {
   provider = "fake";
 
@@ -243,6 +247,7 @@ export class OpenAiDocumentAiProvider implements DocumentAiProvider {
   async analyze(input: { body: Buffer; mimeType: string; fileName: string }) {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
+      signal: aiRequestSignal(),
       headers: {
         authorization: `Bearer ${this.apiKey}`,
         "content-type": "application/json"
@@ -289,6 +294,7 @@ export class OpenAiDocumentAiProvider implements DocumentAiProvider {
   async analyzeSalesDocument(input: { body: Buffer; mimeType: string; fileName: string }) {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
+      signal: aiRequestSignal(),
       headers: {
         authorization: `Bearer ${this.apiKey}`,
         "content-type": "application/json"
@@ -433,6 +439,7 @@ export class GeminiDocumentAiProvider implements DocumentAiProvider {
     
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`, {
       method: "POST",
+      signal: aiRequestSignal(),
       headers: {
         "content-type": "application/json"
       },
@@ -476,6 +483,7 @@ export class GeminiDocumentAiProvider implements DocumentAiProvider {
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`, {
       method: "POST",
+      signal: aiRequestSignal(),
       headers: {
         "content-type": "application/json"
       },

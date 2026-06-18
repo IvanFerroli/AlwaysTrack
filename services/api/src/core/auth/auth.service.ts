@@ -5,6 +5,7 @@ import { verifyPassword } from "./password.js";
 import { createSessionToken } from "./session.js";
 import { parseScopeIds } from "./scope.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { optionalString, parseObjectPayload } from "../validation/input-validation.js";
 
 export class AuthError extends Error {
   constructor(public readonly code: "INVALID_CREDENTIALS" | "INACTIVE_USER" | "EMAIL_NOT_VERIFIED" | "DOMAIN_NOT_ALLOWED") {
@@ -27,6 +28,13 @@ function toUserRole(value: string): UserRole {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function parseLoginInput(payload: unknown): LoginInput {
+  return parseObjectPayload(payload, (input) => ({
+    email: optionalString(input, "email", { maxLength: 320 }) ?? "",
+    password: optionalString(input, "password", { maxLength: 256 }) ?? ""
+  }));
 }
 
 function currentUserFromRecord(user: {

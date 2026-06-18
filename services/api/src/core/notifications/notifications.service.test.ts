@@ -480,6 +480,29 @@ describe("notifications service", () => {
     );
   });
 
+  it("rejects webhook events with invalid Meta signatures before job lookup", async () => {
+    vi.stubEnv("META_APP_SECRET", "secret");
+    const prisma = {
+      notificationJob: {
+        findFirst: vi.fn(),
+        update: vi.fn()
+      },
+      notificationLog: { create: vi.fn() }
+    };
+
+    await expect(
+      handleMetaWebhook(
+        prisma as never,
+        { entry: [{ changes: [{ value: { statuses: [{ id: "wamid.1", status: "read" }] } }] }] },
+        "sha256=bad",
+        JSON.stringify({ entry: [] })
+      )
+    ).rejects.toThrow(new NotificationError("WEBHOOK_INVALID"));
+
+    expect(prisma.notificationJob.findFirst).not.toHaveBeenCalled();
+    expect(prisma.notificationLog.create).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid webhook challenge", () => {
     expect(() => verifyWebhookChallenge({ "hub.mode": "subscribe", "hub.verify_token": "bad" })).toThrow(
       new NotificationError("WEBHOOK_INVALID")

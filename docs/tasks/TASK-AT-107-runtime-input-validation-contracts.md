@@ -1,9 +1,9 @@
 # TASK-AT-107 - Seguranca: validacao runtime de entrada e contratos de API
 
 ## Metadata
-- status: proposed
+- status: in-progress
 - owner: olympus_taskyfier
-- last-updated: 2026-06-15
+- last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-107-runtime-input-validation-contracts.md
 
 ## Modo
@@ -84,3 +84,9 @@ Sem validacao forte, alguem pode mandar campos enormes, tipos errados, valores n
 ## Retorno esperado
 - Lista de endpoints cobertos.
 - Lista de endpoints restantes para rodada futura.
+
+## Execution notes
+- 2026-06-17: EXEC-AT-107 abriu a primeira fatia pequena com helper local em `services/api/src/core/validation/input-validation.ts`, handlers 400-safe e parsers criticos em auth/users/sales-documents/wiki/faq.
+- Evidencia: `npm run test --workspace @alwaystrack/api -- validation`, suite focada de parsers tocados e `npm run typecheck --workspace @alwaystrack/api` passaram.
+- Documento de convencao criado em `docs/architecture/api-input-validation.md`.
+- Restante: announcements, script-library, organizations e demais parsers em rodadas futuras.

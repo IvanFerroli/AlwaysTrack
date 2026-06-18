@@ -16,7 +16,7 @@ Reforcado o gate local de ambiente de producao e criado runbook operacional de s
 
 ## Validacao
 - `npm run env:check -- --production` falhou corretamente sem envs locais de producao.
-- `NODE_ENV=production DATABASE_URL='postgresql://user:pass@db.example.internal/app' SESSION_SECRET='0123456789abcdef0123456789abcdef' CORS_ORIGIN='https://app.example.com' VITE_API_BASE_URL='https://api.example.com' npm run env:check -- --production`
+- Exemplo seguro: rode `env:check -- --production` com `NODE_ENV`, `DATABASE_URL`, `SESSION_SECRET`, `CORS_ORIGIN` e `VITE_API_BASE_URL` definidos no shell/secret manager, sem colar valores reais em docs ou logs.
 - `npm run repo:hygiene`
 
 ## Risco residual

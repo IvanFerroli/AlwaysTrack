@@ -133,15 +133,18 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 114. `EXEC-AT-110`: segredos, envs e deploy de producao (`TASK-AT-110`). Status: completed.
 115. `EXEC-AT-111`: auditoria, monitoramento e alertas (`TASK-AT-111`). Status: completed.
 116. `EXEC-AT-112`: dependencias, SCA e gates no CI (`TASK-AT-112`). Status: completed.
+117. `EXEC-AT-107`: validacao runtime de entrada e contratos de API (`TASK-AT-107`). Status: completed-first-slice.
+118. `EXEC-AT-113`: banco, backup e protecao de dados (`TASK-AT-113`). Status: completed-docs.
+119. `EXEC-AT-114`: integracoes externas, webhooks e IA (`TASK-AT-114`). Status: completed.
+120. `EXEC-AT-115`: runbook de incidente e operacao segura (`TASK-AT-115`). Status: completed.
+121. `EXEC-AT-116`: gate antes de exposicao externa (`TASK-AT-116`). Status: completed-no-go-until-prod.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-107-runtime-input-validation-contracts.md`: Validacao runtime de entrada e contratos de API.
-2. `TASK-AT-113-database-backup-and-data-protection-hardening.md`: Banco, backup e protecao de dados.
-3. `TASK-AT-114-external-integrations-webhooks-and-ai-security.md`: Integracoes externas, webhooks e IA.
-4. `TASK-AT-115-incident-response-and-security-operations-runbook.md`: Runbook de incidente e operacao segura.
-5. `TASK-AT-116-security-release-gate-before-external-exposure.md`: Gate antes de exposicao externa.
-6. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
-7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+1. `TASK-AT-101-rich-image-attachments-across-content.md`: Anexos de imagem transversais em Wiki, FAQ, Avisos e Scriptoteca. Backlog, nao executar sem nova ordem.
+2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+3. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+4. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
+5. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -204,16 +207,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 3. `TASK-AT-104`: Hardening de login, senha e sessao. Status: completed.
 4. `TASK-AT-105`: Protecao CSRF e validacao de origem. Status: completed.
 5. `TASK-AT-106`: Rate limit e protecao contra abuso. Status: completed.
-6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: proposed.
+6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: completed-first-slice.
 7. `TASK-AT-108`: Hardening de uploads e arquivos. Status: completed.
 8. `TASK-AT-109`: Autorizacao, tenancy e testes anti-IDOR. Status: completed.
 9. `TASK-AT-110`: Segredos, envs e deploy de producao. Status: completed.
 10. `TASK-AT-111`: Auditoria, monitoramento e alertas de seguranca. Status: completed.
 11. `TASK-AT-112`: Dependencias, SCA e gates no CI. Status: completed.
-12. `TASK-AT-113`: Banco, backup e protecao de dados. Status: proposed.
-13. `TASK-AT-114`: Integracoes externas, webhooks e IA. Status: proposed.
-14. `TASK-AT-115`: Runbook de incidente e operacao segura. Status: proposed.
-15. `TASK-AT-116`: Gate antes de exposicao externa. Status: proposed.
+12. `TASK-AT-113`: Banco, backup e protecao de dados. Status: completed-docs.
+13. `TASK-AT-114`: Integracoes externas, webhooks e IA. Status: completed.
+14. `TASK-AT-115`: Runbook de incidente e operacao segura. Status: completed.
+15. `TASK-AT-116`: Gate antes de exposicao externa. Status: completed-no-go-until-prod.
 
 ### Fase E - Onboarding e estudo do mantenedor
 1. `TASK-AT-117`: TypeDoc robusto para onboarding tecnico. Status: completed.
