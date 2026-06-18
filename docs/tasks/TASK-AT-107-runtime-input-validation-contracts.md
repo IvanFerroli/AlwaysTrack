@@ -1,9 +1,9 @@
 # TASK-AT-107 - Seguranca: validacao runtime de entrada e contratos de API
 
 ## Metadata
-- status: in-progress
+- status: completed-first-slice
 - owner: olympus_taskyfier
-- last-updated: 2026-06-17
+- last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-107-runtime-input-validation-contracts.md
 
 ## Modo

@@ -1,7 +1,7 @@
 # TASK-AT-104 - Seguranca: hardening de login, senha e sessao
 
 ## Metadata
-- status: implemented
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-06-17
 - source-of-truth: docs/tasks/TASK-AT-104-auth-session-and-login-hardening.md
