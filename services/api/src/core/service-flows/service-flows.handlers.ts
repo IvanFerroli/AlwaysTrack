@@ -2,15 +2,19 @@ import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
+  archiveServiceFlow,
   completeServiceFlowSession,
   createServiceFlowSession,
   createServiceFlow,
   getServiceFlowSession,
   getServiceFlow,
   listServiceFlows,
+  parseServiceFlowGovernanceInput,
   parseServiceFlowFilters,
   parseServiceFlowInput,
   parseServiceFlowSessionStepInput,
+  publishServiceFlow,
+  serviceFlowMetrics,
   ServiceFlowError,
   updateServiceFlowSessionStep,
   updateServiceFlow
@@ -62,6 +66,30 @@ export async function createServiceFlowHandler(request: Request, response: Respo
 export async function updateServiceFlowHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await updateServiceFlow(prisma, actorFrom(request), param(request.params.flowId), parseServiceFlowInput(request.body)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function publishServiceFlowHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await publishServiceFlow(prisma, actorFrom(request), param(request.params.flowId), parseServiceFlowGovernanceInput(request.body)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function archiveServiceFlowHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await archiveServiceFlow(prisma, actorFrom(request), param(request.params.flowId), parseServiceFlowGovernanceInput(request.body)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function serviceFlowMetricsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await serviceFlowMetrics(prisma, actorFrom(request)));
   } catch (error) {
     return sendFlowError(response, error);
   }

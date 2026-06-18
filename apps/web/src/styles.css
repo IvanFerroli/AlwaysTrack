@@ -2844,6 +2844,23 @@ legend {
   gap: 16px;
 }
 
+.service-flow-metrics-panel,
+.service-flow-governance-box {
+  display: grid;
+  gap: 14px;
+}
+
+.service-flow-governance-box {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.service-flow-governance-box h3 {
+  margin: 0;
+}
+
 .service-flow-steps,
 .service-flow-step-editor {
   display: grid;

@@ -273,7 +273,7 @@ async function recordSearchEvent(prisma: PrismaClient, actor: CurrentUser, filte
 
 async function scriptLibraryMetrics(prisma: PrismaClient, actor: CurrentUser) {
   if (!isManager(actor)) return null;
-  const [mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches] = await Promise.all([
+  const [mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches, duplicateSource] = await Promise.all([
     prisma.operationalScript.findMany({
       where: { organizationId: actor.organizationId, status: "VALIDATED" },
       orderBy: [{ usageCount: "desc" }, { updatedAt: "desc" }],
@@ -288,9 +288,24 @@ async function scriptLibraryMetrics(prisma: PrismaClient, actor: CurrentUser) {
       orderBy: { createdAt: "desc" },
       take: 8,
       select: { id: true, query: true, filtersJson: true, createdAt: true }
+    }),
+    prisma.operationalScript.findMany({
+      where: { organizationId: actor.organizationId, status: { not: "OBSOLETE" } },
+      select: { id: true, title: true, category: { select: { name: true } }, tagsJson: true }
     })
   ]);
-  return { mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches };
+  const groups = new Map<string, Array<{ id: string; title: string; category: string }>>();
+  for (const script of duplicateSource) {
+    const normalizedTitle = slugify(script.title).replace(/-/g, " ");
+    const tagsKey = tagsFromJson(script.tagsJson).slice(0, 3).join(",");
+    const key = `${normalizedTitle}|${tagsKey}|${script.category.name}`;
+    groups.set(key, [...(groups.get(key) ?? []), { id: script.id, title: script.title, category: script.category.name }]);
+  }
+  const probableDuplicates = [...groups.values()]
+    .filter((items) => items.length > 1)
+    .map((items) => ({ key: items.map((item) => item.id).join(":"), count: items.length, titles: items.map((item) => item.title), category: items[0]?.category ?? "Sem categoria" }))
+    .slice(0, 6);
+  return { mostCopied, neverUsed, reviewDue, pendingSuggestions, zeroSearches, probableDuplicates };
 }
 
 export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters = {}) {

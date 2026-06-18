@@ -4,6 +4,7 @@ import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadWikiImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState } from "../components/operational";
+import { formatDateBr } from "../sales";
 
 interface FlowScript {
   id: string;
@@ -42,8 +43,14 @@ interface ServiceFlowItem {
   tags?: string[];
   status: string;
   priority: number;
+  version: number;
+  reviewComment: string | null;
+  reviewDueAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: { id: string; name: string; role: string } | null;
   wikiPage: { id: string; slug: string; title: string } | null;
   steps: ServiceFlowStep[];
+  revisions?: Array<{ id: string; version: number; title: string; status: string; comment: string | null; createdAt: string; author: { id: string; name: string; role: string } }>;
 }
 
 interface ScriptLibraryResponse {
@@ -53,6 +60,14 @@ interface ScriptLibraryResponse {
 interface ServiceFlowsResponse {
   items: ServiceFlowItem[];
   canManage: boolean;
+}
+
+interface ServiceFlowMetrics {
+  summary: { totalFlows: number; publishedFlows: number; reviewDue: number; openSessions: number };
+  mostUsedFlows: Array<{ flowId: string; title: string; sessions: number }>;
+  stepBottlenecks: Array<{ stepId: string; stepTitle: string; flowTitle: string; status: string; count: number }>;
+  topScriptsByFlow: Array<{ id: string; title: string; count: number }>;
+  zeroSearches: Array<{ id: string; query: string | null; filtersJson: string | null; createdAt: string }>;
 }
 
 interface ServiceFlowSession {
@@ -141,6 +156,7 @@ function wordsFor(value: string) {
 export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [flows, setFlows] = useState<ServiceFlowItem[]>([]);
   const [scripts, setScripts] = useState<FlowScript[]>([]);
+  const [metrics, setMetrics] = useState<ServiceFlowMetrics | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState("");
@@ -152,6 +168,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [stepDecisions, setStepDecisions] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
+  const [governanceDraft, setGovernanceDraft] = useState({ comment: "", reviewDueAt: "" });
   const [stepDrafts, setStepDrafts] = useState<StepDraft[]>([emptyStepDraft()]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -177,6 +194,10 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       const next = nextSelectedId && flowResult.items.some((flow) => flow.id === nextSelectedId) ? nextSelectedId : flowResult.items[0]?.id ?? "";
       setSelectedId(next);
       setOpenSteps(Object.fromEntries((flowResult.items.find((flow) => flow.id === next)?.steps ?? flowResult.items[0]?.steps ?? []).map((step, index) => [step.id, index === 0])));
+      if (canManage) {
+        const metricResult = await api<ServiceFlowMetrics>("/v1/service-flows/metrics/summary").catch(() => null);
+        setMetrics(metricResult);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar fluxos.");
     } finally {
@@ -256,6 +277,24 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     }
   }
 
+  async function decideFlow(action: "publish" | "archive") {
+    if (!selected) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ flow: ServiceFlowItem }>(`/v1/service-flows/${selected.id}/${action}`, {
+        method: "POST",
+        body: JSON.stringify({ comment: governanceDraft.comment, reviewDueAt: governanceDraft.reviewDueAt || null })
+      });
+      setGovernanceDraft({ comment: "", reviewDueAt: "" });
+      await load(result.flow.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha na governança do fluxo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function updateStep(index: number, patch: Partial<StepDraft>) {
     setStepDrafts((current) => current.map((step, currentIndex) => currentIndex === index ? { ...step, ...patch } : step));
   }
@@ -316,6 +355,49 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
         onSubmit={() => void load("")}
       />
       {error ? <OperationalState state="error" title="Falha nos fluxos" detail={error} /> : null}
+      {canManage && metrics ? (
+        <section className="panel service-flow-metrics-panel">
+          <div>
+            <p className="eyebrow">Governança</p>
+            <h2>Uso dos fluxos</h2>
+          </div>
+          <div className="script-metrics-grid">
+            <div className="script-metric-card"><span>Fluxos publicados</span><strong>{metrics.summary.publishedFlows}/{metrics.summary.totalFlows}</strong></div>
+            <div className="script-metric-card"><span>Revisão vencida</span><strong>{metrics.summary.reviewDue}</strong></div>
+            <div className="script-metric-card"><span>Sessões abertas</span><strong>{metrics.summary.openSessions}</strong></div>
+          </div>
+          <div className="script-metrics-columns">
+            <div className="script-metric-list">
+              <h3>Mais usados</h3>
+              <div>
+                {metrics.mostUsedFlows.map((item) => <span key={item.flowId}><strong>{item.title}</strong><small>{item.sessions} sessão(ões)</small></span>)}
+                {metrics.mostUsedFlows.length ? null : <span className="muted">Sem sessões registradas.</span>}
+              </div>
+            </div>
+            <div className="script-metric-list">
+              <h3>Etapas com pendência</h3>
+              <div>
+                {metrics.stepBottlenecks.map((item) => <span key={`${item.stepId}-${item.status}`}><strong>{item.stepTitle}</strong><small>{item.status} / {item.count}</small></span>)}
+                {metrics.stepBottlenecks.length ? null : <span className="muted">Sem gargalos recentes.</span>}
+              </div>
+            </div>
+            <div className="script-metric-list">
+              <h3>Scripts em fluxo</h3>
+              <div>
+                {metrics.topScriptsByFlow.map((item) => <span key={item.id}><strong>{item.title}</strong><small>{item.count} cópia(s)</small></span>)}
+                {metrics.topScriptsByFlow.length ? null : <span className="muted">Sem cópias vinculadas a fluxo.</span>}
+              </div>
+            </div>
+            <div className="script-metric-list">
+              <h3>Buscas sem fluxo</h3>
+              <div>
+                {metrics.zeroSearches.map((item) => <span key={item.id}><strong>{item.query || "Filtro vazio"}</strong><small>{formatDateBr(item.createdAt)}</small></span>)}
+                {metrics.zeroSearches.length ? null : <span className="muted">Sem lacunas de busca.</span>}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <div className="service-flow-layout">
         <section className="panel table-panel">
           <div className="table-panel-toolbar">
@@ -343,6 +425,11 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                 <div>
                   <p className="eyebrow">/{selected.slug}</p>
                   <h2>{selected.title}</h2>
+                  <p className="muted">
+                    v{selected.version} · {selected.status}
+                    {selected.reviewedBy ? ` · validado por ${selected.reviewedBy.name}` : ""}
+                    {selected.reviewDueAt ? ` · revisar até ${formatDateBr(selected.reviewDueAt)}` : ""}
+                  </p>
                   {selected.summary ? <p className="muted">{selected.summary}</p> : null}
                 </div>
                 <div className="row-actions">
@@ -352,6 +439,34 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                 </div>
               </div>
               {selected.content ? <MarkdownContent content={selected.content} /> : null}
+              {canManage ? (
+                <div className="service-flow-governance-box">
+                  <div>
+                    <h3>Governança do fluxo</h3>
+                    <p className="muted">{selected.reviewComment || "Sem comentário de aprovação/arquivamento."}</p>
+                  </div>
+                  <div className="form-grid">
+                    <label>Comentário obrigatório<input value={governanceDraft.comment} onChange={(event) => setGovernanceDraft((current) => ({ ...current, comment: event.target.value }))} placeholder="O que mudou ou por que arquivar/publicar?" /></label>
+                    <label>Revisar até<input type="date" value={governanceDraft.reviewDueAt} onChange={(event) => setGovernanceDraft((current) => ({ ...current, reviewDueAt: event.target.value }))} /></label>
+                  </div>
+                  <div className="row-actions">
+                    <button type="button" disabled={saving || !governanceDraft.comment.trim()} onClick={() => void decideFlow("publish")}>Publicar versão</button>
+                    <button className="secondary" type="button" disabled={saving || !governanceDraft.comment.trim()} onClick={() => void decideFlow("archive")}>Arquivar</button>
+                  </div>
+                  {selected.revisions?.length ? (
+                    <div className="script-history-list">
+                      {selected.revisions.map((revision) => (
+                        <div className="script-history-item" key={revision.id}>
+                          <div>
+                            <strong>v{revision.version} / {revision.status}</strong>
+                            <span>{revision.author.name} em {formatDateBr(revision.createdAt)}{revision.comment ? ` / ${revision.comment}` : ""}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="service-flow-steps">
                 {selected.steps.map((step, index) => {
                   const expanded = openSteps[step.id] ?? index === 0;

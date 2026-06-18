@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
+import { commercialAllRoles, commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { emitInAppNotifications } from "../notifications/notifications.service.js";
 
 export class ServiceFlowError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN") {
@@ -42,6 +43,11 @@ export interface ServiceFlowSessionStepInput {
   status?: string;
   decision?: string | null;
   note?: string | null;
+}
+
+export interface ServiceFlowGovernanceInput {
+  comment?: string | null;
+  reviewDueAt?: Date | null;
 }
 
 const statuses = new Set(["DRAFT", "PUBLISHED", "ARCHIVED"]);
@@ -136,6 +142,13 @@ function decisionFromJson(value: string | null | undefined) {
   }
 }
 
+function dateValue(value: unknown) {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const parsed = new Date(value.includes("T") ? value : `${value}T12:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 function formatScript<T extends { tagsJson?: string | null; placeholdersJson?: string | null }>(script: T) {
   return { ...script, tags: tagsFromJson(script.tagsJson), placeholders: tagsFromJson(script.placeholdersJson) };
 }
@@ -199,6 +212,14 @@ export function parseServiceFlowSessionStepInput(payload: unknown): ServiceFlowS
   };
 }
 
+export function parseServiceFlowGovernanceInput(payload: unknown): ServiceFlowGovernanceInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    comment: optionalText(input.comment),
+    reviewDueAt: dateValue(input.reviewDueAt)
+  };
+}
+
 function visibleStatus(actor: CurrentUser, requested?: string) {
   if (isManager(actor)) return requested;
   return "PUBLISHED";
@@ -238,7 +259,69 @@ export async function listServiceFlows(prisma: PrismaClient, actor: CurrentUser,
     },
     orderBy: [{ priority: "asc" }, { updatedAt: "desc" }, { title: "asc" }]
   });
+  if ((filters.query || filters.tag) && flows.length === 0) {
+    await prisma.serviceFlowSearchEvent.create({
+      data: {
+        organizationId: actor.organizationId,
+        userId: actor.id,
+        query: filters.query ?? null,
+        filtersJson: JSON.stringify({ tag: filters.tag ?? null, status: filters.status ?? null }),
+        resultCount: 0
+      }
+    }).catch(() => null);
+  }
   return { items: flows.map(formatFlow), canManage: isManager(actor) };
+}
+
+function snapshotForFlow(flow: Awaited<ReturnType<typeof getRawFlowForRevision>>) {
+  return JSON.stringify({
+    id: flow.id,
+    slug: flow.slug,
+    title: flow.title,
+    summary: flow.summary,
+    content: flow.content,
+    tags: tagsFromJson(flow.tagsJson),
+    status: flow.status,
+    version: flow.version,
+    steps: flow.steps.map((step) => ({
+      title: step.title,
+      body: step.body,
+      kind: step.kind,
+      decision: decisionFromJson(step.decisionJson),
+      order: step.order,
+      required: step.required,
+      scripts: step.scripts.map((link) => ({ id: link.script.id, title: link.script.title, order: link.order }))
+    }))
+  });
+}
+
+async function getRawFlowForRevision(prisma: PrismaClient, actor: CurrentUser, flowId: string) {
+  const flow = await prisma.serviceFlow.findFirst({
+    where: { id: flowId, organizationId: actor.organizationId },
+    include: {
+      steps: { orderBy: { order: "asc" }, include: { scripts: { orderBy: { order: "asc" }, include: { script: { select: { id: true, title: true } } } } } }
+    }
+  });
+  if (!flow) throw new ServiceFlowError("NOT_FOUND");
+  return flow;
+}
+
+async function createFlowRevision(prisma: PrismaClient, actor: CurrentUser, flowId: string, comment?: string | null) {
+  const flow = await getRawFlowForRevision(prisma, actor, flowId);
+  await prisma.serviceFlowRevision.upsert({
+    where: { flowId_version: { flowId: flow.id, version: flow.version } },
+    update: { snapshotJson: snapshotForFlow(flow), comment: comment ?? undefined },
+    create: {
+      organizationId: actor.organizationId,
+      flowId: flow.id,
+      version: flow.version,
+      title: flow.title,
+      status: flow.status,
+      snapshotJson: snapshotForFlow(flow),
+      comment: comment ?? null,
+      authorId: actor.id
+    }
+  });
 }
 
 async function ensureWiki(prisma: PrismaClient, actor: CurrentUser, wikiPageId?: string | null) {
@@ -310,6 +393,7 @@ export async function createServiceFlow(prisma: PrismaClient, actor: CurrentUser
     }
   });
   await replaceSteps(prisma, actor, flow.id, input.steps ?? []);
+  await createFlowRevision(prisma, actor, flow.id, input.status === "PUBLISHED" ? "Publicacao inicial" : "Rascunho inicial");
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.create", entityType: "ServiceFlow", entityId: flow.id, metadata: { slug } });
   return getServiceFlow(prisma, actor, flow.id);
 }
@@ -320,6 +404,7 @@ export async function updateServiceFlow(prisma: PrismaClient, actor: CurrentUser
   if (!current) throw new ServiceFlowError("NOT_FOUND");
   await ensureWiki(prisma, actor, input.wikiPageId);
   const nextStatus = input.status ?? current.status;
+  const nextVersion = current.version + 1;
   const flow = await prisma.serviceFlow.update({
     where: { id: current.id },
     data: {
@@ -330,11 +415,13 @@ export async function updateServiceFlow(prisma: PrismaClient, actor: CurrentUser
       tagsJson: input.tags ? JSON.stringify(input.tags) : undefined,
       status: input.status,
       priority: input.priority,
+      version: nextVersion,
       updatedById: actor.id,
       publishedAt: nextStatus === "PUBLISHED" && !current.publishedAt ? new Date() : nextStatus !== "PUBLISHED" ? null : current.publishedAt
     }
   });
   if (input.steps) await replaceSteps(prisma, actor, flow.id, input.steps);
+  await createFlowRevision(prisma, actor, flow.id, "Atualizacao de fluxo");
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.update", entityType: "ServiceFlow", entityId: flow.id, metadata: { status: flow.status } });
   return getServiceFlow(prisma, actor, flow.id);
 }
@@ -350,6 +437,12 @@ export async function getServiceFlow(prisma: PrismaClient, actor: CurrentUser, f
       wikiPage: { select: { id: true, slug: true, title: true } },
       createdBy: { select: { id: true, name: true, role: true } },
       updatedBy: { select: { id: true, name: true, role: true } },
+      reviewedBy: { select: { id: true, name: true, role: true } },
+      revisions: {
+        orderBy: { version: "desc" },
+        take: 6,
+        select: { id: true, version: true, title: true, status: true, comment: true, createdAt: true, author: { select: { id: true, name: true, role: true } } }
+      },
       steps: {
         orderBy: { order: "asc" },
         include: {
@@ -363,6 +456,115 @@ export async function getServiceFlow(prisma: PrismaClient, actor: CurrentUser, f
   });
   if (!flow) throw new ServiceFlowError("NOT_FOUND");
   return { flow: formatFlow(flow), canManage: isManager(actor) };
+}
+
+export async function publishServiceFlow(prisma: PrismaClient, actor: CurrentUser, flowId: string, input: ServiceFlowGovernanceInput = {}) {
+  ensureManager(actor);
+  if (!input.comment) throw new ServiceFlowError("INVALID_INPUT");
+  const current = await prisma.serviceFlow.findFirst({ where: { id: flowId, organizationId: actor.organizationId } });
+  if (!current) throw new ServiceFlowError("NOT_FOUND");
+  const flow = await prisma.serviceFlow.update({
+    where: { id: current.id },
+    data: {
+      status: "PUBLISHED",
+      version: current.version + 1,
+      reviewComment: input.comment,
+      reviewDueAt: input.reviewDueAt ?? current.reviewDueAt,
+      reviewedById: actor.id,
+      reviewedAt: new Date(),
+      updatedById: actor.id,
+      publishedAt: new Date()
+    }
+  });
+  await createFlowRevision(prisma, actor, flow.id, input.comment);
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.publish", entityType: "ServiceFlow", entityId: flow.id, metadata: { version: flow.version, comment: input.comment } });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    recipientRoles: [...commercialAllRoles],
+    actorId: actor.id,
+    type: "service_flow.published",
+    title: "Fluxo de atendimento atualizado",
+    body: `${flow.title} foi publicado na versao ${flow.version}.`,
+    entityType: "ServiceFlow",
+    entityId: flow.id,
+    href: "/fluxos",
+    dedupeKey: `service-flow:${flow.id}:published:${flow.version}`
+  });
+  return getServiceFlow(prisma, actor, flow.id);
+}
+
+export async function archiveServiceFlow(prisma: PrismaClient, actor: CurrentUser, flowId: string, input: ServiceFlowGovernanceInput = {}) {
+  ensureManager(actor);
+  if (!input.comment) throw new ServiceFlowError("INVALID_INPUT");
+  const current = await prisma.serviceFlow.findFirst({ where: { id: flowId, organizationId: actor.organizationId } });
+  if (!current) throw new ServiceFlowError("NOT_FOUND");
+  const flow = await prisma.serviceFlow.update({
+    where: { id: current.id },
+    data: {
+      status: "ARCHIVED",
+      version: current.version + 1,
+      reviewComment: input.comment,
+      reviewedById: actor.id,
+      reviewedAt: new Date(),
+      updatedById: actor.id,
+      publishedAt: null
+    }
+  });
+  await createFlowRevision(prisma, actor, flow.id, input.comment);
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.archive", entityType: "ServiceFlow", entityId: flow.id, metadata: { version: flow.version, comment: input.comment } });
+  return getServiceFlow(prisma, actor, flow.id);
+}
+
+export async function serviceFlowMetrics(prisma: PrismaClient, actor: CurrentUser) {
+  ensureManager(actor);
+  const [flows, sessionGroups, stepGroups, zeroSearches, openSessions, copyEvents] = await Promise.all([
+    prisma.serviceFlow.findMany({ where: { organizationId: actor.organizationId }, select: { id: true, title: true, status: true, reviewDueAt: true, version: true } }),
+    prisma.serviceFlowSession.groupBy({ by: ["flowId"], where: { organizationId: actor.organizationId }, _count: { _all: true }, orderBy: { _count: { flowId: "desc" } }, take: 5 }),
+    prisma.serviceFlowSessionStep.groupBy({ by: ["stepId", "status"], where: { organizationId: actor.organizationId }, _count: { _all: true } }),
+    prisma.serviceFlowSearchEvent.findMany({ where: { organizationId: actor.organizationId, resultCount: 0 }, orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.serviceFlowSession.count({ where: { organizationId: actor.organizationId, status: "OPEN" } }),
+    prisma.operationalScriptEvent.findMany({
+      where: { organizationId: actor.organizationId, action: "copy", metadataJson: { contains: "serviceFlowId" } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      include: { script: { select: { id: true, title: true } } }
+    })
+  ]);
+  const flowById = new Map(flows.map((flow) => [flow.id, flow]));
+  const stepIds = [...new Set(stepGroups.map((item) => item.stepId))];
+  const steps = stepIds.length
+    ? await prisma.serviceFlowStep.findMany({ where: { id: { in: stepIds }, organizationId: actor.organizationId }, select: { id: true, title: true, flowId: true } })
+    : [];
+  const stepById = new Map(steps.map((step) => [step.id, step]));
+  const scriptCopies = new Map<string, { id: string; title: string; count: number }>();
+  for (const event of copyEvents) {
+    if (!event.metadataJson) continue;
+    try {
+      const metadata = JSON.parse(event.metadataJson) as { serviceFlowId?: string | null };
+      if (!metadata.serviceFlowId) continue;
+      const current = scriptCopies.get(event.scriptId) ?? { id: event.scriptId, title: event.script.title, count: 0 };
+      current.count += 1;
+      scriptCopies.set(event.scriptId, current);
+    } catch {
+      continue;
+    }
+  }
+  const today = new Date();
+  return {
+    summary: {
+      totalFlows: flows.length,
+      publishedFlows: flows.filter((flow) => flow.status === "PUBLISHED").length,
+      reviewDue: flows.filter((flow) => flow.reviewDueAt && flow.reviewDueAt <= today).length,
+      openSessions
+    },
+    mostUsedFlows: sessionGroups.map((item) => ({ flowId: item.flowId, title: flowById.get(item.flowId)?.title ?? "Fluxo removido", sessions: item._count._all })),
+    stepBottlenecks: stepGroups
+      .filter((item) => item.status !== "DONE")
+      .map((item) => ({ stepId: item.stepId, stepTitle: stepById.get(item.stepId)?.title ?? "Etapa removida", flowTitle: flowById.get(stepById.get(item.stepId)?.flowId ?? "")?.title ?? "Fluxo", status: item.status, count: item._count._all }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 6),
+    topScriptsByFlow: [...scriptCopies.values()].sort((left, right) => right.count - left.count).slice(0, 6),
+    zeroSearches: zeroSearches.map((item) => ({ id: item.id, query: item.query, filtersJson: item.filtersJson, createdAt: item.createdAt }))
+  };
 }
 
 export async function createServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, flowIdOrSlug: string) {

@@ -149,20 +149,20 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 130. `EXEC-AT-124`: modo atendimento rapido da Scriptoteca (`TASK-AT-124`). Status: completed-mvp.
 131. `EXEC-AT-125`: qualidade/seguranca de placeholders da Scriptoteca (`TASK-AT-125`). Status: completed-mvp.
 132. `EXEC-AT-133`: execucao auditavel de Fluxos de Atendimento (`TASK-AT-133`). Status: completed-mvp.
+133. `EXEC-AT-135`: governanca e versionamento de Fluxos de Atendimento (`TASK-AT-135`). Status: completed-mvp.
+134. `EXEC-AT-136`: metricas de uso dos Fluxos de Atendimento (`TASK-AT-136`). Status: completed-mvp.
+135. `EXEC-AT-127`: painel de governanca da Scriptoteca (`TASK-AT-127`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-135-service-flow-governance-and-versioning.md`: governanca/versionamento de fluxos.
-2. `TASK-AT-136-service-flow-analytics.md`: metricas de uso dos fluxos.
-3. `TASK-AT-127-script-library-governance-dashboard.md`: painel de governanca da Scriptoteca.
-4. `TASK-AT-126-script-library-script-packs.md`: pacotes e roteiros de atendimento.
-5. `TASK-AT-128-script-library-suggestion-review-upgrade.md`: revisao rica de sugestoes.
-6. `TASK-AT-129-script-library-channel-formatting.md`: formatacao por canal.
-7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-8. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
-9. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
-10. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
-11. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
-12. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
+1. `TASK-AT-126-script-library-script-packs.md`: pacotes e roteiros de atendimento.
+2. `TASK-AT-128-script-library-suggestion-review-upgrade.md`: revisao rica de sugestoes.
+3. `TASK-AT-129-script-library-channel-formatting.md`: formatacao por canal.
+4. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+5. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
+6. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
+7. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+8. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
+9. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -222,7 +222,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 26. `TASK-AT-124`: Scriptoteca - modo atendimento rapido. Status: completed-mvp.
 27. `TASK-AT-125`: Scriptoteca - qualidade de placeholders. Status: completed-mvp.
 28. `TASK-AT-126`: Scriptoteca - pacotes e roteiros de atendimento. Status: proposed.
-29. `TASK-AT-127`: Scriptoteca - painel de governanca. Status: proposed.
+29. `TASK-AT-127`: Scriptoteca - painel de governanca. Status: completed-mvp.
 30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: proposed.
 31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: proposed.
 32. `TASK-AT-130`: Fluxos de atendimento guiado MVP. Status: completed-mvp.
@@ -230,8 +230,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 34. `TASK-AT-132`: Construtor visual de decisoes. Status: completed-mvp.
 35. `TASK-AT-133`: Execucao auditavel de fluxo por atendimento. Status: completed-mvp.
 36. `TASK-AT-134`: Recomendacao de scripts por etapa. Status: completed-mvp.
-37. `TASK-AT-135`: Governanca e versionamento de fluxos. Status: proposed.
-38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: proposed.
+37. `TASK-AT-135`: Governanca e versionamento de fluxos. Status: completed-mvp.
+38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

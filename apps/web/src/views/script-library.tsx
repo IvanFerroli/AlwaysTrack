@@ -78,6 +78,7 @@ interface ScriptLibraryMetrics {
   reviewDue: number;
   pendingSuggestions: number;
   zeroSearches: Array<{ id: string; query: string | null; filtersJson: string | null; createdAt: string }>;
+  probableDuplicates?: Array<{ key: string; count: number; titles: string[]; category: string }>;
 }
 
 const channelOptions = [
@@ -489,12 +490,12 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
         <section className="panel script-metrics-panel">
           <div>
             <p className="eyebrow">Métricas</p>
-            <h2>Uso e lacunas</h2>
+            <h2>Governança da Scriptoteca</h2>
           </div>
           <div className="script-metrics-grid">
-            <div className="script-metric-card"><span>Sugestões pendentes</span><strong>{metrics.pendingSuggestions}</strong></div>
-            <div className="script-metric-card"><span>Sem uso</span><strong>{metrics.neverUsed}</strong></div>
-            <div className="script-metric-card"><span>Revisão vencida</span><strong>{metrics.reviewDue}</strong></div>
+            <button className="script-metric-card" type="button" onClick={() => setReviewDueOnly(true)}><span>Revisão vencida</span><strong>{metrics.reviewDue}</strong></button>
+            <button className="script-metric-card" type="button" onClick={() => setStatus("DRAFT")}><span>Sugestões pendentes</span><strong>{metrics.pendingSuggestions}</strong></button>
+            <button className="script-metric-card" type="button" onClick={() => { setQuery(""); setStatus("VALIDATED"); }}><span>Sem uso</span><strong>{metrics.neverUsed}</strong></button>
           </div>
           <div className="script-metrics-columns">
             <div className="script-metric-list">
@@ -513,6 +514,15 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   <span key={item.id}><strong>{item.query || "Filtro sem texto"}</strong><small>{formatDateBr(item.createdAt)}</small></span>
                 ))}
                 {metrics.zeroSearches.length ? null : <span className="muted">Sem lacunas recentes.</span>}
+              </div>
+            </div>
+            <div className="script-metric-list">
+              <h3>Duplicados prováveis</h3>
+              <div>
+                {(metrics.probableDuplicates ?? []).map((item) => (
+                  <span key={item.key}><strong>{item.titles.join(" / ")}</strong><small>{item.category} · {item.count}</small></span>
+                ))}
+                {metrics.probableDuplicates?.length ? null : <span className="muted">Nenhum duplicado provável.</span>}
               </div>
             </div>
           </div>
