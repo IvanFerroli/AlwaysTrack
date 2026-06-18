@@ -38,8 +38,15 @@ export interface ServiceFlowFilters {
   status?: string;
 }
 
+export interface ServiceFlowSessionStepInput {
+  status?: string;
+  decision?: string | null;
+  note?: string | null;
+}
+
 const statuses = new Set(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 const stepKinds = new Set(["MANUAL", "YES_NO", "CHECKLIST", "DECISION"]);
+const sessionStepStatuses = new Set(["PENDING", "DONE", "SKIPPED"]);
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -77,6 +84,10 @@ function status(value: unknown) {
 
 function stepKind(value: unknown) {
   return typeof value === "string" && stepKinds.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+}
+
+function sessionStepStatus(value: unknown) {
+  return typeof value === "string" && sessionStepStatuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
 }
 
 function slugify(value: string) {
@@ -176,6 +187,15 @@ export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
         scriptIds: [...new Set(rawScriptIds)]
       };
     })
+  };
+}
+
+export function parseServiceFlowSessionStepInput(payload: unknown): ServiceFlowSessionStepInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    status: sessionStepStatus(input.status),
+    decision: optionalText(input.decision),
+    note: optionalText(input.note)
   };
 }
 
@@ -343,4 +363,108 @@ export async function getServiceFlow(prisma: PrismaClient, actor: CurrentUser, f
   });
   if (!flow) throw new ServiceFlowError("NOT_FOUND");
   return { flow: formatFlow(flow), canManage: isManager(actor) };
+}
+
+export async function createServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, flowIdOrSlug: string) {
+  const { flow } = await getServiceFlow(prisma, actor, flowIdOrSlug);
+  const session = await prisma.serviceFlowSession.create({
+    data: {
+      organizationId: actor.organizationId,
+      flowId: flow.id,
+      userId: actor.id,
+      status: "OPEN",
+      steps: {
+        create: flow.steps.map((step) => ({
+          organizationId: actor.organizationId,
+          stepId: step.id,
+          status: "PENDING"
+        }))
+      }
+    },
+    include: sessionInclude()
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "service_flow_session.start",
+    entityType: "ServiceFlowSession",
+    entityId: session.id,
+    metadata: { flowId: flow.id, slug: flow.slug }
+  });
+  return { session: formatSession(session) };
+}
+
+export async function updateServiceFlowSessionStep(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  sessionId: string,
+  stepId: string,
+  input: ServiceFlowSessionStepInput
+) {
+  const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+  const step = await prisma.serviceFlowSessionStep.findFirst({
+    where: { sessionId, stepId, organizationId: actor.organizationId },
+    include: { step: { select: { title: true } } }
+  });
+  if (!step) throw new ServiceFlowError("NOT_FOUND");
+  const nextStatus = input.status ?? step.status;
+  const updated = await prisma.serviceFlowSessionStep.update({
+    where: { id: step.id },
+    data: {
+      status: nextStatus,
+      decision: input.decision,
+      note: input.note,
+      completedAt: nextStatus === "DONE" || nextStatus === "SKIPPED" ? new Date() : null
+    }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "service_flow_session.step",
+    entityType: "ServiceFlowSession",
+    entityId: session.id,
+    metadata: { stepId, stepTitle: step.step.title, status: updated.status, decision: updated.decision, note: updated.note }
+  });
+  return getServiceFlowSession(prisma, actor, session.id);
+}
+
+export async function completeServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, sessionId: string) {
+  const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+  await prisma.serviceFlowSession.update({ where: { id: session.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "service_flow_session.complete",
+    entityType: "ServiceFlowSession",
+    entityId: session.id,
+    metadata: { flowId: session.flowId }
+  });
+  return getServiceFlowSession(prisma, actor, session.id);
+}
+
+export async function getServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, sessionId: string) {
+  const session = await prisma.serviceFlowSession.findFirst({
+    where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id },
+    include: sessionInclude()
+  });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+  return { session: formatSession(session) };
+}
+
+function sessionInclude() {
+  return {
+    flow: { select: { id: true, slug: true, title: true } },
+    steps: {
+      include: { step: { select: { id: true, title: true, order: true, required: true } } }
+    }
+  } satisfies Prisma.ServiceFlowSessionInclude;
+}
+
+function formatSession<T extends { steps?: Array<{ step?: { order: number } | null }> }>(session: T) {
+  return {
+    ...session,
+    steps: [...(session.steps ?? [])].sort((left, right) => (left.step?.order ?? 0) - (right.step?.order ?? 0))
+  };
 }

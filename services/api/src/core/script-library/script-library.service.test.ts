@@ -134,7 +134,12 @@ describe("script library service", () => {
     await recordScriptCopy(prisma as never, sac, "script-1", { renderedText: "Oi", placeholders: { nome_cliente: "Ana" } });
 
     expect(prisma.operationalScript.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ usageCount: { increment: 1 } }) }));
-    expect(prisma.operationalScriptEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "copy" }) }));
+    expect(prisma.operationalScriptEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "copy",
+        metadataJson: JSON.stringify({ filledPlaceholders: ["nome_cliente"], serviceFlowSessionId: null, serviceFlowId: null, rendered: true })
+      })
+    }));
   });
 
   it("recertifies scripts with audit and event", async () => {

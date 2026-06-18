@@ -43,6 +43,7 @@ export interface ScriptFilters {
 export interface ScriptCopyInput {
   renderedText?: string | null;
   placeholders?: Record<string, string>;
+  serviceFlowSessionId?: string;
 }
 
 export interface ScriptSuggestionInput extends OperationalScriptInput {
@@ -237,7 +238,7 @@ export function parseScriptCopyInput(payload: unknown): ScriptCopyInput {
   const input = (payload ?? {}) as Record<string, unknown>;
   const rawPlaceholders = input.placeholders && typeof input.placeholders === "object" ? (input.placeholders as Record<string, unknown>) : {};
   const placeholders = Object.fromEntries(Object.entries(rawPlaceholders).map(([key, value]) => [key, typeof value === "string" ? value.slice(0, 160) : ""]));
-  return { renderedText: cleanOptionalText(input.renderedText), placeholders };
+  return { renderedText: cleanOptionalText(input.renderedText), placeholders, serviceFlowSessionId: cleanText(input.serviceFlowSessionId) };
 }
 
 export function parseScriptSuggestionInput(payload: unknown): ScriptSuggestionInput {
@@ -687,6 +688,9 @@ export async function decideOperationalScriptSuggestion(prisma: PrismaClient, ac
 export async function recordScriptCopy(prisma: PrismaClient, actor: CurrentUser, scriptId: string, input: ScriptCopyInput = {}) {
   const script = await prisma.operationalScript.findFirst({ where: { ...scriptVisibilityWhere(actor), id: scriptId } });
   if (!script) throw new ScriptLibraryError("NOT_FOUND");
+  const session = input.serviceFlowSessionId
+    ? await prisma.serviceFlowSession.findFirst({ where: { id: input.serviceFlowSessionId, organizationId: actor.organizationId, userId: actor.id }, select: { id: true, flowId: true } })
+    : null;
   const [updated, event] = await Promise.all([
     prisma.operationalScript.update({ where: { id: script.id }, data: { usageCount: { increment: 1 }, copiedAt: new Date() } }),
     prisma.operationalScriptEvent.create({
@@ -695,7 +699,12 @@ export async function recordScriptCopy(prisma: PrismaClient, actor: CurrentUser,
         scriptId: script.id,
         userId: actor.id,
         action: "copy",
-        metadataJson: JSON.stringify({ placeholders: input.placeholders ?? {}, rendered: Boolean(input.renderedText) })
+        metadataJson: JSON.stringify({
+          filledPlaceholders: Object.entries(input.placeholders ?? {}).filter(([, value]) => value.trim().length > 0).map(([key]) => key),
+          serviceFlowSessionId: session?.id ?? null,
+          serviceFlowId: session?.flowId ?? null,
+          rendered: Boolean(input.renderedText)
+        })
       }
     })
   ]);

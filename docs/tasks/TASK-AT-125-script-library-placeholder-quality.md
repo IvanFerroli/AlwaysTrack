@@ -1,7 +1,7 @@
 # TASK-AT-125 - Scriptoteca: qualidade de placeholders
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-125-script-library-placeholder-quality.md
@@ -29,3 +29,8 @@ Hoje placeholders sao extraidos do corpo do script e viram inputs livres. Para a
 
 ## Riscos
 - Excesso de configuracao para o gestor. Comecar com metadados opcionais e defaults bons.
+
+## Resultado
+- Entregue em `EXEC-AT-125`.
+- Placeholders recebem label amigavel, exemplo, obrigatoriedade default e alerta antes de copia incompleta.
+- O evento de copia registra apenas nomes de placeholders preenchidos, sem persistir valores digitados pelo SAC.

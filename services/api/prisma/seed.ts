@@ -585,6 +585,12 @@ async function ensureServiceFlow(input: {
       publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
     }
   });
+  const existingSteps = await prisma.serviceFlowStep.findMany({ where: { flowId: flow.id }, select: { id: true } });
+  const existingStepIds = existingSteps.map((step) => step.id);
+  if (existingStepIds.length) {
+    await prisma.serviceFlowSessionStep.deleteMany({ where: { stepId: { in: existingStepIds } } });
+    await prisma.serviceFlowStepScript.deleteMany({ where: { stepId: { in: existingStepIds } } });
+  }
   await prisma.serviceFlowStep.deleteMany({ where: { flowId: flow.id } });
   for (const step of input.steps) {
     const createdStep = await prisma.serviceFlowStep.create({

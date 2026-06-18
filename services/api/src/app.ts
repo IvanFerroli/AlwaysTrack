@@ -177,9 +177,13 @@ import {
   validateOperationalScriptHandler
 } from "./core/script-library/script-library.handlers.js";
 import {
+  completeServiceFlowSessionHandler,
+  createServiceFlowSessionHandler,
   createServiceFlowHandler,
   getServiceFlowHandler,
+  getServiceFlowSessionHandler,
   listServiceFlowsHandler,
+  updateServiceFlowSessionStepHandler,
   updateServiceFlowHandler
 } from "./core/service-flows/service-flows.handlers.js";
 import {
@@ -273,6 +277,10 @@ export function createApp() {
   app.post("/v1/script-library/scripts/:scriptId/revisions/:revisionId/restore", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, restoreOperationalScriptRevisionHandler);
   app.post("/v1/script-library/scripts/:scriptId/copy", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, copyOperationalScriptHandler);
   app.get("/v1/service-flows", requireAuth, requireRole(commercialAllRoles), listServiceFlowsHandler);
+  app.post("/v1/service-flows/:flowIdOrSlug/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createServiceFlowSessionHandler);
+  app.get("/v1/service-flow-sessions/:sessionId", requireAuth, requireRole(commercialAllRoles), getServiceFlowSessionHandler);
+  app.post("/v1/service-flow-sessions/:sessionId/steps/:stepId", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, updateServiceFlowSessionStepHandler);
+  app.post("/v1/service-flow-sessions/:sessionId/complete", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, completeServiceFlowSessionHandler);
   app.get("/v1/service-flows/:flowIdOrSlug", requireAuth, requireRole(commercialAllRoles), getServiceFlowHandler);
   app.post("/v1/service-flows", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createServiceFlowHandler);
   app.patch("/v1/service-flows/:flowId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateServiceFlowHandler);

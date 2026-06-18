@@ -55,6 +55,23 @@ interface ServiceFlowsResponse {
   canManage: boolean;
 }
 
+interface ServiceFlowSession {
+  id: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  flow: { id: string; slug: string; title: string };
+  steps: Array<{
+    id: string;
+    stepId: string;
+    status: string;
+    decision: string | null;
+    note: string | null;
+    completedAt: string | null;
+    step: { id: string; title: string; order: number; required: boolean };
+  }>;
+}
+
 const flowStatuses = [
   { value: "PUBLISHED", label: "Publicado" },
   { value: "DRAFT", label: "Rascunho" },
@@ -130,6 +147,9 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [status, setStatus] = useState("");
   const [openSteps, setOpenSteps] = useState<Record<string, boolean>>({});
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, Record<string, string>>>({});
+  const [activeSession, setActiveSession] = useState<ServiceFlowSession | null>(null);
+  const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
+  const [stepDecisions, setStepDecisions] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
   const [stepDrafts, setStepDrafts] = useState<StepDraft[]>([emptyStepDraft()]);
@@ -168,6 +188,12 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     void load("");
   }, [tag, status]);
 
+  useEffect(() => {
+    setActiveSession(null);
+    setStepNotes({});
+    setStepDecisions({});
+  }, [selectedId]);
+
   async function copyScript(script: FlowScript) {
     const rendered = renderScript(script.body, placeholderValues[script.id] ?? {});
     try {
@@ -176,8 +202,58 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     } catch {
       setCopyFeedback("");
     }
-    await api(`/v1/script-library/scripts/${script.id}/copy`, { method: "POST", body: JSON.stringify({ renderedText: rendered, placeholders: placeholderValues[script.id] ?? {} }) }).catch(() => null);
+    await api(`/v1/script-library/scripts/${script.id}/copy`, {
+      method: "POST",
+      body: JSON.stringify({ renderedText: rendered, placeholders: placeholderValues[script.id] ?? {}, serviceFlowSessionId: activeSession?.id ?? null })
+    }).catch(() => null);
     window.setTimeout(() => setCopyFeedback(""), 1600);
+  }
+
+  async function startSession() {
+    if (!selected) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flows/${selected.id}/sessions`, { method: "POST" });
+      setActiveSession(result.session);
+      setStepNotes(Object.fromEntries(result.session.steps.map((step) => [step.stepId, step.note ?? ""])));
+      setStepDecisions(Object.fromEntries(result.session.steps.map((step) => [step.stepId, step.decision ?? ""])));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao iniciar atendimento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveSessionStep(stepId: string, statusValue: "DONE" | "SKIPPED" | "PENDING") {
+    if (!activeSession) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/steps/${stepId}`, {
+        method: "POST",
+        body: JSON.stringify({ status: statusValue, decision: stepDecisions[stepId] || null, note: stepNotes[stepId] || null })
+      });
+      setActiveSession(result.session);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao registrar etapa.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function completeSession() {
+    if (!activeSession) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/complete`, { method: "POST" });
+      setActiveSession(result.session);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao finalizar atendimento.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function updateStep(index: number, patch: Partial<StepDraft>) {
@@ -269,18 +345,23 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   <h2>{selected.title}</h2>
                   {selected.summary ? <p className="muted">{selected.summary}</p> : null}
                 </div>
-                {selected.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selected.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
+                <div className="row-actions">
+                  {activeSession ? <span className="status-pill">{activeSession.status === "COMPLETED" ? "Atendimento finalizado" : "Atendimento em andamento"}</span> : null}
+                  {selected.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selected.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
+                  {activeSession?.status === "OPEN" ? <button type="button" disabled={saving} onClick={() => void completeSession()}>Finalizar</button> : <button type="button" disabled={saving} onClick={() => void startSession()}>Iniciar atendimento</button>}
+                </div>
               </div>
               {selected.content ? <MarkdownContent content={selected.content} /> : null}
               <div className="service-flow-steps">
                 {selected.steps.map((step, index) => {
                   const expanded = openSteps[step.id] ?? index === 0;
+                  const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id);
                   return (
-                    <article className="service-flow-step" key={step.id}>
+                    <article className={sessionStep?.status === "DONE" ? "service-flow-step completed" : "service-flow-step"} key={step.id}>
                       <button className="service-flow-step-header" type="button" onClick={() => setOpenSteps((current) => ({ ...current, [step.id]: !expanded }))}>
                         <span>{index + 1}</span>
                         <strong>{step.title}</strong>
-                        <small>{step.kind}{step.required ? " · obrigatório" : ""}</small>
+                        <small>{sessionStep ? `${sessionStep.status} · ` : ""}{step.kind}{step.required ? " · obrigatório" : ""}</small>
                       </button>
                       {expanded ? (
                         <div className="service-flow-step-body">
@@ -320,6 +401,23 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                               ))}
                             </div>
                           ) : <p className="muted">Sem script relacionado nesta etapa.</p>}
+                          {activeSession ? (
+                            <div className="service-flow-session-box">
+                              <label>
+                                Decisão tomada
+                                <input value={stepDecisions[step.id] ?? ""} onChange={(event) => setStepDecisions((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Ex.: reversa, troca, estorno, escalado" />
+                              </label>
+                              <label>
+                                Nota interna
+                                <textarea rows={3} value={stepNotes[step.id] ?? ""} onChange={(event) => setStepNotes((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Registre o contexto para auditoria do atendimento." />
+                              </label>
+                              <div className="row-actions">
+                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "PENDING")}>Reabrir</button>
+                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "SKIPPED")}>Pular</button>
+                                <button type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "DONE")}>Concluir etapa</button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </article>

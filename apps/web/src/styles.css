@@ -2757,6 +2757,43 @@ legend {
   grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr) minmax(360px, 1.4fr);
 }
 
+.script-attendance-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.script-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.script-chip-row button {
+  min-height: 38px;
+}
+
+.script-chip-row button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.script-attendance-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.7fr);
+}
+
+.script-attendance-results,
+.script-attendance-reader {
+  display: grid;
+  gap: 12px;
+}
+
+.script-attendance-results h2 {
+  margin: 0;
+}
+
 .script-metrics-panel {
   display: grid;
   gap: 16px;
@@ -2820,6 +2857,10 @@ legend {
   overflow: hidden;
 }
 
+.service-flow-step.completed {
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border-soft));
+}
+
 .service-flow-step-header {
   align-items: center;
   background: var(--color-surface-soft);
@@ -2858,6 +2899,33 @@ legend {
   display: grid;
   gap: 14px;
   padding: 14px;
+}
+
+.service-flow-session-box {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.service-flow-session-box label {
+  display: grid;
+  gap: 6px;
+}
+
+.status-pill {
+  align-items: center;
+  background: var(--color-success-soft);
+  border: 1px solid color-mix(in srgb, var(--color-success) 36%, var(--color-border));
+  border-radius: 999px;
+  color: var(--color-success-dark);
+  display: inline-flex;
+  font-size: 0.84rem;
+  font-weight: 900;
+  min-height: 36px;
+  padding: 6px 10px;
 }
 
 .service-flow-decision {
@@ -2971,6 +3039,30 @@ legend {
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.script-placeholder-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.script-placeholder-grid small {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.script-placeholder-grid .placeholder-missing input {
+  border-color: color-mix(in srgb, var(--color-danger) 60%, var(--color-border));
+}
+
+.form-warning {
+  background: color-mix(in srgb, var(--color-warning) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+  border-radius: var(--radius-sm);
+  color: var(--color-heading);
+  font-weight: 800;
+  margin: 0;
+  padding: 10px 12px;
 }
 
 .script-link-row {

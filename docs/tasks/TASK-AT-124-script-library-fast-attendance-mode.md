@@ -1,7 +1,7 @@
 # TASK-AT-124 - Scriptoteca: modo atendimento rapido
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-124-script-library-fast-attendance-mode.md
@@ -30,3 +30,8 @@ A tela atual e poderosa para gestao, mas o operador de SAC precisa de velocidade
 
 ## Riscos
 - Duplicar UI demais. Preferir extrair componentes reutilizaveis da view atual.
+
+## Resultado
+- Entregue em `EXEC-AT-124`.
+- A Scriptoteca abre em modo Atendimento com filtros, chips de categoria, lista paginada, preview e botao de copia no primeiro bloco operacional.
+- O modo Gestao preserva metricas, sugestoes, historico e formulario administrativo para roles superiores.

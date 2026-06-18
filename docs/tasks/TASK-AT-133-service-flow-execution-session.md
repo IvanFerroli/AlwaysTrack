@@ -1,7 +1,7 @@
 # TASK-AT-133 - Execucao auditavel de fluxo por atendimento
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-133-service-flow-execution-session.md
@@ -20,3 +20,8 @@ Permitir que o atendente inicie uma sessao de fluxo, marque etapas, registre dec
 1. Supervisor ve se fluxo foi seguido.
 2. Atendente pode pausar/retomar sessao.
 3. Eventos entram na auditoria.
+
+## Resultado
+- Entregue em `EXEC-AT-133`.
+- Fluxos agora permitem iniciar atendimento, marcar etapas como pendentes/puladas/concluidas, registrar decisao e nota interna.
+- Sessoes e etapas ficam persistidas em tabelas dedicadas e geram eventos de auditoria para inicio, etapa e conclusao.

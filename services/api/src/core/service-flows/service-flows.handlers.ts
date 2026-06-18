@@ -2,12 +2,17 @@ import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
+  completeServiceFlowSession,
+  createServiceFlowSession,
   createServiceFlow,
+  getServiceFlowSession,
   getServiceFlow,
   listServiceFlows,
   parseServiceFlowFilters,
   parseServiceFlowInput,
+  parseServiceFlowSessionStepInput,
   ServiceFlowError,
+  updateServiceFlowSessionStep,
   updateServiceFlow
 } from "./service-flows.service.js";
 
@@ -57,6 +62,47 @@ export async function createServiceFlowHandler(request: Request, response: Respo
 export async function updateServiceFlowHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await updateServiceFlow(prisma, actorFrom(request), param(request.params.flowId), parseServiceFlowInput(request.body)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function createServiceFlowSessionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await createServiceFlowSession(prisma, actorFrom(request), param(request.params.flowIdOrSlug)), 201);
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function getServiceFlowSessionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await getServiceFlowSession(prisma, actorFrom(request), param(request.params.sessionId)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function updateServiceFlowSessionStepHandler(request: Request, response: Response) {
+  try {
+    return sendOk(
+      response,
+      await updateServiceFlowSessionStep(
+        prisma,
+        actorFrom(request),
+        param(request.params.sessionId),
+        param(request.params.stepId),
+        parseServiceFlowSessionStepInput(request.body)
+      )
+    );
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function completeServiceFlowSessionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await completeServiceFlowSession(prisma, actorFrom(request), param(request.params.sessionId)));
   } catch (error) {
     return sendFlowError(response, error);
   }

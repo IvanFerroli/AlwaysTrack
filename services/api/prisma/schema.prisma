@@ -31,6 +31,8 @@ model Organization {
   serviceFlows          ServiceFlow[]
   serviceFlowSteps      ServiceFlowStep[]
   serviceFlowStepScripts ServiceFlowStepScript[]
+  serviceFlowSessions   ServiceFlowSession[]
+  serviceFlowSessionSteps ServiceFlowSessionStep[]
   operationalScriptRevisions OperationalScriptRevision[]
   operationalScriptEvents OperationalScriptEvent[]
   operationalScriptSuggestions OperationalScriptSuggestion[]
@@ -143,6 +145,7 @@ model User {
   operationalScriptsRecertified OperationalScript[] @relation("OperationalScriptRecertifiedBy")
   serviceFlowsCreated ServiceFlow[] @relation("ServiceFlowCreatedBy")
   serviceFlowsUpdated ServiceFlow[] @relation("ServiceFlowUpdatedBy")
+  serviceFlowSessions ServiceFlowSession[] @relation("ServiceFlowSessionUser")
   operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
   operationalScriptSuggestionsAuthored OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionAuthor")
@@ -770,6 +773,7 @@ model ServiceFlow {
   createdBy    User @relation("ServiceFlowCreatedBy", fields: [createdById], references: [id])
   updatedBy    User @relation("ServiceFlowUpdatedBy", fields: [updatedById], references: [id])
   steps        ServiceFlowStep[]
+  sessions     ServiceFlowSession[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -796,6 +800,7 @@ model ServiceFlowStep {
   organization Organization @relation(fields: [organizationId], references: [id])
   flow         ServiceFlow @relation(fields: [flowId], references: [id])
   scripts      ServiceFlowStepScript[]
+  sessionSteps ServiceFlowSessionStep[]
 
   @@index([organizationId])
   @@index([flowId])
@@ -822,6 +827,51 @@ model ServiceFlowStepScript {
   @@index([stepId])
   @@index([scriptId])
   @@index([order])
+}
+
+model ServiceFlowSession {
+  id             String   @id @default(cuid())
+  organizationId String
+  flowId         String
+  userId         String
+  status         String   @default("OPEN")
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flow         ServiceFlow @relation(fields: [flowId], references: [id])
+  user         User        @relation("ServiceFlowSessionUser", fields: [userId], references: [id])
+  steps        ServiceFlowSessionStep[]
+
+  @@index([organizationId])
+  @@index([flowId])
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ServiceFlowSessionStep {
+  id             String   @id @default(cuid())
+  organizationId String
+  sessionId      String
+  stepId         String
+  status         String   @default("PENDING")
+  decision       String?
+  note           String?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  session      ServiceFlowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  step         ServiceFlowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, stepId])
+  @@index([organizationId])
+  @@index([stepId])
+  @@index([status])
 }
 
 model OperationalScriptRevision {

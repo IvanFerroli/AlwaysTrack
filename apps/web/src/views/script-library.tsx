@@ -101,6 +101,14 @@ const reviewStateLabels: Record<string, string> = {
   DRAFT: "Rascunho",
   OBSOLETE: "Obsoleto"
 };
+const placeholderHelp: Record<string, { label: string; example: string; required?: boolean; help?: string }> = {
+  codigo_rastreio: { label: "Código de rastreio", example: "AB123456789BR", required: true, help: "Cole exatamente como aparece na transportadora." },
+  nome_cliente: { label: "Nome do cliente", example: "Maria", required: true },
+  numero_pedido: { label: "Número do pedido", example: "123456", required: true },
+  prazo: { label: "Prazo informado", example: "até 5 dias úteis", required: true },
+  produto: { label: "Produto", example: "Ômega 3" },
+  valor: { label: "Valor", example: "R$ 99,90" }
+};
 
 function parseTags(value: string) {
   return [...new Set(value.split(",").map((tag) => tag.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
@@ -108,6 +116,13 @@ function parseTags(value: string) {
 
 function renderScript(body: string, values: Record<string, string>) {
   return body.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_, key: string) => values[key] || `{${key}}`);
+}
+
+function labelForPlaceholder(key: string) {
+  const meta = placeholderHelp[key];
+  if (meta) return meta;
+  const label = key.replace(/[_.-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return { label, example: key, required: true };
 }
 
 function emptyScriptDraft(categoryId = "") {
@@ -145,6 +160,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [page, setPage] = useState(1);
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
+  const [mode, setMode] = useState<"attendance" | "management">("attendance");
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
@@ -213,6 +229,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const tags = useMemo(() => [...new Set([...defaultTags, ...scripts.flatMap((script) => script.tags ?? [])])].sort((left, right) => left.localeCompare(right)), [scripts]);
   const paginatedScripts = scripts.slice((page - 1) * pageSize, page * pageSize);
   const rendered = selected ? renderScript(selected.body, placeholderValues) : "";
+  const missingRequiredPlaceholders = selected?.placeholders?.filter((placeholder) => labelForPlaceholder(placeholder).required && !placeholderValues[placeholder]?.trim()) ?? [];
 
   function draftFrom(script: OperationalScriptItem) {
     setEditingScriptId(script.id);
@@ -335,6 +352,10 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
 
   async function copyScript() {
     if (!selected) return;
+    if (missingRequiredPlaceholders.length) {
+      const labels = missingRequiredPlaceholders.map((placeholder) => labelForPlaceholder(placeholder).label).join(", ");
+      if (!window.confirm(`Campos obrigatórios sem preencher: ${labels}. Copiar mesmo assim?`)) return;
+    }
     try {
       await navigator.clipboard.writeText(rendered);
       setCopyFeedback("Copiado");
@@ -365,6 +386,14 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
         onSubmit={() => void load()}
       />
       <div className="knowledge-curation-bar">
+        <button className={mode === "attendance" ? "active" : ""} type="button" onClick={() => setMode("attendance")}>
+          Atendimento
+        </button>
+        {canManage ? (
+          <button className={mode === "management" ? "active" : ""} type="button" onClick={() => setMode("management")}>
+            Gestão
+          </button>
+        ) : null}
         <button className={includeObsolete ? "active" : ""} type="button" onClick={() => { setIncludeObsolete((current) => !current); setPage(1); }}>
           Incluir obsoletos
         </button>
@@ -378,7 +407,85 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
         <span>{scripts.reduce((sum, script) => sum + script.usageCount, 0)} copia(s)</span>
       </div>
       {error ? <OperationalState state="error" title="Falha na Scriptoteca" detail={error} /> : null}
-      {canManage && metrics ? (
+      {mode === "attendance" ? (
+        <section className="panel script-attendance-panel">
+          <div className="script-chip-row">
+            <button className={!selectedCategoryId ? "active" : ""} type="button" onClick={() => { setSelectedCategoryId(""); setPage(1); }}>Todas</button>
+            {categories.map((category) => (
+              <button className={selectedCategoryId === category.id ? "active" : ""} key={category.id} type="button" onClick={() => { setSelectedCategoryId(category.id); setPage(1); }}>
+                {category.name}
+              </button>
+            ))}
+          </div>
+          <div className="script-attendance-layout">
+            <div className="script-attendance-results">
+              <h2>Scripts do atendimento</h2>
+              {loading ? <OperationalState state="loading" title="Carregando scripts" /> : null}
+              {paginatedScripts.map((script) => (
+                <button
+                  className={selectedId === script.id ? "wiki-page-button active" : "wiki-page-button"}
+                  key={script.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedId(script.id);
+                    setPlaceholderValues({});
+                    setScriptDraft(draftFrom(script));
+                  }}
+                >
+                  <strong>{script.title}</strong>
+                  <small>{script.category.name} / {script.channel}</small>
+                  <small>{script.tags?.map((tagItem) => `#${tagItem}`).join(" ")}</small>
+                </button>
+              ))}
+              {!loading && scripts.length === 0 ? <OperationalState state="empty" title="Nenhum script encontrado" /> : null}
+              <PaginationControls page={page} pageSize={pageSize} total={scripts.length} onPageChange={setPage} />
+            </div>
+            <div className="script-attendance-reader">
+              {selected ? (
+                <>
+                  <div className="detail-header">
+                    <div>
+                      <p className="eyebrow">{selected.category.name}</p>
+                      <h2>{selected.title}</h2>
+                      <p className="muted">{selected.channel} · {selected.usageCount} copia(s)</p>
+                    </div>
+                    <button
+                      className={copyFeedback ? "script-copy-button copied" : "script-copy-button"}
+                      type="button"
+                      onClick={() => void copyScript()}
+                      aria-label={copyFeedback || "Copiar script"}
+                      title={copyFeedback || "Copiar script"}
+                    >
+                      {copyFeedback ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                      <span className="sr-only">{copyFeedback || "Copiar script"}</span>
+                    </button>
+                  </div>
+                  {selected.placeholders?.length ? (
+                    <div className="script-placeholder-grid">
+                      {selected.placeholders.map((placeholder) => {
+                        const meta = labelForPlaceholder(placeholder);
+                        const missing = meta.required && !placeholderValues[placeholder]?.trim();
+                        return (
+                          <label className={missing ? "placeholder-missing" : ""} key={placeholder}>
+                            {meta.label}{meta.required ? " *" : ""}
+                            <input placeholder={meta.example} value={placeholderValues[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [placeholder]: event.target.value }))} />
+                            {meta.help ? <small>{meta.help}</small> : null}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {missingRequiredPlaceholders.length ? <p className="form-warning">Preencha os campos obrigatórios para evitar envio de texto incompleto.</p> : null}
+                  <div className="script-preview">
+                    <MarkdownContent content={rendered} emptyText="Sem texto publicado." />
+                  </div>
+                </>
+              ) : <OperationalState state="empty" title="Selecione um script" />}
+            </div>
+          </div>
+        </section>
+      ) : null}
+      {mode === "management" && canManage && metrics ? (
         <section className="panel script-metrics-panel">
           <div>
             <p className="eyebrow">Métricas</p>
@@ -411,7 +518,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           </div>
         </section>
       ) : null}
-      <div className="script-library-layout">
+      {mode === "management" ? <div className="script-library-layout">
         <section className="panel table-panel">
           <div className="table-panel-toolbar">
             <div>
@@ -512,14 +619,20 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
               ) : null}
               {selected.placeholders?.length ? (
                 <div className="script-placeholder-grid">
-                  {selected.placeholders.map((placeholder) => (
-                    <label key={placeholder}>
-                      {placeholder}
-                      <input value={placeholderValues[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [placeholder]: event.target.value }))} />
-                    </label>
-                  ))}
+                  {selected.placeholders.map((placeholder) => {
+                    const meta = labelForPlaceholder(placeholder);
+                    const missing = meta.required && !placeholderValues[placeholder]?.trim();
+                    return (
+                      <label className={missing ? "placeholder-missing" : ""} key={placeholder}>
+                        {meta.label}{meta.required ? " *" : ""}
+                        <input placeholder={meta.example} value={placeholderValues[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [placeholder]: event.target.value }))} />
+                        {meta.help ? <small>{meta.help}</small> : null}
+                      </label>
+                    );
+                  })}
                 </div>
               ) : null}
+              {missingRequiredPlaceholders.length ? <p className="form-warning">Preencha os campos obrigatórios para evitar envio de texto incompleto.</p> : null}
               <div className="script-preview">
                 <MarkdownContent content={rendered} emptyText="Sem texto publicado." />
               </div>
@@ -566,9 +679,9 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
             <OperationalState state="empty" title="Selecione um script" />
           )}
         </section>
-      </div>
+      </div> : null}
 
-      <section className="panel form-panel">
+      {mode === "management" ? <section className="panel form-panel">
         <div className="table-panel-toolbar">
           <div>
             <p className="eyebrow">Sugestões</p>
@@ -655,9 +768,9 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
             </label>
           ) : null}
         </div>
-      </section>
+      </section> : null}
 
-      {canManage ? (
+      {mode === "management" && canManage ? (
         <section className="panel form-panel">
           <div className="table-panel-toolbar">
             <div>
