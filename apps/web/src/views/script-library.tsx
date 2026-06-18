@@ -231,6 +231,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [packDraft, setPackDraft] = useState(emptyPackDraft());
   const [decisionComment, setDecisionComment] = useState("");
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
+  const [editingPackId, setEditingPackId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -292,6 +293,14 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
 
   const selected = scripts.find((script) => script.id === selectedId) ?? null;
   const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? null;
+  const scriptLookup = useMemo(() => {
+    const map = new Map<string, OperationalScriptItem>();
+    for (const script of scripts) map.set(script.id, script);
+    for (const pack of packs) {
+      for (const item of pack.items) map.set(item.script.id, item.script);
+    }
+    return map;
+  }, [packs, scripts]);
   const tags = useMemo(() => [...new Set([...defaultTags, ...scripts.flatMap((script) => script.tags ?? [])])].sort((left, right) => left.localeCompare(right)), [scripts]);
   const paginatedScripts = scripts.slice((page - 1) * pageSize, page * pageSize);
   const rendered = selected ? renderScript(selected.body, placeholderValues) : "";
@@ -314,6 +323,32 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       reviewDueAt: dateInputValue(script.reviewDueAt),
       comment: ""
     };
+  }
+
+  function draftFromPack(pack: ScriptPackItem) {
+    setEditingPackId(pack.id);
+    setMode("management");
+    return {
+      categoryId: pack.category?.id ?? "",
+      wikiPageId: pack.wikiPage?.id ?? "",
+      faqThreadId: pack.faqThread?.id ?? "",
+      title: pack.title,
+      summary: pack.summary ?? "",
+      tags: pack.tags?.join(", ") ?? "",
+      status: pack.status,
+      scriptIds: pack.items.map((item) => item.script.id)
+    };
+  }
+
+  function movePackScript(scriptId: string, direction: -1 | 1) {
+    setPackDraft((current) => {
+      const index = current.scriptIds.indexOf(scriptId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.scriptIds.length) return current;
+      const scriptIds = [...current.scriptIds];
+      [scriptIds[index], scriptIds[target]] = [scriptIds[target], scriptIds[index]];
+      return { ...current, scriptIds };
+    });
   }
 
   async function run(action: () => Promise<void>) {
@@ -375,8 +410,10 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   async function savePack(event: FormEvent) {
     event.preventDefault();
     await run(async () => {
-      const result = await api<{ pack: ScriptPackItem }>("/v1/script-library/packs", {
-        method: "POST",
+      const endpoint = editingPackId ? `/v1/script-library/packs/${editingPackId}` : "/v1/script-library/packs";
+      const method = editingPackId ? "PATCH" : "POST";
+      const result = await api<{ pack: ScriptPackItem }>(endpoint, {
+        method,
         body: JSON.stringify({
           ...packDraft,
           categoryId: packDraft.categoryId || selectedCategoryId || null,
@@ -386,6 +423,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
         })
       });
       setPackDraft(emptyPackDraft(selectedCategoryId));
+      setEditingPackId(null);
       setSelectedPackId(result.pack.id);
       setSelectedId("");
       await load(selectedId);
@@ -525,20 +563,25 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                 <>
                   <h2>Roteiros</h2>
                   {packs.map((pack) => (
-                    <button
-                      className={selectedPackId === pack.id ? "wiki-page-button active" : "wiki-page-button"}
-                      key={pack.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPackId(pack.id);
-                        setSelectedId("");
-                        setPlaceholderValues({});
-                      }}
-                    >
-                      <strong>{pack.title}</strong>
-                      {pack.summary ? <small>{pack.summary}</small> : null}
-                      <small>{pack.items.length} passo(s){pack.category ? ` / ${pack.category.name}` : ""}</small>
-                    </button>
+                    <div className={selectedPackId === pack.id ? "script-pack-list-item active" : "script-pack-list-item"} key={pack.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPackId(pack.id);
+                          setSelectedId("");
+                          setPlaceholderValues({});
+                        }}
+                      >
+                        <strong>{pack.title}</strong>
+                        {pack.summary ? <small>{pack.summary}</small> : null}
+                        <small>{pack.items.length} passo(s){pack.category ? ` / ${pack.category.name}` : ""}</small>
+                      </button>
+                      {canManage ? (
+                        <button className="secondary" type="button" onClick={() => setPackDraft(draftFromPack(pack))}>
+                          Editar
+                        </button>
+                      ) : null}
+                    </div>
                   ))}
                 </>
               ) : null}
@@ -1002,7 +1045,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           <div className="table-panel-toolbar">
             <div>
               <p className="eyebrow">Roteiros</p>
-              <h2>Pacotes de atendimento</h2>
+              <h2>{editingPackId ? "Editar pacote de atendimento" : "Pacotes de atendimento"}</h2>
             </div>
           </div>
           <form onSubmit={savePack}>
@@ -1051,6 +1094,24 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
             </div>
             <div className="script-pack-builder">
               <h3>Scripts do roteiro</h3>
+              {packDraft.scriptIds.length ? (
+                <div className="script-pack-order-list">
+                  {packDraft.scriptIds.map((scriptId, index) => {
+                    const script = scriptLookup.get(scriptId);
+                    if (!script) return null;
+                    return (
+                      <div key={scriptId}>
+                        <span>{index + 1}</span>
+                        <strong>{script.title}</strong>
+                        <small>{script.category.name} / {script.channel}</small>
+                        <button className="secondary" type="button" disabled={index === 0} onClick={() => movePackScript(scriptId, -1)}>Subir</button>
+                        <button className="secondary" type="button" disabled={index === packDraft.scriptIds.length - 1} onClick={() => movePackScript(scriptId, 1)}>Descer</button>
+                        <button className="secondary" type="button" onClick={() => setPackDraft((current) => ({ ...current, scriptIds: current.scriptIds.filter((item) => item !== scriptId) }))}>Remover</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
               <div>
                 {scripts.map((script) => {
                   const checked = packDraft.scriptIds.includes(script.id);
@@ -1070,11 +1131,11 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   );
                 })}
               </div>
-              <small className="muted">A ordem segue a sequência em que os scripts aparecem na lista filtrada.</small>
+              <small className="muted">Use Subir/Descer para definir a sequência operacional do roteiro.</small>
             </div>
             <div className="form-actions">
-              <button disabled={saving || !packDraft.title.trim() || packDraft.scriptIds.length === 0}>Criar roteiro</button>
-              <button className="secondary" type="button" onClick={() => setPackDraft(emptyPackDraft(selectedCategoryId))}>Limpar</button>
+              <button disabled={saving || !packDraft.title.trim() || packDraft.scriptIds.length === 0}>{editingPackId ? "Salvar roteiro" : "Criar roteiro"}</button>
+              <button className="secondary" type="button" onClick={() => { setEditingPackId(null); setPackDraft(emptyPackDraft(selectedCategoryId)); }}>Limpar</button>
             </div>
           </form>
         </section>
