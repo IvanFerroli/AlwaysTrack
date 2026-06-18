@@ -3169,6 +3169,75 @@ legend {
   white-space: pre-wrap;
 }
 
+.script-channel-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.script-channel-warnings span {
+  background: color-mix(in srgb, var(--color-warning) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 36%, var(--color-border));
+  border-radius: 999px;
+  color: var(--color-heading);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.script-channel-preview {
+  font: inherit;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.script-suggestion-review {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.script-suggestion-summary {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.script-suggestion-summary > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.script-suggestion-summary span,
+.script-suggestion-summary small {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+}
+
+.script-suggestion-diff {
+  display: grid;
+  gap: 8px;
+}
+
+.script-suggestion-diff > div {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+}
+
+.script-suggestion-diff span {
+  color: var(--color-text);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
 .wiki-edit-form {
   display: grid;
   gap: 12px;
@@ -3220,6 +3289,40 @@ legend {
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-sm);
   padding: 8px;
+}
+
+.emoji-picker-wrap {
+  position: relative;
+}
+
+.emoji-picker-panel {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(5, 32px);
+  left: 0;
+  padding: 8px;
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 12;
+}
+
+.emoji-picker-panel button {
+  align-items: center;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  display: inline-flex;
+  font-size: 1rem;
+  height: 32px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0;
+  width: 32px;
 }
 
 .wiki-editor textarea {

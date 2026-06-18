@@ -154,17 +154,18 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 135. `EXEC-AT-127`: painel de governanca da Scriptoteca (`TASK-AT-127`). Status: completed-mvp.
 136. `EXEC-AT-137`: scripts pessoais privados por atendente (`TASK-AT-137`). Status: completed-mvp.
 137. `EXEC-AT-138`: seletor de Fluxos por busca e dropdown (`TASK-AT-138`). Status: completed-mvp.
+138. `EXEC-AT-128`: revisao rica de sugestoes da Scriptoteca (`TASK-AT-128`). Status: completed-mvp.
+139. `EXEC-AT-129`: formatacao por canal na Scriptoteca (`TASK-AT-129`). Status: completed-mvp.
+140. `EXEC-AT-139`: emoji picker transversal nos editores ricos (`TASK-AT-139`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-126-script-library-script-packs.md`: pacotes e roteiros de atendimento.
-2. `TASK-AT-128-script-library-suggestion-review-upgrade.md`: revisao rica de sugestoes.
-3. `TASK-AT-129-script-library-channel-formatting.md`: formatacao por canal.
-4. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-5. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
-6. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
-7. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
-8. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
-9. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
+2. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+3. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
+4. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
+5. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+6. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
+7. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -225,8 +226,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 27. `TASK-AT-125`: Scriptoteca - qualidade de placeholders. Status: completed-mvp.
 28. `TASK-AT-126`: Scriptoteca - pacotes e roteiros de atendimento. Status: proposed.
 29. `TASK-AT-127`: Scriptoteca - painel de governanca. Status: completed-mvp.
-30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: proposed.
-31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: proposed.
+30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: completed-mvp.
+31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: completed-mvp.
 32. `TASK-AT-130`: Fluxos de atendimento guiado MVP. Status: completed-mvp.
 33. `TASK-AT-131`: Fluxos com editor rico tipo Wiki. Status: completed-mvp.
 34. `TASK-AT-132`: Construtor visual de decisoes. Status: completed-mvp.
@@ -236,6 +237,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: completed-mvp.
 39. `TASK-AT-137`: Scripts pessoais privados por atendente. Status: completed-mvp.
 40. `TASK-AT-138`: Seletor de Fluxos por busca e dropdown. Status: completed-mvp.
+41. `TASK-AT-139`: Emoji picker transversal em editores ricos. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

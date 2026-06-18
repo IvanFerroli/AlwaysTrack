@@ -69,7 +69,7 @@ interface ScriptSuggestionItem {
   author: { id: string; name: string; role: string };
   decidedBy: { id: string; name: string; role: string } | null;
   category: { id: string; name: string } | null;
-  script: { id: string; title: string } | null;
+  script: { id: string; title: string; channel: string; body: string; tags?: string[]; status: string } | null;
 }
 
 interface ScriptLibraryMetrics {
@@ -117,6 +117,47 @@ function parseTags(value: string) {
 
 function renderScript(body: string, values: Record<string, string>) {
   return body.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_, key: string) => values[key] || `{${key}}`);
+}
+
+function stripMarkdown(value: string) {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/```([\s\S]*?)```/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/^#{1,3}\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "- ")
+    .replace(/^- \[[ xX]\]\s+/gm, "- ")
+    .replace(/^\d+\.\s+/gm, "- ")
+    .replace(/^\|?[-:\s|]+\|?$/gm, "")
+    .trim();
+}
+
+function formatScriptForChannel(body: string, channel: string) {
+  const warnings: string[] = [];
+  const upperChannel = channel.toUpperCase();
+  const plainChannels = new Set(["WHATSAPP", "INSTAGRAM", "PHONE"]);
+  const text = plainChannels.has(upperChannel) ? stripMarkdown(body) : body.trim();
+  if (plainChannels.has(upperChannel) && /[#*_`|]/.test(body)) warnings.push("Markdown removido para copiar texto limpo neste canal.");
+  if (upperChannel === "PHONE") warnings.push("Use como roteiro falado; ajuste saudacao e confirmacoes antes de encerrar.");
+  if (upperChannel === "EMAIL" && body.includes("{")) warnings.push("Confira placeholders antes de enviar para evitar chaves sem preencher.");
+  if (text.length > 950 && ["WHATSAPP", "INSTAGRAM"].includes(upperChannel)) warnings.push("Texto longo para chat; considere dividir em mensagens menores.");
+  return { text, warnings, plain: plainChannels.has(upperChannel) };
+}
+
+function scriptSuggestionDiff(suggestion: ScriptSuggestionItem) {
+  const original = suggestion.script;
+  if (!original) return [];
+  const fields = [
+    { label: "Titulo", from: original.title, to: suggestion.title },
+    { label: "Canal", from: original.channel, to: suggestion.channel },
+    { label: "Texto", from: original.body, to: suggestion.body },
+    { label: "Tags", from: (original.tags ?? []).join(", "), to: (suggestion.tags ?? []).join(", ") }
+  ];
+  return fields.filter((field) => field.from.trim() !== field.to.trim());
 }
 
 function labelForPlaceholder(key: string) {
@@ -230,6 +271,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const tags = useMemo(() => [...new Set([...defaultTags, ...scripts.flatMap((script) => script.tags ?? [])])].sort((left, right) => left.localeCompare(right)), [scripts]);
   const paginatedScripts = scripts.slice((page - 1) * pageSize, page * pageSize);
   const rendered = selected ? renderScript(selected.body, placeholderValues) : "";
+  const channelPreview = selected ? formatScriptForChannel(rendered, selected.channel) : { text: "", warnings: [], plain: false };
   const missingRequiredPlaceholders = selected?.placeholders?.filter((placeholder) => labelForPlaceholder(placeholder).required && !placeholderValues[placeholder]?.trim()) ?? [];
 
   function draftFrom(script: OperationalScriptItem) {
@@ -358,12 +400,12 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       if (!window.confirm(`Campos obrigatórios sem preencher: ${labels}. Copiar mesmo assim?`)) return;
     }
     try {
-      await navigator.clipboard.writeText(rendered);
+      await navigator.clipboard.writeText(channelPreview.text);
       setCopyFeedback("Copiado");
     } catch {
       setCopyFeedback("Copie manualmente");
     }
-    await api(`/v1/script-library/scripts/${selected.id}/copy`, { method: "POST", body: JSON.stringify({ renderedText: rendered, placeholders: placeholderValues }) }).catch(() => null);
+    await api(`/v1/script-library/scripts/${selected.id}/copy`, { method: "POST", body: JSON.stringify({ renderedText: channelPreview.text, placeholders: placeholderValues }) }).catch(() => null);
     window.setTimeout(() => setCopyFeedback(""), 1800);
   }
 
@@ -477,8 +519,13 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                     </div>
                   ) : null}
                   {missingRequiredPlaceholders.length ? <p className="form-warning">Preencha os campos obrigatórios para evitar envio de texto incompleto.</p> : null}
+                  {channelPreview.warnings.length ? (
+                    <div className="script-channel-warnings">
+                      {channelPreview.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+                    </div>
+                  ) : null}
                   <div className="script-preview">
-                    <MarkdownContent content={rendered} emptyText="Sem texto publicado." />
+                    {channelPreview.plain ? <pre className="script-channel-preview">{channelPreview.text}</pre> : <MarkdownContent content={channelPreview.text} emptyText="Sem texto publicado." />}
                   </div>
                 </>
               ) : <OperationalState state="empty" title="Selecione um script" />}
@@ -643,8 +690,13 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                 </div>
               ) : null}
               {missingRequiredPlaceholders.length ? <p className="form-warning">Preencha os campos obrigatórios para evitar envio de texto incompleto.</p> : null}
+              {channelPreview.warnings.length ? (
+                <div className="script-channel-warnings">
+                  {channelPreview.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+                </div>
+              ) : null}
               <div className="script-preview">
-                <MarkdownContent content={rendered} emptyText="Sem texto publicado." />
+                {channelPreview.plain ? <pre className="script-channel-preview">{channelPreview.text}</pre> : <MarkdownContent content={channelPreview.text} emptyText="Sem texto publicado." />}
               </div>
               {selected.tags?.length ? (
                 <div className="wiki-tag-row">
@@ -753,21 +805,40 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           <div>
             <h3>{canManage ? "Fila de decisão" : "Minhas sugestões"}</h3>
             <div className="script-history-list">
-              {suggestions.map((suggestion) => (
-                <div className="script-history-item" key={suggestion.id}>
-                  <div>
-                    <strong>{suggestion.title} / {suggestion.status}</strong>
-                    <span>{suggestion.author.name} / {suggestion.suggestionType}{suggestion.decisionComment ? ` / ${suggestion.decisionComment}` : ""}</span>
-                  </div>
-                  {canManage && suggestion.status === "SUGGESTED" ? (
-                    <div className="row-actions">
-                      <button className="secondary" type="button" disabled={saving || suggestion.suggestionType === "CHANGE"} onClick={() => void decideSuggestion(suggestion, "ACCEPTED")}>Aceitar</button>
-                      <button className="secondary" type="button" disabled={saving || !suggestion.scriptId} onClick={() => void decideSuggestion(suggestion, "MERGED")}>Mesclar</button>
-                      <button className="secondary" type="button" disabled={saving} onClick={() => void decideSuggestion(suggestion, "REJECTED")}>Rejeitar</button>
+              {suggestions.map((suggestion) => {
+                const diff = scriptSuggestionDiff(suggestion);
+                const requiresComment = suggestion.status === "SUGGESTED" && !decisionComment.trim();
+                return (
+                  <div className="script-suggestion-review" key={suggestion.id}>
+                    <div className="script-suggestion-summary">
+                      <div>
+                        <strong>{suggestion.title} / {suggestion.status}</strong>
+                        <span>{suggestion.author.name} / {suggestion.suggestionType}{suggestion.decisionComment ? ` / ${suggestion.decisionComment}` : ""}</span>
+                        {suggestion.script ? <small>Original: {suggestion.script.title} / {suggestion.script.status}</small> : null}
+                        {suggestion.createdScriptId ? <small>Destino gerado: {suggestion.createdScriptId}</small> : null}
+                      </div>
+                      {canManage && suggestion.status === "SUGGESTED" ? (
+                        <div className="row-actions">
+                          <button className="secondary" type="button" disabled={saving || suggestion.suggestionType === "CHANGE"} onClick={() => void decideSuggestion(suggestion, "ACCEPTED")}>Aceitar</button>
+                          <button className="secondary" type="button" disabled={saving || !suggestion.scriptId || requiresComment} title={requiresComment ? "Informe comentário para mesclar." : undefined} onClick={() => void decideSuggestion(suggestion, "MERGED")}>Mesclar</button>
+                          <button className="secondary" type="button" disabled={saving || requiresComment} title={requiresComment ? "Informe comentário para rejeitar." : undefined} onClick={() => void decideSuggestion(suggestion, "REJECTED")}>Rejeitar</button>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              ))}
+                    {diff.length ? (
+                      <div className="script-suggestion-diff">
+                        {diff.map((field) => (
+                          <div key={field.label}>
+                            <strong>{field.label}</strong>
+                            <span><b>Atual:</b> {field.from || "vazio"}</span>
+                            <span><b>Sugestao:</b> {field.to || "vazio"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : suggestion.script ? <small className="muted">Sem diferenca textual detectada contra o script original.</small> : null}
+                  </div>
+                );
+              })}
               {suggestions.length ? null : <span className="muted">Sem sugestões registradas.</span>}
             </div>
           </div>
@@ -775,6 +846,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
             <label>
               Comentário da decisão
               <input value={decisionComment} onChange={(event) => setDecisionComment(event.target.value)} />
+              <small>Obrigatório para mesclar ou rejeitar; será enviado ao autor e registrado em auditoria.</small>
             </label>
           ) : null}
         </div>

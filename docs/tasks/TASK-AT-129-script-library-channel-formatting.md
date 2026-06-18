@@ -1,7 +1,7 @@
 # TASK-AT-129 - Scriptoteca: formatacao por canal
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-129-script-library-channel-formatting.md
@@ -26,6 +26,11 @@ O campo `channel` ja existe, mas textos podem precisar de pequenas diferencas po
 2. Gestor consegue cadastrar variante sem duplicar script inteiro quando nao precisa.
 3. Preview e copia usam a mesma renderizacao.
 4. Scripts existentes continuam validos.
+
+## Execucao
+- entregue em: EXEC-AT-129
+- resumo: copia/preview passam por formatador leve por canal, limpando Markdown em WhatsApp/Instagram/Telefone e exibindo alertas operacionais quando ha risco de uso.
+- ressalva: variantes persistidas por canal ficaram fora do MVP para evitar duplicacao prematura do modelo.
 
 ## Riscos
 - Variante por canal pode virar duplicacao. Priorizar fallback e transformacoes simples.

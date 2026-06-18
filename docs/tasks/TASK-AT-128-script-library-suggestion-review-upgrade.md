@@ -1,7 +1,7 @@
 # TASK-AT-128 - Scriptoteca: revisao rica de sugestoes
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-128-script-library-suggestion-review-upgrade.md
@@ -26,6 +26,11 @@ O fluxo de sugestao ja existe, mas a decisao ainda e simples. Para uso real, o a
 2. Autor recebe retorno rastreavel.
 3. Historico do script mostra origem da sugestao.
 4. Permissoes atuais continuam preservadas.
+
+## Execucao
+- entregue em: EXEC-AT-128
+- resumo: fila de sugestoes agora mostra diff textual contra script original, exige comentario para mesclar/rejeitar, preserva notificacao ao autor e retorna vinculo ao script criado/alterado.
+- ressalva: o historico do script segue pelos eventos/revisoes existentes; nao foi criado painel dedicado de origem por sugestao dentro da timeline do script.
 
 ## Riscos
 - Diff rico pode ficar complexo. MVP pode usar comparacao textual simples.

@@ -178,4 +178,11 @@ describe("script library service", () => {
     expect(prisma.operationalScriptSuggestion.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED", decisionComment: "Duplicada", decidedById: "admin-1" }) }));
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "script_suggestion.decide" }) }));
   });
+
+  it("requires decision comments when merging or rejecting suggestions", async () => {
+    const prisma = prismaMock();
+    await expect(decideOperationalScriptSuggestion(prisma as never, admin, "sug-1", { decision: "REJECTED" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(decideOperationalScriptSuggestion(prisma as never, admin, "sug-1", { decision: "MERGED" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    expect(prisma.operationalScriptSuggestion.findFirst).not.toHaveBeenCalled();
+  });
 });

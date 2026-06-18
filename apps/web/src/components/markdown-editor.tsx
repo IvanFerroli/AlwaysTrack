@@ -1,5 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 
+const emojiOptions = ["✅", "⚠️", "📌", "📎", "💬", "📦", "🚚", "🔁", "💰", "🧾", "🔍", "⭐", "👍", "🙏", "🙂"];
+
 function safeMarkdownUrl(value: string) {
   const trimmed = value.trim();
   if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
@@ -194,6 +196,7 @@ export function MarkdownEditor({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   function format(type: string) {
     const textarea = ref.current;
@@ -203,6 +206,22 @@ export function MarkdownEditor({
     window.requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(result.cursor, result.cursor);
+    });
+  }
+
+  function insertText(text: string) {
+    const textarea = ref.current;
+    const selectionStart = textarea?.selectionStart ?? value.length;
+    const selectionEnd = textarea?.selectionEnd ?? value.length;
+    const prefix = selectionStart > 0 && value[selectionStart - 1] && !/\s/.test(value[selectionStart - 1]) ? " " : "";
+    const suffix = selectionEnd < value.length && value[selectionEnd] && !/\s/.test(value[selectionEnd]) ? " " : "";
+    const nextValue = `${value.slice(0, selectionStart)}${prefix}${text}${suffix}${value.slice(selectionEnd)}`;
+    const cursor = selectionStart + prefix.length + text.length + suffix.length;
+    onChange(nextValue);
+    setEmojiOpen(false);
+    window.requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(cursor, cursor);
     });
   }
 
@@ -261,6 +280,20 @@ export function MarkdownEditor({
             {buttonLabel}
           </button>
         ))}
+        <div className="emoji-picker-wrap">
+          <button className="ghost-button small" type="button" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((current) => !current)}>
+            Emoji
+          </button>
+          {emojiOpen ? (
+            <div className="emoji-picker-panel" role="menu" aria-label="Escolher emoji">
+              {emojiOptions.map((emoji) => (
+                <button key={emoji} type="button" role="menuitem" onClick={() => insertText(emoji)}>
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         {onUploadImage ? (
           <>
             <button className="ghost-button small" type="button" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()}>

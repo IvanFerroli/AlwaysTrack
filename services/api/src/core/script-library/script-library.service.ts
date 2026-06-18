@@ -203,6 +203,26 @@ function withScriptFormat<T extends { tagsJson?: string | null; placeholdersJson
   return { ...item, tags: tagsFromJson(item.tagsJson), placeholders: placeholdersFromJson(item.placeholdersJson), reviewState: reviewStateFor(item) };
 }
 
+function withSuggestionFormat<
+  T extends {
+    tagsJson?: string | null;
+    script?: ({ tagsJson?: string | null; placeholdersJson?: string | null; status?: string; reviewDueAt?: Date | string | null } & Record<string, unknown>) | null;
+  }
+>(item: T) {
+  return {
+    ...item,
+    tags: tagsFromJson(item.tagsJson),
+    script: item.script
+      ? {
+          ...item.script,
+          tags: tagsFromJson(item.script.tagsJson),
+          placeholders: placeholdersFromJson(item.script.placeholdersJson),
+          reviewState: item.script.status ? reviewStateFor(item.script as { status: string; reviewDueAt?: Date | string | null }) : undefined
+        }
+      : null
+  };
+}
+
 export function parseScriptCategoryInput(payload: unknown): ScriptCategoryInput {
   const input = (payload ?? {}) as Record<string, unknown>;
   return {
@@ -387,7 +407,7 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
           take: 30,
           include: {
             category: { select: { id: true, name: true } },
-            script: { select: { id: true, title: true } },
+            script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, reviewDueAt: true } },
             author: { select: { id: true, name: true, role: true } },
             decidedBy: { select: { id: true, name: true, role: true } }
           }
@@ -398,7 +418,7 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
           take: 10,
           include: {
             category: { select: { id: true, name: true } },
-            script: { select: { id: true, title: true } },
+            script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, reviewDueAt: true } },
             author: { select: { id: true, name: true, role: true } },
             decidedBy: { select: { id: true, name: true, role: true } }
           }
@@ -406,7 +426,7 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
     scriptLibraryMetrics(prisma, actor)
   ]);
   await recordSearchEvent(prisma, actor, filters, total);
-  return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map((item) => ({ ...item, tags: tagsFromJson(item.tagsJson) })), metrics, total, canManage: isManager(actor) };
+  return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map(withSuggestionFormat), metrics, total, canManage: isManager(actor) };
 }
 
 async function ensureServiceFlows(prisma: PrismaClient, actor: CurrentUser, flowIds: string[]) {
@@ -734,7 +754,7 @@ export async function createOperationalScriptSuggestion(prisma: PrismaClient, ac
       tagsJson: tagsJsonFor(input.tags),
       suggestionType
     },
-    include: { author: { select: { id: true, name: true, role: true } }, category: { select: { id: true, name: true } }, script: { select: { id: true, title: true } } }
+    include: { author: { select: { id: true, name: true, role: true } }, category: { select: { id: true, name: true } }, script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, reviewDueAt: true } } }
   });
   await emitInAppNotifications(prisma, actor.organizationId, {
     actorId: actor.id,
@@ -748,13 +768,14 @@ export async function createOperationalScriptSuggestion(prisma: PrismaClient, ac
     dedupeKey: `script.suggestion.created:${suggestion.id}`
   });
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_suggestion.create", entityType: "OperationalScriptSuggestion", entityId: suggestion.id, metadata: { title: suggestion.title, suggestionType } });
-  return { suggestion: { ...suggestion, tags: tagsFromJson(suggestion.tagsJson) } };
+  return { suggestion: withSuggestionFormat(suggestion) };
 }
 
 export async function decideOperationalScriptSuggestion(prisma: PrismaClient, actor: CurrentUser, suggestionId: string, input: ScriptSuggestionInput) {
   ensureManager(actor);
   const decision = input.decision;
   if (!decision || !["ACCEPTED", "REJECTED", "MERGED"].includes(decision)) throw new ScriptLibraryError("INVALID_INPUT");
+  if ((decision === "REJECTED" || decision === "MERGED") && !input.decisionComment) throw new ScriptLibraryError("INVALID_INPUT");
   const suggestion = await prisma.operationalScriptSuggestion.findFirst({ where: { id: suggestionId, organizationId: actor.organizationId }, include: { author: true } });
   if (!suggestion) throw new ScriptLibraryError("NOT_FOUND");
   if (suggestion.status !== "SUGGESTED") throw new ScriptLibraryError("INVALID_INPUT");
@@ -795,7 +816,7 @@ export async function decideOperationalScriptSuggestion(prisma: PrismaClient, ac
     },
     include: {
       category: { select: { id: true, name: true } },
-      script: { select: { id: true, title: true } },
+      script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, reviewDueAt: true } },
       author: { select: { id: true, name: true, role: true } },
       decidedBy: { select: { id: true, name: true, role: true } }
     }
@@ -812,7 +833,7 @@ export async function decideOperationalScriptSuggestion(prisma: PrismaClient, ac
     dedupeKey: `script.suggestion.decided:${suggestion.id}:${decision}`
   });
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "script_suggestion.decide", entityType: "OperationalScriptSuggestion", entityId: suggestion.id, metadata: { decision, createdScriptId, comment: input.decisionComment ?? null } });
-  return { suggestion: { ...updatedSuggestion, tags: tagsFromJson(updatedSuggestion.tagsJson) } };
+  return { suggestion: withSuggestionFormat(updatedSuggestion) };
 }
 
 export async function recordScriptCopy(prisma: PrismaClient, actor: CurrentUser, scriptId: string, input: ScriptCopyInput = {}) {
