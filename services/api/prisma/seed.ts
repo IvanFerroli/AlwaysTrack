@@ -535,6 +535,84 @@ async function ensureOperationalScriptSuggestion(input: {
   return existing ? prisma.operationalScriptSuggestion.update({ where: { id: existing.id }, data }) : prisma.operationalScriptSuggestion.create({ data: { organizationId: input.organizationId, ...data } });
 }
 
+async function ensureServiceFlow(input: {
+  organizationId: string;
+  createdById: string;
+  updatedById: string;
+  wikiPageId?: string;
+  slug: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  status: string;
+  priority: number;
+  steps: Array<{
+    title: string;
+    body: string;
+    kind: string;
+    decision?: Record<string, unknown> | null;
+    order: number;
+    required?: boolean;
+    scriptIds?: string[];
+  }>;
+}) {
+  const flow = await prisma.serviceFlow.upsert({
+    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
+    update: {
+      wikiPageId: input.wikiPageId,
+      title: input.title,
+      summary: input.summary,
+      content: input.content,
+      tagsJson: JSON.stringify(input.tags),
+      status: input.status,
+      priority: input.priority,
+      updatedById: input.updatedById,
+      publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
+    },
+    create: {
+      organizationId: input.organizationId,
+      wikiPageId: input.wikiPageId,
+      slug: input.slug,
+      title: input.title,
+      summary: input.summary,
+      content: input.content,
+      tagsJson: JSON.stringify(input.tags),
+      status: input.status,
+      priority: input.priority,
+      createdById: input.createdById,
+      updatedById: input.updatedById,
+      publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
+    }
+  });
+  await prisma.serviceFlowStep.deleteMany({ where: { flowId: flow.id } });
+  for (const step of input.steps) {
+    const createdStep = await prisma.serviceFlowStep.create({
+      data: {
+        organizationId: input.organizationId,
+        flowId: flow.id,
+        title: step.title,
+        body: step.body,
+        kind: step.kind,
+        decisionJson: step.decision ? JSON.stringify(step.decision) : null,
+        order: step.order,
+        required: step.required ?? false
+      }
+    });
+    for (const [index, scriptId] of (step.scriptIds ?? []).entries()) {
+      await prisma.serviceFlowStepScript.create({
+        data: {
+          organizationId: input.organizationId,
+          stepId: createdStep.id,
+          scriptId,
+          order: index + 1
+        }
+      });
+    }
+  }
+  return flow;
+}
+
 async function main() {
   const organizationId = seedText("SEED_ORGANIZATION_ID", "alwaystrack-local");
   const organizationName = seedText("SEED_ORGANIZATION_NAME", "AlwaysTrack Local");
@@ -1204,7 +1282,7 @@ async function main() {
     tags: ["estorno", "financeiro", "pedido", "whatsapp"],
     reviewDueAt: addDays(30)
   });
-  await ensureOperationalScript({
+  const productGuidanceScript = await ensureOperationalScript({
     organizationId: organization.id,
     categoryId: categoryProduct.id,
     createdById: supervisor.id,
@@ -1217,6 +1295,73 @@ async function main() {
     wikiPageId: faqWikiPage.id,
     faqThreadId: faqThread.id,
     reviewDueAt: daysAgo(2)
+  });
+  const healthUsageScript = await ensureOperationalScript({
+    organizationId: organization.id,
+    categoryId: categoryProduct.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    validatedById: supervisor.id,
+    title: "Investigar forma de uso em relato de saúde",
+    channel: "WHATSAPP",
+    body: "Entendi, {nome_cliente}. Para te orientar corretamente, me confirma por favor: qual produto foi usado, quantidade por dia, horário de uso, há quanto tempo iniciou e se houve uso junto com outro suplemento ou medicamento?",
+    tags: ["saude", "produto", "sac", "triagem"],
+    wikiPageId: faqWikiPage.id,
+    reviewDueAt: addDays(45)
+  });
+  const reverseScript = await ensureOperationalScript({
+    organizationId: organization.id,
+    categoryId: categoryProduct.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    validatedById: supervisor.id,
+    title: "Orientar reversa de produto fechado",
+    channel: "WHATSAPP",
+    body: "Perfeito, {nome_cliente}. Como há frasco fechado, podemos seguir com a análise de reversa. Vou confirmar os dados do pedido {numero_pedido} e te passar os próximos passos para coleta/postagem.",
+    tags: ["saude", "reversa", "troca", "estorno"],
+    wikiPageId: faqWikiPage.id,
+    reviewDueAt: addDays(45)
+  });
+
+  await ensureServiceFlow({
+    organizationId: organization.id,
+    createdById: supervisor.id,
+    updatedById: supervisor.id,
+    wikiPageId: faqWikiPage.id,
+    slug: "problema-de-saude-reacao-adversa",
+    title: "Problema de saúde / reação adversa",
+    summary: "Triagem guiada para relatos de mal-estar, reação, uso incorreto ou necessidade de reversa.",
+    content: "Use este fluxo quando o cliente relata sintomas, desconforto ou suspeita de reação após uso de produto. O foco é coletar contexto, reduzir risco, preservar evidências e encaminhar troca/estorno quando fizer sentido.",
+    tags: ["saude", "sac", "reversa", "triagem"],
+    status: "PUBLISHED",
+    priority: 1,
+    steps: [
+      {
+        title: "Entender relato e forma de uso",
+        body: "Pergunte produto, dose, horário, tempo de uso, combinações e sintomas. Registre o relato sem prometer diagnóstico.",
+        kind: "MANUAL",
+        order: 1,
+        required: true,
+        scriptIds: [healthUsageScript.id, productGuidanceScript.id]
+      },
+      {
+        title: "Verificar frascos fechados e evidências",
+        body: "Confirme se há unidades fechadas, lote, validade, fotos e condição da embalagem.",
+        kind: "YES_NO",
+        decision: { yes: "Seguir para reversa/troca se política permitir.", no: "Avaliar exceção ou manter orientação sem reversa." },
+        order: 2,
+        required: true,
+        scriptIds: [reverseScript.id]
+      },
+      {
+        title: "Definir solução: estorno, troca ou orientação",
+        body: "Com base no relato e evidências, alinhe com Supervisor/Admin quando necessário e registre a decisão.",
+        kind: "DECISION",
+        decision: { options: ["Estorno", "Troca", "Reversa", "Orientação sem reversa", "Escalar supervisor"] },
+        order: 3,
+        scriptIds: [reverseScript.id]
+      }
+    ]
   });
 
   await ensureOperationalScriptSuggestion({

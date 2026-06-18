@@ -2796,6 +2796,122 @@ legend {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.service-flow-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.8fr);
+}
+
+.service-flow-runner {
+  display: grid;
+  gap: 16px;
+}
+
+.service-flow-steps,
+.service-flow-step-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.service-flow-step,
+.service-flow-step-draft {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.service-flow-step-header {
+  align-items: center;
+  background: var(--color-surface-soft);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-heading);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  justify-items: start;
+  min-height: 54px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.service-flow-step-header span:first-child {
+  align-items: center;
+  background: var(--color-primary);
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  font-weight: 900;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.service-flow-step-header small {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.service-flow-step-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.service-flow-decision {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.service-flow-decision span {
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-primary);
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.service-flow-script-list {
+  display: grid;
+  gap: 12px;
+}
+
+.service-flow-script-card {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.service-flow-script-card > div:first-child {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-flow-script-card small {
+  color: var(--color-muted);
+  display: block;
+  font-weight: 800;
+}
+
+.service-flow-script-card .script-copy-button {
+  justify-self: end;
+}
+
+.service-flow-step-draft {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
 .script-metric-list {
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-sm);

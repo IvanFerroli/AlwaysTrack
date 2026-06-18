@@ -28,6 +28,9 @@ model Organization {
   announcementReadReceipts AnnouncementReadReceipt[]
   scriptCategories      ScriptCategory[]
   operationalScripts    OperationalScript[]
+  serviceFlows          ServiceFlow[]
+  serviceFlowSteps      ServiceFlowStep[]
+  serviceFlowStepScripts ServiceFlowStepScript[]
   operationalScriptRevisions OperationalScriptRevision[]
   operationalScriptEvents OperationalScriptEvent[]
   operationalScriptSuggestions OperationalScriptSuggestion[]
@@ -138,6 +141,8 @@ model User {
   operationalScriptsUpdated OperationalScript[] @relation("OperationalScriptUpdatedBy")
   operationalScriptsValidated OperationalScript[] @relation("OperationalScriptValidatedBy")
   operationalScriptsRecertified OperationalScript[] @relation("OperationalScriptRecertifiedBy")
+  serviceFlowsCreated ServiceFlow[] @relation("ServiceFlowCreatedBy")
+  serviceFlowsUpdated ServiceFlow[] @relation("ServiceFlowUpdatedBy")
   operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
   operationalScriptSuggestionsAuthored OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionAuthor")
@@ -728,6 +733,7 @@ model OperationalScript {
   revisions    OperationalScriptRevision[]
   events       OperationalScriptEvent[]
   suggestions  OperationalScriptSuggestion[]
+  serviceFlowStepScripts ServiceFlowStepScript[]
 
   @@unique([organizationId, categoryId, title])
   @@index([organizationId])
@@ -740,6 +746,82 @@ model OperationalScript {
   @@index([reviewDueAt])
   @@index([recertifiedById])
   @@index([usageCount])
+}
+
+model ServiceFlow {
+  id             String   @id @default(cuid())
+  organizationId String
+  wikiPageId     String?
+  title          String
+  slug           String
+  summary        String?
+  content        String?
+  tagsJson       String?
+  status         String   @default("DRAFT")
+  priority       Int      @default(0)
+  createdById    String
+  updatedById    String
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  wikiPage     WikiPage? @relation("ServiceFlowWikiPage", fields: [wikiPageId], references: [id])
+  createdBy    User @relation("ServiceFlowCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User @relation("ServiceFlowUpdatedBy", fields: [updatedById], references: [id])
+  steps        ServiceFlowStep[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([wikiPageId])
+  @@index([status])
+  @@index([priority])
+  @@index([publishedAt])
+}
+
+model ServiceFlowStep {
+  id             String   @id @default(cuid())
+  organizationId String
+  flowId         String
+  title          String
+  body           String?
+  kind           String   @default("MANUAL")
+  decisionJson   String?
+  order          Int      @default(0)
+  required       Boolean  @default(false)
+  collapsed      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  flow         ServiceFlow @relation(fields: [flowId], references: [id])
+  scripts      ServiceFlowStepScript[]
+
+  @@index([organizationId])
+  @@index([flowId])
+  @@index([kind])
+  @@index([order])
+}
+
+model ServiceFlowStepScript {
+  id             String   @id @default(cuid())
+  organizationId String
+  stepId         String
+  scriptId       String
+  label          String?
+  order          Int      @default(0)
+  required       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  step         ServiceFlowStep @relation(fields: [stepId], references: [id])
+  script       OperationalScript @relation(fields: [scriptId], references: [id])
+
+  @@unique([stepId, scriptId])
+  @@index([organizationId])
+  @@index([stepId])
+  @@index([scriptId])
+  @@index([order])
 }
 
 model OperationalScriptRevision {
@@ -957,6 +1039,7 @@ model WikiPage {
   attachments  WikiAttachment[]
   faqThreads   FaqThread[] @relation("FaqThreadWikiPage")
   operationalScripts OperationalScript[] @relation("OperationalScriptWikiPage")
+  serviceFlows ServiceFlow[] @relation("ServiceFlowWikiPage")
 
   @@unique([organizationId, slug])
   @@index([organizationId])

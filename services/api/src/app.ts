@@ -177,6 +177,12 @@ import {
   validateOperationalScriptHandler
 } from "./core/script-library/script-library.handlers.js";
 import {
+  createServiceFlowHandler,
+  getServiceFlowHandler,
+  listServiceFlowsHandler,
+  updateServiceFlowHandler
+} from "./core/service-flows/service-flows.handlers.js";
+import {
   analyzeSalesDocumentHandler,
   createRankingSnapshotHandler,
   createSalesCampaignHandler,
@@ -266,6 +272,10 @@ export function createApp() {
   app.post("/v1/script-library/scripts/:scriptId/recertify", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, recertifyOperationalScriptHandler);
   app.post("/v1/script-library/scripts/:scriptId/revisions/:revisionId/restore", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, restoreOperationalScriptRevisionHandler);
   app.post("/v1/script-library/scripts/:scriptId/copy", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, copyOperationalScriptHandler);
+  app.get("/v1/service-flows", requireAuth, requireRole(commercialAllRoles), listServiceFlowsHandler);
+  app.get("/v1/service-flows/:flowIdOrSlug", requireAuth, requireRole(commercialAllRoles), getServiceFlowHandler);
+  app.post("/v1/service-flows", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createServiceFlowHandler);
+  app.patch("/v1/service-flows/:flowId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateServiceFlowHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }

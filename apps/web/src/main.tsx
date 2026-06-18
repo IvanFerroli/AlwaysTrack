@@ -17,6 +17,7 @@ import {
   Settings,
   UserCircle,
   ScanSearch,
+  Workflow,
   Users,
   type LucideIcon
 } from "lucide-react";
@@ -57,6 +58,7 @@ import { ProfileView } from "./views/profile";
 import { RankingView } from "./views/ranking";
 import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResponse } from "./views/settings";
 import { ScriptLibraryView } from "./views/script-library";
+import { ServiceFlowsView } from "./views/service-flows";
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
@@ -85,6 +87,7 @@ type ViewKey =
   | "campaigns"
   | "statements"
   | "announcements"
+  | "serviceFlows"
   | "scriptLibrary"
   | "wiki"
   | "faq"
@@ -112,6 +115,7 @@ type IconName =
   | "download"
   | "check"
   | "bell"
+  | "workflow"
   | "scan";
 
 type ViewIntent = {
@@ -490,6 +494,7 @@ const navItems: NavItem[] = [
   { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialManagerRoles },
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialAllRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
+  { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: commercialAllRoles },
   { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
@@ -537,6 +542,7 @@ const iconComponents: Record<IconName, LucideIcon> = {
   download: Download,
   check: Check,
   bell: Bell,
+  workflow: Workflow,
   scan: ScanSearch
 };
 
@@ -4416,6 +4422,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           <StatementsView />
         ) : activeItem.key === "announcements" ? (
           <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
+        ) : activeItem.key === "serviceFlows" ? (
+          <ServiceFlowsView user={user} />
         ) : activeItem.key === "scriptLibrary" ? (
           <ScriptLibraryView user={user} />
         ) : activeItem.key === "users" ? (

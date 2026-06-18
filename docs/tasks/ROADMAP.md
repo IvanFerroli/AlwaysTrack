@@ -142,17 +142,21 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 123. `EXEC-AT-121`: `npm run up` como bancada completa de estudo, com instalacao, setup, TypeDoc, app, Prisma Studio, reports existentes e smoke local opcional (`TASK-AT-121`). Status: completed.
 124. `EXEC-AT-122`: auditoria de testes/documentacao das mudancas recentes e mapa de lacunas residuais (`TASK-AT-122`). Status: completed.
 125. `EXEC-AT-123`: Scriptoteca com botao compacto de clipboard para copia rapida (`TASK-AT-123`). Status: completed.
+126. `EXEC-AT-130`: Fluxos de Atendimento guiado com etapas, decisoes e scripts relacionados (`TASK-AT-130`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-124-script-library-fast-attendance-mode.md`: modo atendimento rapido da Scriptoteca.
-2. `TASK-AT-125-script-library-placeholder-quality.md`: qualidade e validacao de placeholders.
-3. `TASK-AT-127-script-library-governance-dashboard.md`: painel de governanca da Scriptoteca.
-4. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-5. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
-6. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
-7. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
-8. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
-9. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
+2. `TASK-AT-131-service-flow-rich-wiki-editor.md`: editor rico tipo Wiki para fluxos/etapas.
+3. `TASK-AT-132-service-flow-visual-decision-builder.md`: construtor visual de decisoes.
+4. `TASK-AT-133-service-flow-execution-session.md`: execucao auditavel por atendimento.
+5. `TASK-AT-125-script-library-placeholder-quality.md`: qualidade e validacao de placeholders.
+6. `TASK-AT-127-script-library-governance-dashboard.md`: painel de governanca da Scriptoteca.
+7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
+8. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
+9. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
+10. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+11. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
+12. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -215,6 +219,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 29. `TASK-AT-127`: Scriptoteca - painel de governanca. Status: proposed.
 30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: proposed.
 31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: proposed.
+32. `TASK-AT-130`: Fluxos de atendimento guiado MVP. Status: completed-mvp.
+33. `TASK-AT-131`: Fluxos com editor rico tipo Wiki. Status: proposed.
+34. `TASK-AT-132`: Construtor visual de decisoes. Status: proposed.
+35. `TASK-AT-133`: Execucao auditavel de fluxo por atendimento. Status: proposed.
+36. `TASK-AT-134`: Recomendacao de scripts por etapa. Status: proposed.
+37. `TASK-AT-135`: Governanca e versionamento de fluxos. Status: proposed.
+38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: proposed.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.
