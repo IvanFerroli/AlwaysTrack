@@ -2,6 +2,14 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
+import {
+  InputValidationError,
+  optionalBoolean,
+  optionalInteger,
+  optionalString,
+  optionalStringArray,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 export class ScriptLibraryError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN" | "TITLE_TAKEN") {
@@ -79,6 +87,11 @@ const channels = new Set(["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"]
 const suggestionStatuses = new Set(["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"]);
 const suggestionTypes = new Set(["NEW", "CHANGE"]);
 const packStatuses = new Set(["ACTIVE", "DRAFT", "ARCHIVED"]);
+const statusValues = ["DRAFT", "VALIDATED", "OBSOLETE"] as const;
+const channelValues = ["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"] as const;
+const suggestionStatusValues = ["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"] as const;
+const suggestionTypeValues = ["NEW", "CHANGE"] as const;
+const packStatusValues = ["ACTIVE", "DRAFT", "ARCHIVED"] as const;
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -92,53 +105,53 @@ function ensureAdmin(actor: CurrentUser) {
   if (actor.role !== "ADMIN") throw new ScriptLibraryError("FORBIDDEN");
 }
 
-function cleanText(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+function validationError(field: string, code: "INVALID_TYPE" | "INVALID_VALUE" | "TOO_LONG" | "TOO_MANY_ITEMS" | "OUT_OF_RANGE") {
+  return new InputValidationError([{ field, code }]);
 }
 
-function cleanOptionalText(value: unknown) {
+function optionalUpperEnum<T extends string>(input: Record<string, unknown>, field: string, values: readonly T[]): T | undefined {
+  const value = input[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw validationError(field, "INVALID_TYPE");
+  const normalized = value.trim().toUpperCase();
+  if (!values.includes(normalized as T)) throw validationError(field, "INVALID_VALUE");
+  return normalized as T;
+}
+
+function optionalDate(input: Record<string, unknown>, field: string): Date | null | undefined {
+  const value = input[field];
+  if (value === undefined) return undefined;
   if (value === null) return null;
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function cleanBoolean(value: unknown) {
-  return typeof value === "boolean" ? value : undefined;
-}
-
-function cleanNumber(value: unknown) {
-  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
-
-function cleanStatus(value: unknown) {
-  return typeof value === "string" && statuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
-}
-
-function cleanDate(value: unknown) {
-  if (value === null) return null;
-  if (typeof value !== "string" || !value.trim()) return undefined;
+  if (typeof value !== "string") throw validationError(field, "INVALID_TYPE");
+  if (!value.trim()) return undefined;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  if (Number.isNaN(date.getTime())) throw validationError(field, "INVALID_VALUE");
+  return date;
 }
 
-function cleanChannel(value: unknown) {
-  return typeof value === "string" && channels.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+function normalizedOptionalTags(input: Record<string, unknown>) {
+  const tags = optionalStringArray(input, "tags", { maxItems: 20, itemMaxLength: 40 });
+  return tags ? normalizedTags(tags) : undefined;
 }
 
-function cleanSuggestionStatus(value: unknown) {
-  return typeof value === "string" && suggestionStatuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+function optionalCsvTags(input: Record<string, unknown>, field: string) {
+  const value = optionalString(input, field, { maxLength: 800 });
+  return value ? normalizedTags(value.split(",").map((item) => item.trim())) : undefined;
 }
 
-function cleanSuggestionType(value: unknown) {
-  return typeof value === "string" && suggestionTypes.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
-}
-
-function cleanPackStatus(value: unknown) {
-  return typeof value === "string" && packStatuses.has(value.toUpperCase()) ? value.toUpperCase() : undefined;
+function optionalPlaceholderMap(input: Record<string, unknown>, field: string) {
+  const value = input[field];
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Buffer.isBuffer(value)) throw validationError(field, "INVALID_TYPE");
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > 80) throw validationError(field, "TOO_MANY_ITEMS");
+  return Object.fromEntries(
+    entries.map(([key, entryValue]) => {
+      if (key.length > 80) throw validationError(`${field}.${key}`, "TOO_LONG");
+      if (typeof entryValue !== "string") throw validationError(`${field}.${key}`, "INVALID_TYPE");
+      return [key, entryValue.slice(0, 160)];
+    })
+  );
 }
 
 function normalizedTags(values: unknown[] = []) {
@@ -242,87 +255,83 @@ function withSuggestionFormat<
 }
 
 export function parseScriptCategoryInput(payload: unknown): ScriptCategoryInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    slug: cleanOptionalText(input.slug),
-    description: cleanOptionalText(input.description),
-    order: cleanNumber(input.order),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    slug: optionalString(input, "slug", { maxLength: 80, nullable: true }),
+    description: optionalString(input, "description", { maxLength: 500, nullable: true }),
+    order: optionalInteger(input, "order", { min: 0, max: 10000 }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseOperationalScriptInput(payload: unknown): OperationalScriptInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    categoryId: cleanText(input.categoryId),
-    wikiPageId: cleanOptionalText(input.wikiPageId),
-    faqThreadId: cleanOptionalText(input.faqThreadId),
-    title: cleanText(input.title),
-    channel: cleanChannel(input.channel),
-    body: cleanText(input.body),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
-    status: cleanStatus(input.status),
-    reviewDueAt: cleanDate(input.reviewDueAt),
-    comment: cleanOptionalText(input.comment)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    categoryId: optionalString(input, "categoryId", { maxLength: 80 }),
+    wikiPageId: optionalString(input, "wikiPageId", { maxLength: 80, nullable: true }),
+    faqThreadId: optionalString(input, "faqThreadId", { maxLength: 80, nullable: true }),
+    title: optionalString(input, "title", { maxLength: 160 }),
+    channel: optionalUpperEnum(input, "channel", channelValues),
+    body: optionalString(input, "body", { maxLength: 20000 }),
+    tags: normalizedOptionalTags(input),
+    status: optionalUpperEnum(input, "status", statusValues),
+    reviewDueAt: optionalDate(input, "reviewDueAt"),
+    comment: optionalString(input, "comment", { maxLength: 1000, nullable: true })
+  }));
 }
 
 export function parseScriptFilters(query: Record<string, unknown>): ScriptFilters {
   return {
-    query: cleanText(query.query),
-    categoryId: cleanText(query.categoryId),
-    channel: cleanChannel(query.channel),
-    status: cleanStatus(query.status),
-    tags: cleanText(query.tags)?.split(",").map((item) => item.trim()),
+    query: optionalString(query, "query", { maxLength: 160 }),
+    categoryId: optionalString(query, "categoryId", { maxLength: 80 }),
+    channel: optionalUpperEnum(query, "channel", channelValues),
+    status: optionalUpperEnum(query, "status", [...statusValues, ...packStatusValues]),
+    tags: optionalCsvTags(query, "tags"),
     includeObsolete: query.includeObsolete === "1" || query.includeObsolete === "true",
     reviewDue: query.reviewDue === "1" || query.reviewDue === "true"
   };
 }
 
 export function parseScriptCopyInput(payload: unknown): ScriptCopyInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  const rawPlaceholders = input.placeholders && typeof input.placeholders === "object" ? (input.placeholders as Record<string, unknown>) : {};
-  const placeholders = Object.fromEntries(Object.entries(rawPlaceholders).map(([key, value]) => [key, typeof value === "string" ? value.slice(0, 160) : ""]));
-  return { renderedText: cleanOptionalText(input.renderedText), placeholders, serviceFlowSessionId: cleanText(input.serviceFlowSessionId) };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    renderedText: optionalString(input, "renderedText", { maxLength: 20000, nullable: true }),
+    placeholders: optionalPlaceholderMap(input, "placeholders") ?? {},
+    serviceFlowSessionId: optionalString(input, "serviceFlowSessionId", { maxLength: 80 })
+  }));
 }
 
 export function parseScriptSuggestionInput(payload: unknown): ScriptSuggestionInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
+  return parseObjectPayload(payload ?? {}, (input) => ({
     ...parseOperationalScriptInput(payload),
-    scriptId: cleanText(input.scriptId),
-    suggestionType: cleanSuggestionType(input.suggestionType),
-    decision: cleanSuggestionStatus(input.decision),
-    decisionComment: cleanOptionalText(input.decisionComment)
-  };
+    scriptId: optionalString(input, "scriptId", { maxLength: 80 }),
+    suggestionType: optionalUpperEnum(input, "suggestionType", suggestionTypeValues),
+    decision: optionalUpperEnum(input, "decision", suggestionStatusValues),
+    decisionComment: optionalString(input, "decisionComment", { maxLength: 1000, nullable: true })
+  }));
 }
 
 export function parsePersonalScriptInput(payload: unknown): PersonalScriptInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    title: cleanText(input.title),
-    channel: cleanChannel(input.channel),
-    body: cleanText(input.body),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
-    flowIds: Array.isArray(input.flowIds) ? [...new Set(input.flowIds.filter((value): value is string => typeof value === "string"))] : []
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    title: optionalString(input, "title", { maxLength: 160 }),
+    channel: optionalUpperEnum(input, "channel", channelValues),
+    body: optionalString(input, "body", { maxLength: 20000 }),
+    tags: normalizedOptionalTags(input),
+    flowIds: optionalStringArray(input, "flowIds", { maxItems: 20, itemMaxLength: 80 }) ? [...new Set(optionalStringArray(input, "flowIds", { maxItems: 20, itemMaxLength: 80 }))] : []
+  }));
 }
 
 export function parseScriptPackInput(payload: unknown): ScriptPackInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    categoryId: cleanOptionalText(input.categoryId),
-    wikiPageId: cleanOptionalText(input.wikiPageId),
-    faqThreadId: cleanOptionalText(input.faqThreadId),
-    title: cleanText(input.title),
-    slug: cleanOptionalText(input.slug),
-    summary: cleanOptionalText(input.summary),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
-    status: cleanPackStatus(input.status),
-    order: cleanNumber(input.order),
-    scriptIds: Array.isArray(input.scriptIds) ? [...new Set(input.scriptIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0))] : undefined
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    categoryId: optionalString(input, "categoryId", { maxLength: 80, nullable: true }),
+    wikiPageId: optionalString(input, "wikiPageId", { maxLength: 80, nullable: true }),
+    faqThreadId: optionalString(input, "faqThreadId", { maxLength: 80, nullable: true }),
+    title: optionalString(input, "title", { maxLength: 160 }),
+    slug: optionalString(input, "slug", { maxLength: 80, nullable: true }),
+    summary: optionalString(input, "summary", { maxLength: 500, nullable: true }),
+    tags: normalizedOptionalTags(input),
+    status: optionalUpperEnum(input, "status", packStatusValues),
+    order: optionalInteger(input, "order", { min: 0, max: 10000 }),
+    scriptIds: optionalStringArray(input, "scriptIds", { maxItems: 50, itemMaxLength: 80 }) ? [...new Set(optionalStringArray(input, "scriptIds", { maxItems: 50, itemMaxLength: 80 })?.filter(Boolean))] : undefined
+  }));
 }
 
 async function recordSearchEvent(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters, resultCount: number) {

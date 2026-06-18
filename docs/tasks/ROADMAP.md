@@ -159,13 +159,14 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 140. `EXEC-AT-139`: emoji picker transversal nos editores ricos (`TASK-AT-139`). Status: completed-mvp.
 141. `EXEC-AT-126`: pacotes e roteiros de atendimento na Scriptoteca (`TASK-AT-126`). Status: completed-mvp.
 142. `EXEC-AT-140`: edicao e reordenacao visual de pacotes da Scriptoteca (`TASK-AT-140`). Status: completed-mvp.
+143. `EXEC-AT-141`: validacao runtime dos payloads da Scriptoteca (`TASK-AT-141`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 2. Follow-up de Scriptoteca: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
 3. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
 4. Follow-up de anexos: remocao auditavel de arquivos, entidade generica de anexo operacional e seeds visuais.
-5. Follow-up de validacao runtime: migrar announcements, script library, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
+5. Follow-up de validacao runtime: migrar announcements, organizations, documents, notifications, imports e reports para o helper de `TASK-AT-107`.
 6. Follow-up de producao: preparar migracao Postgres/storage externo quando houver decisao de infraestrutura.
 7. Follow-up de integracoes: padronizar timeout/redaction em Google Sheets/Drive e provider Meta real.
 
@@ -241,6 +242,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 40. `TASK-AT-138`: Seletor de Fluxos por busca e dropdown. Status: completed-mvp.
 41. `TASK-AT-139`: Emoji picker transversal em editores ricos. Status: completed-mvp.
 42. `TASK-AT-140`: Scriptoteca - editar e reordenar pacotes. Status: completed-mvp.
+43. `TASK-AT-141`: Scriptoteca - validacao runtime de inputs. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

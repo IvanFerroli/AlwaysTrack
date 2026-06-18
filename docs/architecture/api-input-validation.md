@@ -39,6 +39,7 @@ Do not echo invalid field values, submitted JSON, passwords, tokens, stack trace
 - `sales-documents`: filters, campaign payloads, review/manual correction payloads.
 - `wiki`: page, edit request, decision note, presence, filters.
 - `faq`: admin FAQ payloads, public help payload, thread/comment/reaction payloads, filters.
+- `script-library`: categories, scripts, suggestions, personal scripts, copy payloads and script packs.
 
 ## Pattern For New Endpoints
 1. Keep parser functions close to the domain service.
@@ -49,5 +50,5 @@ Do not echo invalid field values, submitted JSON, passwords, tokens, stack trace
 6. Catch `InputValidationError` in the handler and send the generic 400 response.
 
 ## Remaining Work
-- Migrate announcements, script library, organizations, documents, notifications, imports and reports parsers in later small slices.
+- Migrate announcements, organizations, documents, notifications, imports and reports parsers in later small slices.
 - Decide later whether helper-level schemas are enough or whether a dependency such as Zod is justified for OpenAPI generation.

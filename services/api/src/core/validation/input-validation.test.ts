@@ -6,6 +6,7 @@ import {
   parseSalesDocumentFilters,
   parseSalesDocumentReviewInput
 } from "../sales-documents/sales-documents.service.js";
+import { parseScriptCopyInput, parseScriptPackInput } from "../script-library/script-library.service.js";
 import { parseCreateUserInput } from "../users/users.service.js";
 import { parseWikiPageInput } from "../wiki/wiki.service.js";
 import { InputValidationError, sendInputValidationError } from "./input-validation.js";
@@ -49,6 +50,24 @@ describe("runtime input validation contracts", () => {
       parseFaqThreadInput({
         title: "Como aprovar nota?",
         tags: Array.from({ length: 21 }, (_, index) => `tag-${index}`)
+      })
+    ).toThrow(InputValidationError);
+  });
+
+  it("rejects oversized Scriptoteca package script arrays", () => {
+    expect(() =>
+      parseScriptPackInput({
+        title: "Roteiro",
+        scriptIds: Array.from({ length: 51 }, (_, index) => `script-${index}`)
+      })
+    ).toThrow(InputValidationError);
+  });
+
+  it("rejects malformed Scriptoteca copy placeholders", () => {
+    expect(() =>
+      parseScriptCopyInput({
+        renderedText: "Oi",
+        placeholders: { nome_cliente: { nested: "Ana" } }
       })
     ).toThrow(InputValidationError);
   });
