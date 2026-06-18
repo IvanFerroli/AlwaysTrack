@@ -1,7 +1,7 @@
 # TASK-AT-131 - Fluxos de atendimento com editor rico tipo Wiki
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-131-service-flow-rich-wiki-editor.md

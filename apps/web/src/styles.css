@@ -2912,6 +2912,21 @@ legend {
   padding: 12px;
 }
 
+.service-flow-recommendations {
+  align-items: center;
+  border-top: 1px solid var(--color-border-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.service-flow-recommendations > strong {
+  color: var(--color-heading);
+  font-size: 0.85rem;
+  margin-right: 4px;
+}
+
 .script-metric-list {
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-sm);

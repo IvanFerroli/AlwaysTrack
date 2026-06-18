@@ -143,13 +143,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 124. `EXEC-AT-122`: auditoria de testes/documentacao das mudancas recentes e mapa de lacunas residuais (`TASK-AT-122`). Status: completed.
 125. `EXEC-AT-123`: Scriptoteca com botao compacto de clipboard para copia rapida (`TASK-AT-123`). Status: completed.
 126. `EXEC-AT-130`: Fluxos de Atendimento guiado com etapas, decisoes e scripts relacionados (`TASK-AT-130`). Status: completed-mvp.
+127. `EXEC-AT-131`: editor rico tipo Wiki no cadastro de Fluxos (`TASK-AT-131`). Status: completed-mvp.
+128. `EXEC-AT-132`: construtor visual MVP de decisoes por etapa (`TASK-AT-132`). Status: completed-mvp.
+129. `EXEC-AT-134`: recomendacao MVP de scripts por etapa de fluxo (`TASK-AT-134`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-124-script-library-fast-attendance-mode.md`: modo atendimento rapido da Scriptoteca.
-2. `TASK-AT-131-service-flow-rich-wiki-editor.md`: editor rico tipo Wiki para fluxos/etapas.
-3. `TASK-AT-132-service-flow-visual-decision-builder.md`: construtor visual de decisoes.
-4. `TASK-AT-133-service-flow-execution-session.md`: execucao auditavel por atendimento.
-5. `TASK-AT-125-script-library-placeholder-quality.md`: qualidade e validacao de placeholders.
+2. `TASK-AT-133-service-flow-execution-session.md`: execucao auditavel por atendimento.
+3. `TASK-AT-125-script-library-placeholder-quality.md`: qualidade e validacao de placeholders.
+4. `TASK-AT-135-service-flow-governance-and-versioning.md`: governanca/versionamento de fluxos.
+5. `TASK-AT-136-service-flow-analytics.md`: metricas de uso dos fluxos.
 6. `TASK-AT-127-script-library-governance-dashboard.md`: painel de governanca da Scriptoteca.
 7. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
 8. Follow-up de coverage: decidir tooling/gate HTML dedicado se a cobertura precisar virar criterio formal.
@@ -220,10 +223,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 30. `TASK-AT-128`: Scriptoteca - revisao rica de sugestoes. Status: proposed.
 31. `TASK-AT-129`: Scriptoteca - formatacao por canal. Status: proposed.
 32. `TASK-AT-130`: Fluxos de atendimento guiado MVP. Status: completed-mvp.
-33. `TASK-AT-131`: Fluxos com editor rico tipo Wiki. Status: proposed.
-34. `TASK-AT-132`: Construtor visual de decisoes. Status: proposed.
+33. `TASK-AT-131`: Fluxos com editor rico tipo Wiki. Status: completed-mvp.
+34. `TASK-AT-132`: Construtor visual de decisoes. Status: completed-mvp.
 35. `TASK-AT-133`: Execucao auditavel de fluxo por atendimento. Status: proposed.
-36. `TASK-AT-134`: Recomendacao de scripts por etapa. Status: proposed.
+36. `TASK-AT-134`: Recomendacao de scripts por etapa. Status: completed-mvp.
 37. `TASK-AT-135`: Governanca e versionamento de fluxos. Status: proposed.
 38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: proposed.
 

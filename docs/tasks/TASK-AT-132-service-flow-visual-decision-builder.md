@@ -1,7 +1,7 @@
 # TASK-AT-132 - Fluxos de atendimento com construtor visual de decisoes
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-132-service-flow-visual-decision-builder.md

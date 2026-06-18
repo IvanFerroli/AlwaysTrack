@@ -1,8 +1,8 @@
 import { Check, Clipboard, GitBranch, Plus } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
-import { api } from "../api";
-import { MarkdownContent } from "../components/markdown-editor";
+import { api, uploadWikiImage } from "../api";
+import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState } from "../components/operational";
 
 interface FlowScript {
@@ -68,6 +68,20 @@ const stepKinds = [
   { value: "DECISION", label: "Decisão" }
 ];
 
+interface StepDraft {
+  title: string;
+  body: string;
+  kind: string;
+  scriptIds: string[];
+  yesLabel: string;
+  noLabel: string;
+  options: string;
+}
+
+function emptyStepDraft(): StepDraft {
+  return { title: "", body: "", kind: "MANUAL", scriptIds: [], yesLabel: "", noLabel: "", options: "" };
+}
+
 function parseTags(value: string) {
   return [...new Set(value.split(",").map((tag) => tag.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))].sort();
 }
@@ -82,6 +96,31 @@ function optionsFromDecision(decision: Record<string, unknown> | null | undefine
   return Object.entries(decision).map(([key, value]) => `${key}: ${String(value)}`);
 }
 
+function decisionPayload(step: StepDraft) {
+  if (step.kind === "YES_NO") {
+    return {
+      yes: step.yesLabel || "Seguir para a próxima etapa.",
+      no: step.noLabel || "Revisar manualmente antes de seguir."
+    };
+  }
+  if (step.kind === "DECISION" || step.kind === "CHECKLIST") {
+    const options = parseTags(step.options).map((item) => item.replace(/-/g, " "));
+    return options.length ? { options } : null;
+  }
+  return null;
+}
+
+function wordsFor(value: string) {
+  return new Set(
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((item) => item.length >= 3)
+  );
+}
+
 export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [flows, setFlows] = useState<ServiceFlowItem[]>([]);
   const [scripts, setScripts] = useState<FlowScript[]>([]);
@@ -93,9 +132,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, Record<string, string>>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
-  const [stepDrafts, setStepDrafts] = useState<Array<{ title: string; body: string; kind: string; scriptIds: string[] }>>([
-    { title: "", body: "", kind: "MANUAL", scriptIds: [] }
-  ]);
+  const [stepDrafts, setStepDrafts] = useState<StepDraft[]>([emptyStepDraft()]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,8 +180,24 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     window.setTimeout(() => setCopyFeedback(""), 1600);
   }
 
-  function updateStep(index: number, patch: Partial<{ title: string; body: string; kind: string; scriptIds: string[] }>) {
+  function updateStep(index: number, patch: Partial<StepDraft>) {
     setStepDrafts((current) => current.map((step, currentIndex) => currentIndex === index ? { ...step, ...patch } : step));
+  }
+
+  function recommendedScriptsFor(step: StepDraft) {
+    const flowTagSet = new Set(parseTags(flowDraft.tags));
+    const stepWords = wordsFor(`${step.title} ${step.body}`);
+    return scripts
+      .map((script) => {
+        const tagScore = (script.tags ?? []).filter((item) => flowTagSet.has(item) || stepWords.has(item)).length * 3;
+        const titleScore = [...stepWords].filter((word) => script.title.toLowerCase().includes(word) || script.body.toLowerCase().includes(word)).length;
+        const usageScore = Math.min(script.usageCount, 5) / 5;
+        return { script, score: tagScore + titleScore + usageScore };
+      })
+      .filter((item) => item.score > 0 && !step.scriptIds.includes(item.script.id))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 5)
+      .map((item) => item.script);
   }
 
   async function createFlow(event: FormEvent) {
@@ -161,12 +214,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
           kind: step.kind,
           order: index + 1,
           required: index === 0,
+          decision: decisionPayload(step),
           scriptIds: step.scriptIds
         }))
       };
       const result = await api<{ flow: ServiceFlowItem }>("/v1/service-flows", { method: "POST", body: JSON.stringify(payload) });
       setFlowDraft({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
-      setStepDrafts([{ title: "", body: "", kind: "MANUAL", scriptIds: [] }]);
+      setStepDrafts([emptyStepDraft()]);
       await load(result.flow.id);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao criar fluxo.");
@@ -289,7 +343,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
               <label>Tags<input value={flowDraft.tags} onChange={(event) => setFlowDraft((current) => ({ ...current, tags: event.target.value }))} placeholder="sac, saude, reversa" /></label>
               <label>Resumo<input value={flowDraft.summary} onChange={(event) => setFlowDraft((current) => ({ ...current, summary: event.target.value }))} /></label>
             </div>
-            <label>Conteúdo de apoio<textarea value={flowDraft.content} onChange={(event) => setFlowDraft((current) => ({ ...current, content: event.target.value }))} /></label>
+            <MarkdownEditor
+              label="Conteúdo de apoio"
+              rows={5}
+              value={flowDraft.content}
+              onChange={(content) => setFlowDraft((current) => ({ ...current, content }))}
+              onUploadImage={(file) => uploadWikiImage(file)}
+            />
             <div className="service-flow-step-editor">
               {stepDrafts.map((step, index) => (
                 <div className="service-flow-step-draft" key={index}>
@@ -297,11 +357,35 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                     <label>Etapa<input value={step.title} onChange={(event) => updateStep(index, { title: event.target.value })} /></label>
                     <label>Tipo<select value={step.kind} onChange={(event) => updateStep(index, { kind: event.target.value })}>{stepKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
                   </div>
-                  <label>Orientação<textarea value={step.body} onChange={(event) => updateStep(index, { body: event.target.value })} /></label>
+                  <MarkdownEditor
+                    label="Orientação da etapa"
+                    rows={4}
+                    value={step.body}
+                    onChange={(body) => updateStep(index, { body })}
+                    onUploadImage={(file) => uploadWikiImage(file)}
+                  />
+                  {step.kind === "YES_NO" ? (
+                    <div className="form-grid">
+                      <label>Se sim<input value={step.yesLabel} onChange={(event) => updateStep(index, { yesLabel: event.target.value })} placeholder="Seguir para reversa/troca" /></label>
+                      <label>Se não<input value={step.noLabel} onChange={(event) => updateStep(index, { noLabel: event.target.value })} placeholder="Manter orientação ou escalar" /></label>
+                    </div>
+                  ) : null}
+                  {step.kind === "DECISION" || step.kind === "CHECKLIST" ? (
+                    <label>Opções<input value={step.options} onChange={(event) => updateStep(index, { options: event.target.value })} placeholder="estorno, troca, escalar supervisor" /></label>
+                  ) : null}
                   <label>Scripts relacionados<select multiple value={step.scriptIds} onChange={(event) => updateStep(index, { scriptIds: Array.from(event.target.selectedOptions).map((option) => option.value) })}>{scripts.map((script) => <option key={script.id} value={script.id}>{script.title}</option>)}</select></label>
+                  <div className="service-flow-recommendations">
+                    <strong>Recomendados</strong>
+                    {recommendedScriptsFor(step).map((script) => (
+                      <button key={script.id} className="secondary small" type="button" onClick={() => updateStep(index, { scriptIds: [...step.scriptIds, script.id] })}>
+                        {script.title}
+                      </button>
+                    ))}
+                    {recommendedScriptsFor(step).length ? null : <span className="muted">Preencha título, orientação ou tags para sugerir scripts.</span>}
+                  </div>
                 </div>
               ))}
-              <button className="secondary" type="button" onClick={() => setStepDrafts((current) => [...current, { title: "", body: "", kind: "MANUAL", scriptIds: [] }])}><Plus size={16} aria-hidden="true" /> Adicionar etapa</button>
+              <button className="secondary" type="button" onClick={() => setStepDrafts((current) => [...current, emptyStepDraft()])}><Plus size={16} aria-hidden="true" /> Adicionar etapa</button>
             </div>
             <button disabled={saving || !flowDraft.title}>Criar fluxo</button>
           </form>

@@ -1,7 +1,7 @@
 # TASK-AT-134 - Recomendacao de scripts por etapa do fluxo
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-134-service-flow-script-recommendations.md
