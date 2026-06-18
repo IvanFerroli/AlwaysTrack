@@ -165,15 +165,18 @@ import {
 } from "./core/announcements/announcements.handlers.js";
 import {
   copyOperationalScriptHandler,
+  createPersonalScriptHandler,
   createOperationalScriptHandler,
   createOperationalScriptSuggestionHandler,
   createScriptCategoryHandler,
   decideOperationalScriptSuggestionHandler,
   listScriptLibraryHandler,
+  listPersonalScriptsHandler,
   obsoleteOperationalScriptHandler,
   updateOperationalScriptHandler,
   recertifyOperationalScriptHandler,
   restoreOperationalScriptRevisionHandler,
+  suggestPersonalScriptHandler,
   validateOperationalScriptHandler
 } from "./core/script-library/script-library.handlers.js";
 import {
@@ -269,6 +272,9 @@ export function createApp() {
   app.post("/v1/announcements/:announcementId/archive", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, archiveAnnouncementHandler);
   app.post("/v1/announcements/:announcementId/acknowledge", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, acknowledgeAnnouncementHandler);
   app.get("/v1/script-library", requireAuth, requireRole(commercialAllRoles), listScriptLibraryHandler);
+  app.get("/v1/script-library/personal-scripts", requireAuth, requireRole(commercialAllRoles), listPersonalScriptsHandler);
+  app.post("/v1/script-library/personal-scripts", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createPersonalScriptHandler);
+  app.post("/v1/script-library/personal-scripts/:personalScriptId/suggest", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, suggestPersonalScriptHandler);
   app.post("/v1/script-library/categories", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createScriptCategoryHandler);
   app.post("/v1/script-library/suggestions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createOperationalScriptSuggestionHandler);
   app.post("/v1/script-library/suggestions/:suggestionId/decision", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, decideOperationalScriptSuggestionHandler);

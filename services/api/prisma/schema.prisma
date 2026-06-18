@@ -35,6 +35,8 @@ model Organization {
   serviceFlowSessionSteps ServiceFlowSessionStep[]
   serviceFlowRevisions  ServiceFlowRevision[]
   serviceFlowSearchEvents ServiceFlowSearchEvent[]
+  personalScripts       PersonalScript[]
+  personalScriptFlows   PersonalScriptFlow[]
   operationalScriptRevisions OperationalScriptRevision[]
   operationalScriptEvents OperationalScriptEvent[]
   operationalScriptSuggestions OperationalScriptSuggestion[]
@@ -151,6 +153,7 @@ model User {
   serviceFlowRevisionsAuthored ServiceFlowRevision[] @relation("ServiceFlowRevisionAuthor")
   serviceFlowSearchEvents ServiceFlowSearchEvent[] @relation("ServiceFlowSearchEventUser")
   serviceFlowSessions ServiceFlowSession[] @relation("ServiceFlowSessionUser")
+  personalScripts PersonalScript[] @relation("PersonalScriptOwner")
   operationalScriptRevisionsAuthored OperationalScriptRevision[] @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents OperationalScriptEvent[] @relation("OperationalScriptEventUser")
   operationalScriptSuggestionsAuthored OperationalScriptSuggestion[] @relation("OperationalScriptSuggestionAuthor")
@@ -787,6 +790,7 @@ model ServiceFlow {
   sessions     ServiceFlowSession[]
   revisions    ServiceFlowRevision[]
   searchEvents ServiceFlowSearchEvent[]
+  personalScriptFlows PersonalScriptFlow[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -933,6 +937,49 @@ model ServiceFlowSearchEvent {
   @@index([createdAt])
 }
 
+model PersonalScript {
+  id             String   @id @default(cuid())
+  organizationId String
+  ownerId        String
+  title          String
+  channel        String   @default("WHATSAPP")
+  body           String
+  tagsJson       String?
+  placeholdersJson String?
+  suggestionId   String?
+  suggestedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  owner        User @relation("PersonalScriptOwner", fields: [ownerId], references: [id])
+  suggestion   OperationalScriptSuggestion? @relation("PersonalScriptSuggestion", fields: [suggestionId], references: [id])
+  flows        PersonalScriptFlow[]
+
+  @@unique([organizationId, ownerId, title])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([suggestionId])
+  @@index([channel])
+  @@index([updatedAt])
+}
+
+model PersonalScriptFlow {
+  id             String   @id @default(cuid())
+  organizationId String
+  personalScriptId String
+  flowId         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  personalScript PersonalScript @relation(fields: [personalScriptId], references: [id], onDelete: Cascade)
+  flow         ServiceFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([personalScriptId, flowId])
+  @@index([organizationId])
+  @@index([flowId])
+}
+
 model OperationalScriptRevision {
   id             String   @id @default(cuid())
   organizationId String
@@ -1001,6 +1048,7 @@ model OperationalScriptSuggestion {
   script       OperationalScript? @relation(fields: [scriptId], references: [id])
   author       User @relation("OperationalScriptSuggestionAuthor", fields: [authorId], references: [id])
   decidedBy    User? @relation("OperationalScriptSuggestionDecider", fields: [decidedById], references: [id])
+  personalScripts PersonalScript[] @relation("PersonalScriptSuggestion")
 
   @@index([organizationId])
   @@index([categoryId])

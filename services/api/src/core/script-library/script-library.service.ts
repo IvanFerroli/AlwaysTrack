@@ -53,6 +53,14 @@ export interface ScriptSuggestionInput extends OperationalScriptInput {
   decisionComment?: string | null;
 }
 
+export interface PersonalScriptInput {
+  title?: string;
+  channel?: string;
+  body?: string;
+  tags?: string[];
+  flowIds?: string[];
+}
+
 const statuses = new Set(["DRAFT", "VALIDATED", "OBSOLETE"]);
 const channels = new Set(["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"]);
 const suggestionStatuses = new Set(["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"]);
@@ -252,6 +260,17 @@ export function parseScriptSuggestionInput(payload: unknown): ScriptSuggestionIn
   };
 }
 
+export function parsePersonalScriptInput(payload: unknown): PersonalScriptInput {
+  const input = (payload ?? {}) as Record<string, unknown>;
+  return {
+    title: cleanText(input.title),
+    channel: cleanChannel(input.channel),
+    body: cleanText(input.body),
+    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
+    flowIds: Array.isArray(input.flowIds) ? [...new Set(input.flowIds.filter((value): value is string => typeof value === "string"))] : []
+  };
+}
+
 async function recordSearchEvent(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters, resultCount: number) {
   if (!filters.query && !filters.channel && !filters.categoryId && !filters.status && !filters.tags?.length && !filters.reviewDue) return;
   await prisma.operationalScriptSearchEvent.create({
@@ -388,6 +407,102 @@ export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser
   ]);
   await recordSearchEvent(prisma, actor, filters, total);
   return { categories, scripts: scripts.map(withScriptFormat), suggestions: suggestions.map((item) => ({ ...item, tags: tagsFromJson(item.tagsJson) })), metrics, total, canManage: isManager(actor) };
+}
+
+async function ensureServiceFlows(prisma: PrismaClient, actor: CurrentUser, flowIds: string[]) {
+  if (!flowIds.length) return;
+  const count = await prisma.serviceFlow.count({ where: { organizationId: actor.organizationId, id: { in: flowIds }, status: { not: "ARCHIVED" } } });
+  if (count !== flowIds.length) throw new ScriptLibraryError("NOT_FOUND");
+}
+
+function withPersonalScriptFormat<T extends { tagsJson?: string | null; placeholdersJson?: string | null; flows?: Array<{ flow: { id: string; slug: string; title: string; status: string } }> }>(item: T) {
+  return {
+    ...item,
+    tags: tagsFromJson(item.tagsJson),
+    placeholders: placeholdersFromJson(item.placeholdersJson),
+    flows: item.flows?.map((link) => link.flow) ?? []
+  };
+}
+
+export async function listPersonalScripts(prisma: PrismaClient, actor: CurrentUser) {
+  const scripts = await prisma.personalScript.findMany({
+    where: { organizationId: actor.organizationId, ownerId: actor.id },
+    orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
+    include: {
+      flows: { include: { flow: { select: { id: true, slug: true, title: true, status: true } } }, orderBy: { createdAt: "asc" } },
+      suggestion: { select: { id: true, status: true, createdScriptId: true } }
+    }
+  });
+  return { items: scripts.map(withPersonalScriptFormat) };
+}
+
+export async function createPersonalScript(prisma: PrismaClient, actor: CurrentUser, input: PersonalScriptInput) {
+  if (!input.title || !input.body) throw new ScriptLibraryError("INVALID_INPUT");
+  const flowIds = input.flowIds ?? [];
+  await ensureServiceFlows(prisma, actor, flowIds);
+  const script = await prisma.personalScript.create({
+    data: {
+      organizationId: actor.organizationId,
+      ownerId: actor.id,
+      title: input.title,
+      channel: input.channel ?? "WHATSAPP",
+      body: input.body,
+      tagsJson: tagsJsonFor(input.tags ?? []),
+      placeholdersJson: placeholdersJsonFor(input.body),
+      flows: {
+        create: flowIds.map((flowId) => ({ organizationId: actor.organizationId, flowId }))
+      }
+    },
+    include: {
+      flows: { include: { flow: { select: { id: true, slug: true, title: true, status: true } } } },
+      suggestion: { select: { id: true, status: true, createdScriptId: true } }
+    }
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "personal_script.create", entityType: "PersonalScript", entityId: script.id, metadata: { flowIds } });
+  return { script: withPersonalScriptFormat(script) };
+}
+
+export async function suggestPersonalScriptAsCanonical(prisma: PrismaClient, actor: CurrentUser, personalScriptId: string) {
+  const script = await prisma.personalScript.findFirst({
+    where: { id: personalScriptId, organizationId: actor.organizationId, ownerId: actor.id },
+    include: { flows: { include: { flow: { select: { title: true } } } } }
+  });
+  if (!script) throw new ScriptLibraryError("NOT_FOUND");
+  if (script.suggestionId) throw new ScriptLibraryError("TITLE_TAKEN");
+  const suggestion = await prisma.operationalScriptSuggestion.create({
+    data: {
+      organizationId: actor.organizationId,
+      authorId: actor.id,
+      title: script.title,
+      channel: script.channel,
+      body: script.body,
+      tagsJson: script.tagsJson,
+      status: "SUGGESTED",
+      suggestionType: "NEW",
+      decisionComment: script.flows.length ? `Sugerido a partir de script pessoal. Fluxos: ${script.flows.map((link) => link.flow.title).join(", ")}` : "Sugerido a partir de script pessoal sem fluxo vinculado."
+    }
+  });
+  const updated = await prisma.personalScript.update({
+    where: { id: script.id },
+    data: { suggestionId: suggestion.id, suggestedAt: new Date() },
+    include: {
+      flows: { include: { flow: { select: { id: true, slug: true, title: true, status: true } } } },
+      suggestion: { select: { id: true, status: true, createdScriptId: true } }
+    }
+  });
+  await emitInAppNotifications(prisma, actor.organizationId, {
+    recipientRoles: [...commercialManagerRoles],
+    actorId: actor.id,
+    type: "script_library.personal_suggestion",
+    title: "Novo script pessoal sugerido",
+    body: `${actor.name} sugeriu "${script.title}" para canon da Scriptoteca.`,
+    entityType: "OperationalScriptSuggestion",
+    entityId: suggestion.id,
+    href: "/scriptoteca",
+    dedupeKey: `personal-script:${script.id}:suggested`
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "personal_script.suggest", entityType: "PersonalScript", entityId: script.id, metadata: { suggestionId: suggestion.id } });
+  return { script: withPersonalScriptFormat(updated), suggestion };
 }
 
 export async function createScriptCategory(prisma: PrismaClient, actor: CurrentUser, input: ScriptCategoryInput) {

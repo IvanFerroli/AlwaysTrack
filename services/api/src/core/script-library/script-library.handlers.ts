@@ -2,21 +2,25 @@ import type { Request, Response } from "express";
 import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import {
+  createPersonalScript,
   createOperationalScript,
   createOperationalScriptSuggestion,
   createScriptCategory,
   decideOperationalScriptSuggestion,
   listScriptLibrary,
+  listPersonalScripts,
   obsoleteOperationalScript,
   parseOperationalScriptInput,
   parseScriptCategoryInput,
   parseScriptCopyInput,
   parseScriptFilters,
   parseScriptSuggestionInput,
+  parsePersonalScriptInput,
   recertifyOperationalScript,
   recordScriptCopy,
   restoreOperationalScriptRevision,
   ScriptLibraryError,
+  suggestPersonalScriptAsCanonical,
   updateOperationalScript,
   validateOperationalScript
 } from "./script-library.service.js";
@@ -44,6 +48,30 @@ function sendScriptError(response: Response, error: unknown) {
 export async function listScriptLibraryHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await listScriptLibrary(prisma, actorFrom(request), parseScriptFilters(request.query)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function listPersonalScriptsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listPersonalScripts(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function createPersonalScriptHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await createPersonalScript(prisma, actorFrom(request), parsePersonalScriptInput(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function suggestPersonalScriptHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await suggestPersonalScriptAsCanonical(prisma, actorFrom(request), routeParam(request.params.personalScriptId)));
   } catch (error) {
     return sendScriptError(response, error);
   }

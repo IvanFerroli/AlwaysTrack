@@ -2839,9 +2839,43 @@ legend {
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.8fr);
 }
 
+.service-flow-picker,
+.service-flow-personal-scripts,
+.service-flow-personal-form {
+  display: grid;
+  gap: 12px;
+}
+
+.service-flow-picker label,
+.service-flow-personal-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.service-flow-picker-summary {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.service-flow-picker-summary span,
+.service-flow-picker-summary small {
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
 .service-flow-runner {
   display: grid;
   gap: 16px;
+}
+
+.service-flow-personal-scripts {
+  border-top: 1px solid var(--color-border-soft);
+  margin-top: 4px;
+  padding-top: 16px;
 }
 
 .service-flow-metrics-panel,

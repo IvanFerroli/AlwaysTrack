@@ -152,6 +152,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 133. `EXEC-AT-135`: governanca e versionamento de Fluxos de Atendimento (`TASK-AT-135`). Status: completed-mvp.
 134. `EXEC-AT-136`: metricas de uso dos Fluxos de Atendimento (`TASK-AT-136`). Status: completed-mvp.
 135. `EXEC-AT-127`: painel de governanca da Scriptoteca (`TASK-AT-127`). Status: completed-mvp.
+136. `EXEC-AT-137`: scripts pessoais privados por atendente (`TASK-AT-137`). Status: completed-mvp.
+137. `EXEC-AT-138`: seletor de Fluxos por busca e dropdown (`TASK-AT-138`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-126-script-library-script-packs.md`: pacotes e roteiros de atendimento.
@@ -232,6 +234,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 36. `TASK-AT-134`: Recomendacao de scripts por etapa. Status: completed-mvp.
 37. `TASK-AT-135`: Governanca e versionamento de fluxos. Status: completed-mvp.
 38. `TASK-AT-136`: Metricas de uso dos fluxos. Status: completed-mvp.
+39. `TASK-AT-137`: Scripts pessoais privados por atendente. Status: completed-mvp.
+40. `TASK-AT-138`: Seletor de Fluxos por busca e dropdown. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

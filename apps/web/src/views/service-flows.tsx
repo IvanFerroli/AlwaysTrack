@@ -57,6 +57,22 @@ interface ScriptLibraryResponse {
   scripts: FlowScript[];
 }
 
+interface PersonalScriptItem {
+  id: string;
+  title: string;
+  channel: string;
+  body: string;
+  tags?: string[];
+  placeholders?: string[];
+  suggestedAt: string | null;
+  flows: Array<{ id: string; slug: string; title: string; status: string }>;
+  suggestion: { id: string; status: string; createdScriptId: string | null } | null;
+}
+
+interface PersonalScriptsResponse {
+  items: PersonalScriptItem[];
+}
+
 interface ServiceFlowsResponse {
   items: ServiceFlowItem[];
   canManage: boolean;
@@ -156,8 +172,10 @@ function wordsFor(value: string) {
 export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [flows, setFlows] = useState<ServiceFlowItem[]>([]);
   const [scripts, setScripts] = useState<FlowScript[]>([]);
+  const [personalScripts, setPersonalScripts] = useState<PersonalScriptItem[]>([]);
   const [metrics, setMetrics] = useState<ServiceFlowMetrics | null>(null);
   const [selectedId, setSelectedId] = useState("");
+  const [flowPickerQuery, setFlowPickerQuery] = useState("");
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState("");
   const [status, setStatus] = useState("");
@@ -169,6 +187,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
   const [governanceDraft, setGovernanceDraft] = useState({ comment: "", reviewDueAt: "" });
+  const [personalDraft, setPersonalDraft] = useState({ title: "", channel: "WHATSAPP", body: "", tags: "", flowIds: [] as string[] });
   const [stepDrafts, setStepDrafts] = useState<StepDraft[]>([emptyStepDraft()]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -176,6 +195,12 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const selected = flows.find((flow) => flow.id === selectedId) ?? flows[0] ?? null;
   const tags = useMemo(() => [...new Set(flows.flatMap((flow) => flow.tags ?? []))].sort(), [flows]);
+  const selectableFlows = useMemo(() => {
+    const needle = flowPickerQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (!needle) return flows;
+    return flows.filter((flow) => `${flow.title} ${flow.summary ?? ""} ${flow.tags?.join(" ") ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(needle));
+  }, [flowPickerQuery, flows]);
+  const visiblePersonalScripts = useMemo(() => personalScripts.filter((script) => !selected || script.flows.length === 0 || script.flows.some((flow) => flow.id === selected.id)), [personalScripts, selected]);
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);
@@ -189,8 +214,10 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
         api<ServiceFlowsResponse>(`/v1/service-flows?${params.toString()}`),
         api<ScriptLibraryResponse>("/v1/script-library")
       ]);
+      const personalResult = await api<PersonalScriptsResponse>("/v1/script-library/personal-scripts").catch(() => ({ items: [] }));
       setFlows(flowResult.items);
       setScripts(scriptResult.scripts.filter((script) => script.status !== "OBSOLETE"));
+      setPersonalScripts(personalResult.items);
       const next = nextSelectedId && flowResult.items.some((flow) => flow.id === nextSelectedId) ? nextSelectedId : flowResult.items[0]?.id ?? "";
       setSelectedId(next);
       setOpenSteps(Object.fromEntries((flowResult.items.find((flow) => flow.id === next)?.steps ?? flowResult.items[0]?.steps ?? []).map((step, index) => [step.id, index === 0])));
@@ -213,6 +240,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     setActiveSession(null);
     setStepNotes({});
     setStepDecisions({});
+    setPersonalDraft((current) => ({ ...current, flowIds: selectedId ? [selectedId] : [] }));
   }, [selectedId]);
 
   async function copyScript(script: FlowScript) {
@@ -227,6 +255,18 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       method: "POST",
       body: JSON.stringify({ renderedText: rendered, placeholders: placeholderValues[script.id] ?? {}, serviceFlowSessionId: activeSession?.id ?? null })
     }).catch(() => null);
+    window.setTimeout(() => setCopyFeedback(""), 1600);
+  }
+
+  async function copyPersonalScript(script: PersonalScriptItem) {
+    const key = `personal:${script.id}`;
+    const rendered = renderScript(script.body, placeholderValues[key] ?? {});
+    try {
+      await navigator.clipboard.writeText(rendered);
+      setCopyFeedback(key);
+    } catch {
+      setCopyFeedback("");
+    }
     window.setTimeout(() => setCopyFeedback(""), 1600);
   }
 
@@ -290,6 +330,43 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       await load(result.flow.id);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha na governança do fluxo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function createPersonalScript(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await api("/v1/script-library/personal-scripts", {
+        method: "POST",
+        body: JSON.stringify({
+          ...personalDraft,
+          tags: parseTags(personalDraft.tags),
+          flowIds: personalDraft.flowIds
+        })
+      });
+      setPersonalDraft({ title: "", channel: "WHATSAPP", body: "", tags: "", flowIds: selected ? [selected.id] : [] });
+      const result = await api<PersonalScriptsResponse>("/v1/script-library/personal-scripts");
+      setPersonalScripts(result.items);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar script pessoal.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function suggestPersonalScript(scriptId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await api(`/v1/script-library/personal-scripts/${scriptId}/suggest`, { method: "POST" });
+      const result = await api<PersonalScriptsResponse>("/v1/script-library/personal-scripts");
+      setPersonalScripts(result.items);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao sugerir script pessoal.");
     } finally {
       setSaving(false);
     }
@@ -407,14 +484,32 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
             </div>
           </div>
           {loading ? <OperationalState state="loading" title="Carregando fluxos" /> : null}
-          <div className="wiki-page-list">
-            {flows.map((flow) => (
-              <button className={selected?.id === flow.id ? "wiki-page-button active" : "wiki-page-button"} key={flow.id} type="button" onClick={() => { setSelectedId(flow.id); setOpenSteps(Object.fromEntries(flow.steps.map((step, index) => [step.id, index === 0]))); }}>
-                <strong>{flow.title}</strong>
-                {flow.summary ? <small>{flow.summary}</small> : null}
-                <small>{flow.steps.length} etapa(s) · {flow.status}</small>
-              </button>
-            ))}
+          <div className="service-flow-picker">
+            <label>
+              Buscar fluxo
+              <input value={flowPickerQuery} onChange={(event) => setFlowPickerQuery(event.target.value)} placeholder="Digite parte do atendimento, tag ou contexto" />
+            </label>
+            <label>
+              Selecionar fluxo
+              <select
+                value={selected?.id ?? ""}
+                onChange={(event) => {
+                  const flow = flows.find((item) => item.id === event.target.value);
+                  setSelectedId(event.target.value);
+                  setOpenSteps(Object.fromEntries((flow?.steps ?? []).map((step, index) => [step.id, index === 0])));
+                  setPersonalDraft((current) => ({ ...current, flowIds: event.target.value ? [event.target.value] : [] }));
+                }}
+              >
+                {selectableFlows.map((flow) => <option key={flow.id} value={flow.id}>{flow.title} · {flow.status}</option>)}
+              </select>
+            </label>
+            {selected ? (
+              <div className="service-flow-picker-summary">
+                <strong>{selected.title}</strong>
+                {selected.summary ? <span>{selected.summary}</span> : null}
+                <small>{selected.steps.length} etapa(s) · v{selected.version}</small>
+              </div>
+            ) : null}
             {!loading && flows.length === 0 ? <OperationalState state="empty" title="Nenhum fluxo encontrado" detail="Cadastre um fluxo para guiar atendimentos recorrentes." /> : null}
           </div>
         </section>
@@ -538,6 +633,65 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                     </article>
                   );
                 })}
+              </div>
+              <div className="service-flow-personal-scripts">
+                <div>
+                  <p className="eyebrow">Privado</p>
+                  <h3>Meus scripts</h3>
+                  <p className="muted">Textos pessoais aparecem só para você e podem ser sugeridos para virar canon da Scriptoteca.</p>
+                </div>
+                <div className="service-flow-script-list">
+                  {visiblePersonalScripts.map((script) => {
+                    const key = `personal:${script.id}`;
+                    return (
+                      <div className="service-flow-script-card" key={script.id}>
+                        <div>
+                          <strong>{script.title}</strong>
+                          <small>{script.channel} · {script.flows.length ? script.flows.map((flow) => flow.title).join(", ") : "sem fluxo fixo"}</small>
+                        </div>
+                        {script.placeholders?.length ? (
+                          <div className="script-placeholder-grid">
+                            {script.placeholders.map((placeholder) => (
+                              <label key={placeholder}>
+                                {placeholder}
+                                <input value={placeholderValues[key]?.[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [key]: { ...(current[key] ?? {}), [placeholder]: event.target.value } }))} />
+                              </label>
+                            ))}
+                          </div>
+                        ) : null}
+                        <div className="script-preview">
+                          <MarkdownContent content={renderScript(script.body, placeholderValues[key] ?? {})} />
+                        </div>
+                        <div className="row-actions">
+                          <button className={copyFeedback === key ? "script-copy-button copied" : "script-copy-button"} type="button" onClick={() => void copyPersonalScript(script)} title="Copiar script pessoal">
+                            {copyFeedback === key ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                            <span className="sr-only">Copiar script pessoal</span>
+                          </button>
+                          <button className="secondary" type="button" disabled={saving || Boolean(script.suggestion)} onClick={() => void suggestPersonalScript(script.id)}>
+                            {script.suggestion ? "Sugerido" : "Sugerir canon"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {visiblePersonalScripts.length ? null : <p className="muted">Nenhum script pessoal para este fluxo.</p>}
+                </div>
+                <form className="service-flow-personal-form" onSubmit={createPersonalScript}>
+                  <div className="form-grid">
+                    <label>Título<input value={personalDraft.title} onChange={(event) => setPersonalDraft((current) => ({ ...current, title: event.target.value }))} /></label>
+                    <label>Canal<select value={personalDraft.channel} onChange={(event) => setPersonalDraft((current) => ({ ...current, channel: event.target.value }))}>{["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"].map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+                    <label>Fluxos relacionados<select multiple value={personalDraft.flowIds} onChange={(event) => setPersonalDraft((current) => ({ ...current, flowIds: Array.from(event.target.selectedOptions).map((option) => option.value) }))}>{flows.map((flow) => <option key={flow.id} value={flow.id}>{flow.title}</option>)}</select></label>
+                    <label>Tags<input value={personalDraft.tags} onChange={(event) => setPersonalDraft((current) => ({ ...current, tags: event.target.value }))} placeholder="saude, troca, prazo" /></label>
+                  </div>
+                  <MarkdownEditor
+                    label="Texto pessoal"
+                    rows={4}
+                    value={personalDraft.body}
+                    onChange={(body) => setPersonalDraft((current) => ({ ...current, body }))}
+                    onUploadImage={(file) => uploadWikiImage(file)}
+                  />
+                  <button disabled={saving || !personalDraft.title.trim() || !personalDraft.body.trim()}>Salvar script pessoal</button>
+                </form>
               </div>
             </>
           ) : <OperationalState state="empty" title="Selecione um fluxo" />}
