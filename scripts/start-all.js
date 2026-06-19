@@ -147,6 +147,10 @@ function openLocalFile(filePath) {
   openUrl(pathToFileURL(resolve(rootDir, filePath)).href);
 }
 
+function openIfExists(filePath) {
+  openLocalFile(filePath);
+}
+
 function fileUrl(filePath) {
   return pathToFileURL(resolve(rootDir, filePath)).href;
 }
@@ -257,6 +261,20 @@ function writeLocalWorkbenchPage() {
 
 function openGeneratedArtifacts() {
   openLocalFile(localWorkbenchPath);
+  openIfExists("docs/generated/typedoc/index.html");
+  openIfExists("docs/architecture/testing-and-docs.md");
+  openIfExists("docs/testing/strategy.md");
+  openIfExists("docs/testing/playwright-ci.md");
+  openIfExists("docs/performance/README.md");
+  openIfExists("docs/security/external-exposure-release-gate.md");
+  openIfExists("docs/operations/backup-restore-runbook.md");
+  openIfExists("playwright-report/index.html");
+  openIfExists("test-results/playwright-report/index.html");
+  openIfExists("coverage/index.html");
+  openIfExists("services/api/coverage/index.html");
+  openIfExists("apps/web/coverage/index.html");
+  const latestPerfHtml = latestFile("docs/performance/reports", (name) => name.endsWith(".html"));
+  if (latestPerfHtml) openUrl(pathToFileURL(latestPerfHtml).href);
 }
 
 async function waitForUrl(url, { timeoutMs = 30_000, intervalMs = 750 } = {}) {

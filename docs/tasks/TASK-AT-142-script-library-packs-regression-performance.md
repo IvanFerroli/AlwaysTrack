@@ -1,10 +1,11 @@
 # TASK-AT-142 - Scriptoteca: regressao e stress dos pacotes
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-18
+- last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-142-script-library-packs-regression-performance.md
+- execution-log: docs/tasks/EXEC-AT-142-script-library-packs-regression-performance.md
 
 ## Modo
 - mode: quality
@@ -62,6 +63,13 @@ As tasks `TASK-AT-126`, `TASK-AT-140` e `TASK-AT-141` consolidaram pacotes de sc
 2. Cenários Artillery atualizados.
 3. Docs de performance/cobertura atualizados.
 4. Roadmap atualizado.
+
+## Resultado
+- Regressao API cobre criacao, edicao, reordenacao, listagem e copia de scripts em pacotes.
+- Smoke browser foi ampliado para navegar Avisos, Fluxos e Scriptoteca, mas a validacao local segue bloqueada por `libnspr4.so` ausente no Chromium.
+- Artillery smoke inclui Fluxos, Scriptoteca e copia de script com captura dinamica de `scriptId`.
+- Cenario `perf:1000` inclui Fluxos e Scriptoteca como leitura de baixa frequencia.
+- `npm run up` e `perf-report` abrem artefatos HTML/docs/reports no navegador quando disponiveis.
 
 ## Validacao
 - comandos/checks: `npm run test:e2e:api`, `npm run test:e2e:smoke`, `npm run perf:smoke:report -- --target=http://localhost:3333`

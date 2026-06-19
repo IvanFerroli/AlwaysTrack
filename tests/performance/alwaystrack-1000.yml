@@ -45,4 +45,8 @@ scenarios:
               url: "/v1/wiki/pages"
           - get:
               url: "/v1/faq/threads"
+          - get:
+              url: "/v1/service-flows"
+          - get:
+              url: "/v1/script-library"
         count: 4

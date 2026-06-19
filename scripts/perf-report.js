@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const rootDir = resolve(import.meta.dirname, "..");
 
@@ -22,13 +23,29 @@ const args = process.argv.slice(3);
 const targetArg = args.find((arg) => arg.startsWith("--target="));
 const target = targetArg?.slice("--target=".length);
 const quiet = args.includes("--quiet");
+const noOpen = args.includes("--no-open");
 const seedPassword = process.env.SEED_ADMIN_PASSWORD;
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const reportsDir = resolve(rootDir, "docs/performance/reports");
 
 function usage() {
-  console.error("Usage: node scripts/perf-report.js <smoke|1000> --target=<api-url>");
+  console.error("Usage: node scripts/perf-report.js <smoke|1000> --target=<api-url> [--quiet] [--no-open]");
   process.exit(1);
+}
+
+function openUrl(url) {
+  const command =
+    process.platform === "darwin"
+      ? "open"
+      : process.platform === "win32"
+        ? "cmd"
+        : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  try {
+    execFileSync(command, args, { stdio: "ignore" });
+  } catch {
+    // Browser opening is best effort only.
+  }
 }
 
 function isLocalTarget(value) {
@@ -242,3 +259,6 @@ writeFileSync(
 
 console.log(`[perf-report] wrote ${summaryPath}`);
 console.log(`[perf-report] wrote ${htmlPath}`);
+if (!noOpen) {
+  openUrl(pathToFileURL(htmlPath).href);
+}

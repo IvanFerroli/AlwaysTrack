@@ -1,8 +1,8 @@
 config:
   target: "http://localhost:3333"
   phases:
-    - duration: 10
-      arrivalRate: 2
+    - duration: 6
+      arrivalRate: 1
       name: local smoke
   http:
     cookieJar: true
@@ -29,5 +29,17 @@ scenarios:
           url: "/v1/wiki/pages"
       - get:
           url: "/v1/faq/threads"
+      - get:
+          url: "/v1/service-flows"
+      - get:
+          url: "/v1/script-library"
+          capture:
+            - json: "$.data.scripts[0].id"
+              as: "scriptId"
+      - post:
+          url: "/v1/script-library/scripts/{{ scriptId }}/copy"
+          json:
+            renderedText: "Smoke local de copia da Scriptoteca"
+            placeholders: {}
       - get:
           url: "/v1/in-app-notifications"

@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: performance-maintainers
-- last-updated: 2026-06-18
+- last-updated: 2026-06-19
 
 ## Ferramenta
 Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
@@ -11,8 +11,8 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 ## Comandos
 - `npm run perf:smoke`: carga baixa local contra `http://localhost:3333`.
 - `npm run perf:1000 -- --target=<url>`: benchmark de leitura autenticada contra ambiente alvo.
-- `npm run perf:smoke:report -- --target=<url>`: gera JSON/HTML proprio/snapshot diagnostico para smoke local ou stage leve.
-- `npm run perf:1000:report -- --target=<url>`: gera JSON/HTML proprio/snapshot para ambiente stage/producao-like; falha se o alvo for localhost.
+- `npm run perf:smoke:report -- --target=<url>`: gera JSON/HTML proprio/snapshot diagnostico para smoke local ou stage leve e abre o HTML no navegador.
+- `npm run perf:1000:report -- --target=<url>`: gera JSON/HTML proprio/snapshot para ambiente stage/producao-like, abre o HTML no navegador e falha se o alvo for localhost.
 - `npm run up`: dispara automaticamente um smoke local de carga depois que a API responde, salvo `--no-perf-smoke`.
 
 ## Preparacao
@@ -20,8 +20,17 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
    `npm run up -- --skip-install --no-studio --no-open`
 2. Por padrao o `up` ja roda `scripts/perf-report.js smoke --quiet` em background e abre o HTML gerado. Para rodar manualmente:
    `SEED_ADMIN_PASSWORD=AlwaysTrackDev123! npm run perf:smoke:report -- --target=http://localhost:3333`
-3. Para ambiente remoto, passe `--target` e garanta um usuario admin de teste com a senha em `SEED_ADMIN_PASSWORD`.
-4. Para relatorios versionaveis operacionalmente, use o template `docs/performance/report-template.md`; os artefatos gerados ficam em `docs/performance/reports/` e nao devem ser commitados.
+3. Use `--no-open` quando quiser gerar relatorio sem abrir o navegador.
+4. Para ambiente remoto, passe `--target` e garanta um usuario admin de teste com a senha em `SEED_ADMIN_PASSWORD`.
+5. Para relatorios versionaveis operacionalmente, use o template `docs/performance/report-template.md`; os artefatos gerados ficam em `docs/performance/reports/` e nao devem ser commitados.
+
+## Cobertura atual do smoke
+- Login autenticado com cookie jar.
+- Dashboard, ranking e extratos.
+- Wiki e FAQ.
+- Fluxos de atendimento.
+- Scriptoteca, incluindo captura de um script e copia auditavel.
+- Notificacoes in-app.
 
 ## SLO inicial
 - p95 read API <= 500 ms no ambiente alvo.

@@ -28,6 +28,24 @@ type InAppNotification = {
   readAt: string | null;
 };
 
+type ScriptCategory = {
+  id: string;
+  name: string;
+};
+
+type OperationalScript = {
+  id: string;
+  title: string;
+  usageCount: number;
+};
+
+type ScriptPack = {
+  id: string;
+  title: string;
+  summary: string | null;
+  items: Array<{ script: OperationalScript; order: number }>;
+};
+
 test.describe("AlwaysTrack API e2e regression flows", () => {
   test("FAQ thread can be commented, reacted, promoted to Wiki and notify the author", async ({ request, playwright }) => {
     await loginAsAdminApi(request);
@@ -146,5 +164,89 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
     const listedUser = listed.users.find((user) => user.email === email);
     expect(listedUser).toBeTruthy();
     expect(listedUser?.passwordHash).toBeUndefined();
+  });
+
+  test("admin can create, reorder and use Scriptoteca packs", async ({ request }) => {
+    await loginAsAdminApi(request);
+    const suffix = `${Date.now()}-${test.info().workerIndex}`;
+
+    const categoryResult = await expectOk<{ category: ScriptCategory }>(
+      await request.post("/v1/script-library/categories", {
+        data: {
+          name: `E2E Roteiros ${suffix}`,
+          slug: `e2e-roteiros-${suffix}`,
+          description: "Categoria temporaria para regressao de pacotes."
+        }
+      })
+    );
+
+    const firstScript = await expectOk<{ script: OperationalScript }>(
+      await request.post("/v1/script-library/scripts", {
+        data: {
+          categoryId: categoryResult.category.id,
+          title: `E2E Saudacao ${suffix}`,
+          channel: "WHATSAPP",
+          body: "Ola {nome_cliente}, vamos conferir seu atendimento.",
+          tags: ["e2e", "pacote"],
+          status: "VALIDATED"
+        }
+      })
+    );
+
+    const secondScript = await expectOk<{ script: OperationalScript }>(
+      await request.post("/v1/script-library/scripts", {
+        data: {
+          categoryId: categoryResult.category.id,
+          title: `E2E Fechamento ${suffix}`,
+          channel: "WHATSAPP",
+          body: "Fechamos por aqui, {nome_cliente}.",
+          tags: ["e2e", "pacote"],
+          status: "VALIDATED"
+        }
+      })
+    );
+
+    const createdPack = await expectOk<{ pack: ScriptPack }>(
+      await request.post("/v1/script-library/packs", {
+        data: {
+          categoryId: categoryResult.category.id,
+          title: `E2E Pacote ${suffix}`,
+          summary: "Roteiro criado por regressao API.",
+          tags: ["e2e", "pacote"],
+          status: "ACTIVE",
+          scriptIds: [firstScript.script.id, secondScript.script.id]
+        }
+      })
+    );
+    expect(createdPack.pack.items.map((item) => item.script.id)).toEqual([firstScript.script.id, secondScript.script.id]);
+
+    const updatedPack = await expectOk<{ pack: ScriptPack }>(
+      await request.patch(`/v1/script-library/packs/${createdPack.pack.id}`, {
+        data: {
+          categoryId: categoryResult.category.id,
+          title: `E2E Pacote ${suffix}`,
+          summary: "Roteiro reordenado por regressao API.",
+          tags: ["e2e", "pacote", "reordenado"],
+          status: "ACTIVE",
+          scriptIds: [secondScript.script.id, firstScript.script.id]
+        }
+      })
+    );
+    expect(updatedPack.pack.items.map((item) => item.script.id)).toEqual([secondScript.script.id, firstScript.script.id]);
+
+    const listed = await expectOk<{ packs: ScriptPack[] }>(
+      await request.get("/v1/script-library", { params: { query: `E2E Pacote ${suffix}` } })
+    );
+    expect(listed.packs.some((pack) => pack.id === createdPack.pack.id)).toBe(true);
+
+    const copied = await expectOk<{ script: OperationalScript }>(
+      await request.post(`/v1/script-library/scripts/${secondScript.script.id}/copy`, {
+        data: {
+          renderedText: "Fechamos por aqui, Maria.",
+          placeholders: { nome_cliente: "Maria" }
+        }
+      })
+    );
+    expect(copied.script.usageCount).toBeGreaterThanOrEqual(secondScript.script.usageCount + 1);
   });
 });
