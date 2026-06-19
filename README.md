@@ -1,78 +1,78 @@
 # AlwaysTrack
 
-AlwaysTrack e uma plataforma interna para operacao comercial, governanca de conhecimento e atendimento assistido. O produto nasceu para resolver duas dores principais dentro da Always Fit:
+AlwaysTrack é uma plataforma interna para operação comercial, governança de conhecimento e atendimento assistido. O produto nasceu para resolver duas dores principais dentro da Always Fit:
 
-1. Toda venda com nota deve virar ranking confiavel, auditavel e acionavel.
-2. Todo conhecimento solto deve virar FAQ/Wiki/Scriptoteca consultavel, vivo e governado.
+1. Toda venda com nota deve virar ranking confiável, auditável e acionável.
+2. Todo conhecimento solto deve virar FAQ/Wiki/Scriptoteca consultável, vivo e governado.
 
-Na pratica, o AlwaysTrack junta em uma unica ferramenta:
+Na prática, o AlwaysTrack junta em uma única ferramenta:
 
-- upload e revisao de DANFEs/NFs;
-- extracao deterministica e por IA;
-- aprovacao/rejeicao com comentario;
-- ranking explicavel por vendedor, periodo e campanha;
-- extratos e exportacoes;
+- upload e revisão de DANFEs/NFs;
+- extração determinística e por IA;
+- aprovação/rejeição com comentário;
+- ranking explicável por vendedor, período e campanha;
+- extratos e exportações;
 - timeline/auditoria de notas;
 - Wiki versionada;
-- FAQ com threads, reacoes e promocao para Wiki;
+- FAQ com threads, reações e promoção para Wiki;
 - Avisos internos;
-- Scriptoteca do SAC com scripts prontos, placeholders, sugestoes, pacotes e scripts pessoais;
+- Scriptoteca do SAC com scripts prontos, placeholders, sugestões, pacotes e scripts pessoais;
 - Fluxos de atendimento guiado;
-- notificacoes in-app;
-- configuracoes administrativas, usuarios, roles e matriz de permissoes.
+- notificações in-app;
+- configurações administrativas, usuários, roles e matriz de permissões.
 
-Este README e o mapa de corpo inteiro do projeto. Para detalhes mais especificos, veja tambem:
+Este README é o mapa de corpo inteiro do projeto. Para detalhes mais específicos, veja também:
 
 - [Roadmap de tasks](docs/tasks/ROADMAP.md)
-- [Mapa de dominios](docs/architecture/domains.md)
-- [Mapa de manutencao](docs/architecture/maintenance-map.md)
+- [Mapa de domínios](docs/architecture/domains.md)
+- [Mapa de manutenção](docs/architecture/maintenance-map.md)
 - [Onboarding TypeDoc](docs/architecture/onboarding-typedoc.md)
-- [Checklist rapido de diagnostico](docs/architecture/quick-diagnostic-checklist.md)
+- [Checklist rápido de diagnóstico](docs/architecture/quick-diagnostic-checklist.md)
 - [Threat model](docs/security/threat-model.md)
-- [Gate antes de exposicao externa](docs/security/external-exposure-release-gate.md)
-- [Prontidao Postgres/storage](docs/operations/production-postgres-storage-readiness.md)
+- [Gate antes de exposição externa](docs/security/external-exposure-release-gate.md)
+- [Prontidão Postgres/storage](docs/operations/production-postgres-storage-readiness.md)
 - [Runbook de backup/restore](docs/operations/backup-restore-runbook.md)
 - [Demo guiada](docs/demo/guided-demo-script.md)
 
-## Estado de Referencia deste README
+## Estado de Referência deste README
 
-Este README deve ser lido como documentacao do proximo estado operacional do AlwaysTrack: considere que o `.env` ja foi preenchido corretamente para o ambiente alvo, incluindo Google Login, Postgres, S3-compatible storage, Redis/BullMQ, secrets fortes e URLs HTTPS.
+Este README deve ser lido como documentação do próximo estado operacional do AlwaysTrack: considere que o `.env` já foi preenchido corretamente para o ambiente alvo, incluindo Google Login, Postgres, S3-compatible storage, Redis/BullMQ, secrets fortes e URLs HTTPS.
 
-Isso significa que a narrativa principal aqui nao e "como o prototipo roda localmente", e sim "como o produto deve operar quando estiver preparado para uso interno serio". O modo local continua documentado porque ele e essencial para desenvolvimento, demo e manutencao, mas o estado de referencia e o ambiente configurado.
+Isso significa que a narrativa principal aqui não é "como o protótipo roda localmente", e sim "como o produto deve operar quando estiver preparado para uso interno sério". O modo local continua documentado porque ele é essencial para desenvolvimento, demo e manutenção, mas o estado de referência é o ambiente configurado.
 
-Resumo do estado de referencia:
+Resumo do estado de referência:
 
-- autenticacao por email/senha e Google Login corporativo;
-- dominio Google restrito a `alwaysfit.com.br`;
+- autenticação por email/senha e Google Login corporativo;
+- domínio Google restrito a `alwaysfit.com.br`;
 - banco alvo em Postgres gerenciado;
 - storage alvo em S3-compatible privado;
 - filas alvo em Redis/BullMQ;
-- IA configuravel por provider;
+- IA configurável por provider;
 - HTTPS, CORS restrito e session secret forte;
-- backup e restore dry-run tratados como obrigatorios antes de dados reais;
-- observabilidade, auditoria e checks de seguranca como parte do processo.
+- backup e restore dry-run tratados como obrigatórios antes de dados reais;
+- observabilidade, auditoria e checks de segurança como parte do processo.
 
-## Estado Atual do Codigo
+## Estado Atual do Código
 
-O AlwaysTrack esta em estado de MVP avancado/produto interno em consolidacao. Ele nao deve mais ser tratado como prototipo simples.
+O AlwaysTrack está em estado de MVP avançado/produto interno em consolidação. Ele não deve mais ser tratado como protótipo simples.
 
-O produto ja possui:
+O produto já possui:
 
 - frontend React modularizado por views;
-- API Express com dominios separados;
+- API Express com domínios separados;
 - Prisma local-first com SQLite;
 - migrations versionadas;
 - seed comercial;
 - auditoria;
-- notificacoes;
-- seguranca de sessao, CSRF/origin guard, headers, rate limit e validacao runtime em fatias criticas;
-- docs de arquitetura, seguranca, operacao, performance e tarefas;
-- testes unitarios, regressao API, smoke Playwright, relatorios Artillery e coverage HTML;
+- notificações;
+- segurança de sessão, CSRF/origin guard, headers, rate limit e validação runtime em fatias críticas;
+- docs de arquitetura, segurança, operação, performance e tarefas;
+- testes unitários, regressão API, smoke Playwright, relatórios Artillery e coverage HTML;
 - workbench local via `npm run up`;
 - provider de storage local e adapter S3-compatible;
-- preflight para migracao futura para Postgres.
+- preflight para migração futura para Postgres.
 
-O backlog ativo esta praticamente limpo. No repositorio, o unico item restante e a migracao real para Postgres, que fica registrada como dependente de infraestrutura externa. Para leitura deste README, assuma que a infraestrutura/env do proximo estado ja foi resolvida; para execucao tecnica, use o preflight:
+O backlog ativo está praticamente limpo. No repositório, o único item restante é a migração real para Postgres, que fica registrada como dependente de infraestrutura externa. Para leitura deste README, assuma que a infraestrutura/env do próximo estado já foi resolvida; para execução técnica, use o preflight:
 
 - `TASK-AT-149-prod-postgres-migration-execution.md`
 - status: `blocked-external-infra-ready`
@@ -88,97 +88,97 @@ AlwaysTrack deve parecer a nova forma correta de operar:
 - atendimento SAC;
 - conhecimento operacional;
 - comunicados internos;
-- auditoria e governanca.
+- auditoria e governança.
 
-O produto evita depender de planilhas soltas, mensagens perdidas e conhecimento tribal. O objetivo e transformar cada acao relevante em dado estruturado, revisavel e rastreavel.
+O produto evita depender de planilhas soltas, mensagens perdidas e conhecimento tribal. O objetivo é transformar cada ação relevante em dado estruturado, revisável e rastreável.
 
 ## Fluxos Principais
 
-### 1. DANFE -> revisao -> aprovacao -> ranking -> extrato -> auditoria
+### 1. DANFE -> revisão -> aprovação -> ranking -> extrato -> auditoria
 
 Fluxo ideal:
 
 1. Vendedor ou admin sobe DANFE/PDF/XML.
 2. API valida arquivo, tamanho, tipo real e escopo.
-3. Sistema extrai dados de forma deterministica quando possivel.
+3. Sistema extrai dados de forma determinística quando possível.
 4. IA entra como apoio quando configurada.
-5. Nota entra em fila de revisao.
+5. Nota entra em fila de revisão.
 6. SAC/Financeiro/Supervisor/Admin revisa.
 7. Nota pode ser aprovada, rejeitada, revisada ou comentada.
 8. Itens aprovados alimentam ranking/campanhas.
 9. Extratos e dashboards refletem apenas dados aceitos.
-10. Timeline e auditoria provam quem fez o que, quando e por que.
+10. Timeline e auditoria provam quem fez o que, quando e por quê.
 
 Conceitos importantes:
 
 - `SalesDocument`: nota/DANFE enviada.
-- `SalesItem`: itens extraidos/aprovados.
+- `SalesItem`: itens extraídos/aprovados.
 - `SellerProfile`: vendedor operacional.
 - `SalesGroup`: grupo comercial.
 - `SalesCampaign`: regra comercial.
-- `RankingSnapshot`: congelamento historico do ranking.
-- `DocumentAiExtraction`: historico de extracao IA.
-- `AuditLog`: trilha auditavel.
+- `RankingSnapshot`: congelamento histórico do ranking.
+- `DocumentAiExtraction`: histórico de extração IA.
+- `AuditLog`: trilha auditável.
 
-### 2. Duvida operacional -> FAQ -> curadoria -> Wiki validada
+### 2. Dúvida operacional -> FAQ -> curadoria -> Wiki validada
 
 Fluxo ideal:
 
-1. Usuario abre uma pergunta na FAQ.
-2. Outros usuarios comentam, reagem e ajudam.
-3. Usuario superior pode moderar status.
+1. Usuário abre uma pergunta na FAQ.
+2. Outros usuários comentam, reagem e ajudam.
+3. Usuário superior pode moderar status.
 4. Pergunta resolvida pode ser promovida para Wiki.
 5. FAQ continua existindo, mas passa a apontar para a Wiki criada.
-6. Wiki passa por governanca, revisoes, comentarios e historico.
+6. Wiki passa por governança, revisões, comentários e histórico.
 
 Conceitos importantes:
 
 - `FaqThread`: pergunta/thread.
-- `FaqComment`: resposta/comentario.
-- `FaqReaction`: reacao.
-- `WikiPage`: pagina publicada.
-- `WikiEditRequest`: proposta de alteracao.
-- `WikiRevision`: versao historica.
+- `FaqComment`: resposta/comentário.
+- `FaqReaction`: reação.
+- `WikiPage`: página publicada.
+- `WikiEditRequest`: proposta de alteração.
+- `WikiRevision`: versão histórica.
 
 ### 3. Atendimento SAC -> Fluxo -> Scriptoteca -> atendimento padronizado
 
 Fluxo ideal:
 
 1. Atendente escolhe um fluxo de atendimento.
-2. Fluxo apresenta etapas, decisoes, checklists e orientacoes.
+2. Fluxo apresenta etapas, decisões, checklists e orientações.
 3. Cada etapa pode sugerir scripts relacionados.
 4. Atendente preenche placeholders do script.
 5. Sistema gera texto limpo por canal.
-6. Copia e uso ficam rastreaveis em metricas.
+6. Copia e uso ficam rastreáveis em métricas.
 7. Atendente pode criar scripts pessoais privados.
-8. Scripts pessoais podem virar sugestao para admin canonizar.
+8. Scripts pessoais podem virar sugestão para admin canonizar.
 
 Conceitos importantes:
 
 - `ServiceFlow`: fluxo de atendimento.
 - `ServiceFlowStep`: etapa.
-- `ServiceFlowSession`: execucao auditavel de um fluxo.
-- `OperationalScript`: script canonico da Scriptoteca.
-- `PersonalScript`: script privado de um usuario.
+- `ServiceFlowSession`: execução auditável de um fluxo.
+- `OperationalScript`: script canônico da Scriptoteca.
+- `PersonalScript`: script privado de um usuário.
 - `ScriptPack`: roteiro/pacote de scripts.
-- `OperationalScriptSuggestion`: sugestao para governanca.
+- `OperationalScriptSuggestion`: sugestão para governança.
 
-### 4. Avisos -> ciencia -> notificacoes
+### 4. Avisos -> ciência -> notificações
 
 Fluxo ideal:
 
 1. Admin/Gestor cria aviso.
-2. Aviso pode ter Markdown, tags, links e vigencia.
-3. Aviso aparece na area de Avisos e na Central Operacional Hoje.
-4. Usuarios recebem notificacao.
-5. Aviso pode exigir ciencia.
-6. Auditoria registra publicacao e arquivamento.
+2. Aviso pode ter Markdown, tags, links e vigência.
+3. Aviso aparece na área de Avisos e na Central Operacional Hoje.
+4. Usuários recebem notificação.
+5. Aviso pode exigir ciência.
+6. Auditoria registra publicação e arquivamento.
 
 Conceitos importantes:
 
 - `Announcement`: aviso/comunicado.
-- `AnnouncementReadReceipt`: leitura/ciencia.
-- `InAppNotification`: notificacao interna.
+- `AnnouncementReadReceipt`: leitura/ciência.
+- `InAppNotification`: notificação interna.
 
 ## Arquitetura
 
@@ -205,22 +205,22 @@ Local principal:
 apps/web/src/
 ```
 
-Caracteristicas:
+Características:
 
 - React 19;
 - Vite;
 - TypeScript;
-- views separadas por dominio;
+- views separadas por domínio;
 - cliente API central em `apps/web/src/api.ts`;
-- componentes reutilizaveis como Markdown editor, notificacoes e layout;
+- componentes reutilizáveis como Markdown editor, notificações e layout;
 - CSS principal em `apps/web/src/styles.css`;
-- icones com `lucide-react`.
+- ícones com `lucide-react`.
 
 Views importantes:
 
 - `dashboard.tsx`: Central/Dashboard comercial.
-- `notes.tsx`: upload, revisao, diagnostico e timeline de notas.
-- `ranking.tsx`: ranking explicavel.
+- `notes.tsx`: upload, revisão, diagnóstico e timeline de notas.
+- `ranking.tsx`: ranking explicável.
 - `statements.tsx`: extratos.
 - `campaigns.tsx`: campanhas comerciais.
 - `wiki.tsx`: Wiki.
@@ -228,9 +228,9 @@ Views importantes:
 - `announcements.tsx`: Avisos.
 - `script-library.tsx`: Scriptoteca.
 - `service-flows.tsx`: Fluxos de atendimento.
-- `users-teams.tsx`: usuarios, vendedores e grupos.
+- `users-teams.tsx`: usuários, vendedores e grupos.
 - `profile.tsx`: perfil.
-- `settings.tsx`: configuracoes.
+- `settings.tsx`: configurações.
 - `audit.tsx`: auditoria.
 
 ### API
@@ -241,17 +241,17 @@ Local principal:
 services/api/src/
 ```
 
-Padrao:
+Padrão:
 
 - `app.ts` registra rotas, middlewares, auth, roles e rate limits.
-- cada dominio tem `*.service.ts` para regra de negocio;
-- cada dominio tem `*.handlers.ts` para HTTP;
+- cada domínio tem `*.service.ts` para regra de negocio;
+- cada domínio tem `*.handlers.ts` para HTTP;
 - testes ficam perto dos services;
 - Prisma Client e usado via `services/api/src/core/db/prisma.ts`;
 - auditoria central via `recordAuditLog`;
-- notificacoes via dominio de notifications.
+- notificações via domínio de notifications.
 
-Dominios principais:
+Domínios principais:
 
 ```text
 services/api/src/core/auth
@@ -281,11 +281,11 @@ packages/shared/src/
 Guarda contratos compartilhados entre API e Web:
 
 - roles comerciais;
-- tipos de usuario;
+- tipos de usuário;
 - payloads comuns;
 - enums/constantes transversais.
 
-Evite duplicar role string diretamente no frontend ou backend quando ja houver contrato compartilhado.
+Evite duplicar role string diretamente no frontend ou backend quando já houver contrato compartilhado.
 
 ## Banco de Dados
 
@@ -309,9 +309,9 @@ Estado local de desenvolvimento:
 - seed comercial default;
 - legado SyLembra default-off.
 
-Estado de referencia/alvo:
+Estado de referência/alvo:
 
-- Postgres gerenciado em staging/producao;
+- Postgres gerenciado em staging/produção;
 - `DATABASE_URL` apontando para `postgresql://...` no ambiente alvo;
 - preflight pronto via `npm run db:postgres:preflight`;
 - SQLite preservado apenas para desenvolvimento local e demo.
@@ -337,7 +337,7 @@ Conhecimento:
 - `FaqComment`
 - `FaqReaction`
 
-Operacao:
+Operação:
 
 - `Announcement`
 - `AnnouncementReadReceipt`
@@ -354,7 +354,7 @@ Operacao:
 - `PersonalScript`
 - `OperationalAttachment`
 
-Seguranca/auditoria:
+Segurança/auditoria:
 
 - `User`
 - `Organization`
@@ -375,33 +375,33 @@ services/api/src/core/documents/storage.provider.ts
 Providers:
 
 - `local`: default para desenvolvimento.
-- `s3`: adapter S3-compatible para producao/staging.
+- `s3`: adapter S3-compatible para produção/staging.
 
-Arquivos sensiveis:
+Arquivos sensíveis:
 
 - DANFEs/PDF/XML;
 - imagens da Wiki;
 - anexos operacionais de Avisos, FAQ, Fluxos e Scriptoteca;
-- avatars/configuracoes quando aplicavel.
+- avatars/configurações quando aplicável.
 
 Importante:
 
 - storage local grava em `.storage/private`;
 - storage externo deve ser bucket privado;
 - download deve continuar autenticado/proxiado pela API;
-- nao commitar `.storage`, bancos locais, backups ou arquivos fiscais.
+- não commitar `.storage`, bancos locais, backups ou arquivos fiscais.
 
-## Autenticacao e Autorizacao
+## Autenticação e Autorização
 
 ### Login tradicional
 
-Existe login por email/senha com sessao por cookie. Admin pode resetar senha de usuarios.
+Existe login por email/senha com sessão por cookie. Admin pode resetar senha de usuários.
 
 ### Login com Google
 
-O projeto tambem suporta login com Google restrito por dominio corporativo.
+O projeto também suporta login com Google restrito por domínio corporativo.
 
-Variaveis:
+Variáveis:
 
 ```env
 GOOGLE_LOGIN_CLIENT_ID=""
@@ -416,7 +416,7 @@ Redirect local esperado:
 GOOGLE_LOGIN_REDIRECT_URI="http://localhost:3333/v1/auth/google/callback"
 ```
 
-Redirect de producao esperado:
+Redirect de produção esperado:
 
 ```env
 GOOGLE_LOGIN_REDIRECT_URI="https://SEU_DOMINIO/v1/auth/google/callback"
@@ -435,7 +435,7 @@ Roles comerciais canonicas:
 - `GESTOR`
 - `ADMIN`
 
-A matriz visual/canonica fica em:
+A matriz visual/canônica fica em:
 
 ```text
 docs/security/commercial-permission-matrix.md
@@ -444,13 +444,13 @@ docs/security/commercial-permission-matrix.md
 Regra geral:
 
 - `VENDEDOR`: envia e acompanha suas notas.
-- `SAC`: consulta conhecimento, scriptoteca, fluxos e pode apoiar revisao.
+- `SAC`: consulta conhecimento, scriptoteca, fluxos e pode apoiar revisão.
 - `SUPERVISOR`: opera time/grupo e acompanha ranking.
-- `FINANCEIRO`: foco em notas, extratos e revisao financeira.
-- `GESTOR`: operacao ampla, campanhas, comunicados e governanca.
-- `ADMIN`: usuarios, configuracoes, auditoria, Wiki publicada e integracoes.
+- `FINANCEIRO`: foco em notas, extratos e revisão financeira.
+- `GESTOR`: operação ampla, campanhas, comunicados e governança.
+- `ADMIN`: usuários, configurações, auditoria, Wiki publicada e integrações.
 
-## Configuracao de Ambiente
+## Configuração de Ambiente
 
 Arquivo base:
 
@@ -466,7 +466,7 @@ Arquivo local:
 
 Nunca commite `.env`, secrets, bancos locais ou arquivos fiscais.
 
-### Local minimo
+### Local mínimo
 
 Para rodar local com defaults:
 
@@ -487,9 +487,9 @@ JOB_QUEUE_DRIVER="inline"
 ENABLE_LEGACY_SYLEMBRA="false"
 ```
 
-### Env do estado de referencia
+### Env do estado de referência
 
-Para o estado de referencia deste README, considere este bloco preenchido com valores reais no secret manager ou no ambiente de deploy. Os valores abaixo mostram formato e intencao, nao secrets reais:
+Para o estado de referência deste README, considere este bloco preenchido com valores reais no secret manager ou no ambiente de deploy. Os valores abaixo mostram formato e intencao, não secrets reais:
 
 ```env
 NODE_ENV="production"
@@ -519,7 +519,7 @@ REDIS_URL="redis://..."
 JOB_CONCURRENCY="2"
 ```
 
-### Grupos de variaveis
+### Grupos de variáveis
 
 API:
 
@@ -645,7 +645,7 @@ Subir bancada completa:
 npm run up
 ```
 
-O `npm run up` e a bancada de estudo local. Ele foi pensado para abrir o que der no navegador: app, Prisma Studio, docs, reports existentes e outros artefatos locais quando disponiveis.
+O `npm run up` e a bancada de estudo local. Ele foi pensado para abrir o que der no navegador: app, Prisma Studio, docs, reports existentes e outros artefatos locais quando disponíveis.
 
 Rodar API:
 
@@ -723,7 +723,7 @@ Postgres preflight:
 npm run db:postgres:preflight
 ```
 
-Seguranca:
+Segurança:
 
 ```bash
 npm run env:check
@@ -765,14 +765,14 @@ npm run smoke:google-sheets
 
 Camadas existentes:
 
-- unitarios com Vitest;
+- unitários com Vitest;
 - testes de services;
-- testes de validacao runtime;
+- testes de validação runtime;
 - testes de auth/users/sales/wiki/faq/notifications;
 - testes de migrations;
 - Playwright API;
 - Playwright browser smoke;
-- Artillery smoke e cenarios de carga;
+- Artillery smoke e cenários de carga;
 - coverage HTML da API;
 - TypeDoc para onboarding.
 
@@ -781,49 +781,49 @@ Onde procurar:
 - `services/api/src/**/*.test.ts`
 - `tests/e2e/`
 - `tests/performance/`
-- `coverage/` ou relatorios gerados localmente
+- `coverage/` ou relatórios gerados localmente
 - `docs/architecture/testing-and-docs.md`
 - `docs/architecture/recent-test-doc-coverage-audit.md`
 
-Regra pratica:
+Regra prática:
 
 - mexeu em service: teste service.
 - mexeu em rota: teste handler/API quando houver risco.
-- mexeu em UI: typecheck web e, se fluxo critico, Playwright.
+- mexeu em UI: typecheck web e, se fluxo crítico, Playwright.
 - mexeu em banco: `npm run db:test:migrations`.
-- mexeu em seguranca: rode o gate relacionado e atualize docs.
+- mexeu em segurança: rode o gate relacionado e atualize docs.
 - mexeu em performance: meca antes/depois.
 
-## Seguranca
+## Segurança
 
-O AlwaysTrack lida com dados sensiveis:
+O AlwaysTrack lida com dados sensíveis:
 
 - NFs/DANFEs;
 - valores comerciais;
 - ranking;
-- usuarios;
+- usuários;
 - documentos;
 - scripts internos;
 - comunicados;
 - conhecimento operacional.
 
-Controles ja implementados/documentados:
+Controles já implementados/documentados:
 
-- cookie de sessao;
+- cookie de sessão;
 - roles e `requireRole`;
-- Google Login restrito por dominio;
+- Google Login restrito por domínio;
 - CSRF/origin guard;
 - security headers;
 - CORS restrito;
 - rate limit por classe de rota;
-- validacao runtime de payload em fatias criticas;
+- validação runtime de payload em fatias críticas;
 - upload hardening com MIME e magic bytes;
 - auditoria;
-- notificacoes;
+- notificações;
 - logs com preocupacao de redaction;
 - dependency audit;
 - runbook de incidente;
-- release gate antes de exposicao externa.
+- release gate antes de exposição externa.
 
 Docs principais:
 
@@ -857,25 +857,25 @@ npm run db:postgres:preflight
 
 Meta declarada do produto:
 
-- caminhar para suportar cerca de 1000 usuarios simultaneos sem lentidao perceptivel.
+- caminhar para suportar cerca de 1000 usuários simultaneos sem lentidao perceptivel.
 
-Ja existe:
+Já existe:
 
-- paginacao server-side em telas criticas;
+- paginação server-side em telas críticas;
 - filtros combinados em varias telas;
 - observabilidade HTTP/Prisma;
-- painel minimo de observabilidade operacional;
+- painel mínimo de observabilidade operacional;
 - Artillery smoke/report;
-- BullMQ piloto/validacao com Redis;
-- jobs para ranking snapshots e notificacoes.
+- BullMQ piloto/validação com Redis;
+- jobs para ranking snapshots e notificações.
 
-Pontos de atencao:
+Pontos de atenção:
 
-- SQLite e adequado para local/demo, nao para producao multiusuario real.
+- SQLite e adequado para local/demo, não para produção multiusuario real.
 - Para escala real, migrar para Postgres gerenciado.
 - Para arquivos reais, usar S3-compatible privado.
 - Para jobs reais, usar Redis/BullMQ.
-- Para benchmark 1000, nao confiar em localhost como unica evidencia.
+- Para benchmark 1000, não confiar em localhost como única evidência.
 
 Docs:
 
@@ -883,14 +883,14 @@ Docs:
 - `docs/performance/observability-report-2026-06-09.md`
 - `docs/operations/production-postgres-storage-readiness.md`
 
-## IA e Extracao de DANFE
+## IA e Extração de DANFE
 
-O AlwaysTrack usa uma estrategia hibrida:
+O AlwaysTrack usa uma estratégia hibrida:
 
-1. extracao deterministica quando possivel;
+1. extração determinística quando possível;
 2. fallback/apoio por IA quando configurada;
-3. diagnostico e reprocessamento observaveis;
-4. correcao manual auditavel.
+3. diagnóstico e reprocessamento observáveis;
+4. correção manual auditável.
 
 Providers:
 
@@ -900,7 +900,7 @@ DOCUMENT_AI_PROVIDER="gemini"
 DOCUMENT_AI_PROVIDER="openai"
 ```
 
-Variaveis:
+Variáveis:
 
 ```env
 DOCUMENT_AI_MODEL="gemini-2.5-flash"
@@ -908,21 +908,21 @@ GEMINI_API_KEY=""
 OPENAI_API_KEY=""
 ```
 
-Para dados fiscais reais, trate IA como integracao externa sensivel. Revise:
+Para dados fiscais reais, trate IA como integração externa sensível. Revise:
 
 - `docs/security/external-integrations-security-review.md`
 - `docs/tasks/EXEC-AT-114-external-integrations-webhooks-and-ai-security.md`
 
 ## Legado SyLembra
 
-O projeto reaproveitou base de outro dominio, SyLembra/licencas/compliance. Esse legado nao e o foco atual do AlwaysTrack.
+O projeto reaproveitou base de outro domínio, SyLembra/licencas/compliance. Esse legado não e o foco atual do AlwaysTrack.
 
 Regra:
 
-- manter compatibilidade quando necessario;
-- nao usar profissionais, licencas, RT, COREN, vencimento ou regularizacao como backlog ativo;
+- manter compatibilidade quando necessário;
+- não usar profissionais, licencas, RT, COREN, vencimento ou regularizacao como backlog ativo;
 - manter `ENABLE_LEGACY_SYLEMBRA=false` por default;
-- so ativar legado para testes especificos.
+- só ativar legado para testes específicos.
 
 ## Como Manter Sem Quebrar
 
@@ -941,9 +941,9 @@ Valide:
 
 - dedupe;
 - upload;
-- extracao;
+- extração;
 - reprocessamento;
-- aprovacao/rejeicao;
+- aprovação/rejeição;
 - ranking;
 - timeline;
 - auditoria.
@@ -960,7 +960,7 @@ apps/web/src/views/ranking.tsx
 Cuidados:
 
 - apenas notas aprovadas devem entrar;
-- periodo e campanhas precisam ser explicaveis;
+- período e campanhas precisam ser explicáveis;
 - ranking precisa provar composicao quando contestado.
 
 ### Wiki/FAQ
@@ -978,10 +978,10 @@ Cuidados:
 
 - slug;
 - tenant;
-- revisoes;
-- comentarios;
-- promocao FAQ -> Wiki;
-- notificacoes;
+- revisões;
+- comentários;
+- promoção FAQ -> Wiki;
+- notificações;
 - tags e busca.
 
 ### Avisos
@@ -995,10 +995,10 @@ apps/web/src/views/announcements.tsx
 
 Cuidados:
 
-- vigencia;
-- ciencia;
+- vigência;
+- ciência;
 - links profundos;
-- notificacoes;
+- notificações;
 - status/arquivamento.
 
 ### Scriptoteca
@@ -1013,13 +1013,13 @@ apps/web/src/views/script-library.tsx
 Cuidados:
 
 - copia em um clique;
-- placeholders obrigatorios;
+- placeholders obrigatórios;
 - formatacao por canal;
 - scripts pessoais;
-- sugestoes;
-- revisao/validade;
+- sugestões;
+- revisão/validade;
 - pacotes/roteiros;
-- metricas.
+- métricas.
 
 ### Fluxos
 
@@ -1033,13 +1033,13 @@ apps/web/src/views/service-flows.tsx
 Cuidados:
 
 - etapas;
-- decisoes sim/nao/manual;
-- sessoes auditaveis;
+- decisões sim/não/manual;
+- sessões auditáveis;
 - scripts relacionados;
-- metricas;
-- governanca.
+- métricas;
+- governança.
 
-### Usuarios/Roles
+### Usuários/Roles
 
 Comece por:
 
@@ -1052,7 +1052,7 @@ apps/web/src/views/users-teams.tsx
 Cuidados:
 
 - nunca retornar `passwordHash`;
-- preservar vendedor/grupo historico;
+- preservar vendedor/grupo histórico;
 - revisar `requireRole`;
 - testar reset de senha e login.
 
@@ -1087,7 +1087,7 @@ Para entender o projeto do zero:
 9. Leia a TypeDoc gerada.
 10. Rode `npm run test --workspace @alwaystrack/api`.
 11. Rode `npm run typecheck --workspaces --if-present`.
-12. Escolha um dominio e leia service + view correspondentes.
+12. Escolha um domínio e leia service + view correspondentes.
 
 ## Demonstração Interna
 
@@ -1095,33 +1095,33 @@ Jornada recomendada para apresentar:
 
 1. Central Operacional Hoje.
 2. Nota pendente.
-3. Diagnostico/extracao.
-4. Revisao e aprovacao.
+3. Diagnóstico/extração.
+4. Revisão e aprovação.
 5. Ranking alterado.
-6. Ranking explicavel.
+6. Ranking explicável.
 7. Timeline/auditoria da nota.
 8. FAQ com pergunta.
-9. Promocao para Wiki.
+9. Promoção para Wiki.
 10. Aviso interno.
 11. Scriptoteca e Fluxo de atendimento.
-12. Notificacoes/historico.
-13. Matriz de permissoes.
-14. Observabilidade/configuracoes.
+12. Notificações/histórico.
+13. Matriz de permissões.
+14. Observabilidade/configurações.
 
 Docs:
 
 - `docs/demo/guided-demo-script.md`
 - `docs/demo/always-track-demo-checklist.md`
 
-## Deploy e Producao
+## Deploy e Produção
 
-No estado de referencia deste README, o deploy ja deve considerar:
+No estado de referência deste README, o deploy já deve considerar:
 
 1. Postgres gerenciado.
 2. S3-compatible privado.
 3. Redis gerenciado para BullMQ.
 4. HTTPS.
-5. Google Login restrito ao dominio.
+5. Google Login restrito ao domínio.
 6. `SESSION_SECRET` forte.
 7. `CORS_ORIGIN` exato.
 8. `VITE_API_BASE_URL` HTTPS.
@@ -1141,7 +1141,7 @@ npm run db:test:migrations
 npm run test:e2e:api
 ```
 
-Nota operacional: no repositorio, `TASK-AT-149` registra a passagem real para Postgres como dependente de infraestrutura. Este README, por pedido de produto, descreve o ambiente alvo como se essa camada de `.env` e infraestrutura ja estivesse decidida. Ao executar de fato, confirme com `npm run db:postgres:preflight`.
+Nota operacional: no repositório, `TASK-AT-149` registra a passagem real para Postgres como dependente de infraestrutura. Este README, por pedido de produto, descreve o ambiente alvo como se essa camada de `.env` e infraestrutura já estivesse decidida. Ao executar de fato, confirme com `npm run db:postgres:preflight`.
 
 ## Mapa de API
 
@@ -1151,7 +1151,7 @@ O registro central de rotas fica em:
 services/api/src/app.ts
 ```
 
-Se uma tela nao chama o endpoint esperado, ou se uma permissao parece estranha, comece por esse arquivo. Ele mostra:
+Se uma tela não chama o endpoint esperado, ou se uma permissão parece estranha, comece por esse arquivo. Ele mostra:
 
 - rota;
 - metodo HTTP;
@@ -1161,46 +1161,46 @@ Se uma tela nao chama o endpoint esperado, ou se uma permissao parece estranha, 
 - parser de body;
 - handler final.
 
-### Rotas publicas sempre ativas
+### Rotas públicas sempre ativas
 
 | Metodo | Rota | Uso | Risco principal |
 | --- | --- | --- | --- |
 | `GET` | `/health` | healthcheck | revela disponibilidade |
 | `POST` | `/v1/auth/login` | login email/senha | brute force |
-| `GET` | `/v1/auth/google/status` | informa se Google Login esta ativo | baixo |
+| `GET` | `/v1/auth/google/status` | informa se Google Login está ativo | baixo |
 | `GET` | `/v1/auth/google/start` | inicia OAuth Google | redirect/state |
 | `GET` | `/v1/auth/google/callback` | callback OAuth Google | login indevido se mal configurado |
-| `GET` | `/v1/integrations/google/oauth/callback` | callback da integracao Google/Sheets | state/token |
+| `GET` | `/v1/integrations/google/oauth/callback` | callback da integração Google/Sheets | state/token |
 | `GET` | `/v1/webhooks/meta-whatsapp` | verificacao webhook Meta | verify token |
 | `POST` | `/v1/webhooks/meta-whatsapp` | entrada webhook Meta | assinatura/payload |
 
-### Rotas publicas condicionais ao legado
+### Rotas públicas condicionais ao legado
 
-So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
+Só devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 
 | Metodo | Rota | Uso | Observacao |
 | --- | --- | --- | --- |
-| `GET` | `/v1/public-upload/:token` | upload publico legado | fora do core AlwaysTrack |
+| `GET` | `/v1/public-upload/:token` | upload público legado | fora do core AlwaysTrack |
 | `POST` | `/v1/public-upload/:token` | envio anonimo legado | alto cuidado |
-| `GET` | `/v1/public-faq` | FAQ publica legada | evitar em produto comercial |
-| `POST` | `/v1/public-help/wa-link` | link WhatsApp legado | evitar exposicao sem necessidade |
+| `GET` | `/v1/public-faq` | FAQ pública legada | evitar em produto comercial |
+| `POST` | `/v1/public-help/wa-link` | link WhatsApp legado | evitar exposição sem necessidade |
 
 ### Auth e perfil
 
 | Metodo | Rota | Quem usa | O que faz |
 | --- | --- | --- | --- |
-| `POST` | `/v1/auth/logout` | logado | encerra sessao |
-| `GET` | `/v1/auth/me` | logado | retorna usuario atual |
+| `POST` | `/v1/auth/logout` | logado | encerra sessão |
+| `GET` | `/v1/auth/me` | logado | retorna usuário atual |
 | `GET` | `/v1/profile` | logado | dados do perfil |
 | `PATCH` | `/v1/profile` | logado | atualiza perfil |
 
-### Operacao executiva
+### Operação executiva
 
 | Metodo | Rota | Quem usa | O que faz |
 | --- | --- | --- | --- |
 | `GET` | `/v1/operations/today` | roles comerciais | Central Operacional Hoje |
 | `GET` | `/v1/search` | roles comerciais | busca global |
-| `GET` | `/v1/diagnostics/http-metrics` | Admin | metricas HTTP |
+| `GET` | `/v1/diagnostics/http-metrics` | Admin | métricas HTTP |
 | `GET` | `/v1/diagnostics/operations` | Admin | observabilidade operacional |
 | `GET` | `/v1/audit-logs` | Admin | trilha de auditoria |
 
@@ -1216,16 +1216,16 @@ So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 | `POST` | `/v1/sales/campaigns/:campaignId/snapshots` | gera snapshot |
 | `GET` | `/v1/sales/campaigns/:campaignId/snapshots/job` | status do job |
 | `GET` | `/v1/sales/ranking` | ranking |
-| `GET` | `/v1/sales/ranking/:sellerProfileId/explanation` | composicao auditavel |
+| `GET` | `/v1/sales/ranking/:sellerProfileId/explanation` | composicao auditável |
 | `GET` | `/v1/sales/ranking.csv` | export CSV de ranking |
-| `GET` | `/v1/sales/sellers` | opcoes de vendedores |
+| `GET` | `/v1/sales/sellers` | opções de vendedores |
 | `GET` | `/v1/sales/statements` | extratos |
 | `GET` | `/v1/sales/statements.csv` | export CSV de extratos |
 | `GET` | `/v1/sales/documents` | fila/lista de notas |
 | `POST` | `/v1/sales/documents` | upload de DANFE/XML/PDF |
-| `GET` | `/v1/sales/documents/:documentId/diagnostics` | diagnostico de extracao |
+| `GET` | `/v1/sales/documents/:documentId/diagnostics` | diagnóstico de extração |
 | `GET` | `/v1/sales/documents/:documentId/timeline` | timeline da nota |
-| `PATCH` | `/v1/sales/documents/:documentId/manual-correction` | correcao manual auditavel |
+| `PATCH` | `/v1/sales/documents/:documentId/manual-correction` | correção manual auditável |
 | `POST` | `/v1/sales/documents/:documentId/analyze` | reprocessamento/IA |
 | `PATCH` | `/v1/sales/documents/:documentId/review` | aprova/rejeita/revisa |
 
@@ -1234,19 +1234,19 @@ So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 | Metodo | Rota | O que faz |
 | --- | --- | --- |
 | `GET` | `/v1/wiki/pages` | lista Wiki |
-| `POST` | `/v1/wiki/pages` | cria pagina |
+| `POST` | `/v1/wiki/pages` | cria página |
 | `GET` | `/v1/wiki/pages/by-slug/:slug` | abre Wiki por slug |
 | `GET` | `/v1/wiki/pages/:pageId` | detalhe Wiki |
 | `PATCH` | `/v1/wiki/pages/:pageId` | edita Wiki |
 | `POST` | `/v1/wiki/pages/:pageId/archive` | arquiva |
 | `POST` | `/v1/wiki/pages/:pageId/unarchive` | desarquiva |
-| `POST` | `/v1/wiki/pages/:pageId/revisions/:revisionId/restore` | restaura revisao |
+| `POST` | `/v1/wiki/pages/:pageId/revisions/:revisionId/restore` | restaura revisão |
 | `POST` | `/v1/wiki/pages/:pageId/read` | registra leitura |
-| `POST` | `/v1/wiki/pages/:pageId/presence` | presenca leitura/edicao |
+| `POST` | `/v1/wiki/pages/:pageId/presence` | presenca leitura/edição |
 | `POST` | `/v1/wiki/attachments` | upload de imagem Wiki |
 | `GET` | `/v1/wiki/attachments/:attachmentId/file` | download autenticado |
-| `DELETE` | `/v1/wiki/attachments/:attachmentId` | arquivamento auditavel |
-| `GET` | `/v1/wiki/edit-requests` | propostas de edicao |
+| `DELETE` | `/v1/wiki/attachments/:attachmentId` | arquivamento auditável |
+| `GET` | `/v1/wiki/edit-requests` | propostas de edição |
 | `POST` | `/v1/wiki/edit-requests` | cria proposta |
 | `POST` | `/v1/wiki/edit-requests/:requestId/approve` | aprova proposta |
 | `POST` | `/v1/wiki/edit-requests/:requestId/reject` | rejeita proposta |
@@ -1265,29 +1265,29 @@ So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 | `POST` | `/v1/announcements` | cria aviso |
 | `GET` | `/v1/announcements/by-slug/:slug` | abre por slug |
 | `PATCH` | `/v1/announcements/:announcementId` | edita aviso |
-| `POST` | `/v1/announcements/:announcementId/publish` | publica |
+| `POST` | `/v1/announcements/:announcementId/publish` | pública |
 | `POST` | `/v1/announcements/:announcementId/archive` | arquiva |
-| `POST` | `/v1/announcements/:announcementId/acknowledge` | registra ciencia |
+| `POST` | `/v1/announcements/:announcementId/acknowledge` | registra ciência |
 
 ### Scriptoteca
 
 | Metodo | Rota | O que faz |
 | --- | --- | --- |
-| `GET` | `/v1/script-library` | lista categorias/scripts/pacotes/metricas |
+| `GET` | `/v1/script-library` | lista categorias/scripts/pacotes/métricas |
 | `GET` | `/v1/script-library/personal-scripts` | scripts pessoais |
 | `POST` | `/v1/script-library/personal-scripts` | cria script pessoal |
 | `POST` | `/v1/script-library/personal-scripts/:personalScriptId/suggest` | sugere ao admin |
 | `POST` | `/v1/script-library/categories` | cria categoria |
 | `POST` | `/v1/script-library/packs` | cria pacote/roteiro |
 | `PATCH` | `/v1/script-library/packs/:packId` | edita/reordena pacote |
-| `POST` | `/v1/script-library/suggestions` | cria sugestao |
-| `POST` | `/v1/script-library/suggestions/:suggestionId/decision` | decide sugestao |
-| `POST` | `/v1/script-library/scripts` | cria script canonico |
+| `POST` | `/v1/script-library/suggestions` | cria sugestão |
+| `POST` | `/v1/script-library/suggestions/:suggestionId/decision` | decide sugestão |
+| `POST` | `/v1/script-library/scripts` | cria script canônico |
 | `PATCH` | `/v1/script-library/scripts/:scriptId` | edita script |
 | `POST` | `/v1/script-library/scripts/:scriptId/validate` | valida |
 | `POST` | `/v1/script-library/scripts/:scriptId/obsolete` | obsoleta |
 | `POST` | `/v1/script-library/scripts/:scriptId/recertify` | recertifica |
-| `POST` | `/v1/script-library/scripts/:scriptId/revisions/:revisionId/restore` | restaura revisao |
+| `POST` | `/v1/script-library/scripts/:scriptId/revisions/:revisionId/restore` | restaura revisão |
 | `POST` | `/v1/script-library/scripts/:scriptId/copy` | registra copia |
 
 ### Fluxos de atendimento
@@ -1295,16 +1295,16 @@ So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 | Metodo | Rota | O que faz |
 | --- | --- | --- |
 | `GET` | `/v1/service-flows` | lista fluxos |
-| `GET` | `/v1/service-flows/metrics/summary` | metricas |
+| `GET` | `/v1/service-flows/metrics/summary` | métricas |
 | `GET` | `/v1/service-flows/:flowIdOrSlug` | detalhe por id/slug |
 | `POST` | `/v1/service-flows` | cria fluxo |
 | `PATCH` | `/v1/service-flows/:flowId` | edita fluxo |
-| `POST` | `/v1/service-flows/:flowId/publish` | publica |
+| `POST` | `/v1/service-flows/:flowId/publish` | pública |
 | `POST` | `/v1/service-flows/:flowId/archive` | arquiva |
 | `POST` | `/v1/service-flows/:flowIdOrSlug/sessions` | inicia atendimento |
-| `GET` | `/v1/service-flow-sessions/:sessionId` | detalhe da sessao |
+| `GET` | `/v1/service-flow-sessions/:sessionId` | detalhe da sessão |
 | `POST` | `/v1/service-flow-sessions/:sessionId/steps/:stepId` | atualiza etapa |
-| `POST` | `/v1/service-flow-sessions/:sessionId/complete` | finaliza sessao |
+| `POST` | `/v1/service-flow-sessions/:sessionId/complete` | finaliza sessão |
 
 ### Anexos operacionais
 
@@ -1318,22 +1318,22 @@ So devem aparecer quando `ENABLE_LEGACY_SYLEMBRA=true`.
 
 | Metodo | Rota | O que faz |
 | --- | --- | --- |
-| `GET` | `/v1/organization` | organizacao |
-| `PATCH` | `/v1/organization` | atualiza organizacao |
-| `GET` | `/v1/organization/settings` | configuracoes |
-| `PATCH` | `/v1/organization/settings` | atualiza configuracoes |
+| `GET` | `/v1/organization` | organização |
+| `PATCH` | `/v1/organization` | atualiza organização |
+| `GET` | `/v1/organization/settings` | configurações |
+| `PATCH` | `/v1/organization/settings` | atualiza configurações |
 | `POST` | `/v1/organization/units` | cria unidade legada |
 | `PATCH` | `/v1/organization/units/:unitId` | edita unidade |
 | `POST` | `/v1/organization/units/:unitId/sectors` | cria setor |
 | `PATCH` | `/v1/organization/sectors/:sectorId` | edita setor |
-| `GET` | `/v1/users` | lista usuarios |
-| `GET` | `/v1/users/commercial-options` | opcoes para vinculos comerciais |
-| `POST` | `/v1/users` | cria usuario |
-| `PATCH` | `/v1/users/:userId` | edita usuario |
+| `GET` | `/v1/users` | lista usuários |
+| `GET` | `/v1/users/commercial-options` | opções para vínculos comerciais |
+| `POST` | `/v1/users` | cria usuário |
+| `PATCH` | `/v1/users/:userId` | edita usuário |
 | `POST` | `/v1/users/:userId/reset-password` | reset de senha |
-| `GET` | `/v1/integrations/google/status` | status integracao Sheets/Drive |
-| `GET` | `/v1/integrations/google/oauth/start` | inicia OAuth integracao |
-| `DELETE` | `/v1/integrations/google` | desconecta integracao |
+| `GET` | `/v1/integrations/google/status` | status integração Sheets/Drive |
+| `GET` | `/v1/integrations/google/oauth/start` | inicia OAuth integração |
+| `DELETE` | `/v1/integrations/google` | desconecta integração |
 
 ## Ciclos de Vida das Entidades
 
@@ -1351,21 +1351,21 @@ UPLOADED -> PENDING_REVIEW -> APPROVED
 Eventos esperados:
 
 1. upload salva arquivo em storage;
-2. extracao deterministica tenta preencher campos;
+2. extração determinística tenta preencher campos;
 3. IA pode complementar;
 4. revisor decide;
-5. decisao registra comentario;
+5. decisão registra comentário;
 6. ranking/extrato consideram apenas aprovadas;
-7. timeline agrega eventos do documento, extracao e auditoria.
+7. timeline agrega eventos do documento, extração e auditoria.
 
 Quebras comuns:
 
-- arquivo nao bate com MIME;
-- PDF sem texto nao extrai;
+- arquivo não bate com MIME;
+- PDF sem texto não extrai;
 - chave de acesso ausente;
 - nota marcada duplicada por chave real;
 - vendedor errado;
-- periodo/campanha fora do filtro;
+- período/campanha fora do filtro;
 - reprocessamento sem output por provider IA/env.
 
 ### WikiPage
@@ -1377,12 +1377,12 @@ active=true  -> publicada
 active=false -> arquivada
 ```
 
-Governanca:
+Governança:
 
-- Admin cria/publica;
-- usuarios contribuem via `WikiEditRequest`;
-- aprovacao/rejeicao pode ter comentario;
-- revisoes preservam historico;
+- Admin cria/pública;
+- usuários contribuem via `WikiEditRequest`;
+- aprovação/rejeição pode ter comentário;
+- revisões preservam histórico;
 - slug publicado deve abrir por `/wiki/:slug` no frontend;
 - leitura/presenca podem ser registradas.
 
@@ -1395,11 +1395,11 @@ OPEN -> ANSWERED -> RESOLVED
                  -> PROMOTED_TO_WIKI
 ```
 
-Governanca:
+Governança:
 
 - qualquer role comercial pode perguntar/comentar/reagir;
 - roles superiores moderam status;
-- promocao gera Wiki, mas nao apaga a FAQ;
+- promoção gera Wiki, mas não apaga a FAQ;
 - backlink preserva origem.
 
 ### Announcement
@@ -1412,11 +1412,11 @@ DRAFT -> PUBLISHED -> ARCHIVED
 
 Regras:
 
-- pode ter vigencia;
-- pode exigir ciencia;
+- pode ter vigência;
+- pode exigir ciência;
 - pode ter links profundos;
 - pode aparecer na Central Hoje;
-- pode gerar notificacoes.
+- pode gerar notificações.
 
 ### OperationalScript
 
@@ -1427,23 +1427,23 @@ DRAFT -> VALIDATED -> NEEDS_REVIEW
                   -> OBSOLETE
 ```
 
-Governanca:
+Governança:
 
 - scripts tem canal;
 - scripts podem ter placeholders;
 - scripts podem ter validade/recertificacao;
-- cada copia incrementa metrica;
-- sugestoes podem virar canon;
-- revisoes podem ser restauradas por Admin.
+- cada copia incrementa métrica;
+- sugestões podem virar canon;
+- revisões podem ser restauradas por Admin.
 
 ### PersonalScript
 
 Uso:
 
-- pertence a um usuario;
+- pertence a um usuário;
 - pode estar ligado a zero, um ou varios fluxos;
 - e privado;
-- pode ser sugerido para virar script canonico.
+- pode ser sugerido para virar script canônico.
 
 ### ServiceFlow
 
@@ -1453,20 +1453,20 @@ Estados praticos:
 DRAFT -> PUBLISHED -> ARCHIVED
 ```
 
-Execucao:
+Execução:
 
 - fluxo tem etapas;
-- etapa pode ser manual, checklist ou decisao;
-- sessao registra atendimento real;
+- etapa pode ser manual, checklist ou decisão;
+- sessão registra atendimento real;
 - etapas podem ter scripts relacionados;
-- metricas mostram uso.
+- métricas mostram uso.
 
 ### OperationalAttachment
 
 Uso:
 
 - imagens de Avisos, FAQ, Fluxos e Scriptoteca;
-- separado de `WikiAttachment` para nao misturar semantica;
+- separado de `WikiAttachment` para não misturar semântica;
 - download autenticado;
 - arquivamento preserva storage e auditoria.
 
@@ -1503,15 +1503,15 @@ Se quebrar, confira nesta ordem:
 
 1. request no navegador;
 2. rota em `app.ts`;
-3. role do usuario;
+3. role do usuário;
 4. MIME/body;
 5. storage provider;
 6. registro `SalesDocument`;
 7. logs/auditoria;
-8. extracao;
-9. notificacao.
+8. extração;
+9. notificação.
 
-### Aprovacao de nota
+### Aprovação de nota
 
 ```text
 NotesView
@@ -1524,16 +1524,16 @@ NotesView
   -> dashboard/ranking/extrato
 ```
 
-Se o ranking nao mexer:
+Se o ranking não mexer:
 
 - confirme `status=APPROVED`;
-- confirme periodo;
+- confirme período;
 - confirme vendedor;
 - confirme campaign;
 - confirme se item aprovado tem valor/quantidade;
 - confira endpoint de ranking com os mesmos filtros.
 
-### Promocao FAQ para Wiki
+### Promoção FAQ para Wiki
 
 ```text
 FaqView
@@ -1548,10 +1548,10 @@ FaqView
 Se o link quebrar:
 
 - conferir slug;
-- conferir pagina ativa;
-- conferir permissao;
+- conferir página ativa;
+- conferir permissão;
 - conferir route frontend `/wiki/:slug`;
-- conferir se FAQ preservou referencia.
+- conferir se FAQ preservou referência.
 
 ### Copia de script
 
@@ -1566,18 +1566,18 @@ ScriptLibraryView
 
 Se copiar texto incompleto:
 
-- conferir placeholders obrigatorios;
+- conferir placeholders obrigatórios;
 - conferir valores no state da UI;
 - conferir formatacao por canal;
-- conferir se Markdown esta sendo removido quando necessario.
+- conferir se Markdown está sendo removido quando necessário.
 
 ## Env: Onde Pegar Cada Coisa
 
-Esta secao e para o "estado seguinte" do projeto. Nao cole valores reais em chat externo; use este mapa para saber onde buscar.
+Está seção é para o "estado seguinte" do projeto. Não cole valores reais em chat externo; use este mapa para saber onde buscar.
 
 ### Google Login
 
-Variaveis:
+Variáveis:
 
 ```env
 GOOGLE_LOGIN_CLIENT_ID=""
@@ -1606,13 +1606,13 @@ Prod:     https://SEU_DOMINIO/v1/auth/google/callback
 Cuidados:
 
 - redirect precisa ser exatamente igual;
-- dominio permitido no app e `alwaysfit.com.br`;
-- OAuth client de login e diferente de service account;
-- se usar o mesmo OAuth client da integracao Google, confira os redirects de ambos.
+- domínio permitido no app e `alwaysfit.com.br`;
+- OAuth client de login é diferente de service account;
+- se usar o mesmo OAuth client da integração Google, confira os redirects de ambos.
 
 ### Google Sheets/Drive
 
-Variaveis de OAuth usuario/admin:
+Variáveis de OAuth usuário/admin:
 
 ```env
 GOOGLE_CLIENT_ID=""
@@ -1621,7 +1621,7 @@ GOOGLE_REDIRECT_URI=""
 GOOGLE_TOKEN_ENCRYPTION_KEY=""
 ```
 
-Variaveis de service account:
+Variáveis de service account:
 
 ```env
 GOOGLE_APPLICATION_CREDENTIALS=""
@@ -1639,10 +1639,10 @@ Onde pegar:
 - Folder ID: URL da pasta no Google Drive.
 - Share email: email com quem o template/arquivo deve ser compartilhado.
 
-Decisao pratica:
+Decisão prática:
 
-- Se `GOOGLE_APPLICATION_CREDENTIALS` aponta para um JSON local/secret montado, talvez nao precise preencher `GOOGLE_SERVICE_ACCOUNT_EMAIL` e `GOOGLE_PRIVATE_KEY`.
-- Se nao usar arquivo JSON, preencha email/private key do JSON via env.
+- Se `GOOGLE_APPLICATION_CREDENTIALS` aponta para um JSON local/secret montado, talvez não precise preencher `GOOGLE_SERVICE_ACCOUNT_EMAIL` e `GOOGLE_PRIVATE_KEY`.
+- Se não usar arquivo JSON, preencha email/private key do JSON via env.
 
 ### Gemini/OpenAI
 
@@ -1664,12 +1664,12 @@ OPENAI_API_KEY=""
 Cuidados:
 
 - DANFEs podem conter dados fiscais/comerciais;
-- nao envie dados reais para provider externo sem decisao de seguranca;
-- mantenha fallback deterministico funcionando.
+- não envie dados reais para provider externo sem decisão de segurança;
+- mantenha fallback determinístico funcionando.
 
 ### Meta WhatsApp
 
-Variaveis:
+Variáveis:
 
 ```env
 NOTIFICATION_PROVIDER="meta"
@@ -1690,17 +1690,17 @@ Onde pegar:
 - app secret;
 - token;
 - phone number id;
-- webhook verify token definido por voce.
+- webhook verify token definido por você.
 
 Cuidados:
 
 - webhook POST deve validar assinatura;
-- smoke deve usar numero de teste/autorizado;
-- nao logar token.
+- smoke deve usar número de teste/autorizado;
+- não logar token.
 
 ### Postgres
 
-Variaveis:
+Variáveis:
 
 ```env
 DATABASE_URL="postgresql://..."
@@ -1721,14 +1721,14 @@ Onde pegar:
 
 Cuidados:
 
-- nao usar SQLite em producao real;
-- nao setar flags de backup/restore como true sem evidencia;
+- não usar SQLite em produção real;
+- não setar flags de backup/restore como true sem evidência;
 - rodar `npm run db:postgres:preflight`;
-- migracao real deve ser feita em branch propria.
+- migração real deve ser feita em branch própria.
 
 ### S3-compatible storage
 
-Variaveis:
+Variáveis:
 
 ```env
 STORAGE_PROVIDER="s3"
@@ -1751,13 +1751,13 @@ Onde pegar:
 Cuidados:
 
 - bucket privado;
-- sem acesso publico direto;
+- sem acesso público direto;
 - API continua autenticando download;
-- configurar lifecycle/backup conforme politica interna.
+- configurar lifecycle/backup conforme política interna.
 
 ### Redis/BullMQ
 
-Variaveis:
+Variáveis:
 
 ```env
 JOB_QUEUE_DRIVER="bullmq"
@@ -1780,22 +1780,22 @@ JOB_QUEUE_DRIVER="inline"
 JOB_CONCURRENCY="2"
 ```
 
-## Arvore de Debug
+## Árvore de Debug
 
-### "Nao consigo logar"
+### "Não consigo logar"
 
-1. Veja se `GET /v1/auth/me` retorna 401 ou usuario.
+1. Veja se `GET /v1/auth/me` retorna 401 ou usuário.
 2. Confira `SESSION_SECRET`.
 3. Confira cookie no navegador.
 4. Confira `CORS_ORIGIN`.
-5. Confira usuario `active`.
+5. Confira usuário `active`.
 6. Confira senha/reset.
 7. Para Google:
    - `GOOGLE_LOGIN_CLIENT_ID`;
    - `GOOGLE_LOGIN_CLIENT_SECRET`;
    - `GOOGLE_LOGIN_REDIRECT_URI`;
    - redirect autorizado no Google Cloud;
-   - dominio do email;
+   - domínio do email;
    - `GOOGLE_LOGIN_ALLOWED_DOMAINS`.
 
 ### "Access denied"
@@ -1807,7 +1807,7 @@ JOB_CONCURRENCY="2"
 5. Confira `packages/shared/src`.
 6. Se recurso e por vendedor/grupo, confira escopo no service.
 
-### "Nota subiu mas nao apareceu"
+### "Nota subiu mas não apareceu"
 
 1. Veja response do upload.
 2. Confira `SalesDocument`.
@@ -1815,46 +1815,46 @@ JOB_CONCURRENCY="2"
 4. Confira `status`.
 5. Confira `createdAt/uploadedAt`.
 6. Confira filtro da tela.
-7. Confira pagina atual.
+7. Confira página atual.
 
 ### "Nota duplicou sem motivo"
 
 1. Confira `accessKey`.
 2. Compare `organizationId + accessKey`.
-3. Veja diagnostico.
+3. Veja diagnóstico.
 4. Veja reprocessamento.
 5. Confira se pacote DANFE tinha notas repetidas.
-6. Confira se extracao criou item sem chave.
+6. Confira se extração criou item sem chave.
 
-### "IA nao retornou nada"
+### "IA não retornou nada"
 
 1. Confira `DOCUMENT_AI_PROVIDER`.
 2. Confira API key do provider.
-3. Confira logs de diagnostico.
+3. Confira logs de diagnóstico.
 4. Teste XML conhecido.
-5. Veja se fallback deterministico extraiu algo.
-6. Confira se erro foi registrado como falha observavel.
+5. Veja se fallback determinístico extraiu algo.
+6. Confira se erro foi registrado como falha observável.
 
-### "Ranking esta errado"
+### "Ranking está errado"
 
 1. O vendedor tem `SellerProfile` ativo?
 2. Existem notas `APPROVED`?
-3. Periodo bate?
+3. Período bate?
 4. Campanha bate?
 5. Itens aprovados tem valor?
 6. Ranking explanation mostra a nota?
 7. Extrato usa mesmo range?
 
-### "Wiki por slug nao abre"
+### "Wiki por slug não abre"
 
 1. Confira `slug`.
 2. Confira `active=true`.
 3. Confira `GET /v1/wiki/pages/by-slug/:slug`.
 4. Confira rota frontend.
-5. Confira permissao.
-6. Confira se pagina foi arquivada.
+5. Confira permissão.
+6. Confira se página foi arquivada.
 
-### "Imagem no editor nao aparece"
+### "Imagem no editor não aparece"
 
 1. Wiki usa `/v1/wiki/attachments`.
 2. Avisos/FAQ/Fluxos/Scriptoteca usam `/v1/attachments/operational`.
@@ -1867,30 +1867,30 @@ JOB_CONCURRENCY="2"
 ### "Script copiado ficou estranho"
 
 1. Confira canal.
-2. Confira placeholders obrigatorios.
+2. Confira placeholders obrigatórios.
 3. Confira aviso de Markdown removido.
 4. Confira se state foi preenchido.
-5. Confira script canonico vs pessoal.
+5. Confira script canônico vs pessoal.
 6. Confira pacote/roteiro selecionado.
 
-### "Aviso nao apareceu"
+### "Aviso não apareceu"
 
 1. Status e `PUBLISHED`?
-2. Vigencia comeca no futuro?
+2. Vigência comeca no futuro?
 3. Expirou?
-4. Role alvo inclui usuario?
+4. Role alvo inclui usuário?
 5. Foi arquivado?
-6. Central Hoje esta filtrando corretamente?
+6. Central Hoje está filtrando corretamente?
 
-### "npm run up nao abriu algo"
+### "npm run up não abriu algo"
 
 1. Confira `scripts/start-all.js`.
-2. Confira se a porta ja estava em uso.
+2. Confira se a porta já estava em uso.
 3. Confira se o report existe antes de tentar abrir.
-4. Rode o script especifico do report.
+4. Rode o script específico do report.
 5. Confira logs do terminal.
 
-## Playbooks de Mudanca
+## Playbooks de Mudança
 
 ### Adicionar nova tela
 
@@ -1899,9 +1899,9 @@ JOB_CONCURRENCY="2"
 3. Adicionar item de navegacao se fizer sentido.
 4. Criar endpoint API se houver dado novo.
 5. Definir roles no `app.ts`.
-6. Criar service no dominio correto.
+6. Criar service no domínio correto.
 7. Adicionar teste do service.
-8. Atualizar docs/README se for dominio relevante.
+8. Atualizar docs/README se for domínio relevante.
 
 ### Adicionar novo campo no banco
 
@@ -1909,34 +1909,34 @@ JOB_CONCURRENCY="2"
 2. Criar migration.
 3. Rodar `npm run prisma:generate`.
 4. Rodar `npm run db:test:migrations`.
-5. Ajustar seed se necessario.
+5. Ajustar seed se necessário.
 6. Ajustar service.
 7. Ajustar UI.
 8. Ajustar testes.
 9. Documentar risco de dados antigos.
 
-### Adicionar nova action auditavel
+### Adicionar nova action auditável
 
 1. Definir nome de action consistente.
 2. Chamar `recordAuditLog`.
 3. Incluir `organizationId`, `actorId`, `entityType`, `entityId`.
-4. Metadata deve ser util, mas sem secrets.
-5. Se impactar usuario, avaliar notificacao.
+4. Metadata deve ser útil, mas sem secrets.
+5. Se impactar usuário, avaliar notificação.
 6. Se aparecer na timeline, ajustar agregador.
 
-### Adicionar integracao externa
+### Adicionar integração externa
 
 1. Criar envs no `.env.example`.
 2. Atualizar `scripts/check-env.js`.
-3. Usar timeout via helper externo quando aplicavel.
-4. Redigir logs sem payload sensivel.
+3. Usar timeout via helper externo quando aplicável.
+4. Redigir logs sem payload sensível.
 5. Criar smoke separado.
 6. Documentar onde pegar credenciais.
-7. Adicionar task/runbook se for sensivel.
+7. Adicionar task/runbook se for sensível.
 
 ### Adicionar upload novo
 
-1. Nao confiar no `content-type`.
+1. Não confiar no `content-type`.
 2. Validar magic bytes.
 3. Definir limite por tipo.
 4. Definir surface/entidade.
@@ -1945,16 +1945,16 @@ JOB_CONCURRENCY="2"
 7. Garantir download autenticado.
 8. Testar anti-IDOR.
 
-### Adicionar role/permissao
+### Adicionar role/permissão
 
-1. Comecar em `packages/shared`.
-2. Atualizar matriz de permissao.
+1. Começar em `packages/shared`.
+2. Atualizar matriz de permissão.
 3. Atualizar `requireRole` nas rotas.
 4. Atualizar UI condicional.
 5. Testar role nova e role negada.
-6. Cuidar de dados historicos.
+6. Cuidar de dados históricos.
 
-## Leitura Guiada do Codigo
+## Leitura Guiada do Código
 
 ### Camada 1: contrato mental
 
@@ -1970,7 +1970,7 @@ Objetivo:
 
 - entender por que o produto existe;
 - separar AlwaysTrack atual do legado SyLembra;
-- saber o que ja foi feito.
+- saber o que já foi feito.
 
 ### Camada 2: contratos compartilhados
 
@@ -2002,9 +2002,9 @@ Objetivo:
 - entender rate limits;
 - entender CORS/security/origin.
 
-### Camada 4: dominio
+### Camada 4: domínio
 
-Escolha um dominio e leia service antes da UI:
+Escolha um domínio e leia service antes da UI:
 
 ```text
 services/api/src/core/sales-documents/sales-documents.service.ts
@@ -2017,10 +2017,10 @@ services/api/src/core/service-flows/service-flows.service.ts
 Objetivo:
 
 - regra real;
-- filtro por organizacao;
-- transicoes de status;
+- filtro por organização;
+- transições de status;
 - auditoria;
-- notificacoes.
+- notificações.
 
 ### Camada 5: UI
 
@@ -2050,8 +2050,8 @@ docs/architecture/testing-and-docs.md
 
 Objetivo:
 
-- entender o que esta protegido;
-- entender decisoes antigas;
+- entender o que está protegido;
+- entender decisões antigas;
 - saber onde ampliar cobertura.
 
 ## Estrutura dos Docs
@@ -2075,14 +2075,14 @@ Quando atualizar:
 
 - mudou arquitetura: `docs/architecture`;
 - mudou deploy/ambiente: `docs/operations`;
-- mudou seguranca: `docs/security`;
+- mudou segurança: `docs/security`;
 - mudou fluxo demonstravel: `docs/demo`;
 - mudou backlog: `docs/tasks/ROADMAP.md`;
 - executou task formal: criar/atualizar `EXEC-AT-...`.
 
 ## Glossario de Arquivos
 
-Arquivos que normalmente resolvem 80% das duvidas:
+Arquivos que normalmente resolvem 80% das dúvidas:
 
 ```text
 services/api/src/app.ts
@@ -2110,46 +2110,46 @@ apps/web/src/views/service-flows.tsx
 packages/shared/src/index.ts
 ```
 
-## Definicoes de Pronto
+## Definições de Pronto
 
 ### Feature pequena
 
-- typecheck API/Web passando conforme area;
+- typecheck API/Web passando conforme área;
 - teste de service se tiver regra;
 - UI sem overflow obvio;
-- auditoria se acao sensivel;
+- auditoria se ação sensível;
 - docs se muda fluxo de produto;
-- sem secrets/logs sensiveis.
+- sem secrets/logs sensíveis.
 
-### Feature de dominio
+### Feature de domínio
 
 - migration se precisa;
 - testes de service;
-- teste de permissao/tenant quando ha risco;
+- teste de permissão/tenant quando ha risco;
 - UI integrada;
 - rota com `requireRole`;
 - docs atualizados;
 - roadmap/task atualizado.
 
-### Feature de seguranca
+### Feature de segurança
 
 - threat model ou doc relacionado atualizado;
 - env guard quando envolve secret;
 - teste negativo;
-- validacao de origem/role/tenant;
+- validação de origem/role/tenant;
 - logs sem segredo;
 - rollback claro.
 
 ### Pronto para apresentar
 
 - seed/demo coerente;
-- Central Hoje mostra acao real;
+- Central Hoje mostra ação real;
 - notas/ranking/wiki/faq/scriptoteca tem dados;
 - estados vazios bonitos;
 - nenhum texto estourando;
-- demo script praticavel ponta a ponta.
+- demo script praticável ponta a ponta.
 
-### Pronto para producao real
+### Pronto para produção real
 
 - Postgres gerenciado;
 - S3-compatible privado;
@@ -2161,15 +2161,15 @@ packages/shared/src/index.ts
 - env production validado;
 - preflight Postgres passando;
 - security gate aprovado;
-- carga minima validada;
+- carga mínima validada;
 - incidente/rollback documentados.
 
-## Anti-Padroes
+## Anti-Padrões
 
 Evite:
 
-- criar regra de permissao so no frontend;
-- colocar dado sensivel em log;
+- criar regra de permissão só no frontend;
+- colocar dado sensível em log;
 - salvar arquivo fora do `StorageProvider`;
 - adicionar upload sem magic byte validation;
 - criar status novo sem documentar;
@@ -2181,48 +2181,48 @@ Evite:
 - marcar Postgres como pronto sem banco real;
 - copiar valores de `.env` para chat externo.
 
-## Decisoes Arquiteturais
+## Decisões Arquiteturais
 
 ADRs:
 
-- `ADR-001`: governanca documental operacional.
+- `ADR-001`: governança documental operacional.
 - `ADR-002`: fronteira de template AlwaysTrack.
-- `ADR-003`: contrato de banco de producao.
-- `ADR-004`: contrato de storage de producao.
+- `ADR-003`: contrato de banco de produção.
+- `ADR-004`: contrato de storage de produção.
 - `ADR-005`: filas BullMQ e backpressure.
 
 Diretrizes:
 
 - local-first para desenvolvimento;
-- Postgres para producao real;
-- storage externo para arquivos sensiveis;
+- Postgres para produção real;
+- storage externo para arquivos sensíveis;
 - API como fonte de verdade;
-- UI nao substitui autorizacao;
-- auditoria em acao sensivel;
-- docs e testes acompanham mudancas de dominio;
+- UI não substitui autorização;
+- auditoria em ação sensível;
+- docs e testes acompanham mudanças de domínio;
 - evitar refactor amplo sem ganho claro.
 
-## Glossario Rapido
+## Glossario Rápido
 
-- DANFE: documento auxiliar da nota fiscal eletronica.
+- DANFE: documento auxiliar da nota fiscal eletrônica.
 - Nota aprovada: nota que pode impactar ranking/extrato.
-- Nota rejeitada: nota com motivo/comentario sem impacto no ranking.
-- Ranking explicavel: ranking com composicao auditavel.
-- Timeline da nota: historico visual de eventos da DANFE.
+- Nota rejeitada: nota com motivo/comentário sem impacto no ranking.
+- Ranking explicável: ranking com composicao auditável.
+- Timeline da nota: histórico visual de eventos da DANFE.
 - Wiki: conhecimento validado e versionado.
-- FAQ: duvida/thread colaborativa.
-- Promocao FAQ -> Wiki: acao que transforma uma duvida resolvida em pagina validada.
-- Aviso: comunicado interno com vigencia, links e ciencia.
+- FAQ: dúvida/thread colaborativa.
+- Promoção FAQ -> Wiki: ação que transforma uma dúvida resolvida em página validada.
+- Aviso: comunicado interno com vigência, links e ciência.
 - Scriptoteca: biblioteca de textos prontos do SAC.
 - Script pessoal: script privado de um atendente, opcionalmente ligado a fluxos.
-- Fluxo: atendimento guiado com etapas, decisoes e scripts.
+- Fluxo: atendimento guiado com etapas, decisões e scripts.
 - Attachment operacional: imagem/anexo de Avisos, FAQ, Fluxos e Scriptoteca.
-- Wiki attachment: imagem/anexo proprio da Wiki, mantido separado por compatibilidade.
-- Preflight: script que bloqueia falsa prontidao antes de producao.
+- Wiki attachment: imagem/anexo próprio da Wiki, mantido separado por compatibilidade.
+- Preflight: script que bloqueia falsa prontidão antes de produção.
 
-## Checklist de Saude
+## Checklist de Saúde
 
-Antes de considerar uma entrega saudavel:
+Antes de considerar uma entrega saudável:
 
 ```bash
 git status --short
@@ -2233,7 +2233,7 @@ npm run env:check
 git diff --check
 ```
 
-Antes de producao:
+Antes de produção:
 
 ```bash
 npm run env:check -- --production
@@ -2249,7 +2249,7 @@ Este README descreve o AlwaysTrack como produto interno consolidado no estado al
 - produto interno comercial/operacional;
 - base funcional ampla;
 - backlog funcional quase limpo;
-- env completo para Google Login, Postgres, S3-compatible storage, Redis/BullMQ, IA e integracoes;
+- env completo para Google Login, Postgres, S3-compatible storage, Redis/BullMQ, IA e integrações;
 - local-first preservado para desenvolvimento;
 - preflight e runbooks como guardas antes de dados reais;
-- pronto para uma fase focada em operacao com dados reais, observabilidade real e refinamento de apresentacao.
+- pronto para uma fase focada em operação com dados reais, observabilidade real e refinamento de apresentacao.
