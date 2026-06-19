@@ -1,8 +1,22 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const rootDir = resolve(import.meta.dirname, "..");
+
+function loadDotEnv(filePath = resolve(rootDir, ".env")) {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...rest] = trimmed.split("=");
+    if (process.env[key]) continue;
+    process.env[key] = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+  }
+}
+
+loadDotEnv();
+
 const mode = process.argv[2];
 const args = process.argv.slice(3);
 const targetArg = args.find((arg) => arg.startsWith("--target="));

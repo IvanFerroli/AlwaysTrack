@@ -1,10 +1,24 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = resolve(rootDir, "services/api/prisma/schema.prisma");
 const storagePath = resolve(rootDir, ".storage/private");
+
+function loadDotEnv(filePath = resolve(rootDir, ".env")) {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...rest] = trimmed.split("=");
+    if (process.env[key]) continue;
+    process.env[key] = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+  }
+}
+
+loadDotEnv();
+
 const databaseUrl = process.env.DATABASE_URL ?? "file:./dev.db";
 
 function assertLocalDemoTarget() {

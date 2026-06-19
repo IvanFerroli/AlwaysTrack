@@ -18,6 +18,19 @@ const noPerfSmoke = process.argv.includes("--no-perf-smoke");
 const defaultDatabaseUrl = "file:./dev.db";
 const devSeedPassword = "AlwaysTrackDev123!";
 
+function loadDotEnv(filePath = resolve(rootDir, ".env")) {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...rest] = trimmed.split("=");
+    if (process.env[key]) continue;
+    process.env[key] = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+  }
+}
+
+loadDotEnv();
+
 const env = {
   ...process.env,
   DATABASE_URL: process.env.DATABASE_URL ?? defaultDatabaseUrl,

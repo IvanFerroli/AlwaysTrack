@@ -1,7 +1,29 @@
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { hashPassword } from "../src/core/auth/password.js";
 import { hashUploadToken } from "../src/core/documents/upload-tokens.service.js";
+
+function loadDotEnv() {
+  if (process.env.NODE_ENV === "test") return;
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "../.env"),
+    path.resolve(process.cwd(), "../../.env")
+  ];
+  const envPath = candidates.find((candidate) => existsSync(candidate));
+  if (!envPath) return;
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...rest] = trimmed.split("=");
+    if (process.env[key]) continue;
+    process.env[key] = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+  }
+}
+
+loadDotEnv();
 
 process.env.DATABASE_URL ??= "file:./dev.db";
 
