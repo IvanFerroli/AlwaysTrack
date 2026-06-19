@@ -170,6 +170,22 @@ function latestFile(dirPath, predicate) {
     .sort((left, right) => statSync(right.path).mtimeMs - statSync(left.path).mtimeMs)[0]?.path ?? null;
 }
 
+function recentFiles(dirPath, predicate, limit = 5) {
+  const absolute = resolve(rootDir, dirPath);
+  if (!existsSync(absolute)) return [];
+  return readdirSync(absolute)
+    .map((name) => ({ name, path: resolve(absolute, name) }))
+    .filter((item) => {
+      try {
+        return statSync(item.path).isFile() && predicate(item.name);
+      } catch {
+        return false;
+      }
+    })
+    .sort((left, right) => statSync(right.path).mtimeMs - statSync(left.path).mtimeMs)
+    .slice(0, limit);
+}
+
 function htmlEscape(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -183,6 +199,49 @@ function maybeFileLink(label, filePath) {
     return `<span class="muted">${htmlEscape(label)} indisponivel</span>`;
   }
   return `<a href="${fileUrl(filePath)}">${htmlEscape(label)}</a>`;
+}
+
+function artifactStatus(label, filePath) {
+  const absolute = resolve(rootDir, filePath);
+  if (!existsSync(absolute)) {
+    return `<div class="status missing"><strong>${htmlEscape(label)}</strong><span>Ausente</span><small>${htmlEscape(filePath)}</small></div>`;
+  }
+  const modifiedAt = statSync(absolute).mtime;
+  return `<div class="status ok"><strong>${htmlEscape(label)}</strong><span>Disponivel</span><small>${htmlEscape(modifiedAt.toLocaleString("pt-BR"))}</small>${maybeFileLink("Abrir", filePath)}</div>`;
+}
+
+function siblingReportLinks(filePath) {
+  const withoutExtension = filePath.replace(/\.[^.]+$/, "");
+  return [
+    [".html", "HTML"],
+    [".md", "Resumo"],
+    [".json", "JSON"],
+    [".log", "Log"],
+    ["-diagnostics-before.json", "Diag antes"],
+    ["-diagnostics-after.json", "Diag depois"]
+  ]
+    .map(([suffix, label]) => {
+      const candidate = `${withoutExtension}${suffix}`;
+      return existsSync(candidate) ? `<a href="${pathToFileURL(candidate).href}">${htmlEscape(label)}</a>` : "";
+    })
+    .join("");
+}
+
+function performanceHistory() {
+  const reports = recentFiles("docs/performance/reports", (name) => name.endsWith(".html") || name.endsWith(".md"), 12);
+  const unique = new Map();
+  for (const report of reports) {
+    const key = report.name.replace(/\.(html|md)$/, "");
+    if (!unique.has(key)) unique.set(key, report);
+  }
+  const rows = [...unique.values()].slice(0, 5);
+  if (!rows.length) return `<span class="muted">Nenhum relatorio gerado ainda; o smoke abrira o HTML ao terminar.</span>`;
+  return `<div class="report-list">${rows
+    .map((report, index) => {
+      const modifiedAt = statSync(report.path).mtime.toLocaleString("pt-BR");
+      return `<div class="report-row ${index === 0 ? "latest" : ""}"><div><strong>${htmlEscape(index === 0 ? "Atual" : "Historico")}</strong><span>${htmlEscape(report.name.replace(/\.(html|md)$/, ""))}</span><small>${htmlEscape(modifiedAt)}</small></div><div>${siblingReportLinks(report.path)}</div></div>`;
+    })
+    .join("")}</div>`;
 }
 
 function latestPerformanceLinks() {
@@ -214,6 +273,15 @@ function writeLocalWorkbenchPage() {
     p { color: #637083; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
     .card { border: 1px solid #d7e3e7; border-radius: 8px; padding: 16px; background: #f8fbfb; }
+    .status { border: 1px solid #d7e3e7; border-radius: 8px; padding: 14px; background: #f8fbfb; display: grid; gap: 6px; }
+    .status span { font-weight: 900; }
+    .status.ok span { color: #0b6b4f; }
+    .status.missing span { color: #8a5b00; }
+    .report-list { display: grid; gap: 10px; }
+    .report-row { border: 1px solid #d7e3e7; border-radius: 8px; padding: 14px; background: #f8fbfb; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+    .report-row.latest { border-color: #0b4c5c; box-shadow: inset 4px 0 0 #0b4c5c; }
+    .report-row div:first-child { display: grid; gap: 4px; }
+    .report-row span, .status small, .report-row small { color: #637083; overflow-wrap: anywhere; }
     a { display: inline-flex; margin: 6px 8px 6px 0; padding: 10px 12px; border-radius: 7px; border: 1px solid #c7d8de; color: #0b4c5c; text-decoration: none; font-weight: 800; background: #fff; }
     a.primary { background: #0b4c5c; color: #fff; border-color: #0b4c5c; }
     .muted { color: #7a8798; display: block; margin-top: 8px; }
@@ -242,14 +310,18 @@ function writeLocalWorkbenchPage() {
       <h2>Stress test local</h2>
       <p>O smoke de carga roda em background depois que a API responde. O HTML abaixo abre automaticamente quando o teste termina.</p>
       ${latestPerformanceLinks()}
+      <h2>Historico de carga</h2>
+      ${performanceHistory()}
     </section>
     <section>
-      <h2>Reports existentes</h2>
-      ${maybeFileLink("Playwright report", "playwright-report/index.html")}
-      ${maybeFileLink("Playwright report alternativo", "test-results/playwright-report/index.html")}
-      ${maybeFileLink("Coverage raiz", "coverage/index.html")}
-      ${maybeFileLink("Coverage API", "services/api/coverage/index.html")}
-      ${maybeFileLink("Coverage Web", "apps/web/coverage/index.html")}
+      <h2>Status dos artefatos</h2>
+      <div class="grid">
+        ${artifactStatus("Playwright report", "playwright-report/index.html")}
+        ${artifactStatus("Playwright report alternativo", "test-results/playwright-report/index.html")}
+        ${artifactStatus("Coverage raiz", "coverage/index.html")}
+        ${artifactStatus("Coverage API", "services/api/coverage/index.html")}
+        ${artifactStatus("Coverage Web", "apps/web/coverage/index.html")}
+      </div>
     </section>
   </main>
 </body>

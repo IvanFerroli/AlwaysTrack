@@ -27,6 +27,7 @@
     "test:e2e:smoke": "playwright test tests/e2e/app-smoke.spec.ts --project=desktop",
     "test:e2e:api": "playwright test --project=api",
     "test:all": "npm run check && npm run check:docs",
+    "coverage:html": "npm run coverage:html --workspace @alwaystrack/api",
     "docs:api": "typedoc --options typedoc.json",
     "db:test:migrations": "node scripts/test-migrations.js",
     "repo:hygiene": "node scripts/check-repo-hygiene.js",

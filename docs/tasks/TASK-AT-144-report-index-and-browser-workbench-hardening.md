@@ -1,10 +1,11 @@
 # TASK-AT-144 - Workbench local: indice navegavel de reports
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus-orchestrator
 - priority: medium
 - created: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-144-report-index-and-browser-workbench-hardening.md
 
 ## Objetivo
@@ -29,3 +30,9 @@ Transformar `npm run up` em um hub ainda mais didatico, com indice navegavel dos
 ## Riscos
 - Abrir abas demais pode atrapalhar; manter a pagina indice como hub principal e abrir reports individuais apenas quando forem gerados.
 
+## Resultado
+Executada em 2026-06-19. `npm run up` agora gera uma bancada local com:
+- historico dos ultimos reports de performance;
+- links para HTML, resumo, JSON, log e diagnosticos antes/depois quando existem;
+- status visual de Playwright e coverage;
+- indicacao clara de artefato ausente sem quebrar startup.

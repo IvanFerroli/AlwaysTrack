@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: quality-maintainers
-- last-updated: 2026-06-18
+- last-updated: 2026-06-19
 - source-of-truth: docs/testing/strategy.md
 
 ## Objetivo
@@ -40,6 +40,7 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `npm run test:e2e:smoke`: roda o smoke desktop usado no CI.
 - `npm run test:e2e:api`: roda os fluxos API pelo Playwright.
 - `npm run test:all`: roda `check` e docs TypeDoc.
+- `npm run coverage:html`: gera coverage HTML da API em `services/api/coverage/index.html`.
 - `npm run check`: gate rapido atual de lint/typecheck/test.
 - `npm run check:docs`: gera TypeDoc e falha se a documentacao tecnica quebrar.
 - `npm run repo:hygiene`: verifica arquivos sensiveis, bancos locais, docs gerados e padroes obvios de segredo.
@@ -63,7 +64,7 @@ Flags uteis:
 - `--no-docs`: nao gera/abre TypeDoc e docs;
 - `--setup-only`: prepara ambiente e sai.
 
-Coverage HTML ainda e best-effort: a bancada local mostra links para `coverage/index.html`, `services/api/coverage/index.html` e `apps/web/coverage/index.html` se esses artefatos ja existirem.
+Coverage HTML da API e gerado por `npm run coverage:html` e aparece na bancada local quando existir. A cobertura do web deve entrar quando houver suite de componentes ou testes unitarios dedicados; por enquanto o web e protegido por typecheck/build e Playwright.
 
 ## O que testar primeiro
 1. Invariante de tenancy: usuario nunca ve organizacao alheia.
@@ -95,4 +96,4 @@ Coverage HTML ainda e best-effort: a bancada local mostra links para `coverage/i
 - `TASK-AT-050`: migration/rollback tests.
 - `TASK-AT-051`: Artillery load gate.
 - `TASK-AT-052`: BullMQ backpressure tests.
-- Follow-up recomendado: decidir se coverage HTML deve virar script/gate proprio com plugin Vitest dedicado.
+- `TASK-AT-145`: coverage HTML da API com plugin Vitest dedicado e leitura operacional documentada.

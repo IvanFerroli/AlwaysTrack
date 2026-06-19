@@ -1,10 +1,11 @@
 # TASK-AT-148 - Integracoes externas: timeout, redaction e providers reais
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus-orchestrator
 - priority: medium
 - created: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-148-integrations-timeout-redaction-provider-hardening.md
 
 ## Objetivo
@@ -22,3 +23,13 @@ Padronizar resiliencia e seguranca em chamadas externas, principalmente Google S
 2. Logs nao imprimem tokens ou dados sensiveis.
 3. Falhas externas geram erro acionavel, nao silencio.
 
+## Resultado
+Executada em 2026-06-19 como MVP de hardening:
+- helper `externalFetch` centraliza timeout para chamadas externas;
+- helper `redactExternalData` remove tokens/secrets/autorizacoes de payloads aninhados antes de expor erro;
+- Meta WhatsApp usa timeout e redaction no erro do provider;
+- Google OAuth callback, revoke e refresh usam timeout;
+- testes cobrem timeout/redaction e os providers afetados.
+
+## Fora do MVP
+Google Sheets/Drive ainda tem varias chamadas diretas no helper de importacao. A recomendacao e migrar essa classe em fatia separada para evitar regressao larga, porque ali existem criacao, permissao, metadata, batchUpdate e tratamento fino de erro Google.

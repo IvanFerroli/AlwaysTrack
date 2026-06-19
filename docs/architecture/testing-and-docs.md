@@ -8,6 +8,7 @@
 - `npm run test:unit`: unit/service tests sem quality e2e.
 - `npm run test:integration`: fluxo principal service-level.
 - `npm run test:regression`: notas, Wiki, FAQ e notificacoes.
+- `npm run coverage:html`: coverage HTML da API em `services/api/coverage/index.html`.
 - `npm run docs:api`: TypeDoc.
 - `npm run test:all`: check + TypeDoc.
 - `npm run repo:hygiene`: higiene de repo e segredos obvios.
@@ -24,6 +25,14 @@
 - Performance: `docs/performance/README.md`, `docs/performance/report-template.md` e ultimo HTML/MD em `docs/performance/reports/`
 - Seguranca/operacao: gate de exposicao, backup/restore e incidente
 - Reports existentes: Playwright, coverage e performance quando ja estiverem no disco
+
+## Coverage
+`npm run coverage:html` roda a suite Vitest da API com `@vitest/coverage-v8`, imprime resumo no terminal e gera HTML em `services/api/coverage/index.html`.
+
+Use coverage como mapa de risco, nao como numero absoluto cego:
+- arquivos de parser/service recentes devem ter cobertura direta quando forem mudados;
+- arquivos legados default-off podem aparecer com cobertura baixa sem bloquear apresentacao;
+- bugs corrigidos devem ganhar regressao focada antes de aumentar porcentagem global.
 
 ## Auditoria recente
 O mapa atual de cobertura e lacunas recentes fica em `docs/architecture/recent-test-doc-coverage-audit.md`.

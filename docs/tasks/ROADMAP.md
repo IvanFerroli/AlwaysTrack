@@ -162,15 +162,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 143. `EXEC-AT-141`: validacao runtime dos payloads da Scriptoteca (`TASK-AT-141`). Status: completed-mvp.
 144. `EXEC-AT-142`: regressao e stress dos pacotes da Scriptoteca (`TASK-AT-142`). Status: completed-mvp.
 145. `EXEC-AT-143`: validacao runtime residual em Avisos, Configuracoes, Notificacoes e Fluxos (`TASK-AT-143`). Status: completed-mvp.
+146. `EXEC-AT-144`: workbench local com indice navegavel de reports (`TASK-AT-144`). Status: completed-mvp.
+147. `EXEC-AT-145`: coverage HTML da API e documentacao de leitura (`TASK-AT-145`). Status: completed-mvp.
+148. `EXEC-AT-148`: timeout/redaction para integracoes externas criticas (`TASK-AT-148`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-2. `TASK-AT-144-report-index-and-browser-workbench-hardening.md`: Workbench local com indice navegavel de reports.
-3. `TASK-AT-145-coverage-html-gate-and-docs.md`: Coverage HTML e gate documentado.
-4. `TASK-AT-146-attachments-removal-and-generic-operational-entity.md`: anexos com remocao auditavel e entidade generica.
-5. `TASK-AT-147-prod-postgres-storage-readiness.md`: prontidao de Postgres/storage externo quando houver decisao de infraestrutura.
-6. `TASK-AT-148-integrations-timeout-redaction-provider-hardening.md`: timeout/redaction e providers reais.
-7. Follow-up de Scriptoteca: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
+2. `TASK-AT-146-attachments-removal-and-generic-operational-entity.md`: anexos com remocao auditavel e entidade generica.
+3. `TASK-AT-147-prod-postgres-storage-readiness.md`: prontidao de Postgres/storage externo quando houver decisao de infraestrutura.
+4. Follow-up de integracoes: migrar Google Sheets/Drive para `externalFetch`.
+5. Follow-up de Scriptoteca: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -247,6 +248,9 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 43. `TASK-AT-141`: Scriptoteca - validacao runtime de inputs. Status: completed-mvp.
 44. `TASK-AT-142`: Scriptoteca - regressao e stress dos pacotes. Status: completed-mvp.
 45. `TASK-AT-143`: Validacao runtime residual em superficies operacionais recentes. Status: completed-mvp.
+46. `TASK-AT-144`: Workbench local com indice navegavel de reports. Status: completed-mvp.
+47. `TASK-AT-145`: Coverage HTML e documentacao. Status: completed-mvp.
+48. `TASK-AT-148`: Integracoes externas com timeout e redaction. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

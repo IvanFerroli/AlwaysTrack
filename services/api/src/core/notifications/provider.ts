@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { loadEnv } from "../../config/env.js";
+import { externalFetch, redactExternalData } from "../integrations/external-http.js";
 
 export interface NotificationSendInput {
   to: string;
@@ -74,17 +75,22 @@ export class MetaWhatsAppProvider implements NotificationProvider {
       }
     };
 
-    const response = await this.fetcher(`https://graph.facebook.com/v20.0/${this.phoneNumberId}/messages`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${this.token}`,
-        "content-type": "application/json"
+    const response = await externalFetch(
+      this.fetcher,
+      `https://graph.facebook.com/v20.0/${this.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(payload)
       },
-      body: JSON.stringify(payload)
-    });
+      { operation: "meta.whatsapp.send", timeoutMs: 15_000 }
+    );
     const rawResponse = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new NotificationProviderError("META_WHATSAPP_SEND_FAILED", rawResponse);
+      throw new NotificationProviderError("META_WHATSAPP_SEND_FAILED", redactExternalData(rawResponse));
     }
 
     const providerMessageId =

@@ -8,6 +8,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv, type ApiEnv } from "../../../config/env.js";
 import { ImportError } from "../../imports/professionals-licenses-import.service.js";
+import { externalFetch } from "../external-http.js";
 
 const googleOauthAuthorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleOauthTokenUrl = "https://oauth2.googleapis.com/token";
@@ -194,18 +195,23 @@ export async function handleGoogleOauthCallback(
     throw new ImportError("INVALID_INPUT", "Google OAuth state is invalid or expired.");
   }
 
-  const response = await fetcher(googleOauthTokenUrl, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code: input.code,
-      client_id: env.googleClientId as string,
-      client_secret: env.googleClientSecret as string,
-      redirect_uri: env.googleRedirectUri as string,
-      grant_type: "authorization_code",
-      code_verifier: stateRecord.codeVerifier
-    })
-  });
+  const response = await externalFetch(
+    fetcher,
+    googleOauthTokenUrl,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: input.code,
+        client_id: env.googleClientId as string,
+        client_secret: env.googleClientSecret as string,
+        redirect_uri: env.googleRedirectUri as string,
+        grant_type: "authorization_code",
+        code_verifier: stateRecord.codeVerifier
+      })
+    },
+    { operation: "google.oauth.callback", timeoutMs: 15_000 }
+  );
   const payload = (await response.json()) as AuthorizationTokenPayload;
   if (!response.ok) {
     throw new ImportError(
@@ -304,11 +310,16 @@ async function revokeStoredGoogleRefreshToken(
   fetcher: Fetcher
 ) {
   try {
-    const response = await fetcher(googleOauthRevokeUrl, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ token: decryptSecret(refreshTokenEncrypted, env) })
-    });
+    const response = await externalFetch(
+      fetcher,
+      googleOauthRevokeUrl,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token: decryptSecret(refreshTokenEncrypted, env) })
+      },
+      { operation: "google.oauth.revoke", timeoutMs: 15_000 }
+    );
     if (!response.ok) {
       console.error("GOOGLE_OAUTH_REVOKE_ERROR", { httpStatus: response.status });
       return false;
@@ -331,16 +342,21 @@ export async function resolveGoogleTemplateAccess(
   if (isGoogleOauthConfigured(env)) {
     const connection = await prisma.googleConnection.findUnique({ where: { userId: actor.id } });
     if (connection && !connection.revokedAt) {
-      const response = await fetcher(googleOauthTokenUrl, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: env.googleClientId as string,
-          client_secret: env.googleClientSecret as string,
-          refresh_token: decryptSecret(connection.refreshTokenEncrypted, env),
-          grant_type: "refresh_token"
-        })
-      });
+      const response = await externalFetch(
+        fetcher,
+        googleOauthTokenUrl,
+        {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: env.googleClientId as string,
+            client_secret: env.googleClientSecret as string,
+            refresh_token: decryptSecret(connection.refreshTokenEncrypted, env),
+            grant_type: "refresh_token"
+          })
+        },
+        { operation: "google.oauth.refresh", timeoutMs: 15_000 }
+      );
       const payload = (await response.json()) as AuthorizationTokenPayload;
       if (!response.ok || !payload.access_token) {
         throw new ImportError(
