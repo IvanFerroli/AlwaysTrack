@@ -17,4 +17,24 @@ describe("api env", () => {
     expect(env.rateLimitLoginMax).toBe(4);
     expect(env.rateLimitSearchMax).toBe(120);
   });
+
+  it("parses s3-compatible storage settings without changing local defaults", () => {
+    expect(loadEnv({}).storageProvider).toBe("local");
+
+    const env = loadEnv({
+      STORAGE_PROVIDER: "s3",
+      STORAGE_S3_ENDPOINT: "https://s3.example.com",
+      STORAGE_S3_BUCKET: "alwaystrack-private",
+      STORAGE_S3_REGION: "sa-east-1",
+      STORAGE_S3_ACCESS_KEY_ID: "access",
+      STORAGE_S3_SECRET_ACCESS_KEY: "secret",
+      STORAGE_S3_FORCE_PATH_STYLE: "false"
+    });
+
+    expect(env.storageProvider).toBe("s3");
+    expect(env.storageS3Endpoint).toBe("https://s3.example.com");
+    expect(env.storageS3Bucket).toBe("alwaystrack-private");
+    expect(env.storageS3Region).toBe("sa-east-1");
+    expect(env.storageS3ForcePathStyle).toBe(false);
+  });
 });

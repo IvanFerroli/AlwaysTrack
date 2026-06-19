@@ -30,8 +30,14 @@ Definir o caminho seguro para sair do contrato local-first atual, SQLite + stora
 | `SESSION_SECRET` | valor local forte | valor unico por ambiente | Rotacao invalida sessoes |
 | `GOOGLE_LOGIN_ALLOWED_DOMAINS` | dominio de teste | dominio corporativo | Evita login fora da empresa |
 | `CORS_ORIGINS` | localhost | URL publica exata | Sem wildcard em producao |
-| `STORAGE_PROVIDER` | `local` | `s3`/`gcs`/provider escolhido | Provider externo ainda requer task de implementacao |
+| `STORAGE_PROVIDER` | `local` | `s3` | Adapter S3-compatible disponivel; smoke real depende do bucket |
 | `STORAGE_LOCAL_DIR` | `.storage/private` | volume persistente se mono-host | Nao usar como fonte de verdade multi-instancia |
+| `STORAGE_S3_ENDPOINT` | opcional | endpoint S3-compatible | Ex.: AWS S3, MinIO, Cloudflare R2 ou equivalente |
+| `STORAGE_S3_BUCKET` | opcional | bucket privado | Nunca publico |
+| `STORAGE_S3_REGION` | opcional | regiao do bucket | Default local: `us-east-1` |
+| `STORAGE_S3_ACCESS_KEY_ID` | opcional | secret manager | Nao commitar |
+| `STORAGE_S3_SECRET_ACCESS_KEY` | opcional | secret manager | Nao commitar |
+| `STORAGE_S3_FORCE_PATH_STYLE` | opcional | conforme provider | Default: `true` |
 | `OPENAI_API_KEY` | opcional | secret manager | Necessario para IA real |
 | `META_WHATSAPP_*` | opcional | secret manager | Usar apenas se notificacoes externas forem ativadas |
 | `REDIS_URL` | opcional/local | Redis gerenciado | Necessario para filas BullMQ fora do processo unico |
@@ -56,12 +62,13 @@ Definir o caminho seguro para sair do contrato local-first atual, SQLite + stora
 7. Executar restore dry-run antes de liberar usuario real.
 
 ## Caminho recomendado para storage externo
-1. Escolher provider: S3-compatible, GCS ou equivalente corporativo.
-2. Implementar adapter que respeite `StorageProvider.put` e `StorageProvider.get`.
-3. Definir se download continua proxiado pela API ou usa URL assinada curta.
+1. Escolher provider S3-compatible e criar bucket privado.
+2. Configurar `STORAGE_PROVIDER=s3` e variaveis `STORAGE_S3_*` via secret manager.
+3. Manter download proxiado pela API no primeiro deploy, sem tornar objetos publicos.
 4. Garantir criptografia em repouso, bucket privado, ACL minima e logs de acesso.
 5. Testar par banco + storage com mesmo carimbo de backup.
 6. Validar que arquivar anexo remove acesso operacional, mas preserva evidencia no storage e na auditoria.
+7. Registrar smoke real de upload/download antes de liberar dados de NF em producao.
 
 ## Gate antes de exposicao externa
 Rodar e registrar evidencia segura:

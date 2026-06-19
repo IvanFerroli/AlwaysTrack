@@ -9,8 +9,14 @@ export interface ApiEnv {
   port: number;
   corsOrigin?: string;
   corsOrigins?: string[];
-  storageProvider: "local";
+  storageProvider: "local" | "s3";
   storageLocalDir: string;
+  storageS3Endpoint?: string;
+  storageS3Bucket?: string;
+  storageS3Region?: string;
+  storageS3AccessKeyId?: string;
+  storageS3SecretAccessKey?: string;
+  storageS3ForcePathStyle?: boolean;
   documentMaxBytes: number;
   notificationProvider: "fake" | "meta";
   metaWhatsAppToken?: string;
@@ -90,8 +96,14 @@ export function loadEnv(source = process.env): ApiEnv {
     port: Number(source.API_PORT ?? "3333"),
     corsOrigin: source.CORS_ORIGIN,
     corsOrigins,
-    storageProvider: "local",
+    storageProvider: source.STORAGE_PROVIDER === "s3" ? "s3" : "local",
     storageLocalDir: source.STORAGE_LOCAL_DIR ?? ".storage/private",
+    storageS3Endpoint: source.STORAGE_S3_ENDPOINT,
+    storageS3Bucket: source.STORAGE_S3_BUCKET,
+    storageS3Region: source.STORAGE_S3_REGION ?? "us-east-1",
+    storageS3AccessKeyId: source.STORAGE_S3_ACCESS_KEY_ID,
+    storageS3SecretAccessKey: source.STORAGE_S3_SECRET_ACCESS_KEY,
+    storageS3ForcePathStyle: source.STORAGE_S3_FORCE_PATH_STYLE !== "false",
     documentMaxBytes: Number(source.DOCUMENT_MAX_BYTES ?? String(10 * 1024 * 1024)),
     notificationProvider: source.NOTIFICATION_PROVIDER === "meta" ? "meta" : "fake",
     metaWhatsAppToken: source.META_WHATSAPP_TOKEN,
