@@ -30,6 +30,7 @@
     "coverage:html": "npm run coverage:html --workspace @alwaystrack/api",
     "docs:api": "typedoc --options typedoc.json",
     "db:test:migrations": "node scripts/test-migrations.js",
+    "db:postgres:preflight": "node scripts/postgres-preflight.js",
     "repo:hygiene": "node scripts/check-repo-hygiene.js",
     "security:deps": "npm audit --audit-level=high --omit=dev",
     "perf:smoke": "artillery run tests/performance/alwaystrack-smoke.yml",

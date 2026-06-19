@@ -1,7 +1,7 @@
 # TASK-AT-149 - Migracao real para Postgres em staging/producao
 
 ## Metadata
-- status: proposed-blocked-by-infra-decision
+- status: blocked-external-infra-ready
 - owner: olympus-orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-149-prod-postgres-migration-execution.md
@@ -22,7 +22,8 @@ Migrar o AlwaysTrack de SQLite local-first para Postgres em staging/producao qua
 
 ## Dependencias
 - satisfeitas: `TASK-AT-147`, `ADR-003`, runbook de backup/restore.
-- em aberto: infraestrutura Postgres e estrategia de deploy.
+- satisfeitas nesta fatia: preflight automatizado de prerequisitos.
+- em aberto: infraestrutura Postgres, URL de staging/producao e estrategia de deploy.
 
 ## Alvos explicitos
 1. `services/api/prisma/schema.prisma`
@@ -32,6 +33,20 @@ Migrar o AlwaysTrack de SQLite local-first para Postgres em staging/producao qua
 ## Fora de escopo
 - Implementar provider de storage externo.
 - Migrar dados reais sem backup aprovado.
+- Trocar o datasource Prisma local-first para Postgres sem ambiente real de staging.
+
+## Resultado entregue nesta rodada
+1. Script `npm run db:postgres:preflight` para validar prerequisitos antes de abrir branch de migracao real.
+2. Guardas exigidas:
+   - `DATABASE_URL` ou `POSTGRES_DATABASE_URL` com `postgres://` ou `postgresql://`.
+   - `STORAGE_PROVIDER=s3` e variaveis `STORAGE_S3_*` minimas.
+   - `POSTGRES_BACKUP_CONFIRMED=true`.
+   - `POSTGRES_RESTORE_DRY_RUN_CONFIRMED=true`.
+3. `env:check --production` passou a conhecer variaveis de storage externo.
+4. `.env.example` documenta flags de confirmacao de backup/restore.
+
+## Bloqueio atual
+A execucao real de `prisma migrate deploy` em Postgres continua bloqueada por falta de banco gerenciado/credenciais. Esta task esta pronta para execucao quando a infraestrutura existir; nao foi marcada como migracao concluida para nao criar falso positivo operacional.
 
 ## Checklist
 1. Criar branch isolada de migracao.
@@ -51,7 +66,11 @@ Migrar o AlwaysTrack de SQLite local-first para Postgres em staging/producao qua
 3. Risco residual documentado.
 
 ## Validacao
-- comandos/checks: `npx prisma validate`, `npx prisma migrate deploy`, `npm run test --workspace @alwaystrack/api`, smoke API.
+- comandos/checks:
+  - `npm run db:postgres:preflight` deve falhar localmente enquanto prerequisitos reais nao existirem.
+  - `npm run db:test:migrations`
+  - `npx prisma validate --schema services/api/prisma/schema.prisma`
+  - em staging real: `npx prisma migrate deploy`, testes API e smoke API.
 - revisao manual: login admin, upload DANFE, ranking, anexo Wiki.
 
 ## Evidencia esperada

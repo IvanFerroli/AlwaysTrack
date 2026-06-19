@@ -24,7 +24,14 @@ const optional = [
   "SESSION_COOKIE_NAME",
   "VITE_API_BASE_URL",
   "VITE_APP_NAME",
+  "STORAGE_PROVIDER",
   "STORAGE_LOCAL_DIR",
+  "STORAGE_S3_ENDPOINT",
+  "STORAGE_S3_BUCKET",
+  "STORAGE_S3_REGION",
+  "STORAGE_S3_ACCESS_KEY_ID",
+  "STORAGE_S3_SECRET_ACCESS_KEY",
+  "STORAGE_S3_FORCE_PATH_STYLE",
   "DOCUMENT_MAX_BYTES",
   "NOTIFICATION_PROVIDER",
   "META_WHATSAPP_TOKEN",
@@ -144,6 +151,12 @@ if (provider === "meta") {
 
 if (jobQueueDriver === "bullmq" && !process.env.REDIS_URL) {
   missing.push("REDIS_URL");
+}
+
+if (mode === "production" && process.env.STORAGE_PROVIDER === "s3") {
+  for (const key of ["STORAGE_S3_ENDPOINT", "STORAGE_S3_BUCKET", "STORAGE_S3_ACCESS_KEY_ID", "STORAGE_S3_SECRET_ACCESS_KEY"]) {
+    if (!process.env[key]) missing.push(key);
+  }
 }
 
 if (googleLoginPartiallyConfigured && !process.env.GOOGLE_LOGIN_ALLOWED_DOMAINS) {
