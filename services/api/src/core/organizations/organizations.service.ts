@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { ApiEnv } from "../../config/env.js";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
 
 export class OrganizationError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT") {
@@ -46,12 +47,6 @@ export interface SectorInput {
   active?: boolean;
 }
 
-function cleanText(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 function cleanOptionalText(value: unknown) {
   if (value === null) return null;
   if (typeof value !== "string") return undefined;
@@ -65,10 +60,6 @@ function cleanOptionalUrl(value: unknown) {
   if (cleaned.length > 500) return undefined;
   if (cleaned.startsWith("/") || /^https?:\/\//i.test(cleaned)) return cleaned;
   return undefined;
-}
-
-function cleanBoolean(value: unknown) {
-  return typeof value === "boolean" ? value : undefined;
 }
 
 function cleanTags(value: unknown) {
@@ -120,20 +111,18 @@ function serializeSettings(currentSettingsJson: string | null | undefined, input
 }
 
 export function parseOrganizationUpdate(payload: unknown): OrganizationUpdateInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    document: cleanOptionalText(input.document),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    document: optionalString(input, "document", { maxLength: 40, nullable: true }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseOrganizationSettingsUpdate(payload: unknown): OrganizationSettingsUpdateInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    document: cleanOptionalText(input.document),
-    logoUrl: cleanOptionalUrl(input.logoUrl),
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    document: optionalString(input, "document", { maxLength: 40, nullable: true }),
+    logoUrl: cleanOptionalUrl(optionalString(input, "logoUrl", { maxLength: 500, nullable: true })),
     defaultTags: cleanTags(input.defaultTags),
     dashboardDefaultRange:
       input.dashboardDefaultRange === "7" || input.dashboardDefaultRange === "30" || input.dashboardDefaultRange === "90"
@@ -143,24 +132,22 @@ export function parseOrganizationSettingsUpdate(payload: unknown): OrganizationS
       input.dashboardDefaultBucket === "day" || input.dashboardDefaultBucket === "week" || input.dashboardDefaultBucket === "month"
         ? input.dashboardDefaultBucket
         : undefined
-  };
+  }));
 }
 
 export function parseUnitInput(payload: unknown): UnitInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    name: cleanText(input.name),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    name: optionalString(input, "name", { maxLength: 120 }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseSectorInput(payload: unknown): SectorInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    unitId: cleanText(input.unitId),
-    name: cleanText(input.name),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    unitId: optionalString(input, "unitId", { maxLength: 80 }),
+    name: optionalString(input, "name", { maxLength: 120 }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export async function getOrganizationTree(prisma: PrismaClient, actor: ActorContext) {

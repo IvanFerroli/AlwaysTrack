@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { notificationChannels, notificationStatuses, type CurrentUser, type NotificationChannel } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
 import type { NotificationProvider } from "./provider.js";
 import { NotificationProviderError, verifyMetaSignature } from "./provider.js";
 
@@ -70,23 +71,6 @@ export interface ListInAppNotificationsInput {
   type?: string;
 }
 
-function cleanText(value: unknown) {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function cleanOptionalText(value: unknown) {
-  if (value === null) return null;
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function cleanBoolean(value: unknown) {
-  return typeof value === "boolean" ? value : undefined;
-}
-
 function cleanChannel(value: unknown) {
   return typeof value === "string" && notificationChannels.includes(value as NotificationChannel)
     ? (value as NotificationChannel)
@@ -151,48 +135,46 @@ function requireAdmin(actor: CurrentUser) {
 }
 
 export function parseNotificationTemplateInput(payload: unknown): NotificationTemplateInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    key: cleanText(input.key),
-    channel: cleanChannel(input.channel),
-    metaTemplateName: cleanOptionalText(input.metaTemplateName),
-    language: cleanText(input.language),
-    bodyPreview: cleanOptionalText(input.bodyPreview),
-    active: cleanBoolean(input.active)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    key: optionalString(input, "key", { maxLength: 80 }),
+    channel: cleanChannel(optionalString(input, "channel", { maxLength: 20 })),
+    metaTemplateName: optionalString(input, "metaTemplateName", { maxLength: 120, nullable: true }),
+    language: optionalString(input, "language", { maxLength: 16 }),
+    bodyPreview: optionalString(input, "bodyPreview", { maxLength: 2_000, nullable: true }),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseNotificationRuleInput(payload: unknown): NotificationRuleInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    licenseTypeId: cleanOptionalText(input.licenseTypeId),
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    licenseTypeId: optionalString(input, "licenseTypeId", { maxLength: 80, nullable: true }),
     daysBeforeExpiration: cleanNumber(input.daysBeforeExpiration),
     repeatAfterExpiredDays: cleanNumber(input.repeatAfterExpiredDays),
-    channel: cleanChannel(input.channel),
-    templateKey: cleanText(input.templateKey),
-    notifyProfessional: cleanBoolean(input.notifyProfessional),
-    notifyRt: cleanBoolean(input.notifyRt),
-    active: cleanBoolean(input.active)
-  };
+    channel: cleanChannel(optionalString(input, "channel", { maxLength: 20 })),
+    templateKey: optionalString(input, "templateKey", { maxLength: 80 }),
+    notifyProfessional: optionalBoolean(input, "notifyProfessional"),
+    notifyRt: optionalBoolean(input, "notifyRt"),
+    active: optionalBoolean(input, "active")
+  }));
 }
 
 export function parseNotificationScanInput(payload: unknown): NotificationScanInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  const todayText = cleanText(input.today);
-  const today = todayText ? new Date(`${todayText}T00:00:00.000Z`) : undefined;
-  return {
-    dryRun: cleanBoolean(input.dryRun),
-    today: today && !Number.isNaN(today.getTime()) ? today : undefined
-  };
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const todayText = optionalString(input, "today", { maxLength: 30 });
+    const today = todayText ? new Date(`${todayText}T00:00:00.000Z`) : undefined;
+    return {
+      dryRun: optionalBoolean(input, "dryRun"),
+      today: today && !Number.isNaN(today.getTime()) ? today : undefined
+    };
+  });
 }
 
 export function parseManualLicenseNotificationInput(payload: unknown): ManualLicenseNotificationInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    licenseId: cleanText(input.licenseId),
-    processNow: cleanBoolean(input.processNow),
-    force: cleanBoolean(input.force)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    licenseId: optionalString(input, "licenseId", { maxLength: 80 }),
+    processNow: optionalBoolean(input, "processNow"),
+    force: optionalBoolean(input, "force")
+  }));
 }
 
 function uniqueTexts(values: Array<string | null | undefined>) {

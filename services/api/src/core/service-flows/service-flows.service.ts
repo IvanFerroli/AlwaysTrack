@@ -2,6 +2,14 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { commercialAllRoles, commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
+import {
+  optionalArray,
+  optionalBoolean,
+  optionalInteger,
+  optionalString,
+  optionalStringArray,
+  parseObjectPayload
+} from "../validation/input-validation.js";
 
 export class ServiceFlowError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN") {
@@ -66,22 +74,6 @@ function text(value: unknown) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
-}
-
-function optionalText(value: unknown) {
-  if (value === null) return null;
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-}
-
-function integer(value: unknown) {
-  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
-
-function bool(value: unknown) {
-  return typeof value === "boolean" ? value : undefined;
 }
 
 function status(value: unknown) {
@@ -174,50 +166,51 @@ export function parseServiceFlowFilters(query: Record<string, unknown>): Service
 }
 
 export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  const rawSteps = Array.isArray(input.steps) ? input.steps : [];
-  return {
-    wikiPageId: optionalText(input.wikiPageId),
-    title: text(input.title),
-    slug: optionalText(input.slug),
-    summary: optionalText(input.summary),
-    content: optionalText(input.content),
-    tags: Array.isArray(input.tags) ? tags(input.tags) : undefined,
-    status: status(input.status),
-    priority: integer(input.priority),
-    steps: rawSteps.map((item, index) => {
-      const step = (item ?? {}) as Record<string, unknown>;
-      const rawScriptIds = Array.isArray(step.scriptIds) ? step.scriptIds.filter((value): value is string => typeof value === "string") : [];
-      return {
-        id: text(step.id),
-        title: text(step.title),
-        body: optionalText(step.body),
-        kind: stepKind(step.kind) ?? "MANUAL",
-        decision: step.decision && typeof step.decision === "object" ? (step.decision as Record<string, unknown>) : null,
-        order: integer(step.order) ?? index + 1,
-        required: bool(step.required) ?? false,
-        collapsed: bool(step.collapsed) ?? true,
-        scriptIds: [...new Set(rawScriptIds)]
-      };
-    })
-  };
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const rawSteps = optionalArray(input, "steps", { maxItems: 40 }) ?? [];
+    const rawTags = optionalArray(input, "tags", { maxItems: 30 });
+    return {
+      wikiPageId: optionalString(input, "wikiPageId", { maxLength: 80, nullable: true }),
+      title: optionalString(input, "title", { maxLength: 140 }),
+      slug: optionalString(input, "slug", { maxLength: 90, nullable: true }),
+      summary: optionalString(input, "summary", { maxLength: 240, nullable: true }),
+      content: optionalString(input, "content", { maxLength: 20_000, nullable: true }),
+      tags: rawTags ? tags(rawTags) : undefined,
+      status: status(optionalString(input, "status", { maxLength: 20 })),
+      priority: optionalInteger(input, "priority", { min: 0, max: 1_000 }),
+      steps: rawSteps.map((item, index) =>
+        parseObjectPayload(item, (step) => {
+          const rawScriptIds = optionalStringArray(step, "scriptIds", { maxItems: 12, itemMaxLength: 80 }) ?? [];
+          return {
+            id: optionalString(step, "id", { maxLength: 80 }),
+            title: optionalString(step, "title", { maxLength: 140 }),
+            body: optionalString(step, "body", { maxLength: 8_000, nullable: true }),
+            kind: stepKind(optionalString(step, "kind", { maxLength: 20 })) ?? "MANUAL",
+            decision: step.decision && typeof step.decision === "object" ? (step.decision as Record<string, unknown>) : null,
+            order: optionalInteger(step, "order", { min: 1, max: 1_000 }) ?? index + 1,
+            required: optionalBoolean(step, "required") ?? false,
+            collapsed: optionalBoolean(step, "collapsed") ?? true,
+            scriptIds: [...new Set(rawScriptIds)]
+          };
+        })
+      )
+    };
+  });
 }
 
 export function parseServiceFlowSessionStepInput(payload: unknown): ServiceFlowSessionStepInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    status: sessionStepStatus(input.status),
-    decision: optionalText(input.decision),
-    note: optionalText(input.note)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    status: sessionStepStatus(optionalString(input, "status", { maxLength: 20 })),
+    decision: optionalString(input, "decision", { maxLength: 80, nullable: true }),
+    note: optionalString(input, "note", { maxLength: 2_000, nullable: true })
+  }));
 }
 
 export function parseServiceFlowGovernanceInput(payload: unknown): ServiceFlowGovernanceInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    comment: optionalText(input.comment),
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    comment: optionalString(input, "comment", { maxLength: 2_000, nullable: true }),
     reviewDueAt: dateValue(input.reviewDueAt)
-  };
+  }));
 }
 
 function visibleStatus(actor: CurrentUser, requested?: string) {

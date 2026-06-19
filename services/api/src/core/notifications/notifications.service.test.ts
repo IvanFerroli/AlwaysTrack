@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
+import { InputValidationError } from "../validation/input-validation.js";
 import {
   createNotificationRule,
   createNotificationTemplate,
@@ -46,6 +47,12 @@ describe("notifications service", () => {
     expect(parseNotificationRuleInput({ daysBeforeExpiration: "30", repeatAfterExpiredDays: null, channel: "EMAIL" })).toEqual(
       expect.objectContaining({ daysBeforeExpiration: 30, repeatAfterExpiredDays: null, channel: "EMAIL" })
     );
+  });
+
+  it("rejects malformed notification inputs before service execution", () => {
+    expect(() => parseNotificationTemplateInput("bad")).toThrow(InputValidationError);
+    expect(() => parseNotificationTemplateInput({ key: "x".repeat(81) })).toThrow(InputValidationError);
+    expect(() => parseNotificationRuleInput({ notifyRt: "yes" })).toThrow(InputValidationError);
   });
 
   it("parses in-app notification filters", () => {

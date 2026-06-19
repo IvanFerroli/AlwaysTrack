@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { commercialAllRoles, commercialManagerRoles, type CurrentUser, type UserRole } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
+import { optionalArray, optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
 
 export class AnnouncementError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN") {
@@ -209,22 +210,26 @@ function withAnnouncementFormat<T extends { tagsJson?: string | null; linksJson?
 }
 
 export function parseAnnouncementInput(payload: unknown): AnnouncementInput {
-  const input = (payload ?? {}) as Record<string, unknown>;
-  return {
-    title: cleanText(input.title),
-    slug: cleanOptionalText(input.slug),
-    summary: cleanOptionalText(input.summary),
-    content: cleanText(input.content),
-    tags: Array.isArray(input.tags) ? normalizedTags(input.tags) : undefined,
-    links: Array.isArray(input.links) ? cleanLinks(input.links) : undefined,
-    targetRoles: Array.isArray(input.targetRoles) ? cleanRoles(input.targetRoles) : undefined,
-    status: cleanStatus(input.status),
-    priority: cleanPriority(input.priority),
-    pinned: cleanBoolean(input.pinned),
-    requiresAck: cleanBoolean(input.requiresAck),
-    startsAt: cleanDate(input.startsAt),
-    expiresAt: cleanDate(input.expiresAt)
-  };
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const tags = optionalArray(input, "tags", { maxItems: 30 });
+    const links = optionalArray(input, "links", { maxItems: 12 });
+    const targetRoles = optionalArray(input, "targetRoles", { maxItems: 8 });
+    return {
+      title: optionalString(input, "title", { maxLength: 140 }),
+      slug: optionalString(input, "slug", { maxLength: 90, nullable: true }),
+      summary: optionalString(input, "summary", { maxLength: 240, nullable: true }),
+      content: optionalString(input, "content", { maxLength: 20_000 }),
+      tags: tags ? normalizedTags(tags) : undefined,
+      links: links ? cleanLinks(links) : undefined,
+      targetRoles: targetRoles ? cleanRoles(targetRoles) : undefined,
+      status: cleanStatus(optionalString(input, "status", { maxLength: 20 })),
+      priority: cleanPriority(optionalString(input, "priority", { maxLength: 20 })),
+      pinned: optionalBoolean(input, "pinned"),
+      requiresAck: optionalBoolean(input, "requiresAck"),
+      startsAt: cleanDate(input.startsAt),
+      expiresAt: cleanDate(input.expiresAt)
+    };
+  });
 }
 
 export function parseAnnouncementFilters(query: Record<string, unknown>): AnnouncementFilters {

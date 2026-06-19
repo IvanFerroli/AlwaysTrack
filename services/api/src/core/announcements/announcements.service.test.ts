@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
+import { InputValidationError } from "../validation/input-validation.js";
 import {
   acknowledgeAnnouncement,
   createAnnouncement,
@@ -63,6 +64,13 @@ describe("announcements service", () => {
       tags: ["notas", "faq"],
       activeOnly: true
     });
+  });
+
+  it("rejects malformed announcement input before service execution", () => {
+    expect(() => parseAnnouncementInput("bad")).toThrow(InputValidationError);
+    expect(() => parseAnnouncementInput({ title: 123 })).toThrow(InputValidationError);
+    expect(() => parseAnnouncementInput({ content: "x".repeat(20_001) })).toThrow(InputValidationError);
+    expect(() => parseAnnouncementInput({ tags: Array.from({ length: 31 }, (_, index) => `tag-${index}`) })).toThrow(InputValidationError);
   });
 
   it("creates announcement with audit", async () => {

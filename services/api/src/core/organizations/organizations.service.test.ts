@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { InputValidationError } from "../validation/input-validation.js";
 import {
   createSector,
   createUnit,
@@ -20,6 +21,12 @@ describe("organizations service", () => {
       document: null,
       active: false
     });
+  });
+
+  it("rejects malformed organization input before service execution", () => {
+    expect(() => parseOrganizationUpdate("bad")).toThrow(InputValidationError);
+    expect(() => parseOrganizationUpdate({ name: "x".repeat(121) })).toThrow(InputValidationError);
+    expect(() => parseOrganizationSettingsUpdate({ logoUrl: "x".repeat(501) })).toThrow(InputValidationError);
   });
 
   it("parses editable organization settings without allowing invalid urls or env fields", () => {

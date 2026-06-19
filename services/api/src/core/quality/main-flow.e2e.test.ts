@@ -381,6 +381,7 @@ describe("main operational flow", () => {
       },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
+    const pdfBody = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
     const storage: StorageProvider = { put: vi.fn().mockResolvedValue(undefined), get: vi.fn() };
 
     const license = await createLicense(prisma as never, admin, {
@@ -395,7 +396,7 @@ describe("main operational flow", () => {
       token: "raw-token",
       fileName: "registro.pdf",
       mimeType: "application/pdf",
-      body: Buffer.from("file")
+      body: pdfBody
     });
     const validation = await validateDocument(prisma as never, rt, "doc-1", { status: "APPROVED" });
 
@@ -406,7 +407,7 @@ describe("main operational flow", () => {
     expect(validation.status).toBe("APPROVED");
     expect(storage.put).toHaveBeenCalledWith({
       fileKey: "org-1/pro-1/lic-1/tok-1.pdf",
-      body: Buffer.from("file"),
+      body: pdfBody,
       mimeType: "application/pdf"
     });
     expect(prisma.license.update).toHaveBeenLastCalledWith({ where: { id: "lic-1" }, data: { status: "EXPIRING" } });

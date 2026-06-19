@@ -3,7 +3,7 @@
 ## Metadata
 - status: current
 - owner: olympus_orchestrator
-- last-updated: 2026-06-18
+- last-updated: 2026-06-19
 - source-of-truth: docs/architecture/recent-test-doc-coverage-audit.md
 
 ## Objetivo
@@ -20,9 +20,9 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 - Lacuna consciente: validacao definitiva de deploy depende de infraestrutura real, DNS/HTTPS, storage externo, secrets manager e decisao de banco/backup fora do SQLite local.
 
 ### Validacao runtime e contratos
-- Coberto: primeira fatia de helper de validacao runtime e documentacao do padrao.
-- Evidencias: `TASK-AT-107`, `EXEC-AT-107`, docs de arquitetura e testes.
-- Lacuna recomendada: migrar gradualmente announcements, script library, organizations, documents, notifications, imports e reports para o mesmo helper. Nao e bloqueio de demo, mas reduz risco de payload inconsistente.
+- Coberto: primeira fatia de helper de validacao runtime, documentacao do padrao, Scriptoteca e superficies recentes de Avisos, Configuracoes, Notificacoes e Fluxos.
+- Evidencias: `TASK-AT-107`, `EXEC-AT-107`, `TASK-AT-141`, `TASK-AT-143`, docs de arquitetura e testes.
+- Lacuna recomendada: migrar relatorios, imports e documentos legados para o mesmo helper apenas se voltarem ao fluxo ativo. Nao e bloqueio de demo, mas reduz risco de payload inconsistente.
 
 ### Imagens ricas em conteudo operacional
 - Coberto: suporte MVP transversal para anexos/imagens em conteudos operacionais.
@@ -46,13 +46,11 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 
 ## Backlog ativo apos auditoria
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: bloqueada por prints reais de acabamento visual.
-
-## Follow-ups ainda nao taskificados
-1. Coverage formal com HTML gerado por comando padrao.
-2. Migracao completa para validacao runtime em todos os endpoints restantes.
-3. Anexos com remocao auditavel e seeds visuais.
-4. Preparacao de infraestrutura final de deploy.
-5. Padronizacao de timeout/redaction em integracoes externas.
+2. `TASK-AT-144-report-index-and-browser-workbench-hardening.md`: workbench local com indice navegavel de reports.
+3. `TASK-AT-145-coverage-html-gate-and-docs.md`: coverage formal com HTML gerado por comando padrao.
+4. `TASK-AT-146-attachments-removal-and-generic-operational-entity.md`: anexos com remocao auditavel e seeds visuais.
+5. `TASK-AT-147-prod-postgres-storage-readiness.md`: preparacao de infraestrutura final de deploy.
+6. `TASK-AT-148-integrations-timeout-redaction-provider-hardening.md`: timeout/redaction em integracoes externas.
 
 ## Decisao
-Auditoria reaberta em 18/06/2026 apos `TASK-AT-126`, `TASK-AT-140` e `TASK-AT-141`. A cobertura existente continua suficiente para DANFE, Wiki/FAQ, seguranca, docs e validacao runtime da Scriptoteca em nivel unit/service. Em 19/06/2026, `TASK-AT-142` fechou a lacuna dos pacotes/roteiros com regressao API e Artillery cobrindo Fluxos/Scriptoteca/copia. As demais lacunas seguem como follow-ups conscientes, sem task formal nova nesta rodada.
+Auditoria reaberta em 18/06/2026 apos `TASK-AT-126`, `TASK-AT-140` e `TASK-AT-141`. A cobertura existente continua suficiente para DANFE, Wiki/FAQ, seguranca, docs e validacao runtime da Scriptoteca em nivel unit/service. Em 19/06/2026, `TASK-AT-142` fechou a lacuna dos pacotes/roteiros com regressao API e Artillery cobrindo Fluxos/Scriptoteca/copia. `TASK-AT-143` reduziu a lacuna de validacao runtime em Avisos, Configuracoes, Notificacoes e Fluxos. Os demais follow-ups agora estao taskificados formalmente em `TASK-AT-144` a `TASK-AT-148`.
