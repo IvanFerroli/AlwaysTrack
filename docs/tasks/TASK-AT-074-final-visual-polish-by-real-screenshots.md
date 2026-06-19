@@ -1,9 +1,10 @@
 # TASK-AT-074 - Polimento visual final por prints reais
 
 ## Metadata
-- status: proposed-blocked-by-user-input
-- owner: olympus_taskyfier
-- last-updated: 2026-06-12
+- status: completed-screenshot-slice
+- owner: olympus_orchestrator
+- last-updated: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-074-final-visual-polish-by-real-screenshots.md
 
 ## Fase
@@ -50,3 +51,17 @@ Remove ruidos visuais que desviam atencao da narrativa de governanca.
 - Virar refatoracao estetica infinita se nao limitar por prints.
 - Corrigir desktop e quebrar mobile sem checagem basica.
 
+## Resultado
+- Print recebido em 2026-06-19 para a tela de Scriptoteca/Atendimento.
+- Corrigido neste slice:
+  - marca da sidebar deixando de quebrar `ALWAYSTRACK` no meio;
+  - menu lateral mais compacto para reduzir corte do ultimo item;
+  - coluna de roteiros/scripts com largura minima maior;
+  - cards de roteiro e scripts com quebra de texto mais previsivel;
+  - botao `Editar` com largura estavel;
+  - aviso de canal em bloco, sem bolha oval estourada;
+  - layout da Scriptoteca empilha em telas menores para evitar colisao.
+- Validacao automatizada:
+  - `npm run typecheck --workspace @alwaystrack/web`
+  - `npm run build --workspace @alwaystrack/web`
+- Screenshot Playwright nao foi possivel neste ambiente por falta de `libnspr4.so`, falha ja conhecida/documentada na frente de Playwright/CI.

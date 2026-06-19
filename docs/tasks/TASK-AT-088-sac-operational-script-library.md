@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-mvp
 - owner: olympus_taskyfier
-- last-updated: 2026-06-13
+- last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-088-sac-operational-script-library.md
 
 ## Fase
@@ -33,12 +33,12 @@ Dor real trazida pelo Maicon: scripts/textos de atendimento ficam soltos em bloc
 2. `TASK-AT-090`: tela de listagem, menu lateral por categoria e preview. Status: completed.
 3. `TASK-AT-091`: busca, filtros e tags. Status: completed.
 4. `TASK-AT-092`: copiar texto e placeholders. Status: completed.
-5. `TASK-AT-093`: CRUD, sugestoes e fluxo de validacao. Status: proposed.
-6. `TASK-AT-094`: historico e versionamento de scripts. Status: completed-mvp; faltam restauracao/compare visual.
-7. `TASK-AT-095`: vinculos com Wiki/FAQ. Status: proposed.
+5. `TASK-AT-093`: CRUD, sugestoes e fluxo de validacao. Status: completed.
+6. `TASK-AT-094`: historico e versionamento de scripts. Status: completed.
+7. `TASK-AT-095`: vinculos com Wiki/FAQ. Status: completed.
 8. `TASK-AT-096`: seeds/demo com scripts reais. Status: completed-mvp; pode enriquecer dados reais depois.
-9. `TASK-AT-097`: metricas de uso da Scriptoteca. Status: completed-mvp; faltam buscas sem resultado e painel agregado.
-10. `TASK-AT-099`: governanca de validade e recertificacao dos scripts. Status: proposed.
+9. `TASK-AT-097`: metricas de uso da Scriptoteca. Status: completed.
+10. `TASK-AT-099`: governanca de validade e recertificacao dos scripts. Status: completed-mvp.
 
 ## Acceptance Criteria macro
 1. SAC encontra script por categoria.

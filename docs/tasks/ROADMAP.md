@@ -168,13 +168,13 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 149. `EXEC-AT-146`: arquivamento auditavel de anexos da Wiki (`TASK-AT-146`). Status: completed-mvp-slice.
 150. `EXEC-AT-147`: runbook de prontidao Postgres/storage externo (`TASK-AT-147`). Status: completed-docs.
 151. `EXEC-AT-152`: Google Sheets/Drive com timeout via `externalFetch` (`TASK-AT-152`). Status: completed.
+152. `EXEC-AT-074`: polimento visual por print da Scriptoteca (`TASK-AT-074`). Status: completed-screenshot-slice.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-2. `TASK-AT-149-prod-postgres-migration-execution.md`: migracao real para Postgres quando houver infraestrutura decidida.
-3. `TASK-AT-150-external-storage-provider.md`: provider S3/GCS ou equivalente para `StorageProvider`.
-4. `TASK-AT-151-generic-operational-attachments.md`: entidade generica transversal se a duplicacao entre Wiki/Avisos/FAQ/Fluxos/Scriptoteca virar dor real.
-5. `TASK-AT-153-script-library-pack-drag-drop-versioning.md`: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
+1. `TASK-AT-149-prod-postgres-migration-execution.md`: migracao real para Postgres quando houver infraestrutura decidida.
+2. `TASK-AT-150-external-storage-provider.md`: provider S3/GCS ou equivalente para `StorageProvider`.
+3. `TASK-AT-151-generic-operational-attachments.md`: entidade generica transversal se a duplicacao entre Wiki/Avisos/FAQ/Fluxos/Scriptoteca virar dor real.
+4. `TASK-AT-153-script-library-pack-drag-drop-versioning.md`: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -197,7 +197,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 2. `TASK-AT-070`: Ranking explicavel. Status: completed-mvp.
 3. `TASK-AT-071`: Timeline visual da nota. Status: completed-mvp.
 4. `TASK-AT-072`: Modo demo guiado. Status: completed-mvp.
-5. `TASK-AT-074`: Polimento visual final por prints reais. Status: proposed-blocked-by-user-input.
+5. `TASK-AT-074`: Polimento visual final por prints reais. Status: completed-screenshot-slice.
 
 ### Fase B - Confiabilidade operacional
 1. `TASK-AT-073`: Diagnostico de DANFE e correcao manual auditavel. Status: completed-mvp.
