@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
+  archiveWikiAttachment,
   archiveWikiPage,
   approveWikiEditRequest,
   createWikiEditRequest,
@@ -514,8 +515,55 @@ describe("wiki service", () => {
 
     expect(file.fileName).toBe("foto.png");
     expect(prisma.wikiAttachment.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: "att-1", organizationId: "org-1" }, include: expect.objectContaining({ page: expect.any(Object) }) })
+      expect.objectContaining({ where: { id: "att-1", organizationId: "org-1", archivedAt: null }, include: expect.objectContaining({ page: expect.any(Object) }) })
     );
+  });
+
+  it("archives wiki attachments auditably without deleting the stored file", async () => {
+    const prisma = {
+      wikiAttachment: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "att-1",
+          pageId: "page-1",
+          requestId: null,
+          fileName: "foto.png",
+          mimeType: "image/png",
+          size: 9
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "att-1",
+          archivedAt: new Date("2026-06-19T12:00:00.000Z"),
+          archivedById: "admin-1"
+        })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await archiveWikiAttachment(prisma as never, admin, "att-1");
+
+    expect(prisma.wikiAttachment.findFirst).toHaveBeenCalledWith({
+      where: { id: "att-1", organizationId: "org-1", archivedAt: null }
+    });
+    expect(prisma.wikiAttachment.update).toHaveBeenCalledWith({
+      where: { id: "att-1" },
+      data: expect.objectContaining({ archivedById: "admin-1", archivedAt: expect.any(Date) })
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "wiki.attachment.archive",
+          metadataJson: expect.stringContaining("\"storagePreserved\":true")
+        })
+      })
+    );
+  });
+
+  it("hides archived wiki attachments from download", async () => {
+    const prisma = { wikiAttachment: { findFirst: vi.fn().mockResolvedValue(null) } };
+    const storage = { put: vi.fn(), get: vi.fn() };
+
+    await expect(getWikiAttachmentFile(prisma as never, storage as never, admin, "att-1")).rejects.toEqual(new WikiError("NOT_FOUND"));
+    expect(storage.get).not.toHaveBeenCalled();
   });
 
   it("requires admin for direct publishing", async () => {

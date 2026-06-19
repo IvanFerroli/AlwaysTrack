@@ -135,6 +135,7 @@ import {
   googleOauthStartHandler
 } from "./core/integrations/google/google.handlers.js";
 import {
+  archiveWikiAttachmentHandler,
   archiveWikiPageHandler,
   approveWikiEditRequestHandler,
   createWikiEditRequestHandler,
@@ -480,6 +481,7 @@ export function createApp() {
     uploadWikiAttachmentHandler
   );
   app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(commercialAllRoles), getWikiAttachmentFileHandler);
+  app.delete("/v1/wiki/attachments/:attachmentId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, archiveWikiAttachmentHandler);
   app.get("/v1/wiki/edit-requests", requireAuth, requireRole(commercialAllRoles), listWikiEditRequestsHandler);
   app.post("/v1/wiki/edit-requests", requireAuth, requireRole(commercialKnowledgeContributorRoles), rateLimits.interaction, createWikiEditRequestHandler);
   app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, approveWikiEditRequestHandler);

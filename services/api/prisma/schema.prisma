@@ -1294,12 +1294,14 @@ model WikiAttachment {
   id             String   @id @default(cuid())
   organizationId String
   uploadedById   String
+  archivedById   String?
   pageId         String?
   requestId      String?
   fileKey        String
   fileName       String
   mimeType       String
   size           Int
+  archivedAt     DateTime?
   createdAt      DateTime @default(now())
 
   organization Organization     @relation(fields: [organizationId], references: [id])
@@ -1309,6 +1311,7 @@ model WikiAttachment {
 
   @@index([organizationId])
   @@index([uploadedById])
+  @@index([archivedAt])
   @@index([pageId])
   @@index([requestId])
 }

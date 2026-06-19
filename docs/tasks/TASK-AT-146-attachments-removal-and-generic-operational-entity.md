@@ -1,10 +1,11 @@
 # TASK-AT-146 - Anexos operacionais: remocao auditavel e entidade generica
 
 ## Metadata
-- status: proposed
+- status: completed-mvp-slice
 - owner: olympus-orchestrator
 - priority: medium
 - created: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-146-attachments-removal-and-generic-operational-entity.md
 
 ## Objetivo
@@ -25,3 +26,14 @@ Completar o slice de anexos/imagens transversais com remocao auditavel, entidade
 2. Usuario sem permissao nao consegue acessar anexo de outra organizacao.
 3. Conteudo rico continua renderizando sem quebrar quando anexo e arquivado.
 
+## Resultado
+- Entregue slice auditavel para anexos de Wiki:
+  - `WikiAttachment` ganhou `archivedAt` e `archivedById`.
+  - `DELETE /v1/wiki/attachments/:attachmentId` arquiva o anexo em vez de apagar fisicamente.
+  - Download de anexo arquivado retorna `NOT_FOUND`.
+  - Auditoria registra `wiki.attachment.archive` com `storagePreserved: true`.
+- A migration `20260619123000_wiki_attachment_archive` preserva compatibilidade local.
+
+## Fora do MVP
+- Entidade generica unica para anexos de Avisos, FAQ, Fluxos e Scriptoteca continua como evolucao futura se a duplicacao virar dor real.
+- Seeds visuais adicionais ficam cobertos pela frente de polimento/demo, nao por esta task.

@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import { isInputValidationError, sendInputValidationError } from "../validation/input-validation.js";
 import {
+  archiveWikiAttachment,
   archiveWikiPage,
   approveWikiEditRequest,
   createWikiEditRequest,
@@ -209,6 +210,15 @@ export async function getWikiAttachmentFileHandler(request: Request, response: R
     response.setHeader("cache-control", "private, max-age=0, must-revalidate");
     response.setHeader("content-disposition", `inline; filename="${file.fileName.replaceAll('"', "")}"`);
     return response.status(200).send(file.body);
+  } catch (error) {
+    return sendWikiError(response, error);
+  }
+}
+
+export async function archiveWikiAttachmentHandler(request: Request, response: Response) {
+  try {
+    const attachment = await archiveWikiAttachment(prisma, actorFrom(request), routeParam(request.params.attachmentId));
+    return sendOk(response, { attachment });
   } catch (error) {
     return sendWikiError(response, error);
   }

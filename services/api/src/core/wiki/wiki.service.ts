@@ -866,9 +866,37 @@ export async function uploadWikiAttachment(prisma: PrismaClient, storage: Storag
   return { ...attachment, markdownUrl: `/v1/wiki/attachments/${attachment.id}/file` };
 }
 
+export async function archiveWikiAttachment(prisma: PrismaClient, actor: CurrentUser, attachmentId: string) {
+  if (actor.role !== "ADMIN") throw new WikiError("FORBIDDEN");
+  const attachment = await prisma.wikiAttachment.findFirst({
+    where: { id: attachmentId, organizationId: actor.organizationId, archivedAt: null }
+  });
+  if (!attachment) throw new WikiError("NOT_FOUND");
+  const archived = await prisma.wikiAttachment.update({
+    where: { id: attachment.id },
+    data: { archivedAt: new Date(), archivedById: actor.id }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "wiki.attachment.archive",
+    entityType: "WikiAttachment",
+    entityId: attachment.id,
+    metadata: {
+      pageId: attachment.pageId ?? null,
+      requestId: attachment.requestId ?? null,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      size: attachment.size,
+      storagePreserved: true
+    }
+  });
+  return archived;
+}
+
 export async function getWikiAttachmentFile(prisma: PrismaClient, storage: StorageProvider, actor: CurrentUser, attachmentId: string) {
   const attachment = await prisma.wikiAttachment.findFirst({
-    where: { id: attachmentId, organizationId: actor.organizationId },
+    where: { id: attachmentId, organizationId: actor.organizationId, archivedAt: null },
     include: { page: { select: { active: true } } }
   });
   if (!attachment) throw new WikiError("NOT_FOUND");

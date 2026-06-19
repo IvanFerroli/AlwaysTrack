@@ -165,13 +165,16 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 146. `EXEC-AT-144`: workbench local com indice navegavel de reports (`TASK-AT-144`). Status: completed-mvp.
 147. `EXEC-AT-145`: coverage HTML da API e documentacao de leitura (`TASK-AT-145`). Status: completed-mvp.
 148. `EXEC-AT-148`: timeout/redaction para integracoes externas criticas (`TASK-AT-148`). Status: completed-mvp.
+149. `EXEC-AT-146`: arquivamento auditavel de anexos da Wiki (`TASK-AT-146`). Status: completed-mvp-slice.
+150. `EXEC-AT-147`: runbook de prontidao Postgres/storage externo (`TASK-AT-147`). Status: completed-docs.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: Polimento visual final por prints reais. Fase A, prioridade 6, bloqueada ate prints.
-2. `TASK-AT-146-attachments-removal-and-generic-operational-entity.md`: anexos com remocao auditavel e entidade generica.
-3. `TASK-AT-147-prod-postgres-storage-readiness.md`: prontidao de Postgres/storage externo quando houver decisao de infraestrutura.
-4. Follow-up de integracoes: migrar Google Sheets/Drive para `externalFetch`.
-5. Follow-up de Scriptoteca: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
+2. Follow-up de deploy: migracao real para Postgres quando houver infraestrutura decidida.
+3. Follow-up de deploy: provider S3/GCS ou equivalente para `StorageProvider`.
+4. Follow-up de anexos: entidade generica transversal se a duplicacao entre Wiki/Avisos/FAQ/Fluxos/Scriptoteca virar dor real.
+5. Follow-up de integracoes: migrar Google Sheets/Drive para `externalFetch`.
+6. Follow-up de Scriptoteca: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -251,6 +254,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 46. `TASK-AT-144`: Workbench local com indice navegavel de reports. Status: completed-mvp.
 47. `TASK-AT-145`: Coverage HTML e documentacao. Status: completed-mvp.
 48. `TASK-AT-148`: Integracoes externas com timeout e redaction. Status: completed-mvp.
+49. `TASK-AT-146`: Anexos com remocao auditavel. Status: completed-mvp-slice.
+50. `TASK-AT-147`: Prontidao Postgres/storage externo. Status: completed-docs.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

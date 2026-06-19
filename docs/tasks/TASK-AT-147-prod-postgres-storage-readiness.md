@@ -1,10 +1,11 @@
 # TASK-AT-147 - Prontidao de producao: Postgres e storage externo
 
 ## Metadata
-- status: proposed
+- status: completed-docs
 - owner: olympus-orchestrator
 - priority: high-when-deploy-decided
 - created: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-147-prod-postgres-storage-readiness.md
 
 ## Objetivo
@@ -22,3 +23,15 @@ Preparar a transicao de SQLite/local storage para infraestrutura de producao com
 2. Ambiente prod/staging tem instrucoes claras para Postgres/storage.
 3. Checklist de rollback e backup fica documentado.
 
+## Resultado
+- Criado runbook `docs/operations/production-postgres-storage-readiness.md`.
+- O contrato local permanece SQLite + storage local.
+- O caminho de producao ficou explicitado com:
+  - variaveis obrigatorias;
+  - estrategia para Postgres;
+  - estrategia para storage externo;
+  - gate antes de exposicao externa;
+  - rollback de app, schema, storage e integracoes.
+
+## Fora do MVP
+- A troca real para Postgres e a implementacao de S3/GCS continuam dependentes da decisao de infraestrutura e devem ser feitas em task propria quando houver alvo de deploy.
