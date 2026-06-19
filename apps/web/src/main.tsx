@@ -28,14 +28,14 @@ import {
   notificationStatuses,
   userRoles,
   commercialAllRoles,
-  commercialManagerRoles,
+  commercialSalesAccessRoles,
   adminOnlyRoles,
   type ApiResult,
   type CurrentUser,
   type LicenseStatus,
   type UserRole
 } from "@alwaystrack/shared";
-import { api, apiBaseUrl, appName, demoMode } from "./api";
+import { api, apiBaseUrl, appMode, appName, demoMode } from "./api";
 import { BrandMark } from "./components/brand";
 import { NotificationCenter } from "./components/notification-center";
 import {
@@ -488,11 +488,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialAllRoles },
-  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialAllRoles },
+  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialSalesAccessRoles },
+  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialSalesAccessRoles },
   { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
-  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialManagerRoles },
-  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialAllRoles },
+  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialSalesAccessRoles },
+  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialSalesAccessRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
   { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: commercialAllRoles },
   { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
@@ -781,6 +781,19 @@ function DemoModeBanner({ onOpen }: { onOpen: (key: ViewKey) => void }) {
         <button className="secondary small" type="button" onClick={() => onOpen("notes")}>Nota</button>
         <button className="secondary small" type="button" onClick={() => onOpen("ranking")}>Ranking</button>
         <button className="secondary small" type="button" onClick={() => onOpen("faq")}>FAQ</button>
+      </div>
+    </section>
+  );
+}
+
+function BetaModeBanner() {
+  if (appMode !== "beta-local") return null;
+  return (
+    <section className="beta-mode-banner" aria-label="Ambiente de homologação">
+      <div>
+        <p className="eyebrow">Ambiente Beta Fechado</p>
+        <strong>Uso exclusivo para homologação interna.</strong>
+        <span>Acesso controlado por email, role e escopo. Não use como processo oficial fora do beta.</span>
       </div>
     </section>
   );
@@ -4411,6 +4424,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
             </button>
           </div>
         </header>
+        <BetaModeBanner />
         <DemoModeBanner onOpen={openView} />
         {activeItem.key === "notes" ? (
           <NotesView user={user} initialFilters={viewIntent.notes} />

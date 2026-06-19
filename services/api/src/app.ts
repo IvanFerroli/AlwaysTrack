@@ -4,7 +4,8 @@ import {
   commercialAllRoles,
   commercialKnowledgeContributorRoles,
   commercialManagerRoles,
-  commercialReviewerRoles
+  commercialReviewerRoles,
+  commercialSalesAccessRoles
 } from "@alwaystrack/shared";
 import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
@@ -309,34 +310,34 @@ export function createApp() {
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }
-  app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialAllRoles), salesDashboardHandler);
+  app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialSalesAccessRoles), salesDashboardHandler);
   app.get("/v1/operations/today", requireAuth, requireRole(commercialAllRoles), operationalTodayHandler);
-  app.get("/v1/sales/dashboard.csv", requireAuth, requireRole(commercialAllRoles), salesDashboardCsvHandler);
-  app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialAllRoles), listSalesCampaignsHandler);
+  app.get("/v1/sales/dashboard.csv", requireAuth, requireRole(commercialSalesAccessRoles), salesDashboardCsvHandler);
+  app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialSalesAccessRoles), listSalesCampaignsHandler);
   app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, express.json(), createSalesCampaignHandler);
-  app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(commercialAllRoles), listRankingSnapshotsHandler);
+  app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(commercialSalesAccessRoles), listRankingSnapshotsHandler);
   app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, express.json(), updateSalesCampaignHandler);
   app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), rateLimits.ai, createRankingSnapshotHandler);
   app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(commercialManagerRoles), rateLimits.search, getRankingSnapshotJobStatusHandler);
-  app.get("/v1/sales/ranking", requireAuth, requireRole(commercialAllRoles), salesRankingHandler);
-  app.get("/v1/sales/ranking/:sellerProfileId/explanation", requireAuth, requireRole(commercialAllRoles), salesRankingExplanationHandler);
-  app.get("/v1/sales/ranking.csv", requireAuth, requireRole(commercialAllRoles), salesRankingCsvHandler);
-  app.get("/v1/sales/sellers", requireAuth, requireRole(commercialAllRoles), listSalesSellersHandler);
-  app.get("/v1/sales/statements", requireAuth, requireRole(commercialAllRoles), salesStatementsHandler);
-  app.get("/v1/sales/statements.csv", requireAuth, requireRole(commercialAllRoles), salesStatementsCsvHandler);
-  app.get("/v1/sales/documents", requireAuth, requireRole(commercialAllRoles), listSalesDocumentsHandler);
+  app.get("/v1/sales/ranking", requireAuth, requireRole(commercialSalesAccessRoles), salesRankingHandler);
+  app.get("/v1/sales/ranking/:sellerProfileId/explanation", requireAuth, requireRole(commercialSalesAccessRoles), salesRankingExplanationHandler);
+  app.get("/v1/sales/ranking.csv", requireAuth, requireRole(commercialSalesAccessRoles), salesRankingCsvHandler);
+  app.get("/v1/sales/sellers", requireAuth, requireRole(commercialSalesAccessRoles), listSalesSellersHandler);
+  app.get("/v1/sales/statements", requireAuth, requireRole(commercialSalesAccessRoles), salesStatementsHandler);
+  app.get("/v1/sales/statements.csv", requireAuth, requireRole(commercialSalesAccessRoles), salesStatementsCsvHandler);
+  app.get("/v1/sales/documents", requireAuth, requireRole(commercialSalesAccessRoles), listSalesDocumentsHandler);
   app.post(
     "/v1/sales/documents",
     requireAuth,
-    requireRole(commercialAllRoles),
+    requireRole(commercialSalesAccessRoles),
     rateLimits.upload,
     express.raw({ limit: "11mb", type: ["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
-  app.get("/v1/sales/documents/:documentId/diagnostics", requireAuth, requireRole(commercialAllRoles), salesDocumentDiagnosticsHandler);
-  app.get("/v1/sales/documents/:documentId/timeline", requireAuth, requireRole(commercialAllRoles), salesDocumentTimelineHandler);
+  app.get("/v1/sales/documents/:documentId/diagnostics", requireAuth, requireRole(commercialSalesAccessRoles), salesDocumentDiagnosticsHandler);
+  app.get("/v1/sales/documents/:documentId/timeline", requireAuth, requireRole(commercialSalesAccessRoles), salesDocumentTimelineHandler);
   app.patch("/v1/sales/documents/:documentId/manual-correction", requireAuth, requireRole(commercialReviewerRoles), rateLimits.adminSensitive, express.json(), salesDocumentManualCorrectionHandler);
-  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialAllRoles), rateLimits.ai, analyzeSalesDocumentHandler);
+  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialSalesAccessRoles), rateLimits.ai, analyzeSalesDocumentHandler);
   app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(commercialReviewerRoles), rateLimits.adminSensitive, reviewSalesDocumentHandler);
   app.get("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), listFaqThreadsHandler);
   app.post("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createFaqThreadHandler);

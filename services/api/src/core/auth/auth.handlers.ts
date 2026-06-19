@@ -86,6 +86,7 @@ function googleLoginCallbackHtml(status: "success" | "error", message: string, t
 function authErrorMessage(error: AuthError) {
   if (error.code === "EMAIL_NOT_VERIFIED") return "Google account email is not verified.";
   if (error.code === "DOMAIN_NOT_ALLOWED") return "Google account domain is not allowed.";
+  if (error.code === "EMAIL_NOT_ALLOWED") return "Google account is not allowed for this beta environment.";
   return "Invalid Google account or user status.";
 }
 
@@ -96,7 +97,10 @@ export async function loginHandler(request: Request, response: Response) {
       return sendError(response, 400, "INVALID_INPUT", "Email and password are required.");
     }
     const env = loadEnv();
-    const result = await loginUser(prisma, { email: body.email, password: body.password }, env.sessionSecret);
+    const result = await loginUser(prisma, { email: body.email, password: body.password }, env.sessionSecret, {
+      appMode: env.appMode,
+      allowedEmails: env.betaAllowedEmails
+    });
     response.setHeader(
       "set-cookie",
       sessionCookie(result.token, env)
@@ -150,7 +154,13 @@ export async function googleLoginCallbackHandler(request: Request, response: Res
     );
     const result = await loginUserByVerifiedGoogleEmail(
       prisma,
-      { email: profile.email, emailVerified: profile.emailVerified, allowedDomains: env.googleLoginAllowedDomains },
+      {
+        email: profile.email,
+        emailVerified: profile.emailVerified,
+        allowedDomains: env.googleLoginAllowedDomains,
+        appMode: env.appMode,
+        allowedEmails: env.betaAllowedEmails
+      },
       env.sessionSecret
     );
     response.setHeader("set-cookie", [sessionCookie(result.token, env), clearGoogleLoginStateCookie()]);

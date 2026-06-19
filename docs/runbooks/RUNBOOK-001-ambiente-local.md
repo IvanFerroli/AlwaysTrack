@@ -54,6 +54,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 - `SESSION_SECRET` deve ser longo e exclusivo por ambiente.
 - `SESSION_COOKIE_NAME` pode ser ajustado por ambiente; manter o mesmo valor entre login e API protegida.
 - Login Google local usa `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET`, `GOOGLE_LOGIN_REDIRECT_URI` e `GOOGLE_LOGIN_ALLOWED_DOMAINS` quando configurado. Sem dominio permitido, o login Google fica desabilitado por politica interna e a tela mantém o fallback de email/senha.
+- Homologação fechada usa `APP_MODE=beta-local`, `VITE_APP_MODE=beta-local` e `BETA_ALLOWED_EMAILS` com a lista nominal de emails permitidos. Sem `BETA_ALLOWED_EMAILS`, `npm run env:check` deve falhar para evitar beta aberto por engano.
 
 ## Contingencia
 1. Encerrar serviços com `Ctrl+C`.

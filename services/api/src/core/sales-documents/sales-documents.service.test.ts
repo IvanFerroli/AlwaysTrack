@@ -48,6 +48,18 @@ const seller: CurrentUser = {
   sectorScopeIds: []
 };
 
+const sac: CurrentUser = {
+  ...admin,
+  id: "sac-1",
+  role: "SAC"
+};
+
+const supervisor: CurrentUser = {
+  ...admin,
+  id: "supervisor-1",
+  role: "SUPERVISOR"
+};
+
 const pdfBody = Buffer.from("%PDF-1.7\n%%EOF\n");
 const nfeXmlBody = Buffer.from("<nfeProc><NFe><infNFe Id=\"NFe35260500000000000100550010000000011000000010\" /></NFe></nfeProc>");
 
@@ -202,6 +214,22 @@ INFORMAÇÕES COMPLEMENTARES
       page: 2,
       pageSize: 12
     });
+  });
+
+  it("blocks SAC from commercial sales documents even at service level", async () => {
+    await expect(listSalesDocuments({} as never, sac, {})).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("blocks Supervisor from campaign management during beta", async () => {
+    await expect(
+      createSalesCampaign({} as never, supervisor, {
+        name: "Beta",
+        startsAt: "2026-06-01",
+        endsAt: "2026-06-30",
+        status: "ACTIVE",
+        metric: "totalAmountCents"
+      })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("deduplicates repeated access keys inside the same deterministic package", () => {

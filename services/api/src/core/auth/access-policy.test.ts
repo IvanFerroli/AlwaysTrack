@@ -57,9 +57,13 @@ describe("access policy", () => {
   it("locks critical commercial permissions by role", () => {
     expect(canPerformCommercialAction(user({ role: "VENDEDOR" }), "sales.upload")).toBe(true);
     expect(canPerformCommercialAction(user({ role: "VENDEDOR" }), "sales.review")).toBe(false);
-    expect(canPerformCommercialAction(user({ role: "SAC" }), "sales.review")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "SAC" }), "sales.read")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "SAC" }), "sales.review")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "SAC" }), "scriptLibrary.copy")).toBe(true);
     expect(canPerformCommercialAction(user({ role: "FINANCEIRO" }), "campaign.manage")).toBe(false);
-    expect(canPerformCommercialAction(user({ role: "SUPERVISOR" }), "campaign.manage")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "FINANCEIRO" }), "sales.review")).toBe(true);
+    expect(canPerformCommercialAction(user({ role: "SUPERVISOR" }), "campaign.manage")).toBe(false);
+    expect(canPerformCommercialAction(user({ role: "SUPERVISOR" }), "faq.moderate")).toBe(true);
     expect(canPerformCommercialAction(user({ role: "GESTOR" }), "users.manage")).toBe(false);
     expect(canPerformCommercialAction(user({ role: "ADMIN" }), "audit.read")).toBe(true);
   });

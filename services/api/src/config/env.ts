@@ -3,6 +3,7 @@ import path from "node:path";
 
 export interface ApiEnv {
   appName: string;
+  appMode?: "local" | "beta-local" | "production";
   databaseUrl: string;
   sessionSecret: string;
   sessionCookieName: string;
@@ -43,6 +44,7 @@ export interface ApiEnv {
   googleLoginClientSecret?: string;
   googleLoginRedirectUri?: string;
   googleLoginAllowedDomains?: string[];
+  betaAllowedEmails?: string[];
   enableLegacySylembra?: boolean;
   httpMetricsSlowMs?: number;
   prismaSlowQueryMs?: number;
@@ -90,6 +92,12 @@ export function loadEnv(source = process.env): ApiEnv {
     .filter(Boolean);
   return {
     appName: source.APP_NAME?.trim() || "AlwaysTrack",
+    appMode:
+      source.APP_MODE === "beta-local" || source.APP_MODE === "production"
+        ? source.APP_MODE
+        : source.NODE_ENV === "production"
+          ? "production"
+          : "local",
     databaseUrl: source.DATABASE_URL ?? "file:./dev.db",
     sessionSecret: source.SESSION_SECRET ?? "dev-only-session-secret",
     sessionCookieName: source.SESSION_COOKIE_NAME ?? "alwaystrack_session",
@@ -135,6 +143,10 @@ export function loadEnv(source = process.env): ApiEnv {
     googleLoginClientSecret: source.GOOGLE_LOGIN_CLIENT_SECRET || source.GOOGLE_CLIENT_SECRET,
     googleLoginRedirectUri: source.GOOGLE_LOGIN_REDIRECT_URI,
     googleLoginAllowedDomains: (source.GOOGLE_LOGIN_ALLOWED_DOMAINS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+    betaAllowedEmails: (source.BETA_ALLOWED_EMAILS ?? "")
       .split(",")
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),

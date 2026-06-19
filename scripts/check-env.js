@@ -20,6 +20,7 @@ const required = mode === "production"
 
 const optional = [
   "APP_NAME",
+  "APP_MODE",
   "API_PORT",
   "SESSION_COOKIE_NAME",
   "VITE_API_BASE_URL",
@@ -59,6 +60,7 @@ const optional = [
   "GOOGLE_LOGIN_CLIENT_SECRET",
   "GOOGLE_LOGIN_REDIRECT_URI",
   "GOOGLE_LOGIN_ALLOWED_DOMAINS",
+  "BETA_ALLOWED_EMAILS",
   "DOCUMENT_AI_PROVIDER",
   "OPENAI_API_KEY",
   "GEMINI_API_KEY",
@@ -73,6 +75,7 @@ const optional = [
 
 const missing = required.filter((key) => !process.env[key] || process.env[key] === "change-me-in-production");
 const provider = process.env.NOTIFICATION_PROVIDER ?? "fake";
+const appMode = process.env.APP_MODE ?? (process.env.NODE_ENV === "production" ? "production" : "local");
 const jobQueueDriver = process.env.JOB_QUEUE_DRIVER ?? "inline";
 const googleLoginPartiallyConfigured = [
   "GOOGLE_LOGIN_CLIENT_ID",
@@ -151,6 +154,10 @@ if (provider === "meta") {
 
 if (jobQueueDriver === "bullmq" && !process.env.REDIS_URL) {
   missing.push("REDIS_URL");
+}
+
+if (appMode === "beta-local" && !process.env.BETA_ALLOWED_EMAILS) {
+  missing.push("BETA_ALLOWED_EMAILS");
 }
 
 if (mode === "production" && process.env.STORAGE_PROVIDER === "s3") {

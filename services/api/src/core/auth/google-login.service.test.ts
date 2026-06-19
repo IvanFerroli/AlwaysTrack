@@ -9,6 +9,7 @@ import {
 function baseEnv() {
   return {
     appName: "AlwaysTrack",
+    appMode: "local" as const,
     databaseUrl: "file:./dev.db",
     sessionSecret: "secret",
     sessionCookieName: "alwaystrack_session",

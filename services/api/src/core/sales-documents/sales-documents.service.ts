@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { campaignStatuses, salesDocumentStatuses, type CurrentUser } from "@alwaystrack/shared";
+import {
+  campaignStatuses,
+  canUseCommercialPermission,
+  salesDocumentStatuses,
+  type CommercialPermission,
+  type CurrentUser
+} from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { logEvent } from "../diagnostics/logger.js";
@@ -398,19 +404,17 @@ async function applySalesDocumentExtraction(
   return { document: updated, result, duplicate: Boolean(duplicate), accessKey };
 }
 
-function assertCommercialRole(actor: CurrentUser) {
-  if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"].includes(actor.role)) return;
+function assertCommercialPermission(actor: CurrentUser, permission: CommercialPermission) {
+  if (canUseCommercialPermission(actor.role, permission)) return;
   throw new SalesDocumentError("FORBIDDEN");
 }
 
 function assertCommercialReviewer(actor: CurrentUser) {
-  if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(actor.role)) return;
-  throw new SalesDocumentError("FORBIDDEN");
+  assertCommercialPermission(actor, "sales.review");
 }
 
 function assertCampaignManager(actor: CurrentUser) {
-  if (["ADMIN", "GESTOR", "SUPERVISOR"].includes(actor.role)) return;
-  throw new SalesDocumentError("FORBIDDEN");
+  assertCommercialPermission(actor, "campaign.manage");
 }
 
 export function parseSalesDocumentUploadInput(input: {
@@ -663,7 +667,7 @@ async function getScopedSalesDocument(prisma: PrismaClient, actor: CurrentUser, 
 }
 
 async function resolveSellerProfile(prisma: PrismaClient, actor: CurrentUser, sellerProfileId?: string) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.upload");
   const where: Prisma.SellerProfileWhereInput =
     actor.role === "VENDEDOR"
       ? { organizationId: actor.organizationId, userId: actor.id, active: true }
@@ -680,7 +684,7 @@ async function resolveSellerProfile(prisma: PrismaClient, actor: CurrentUser, se
 }
 
 export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUser, filters: SalesDocumentFilters = {}) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   const where = salesDocumentWhere(actor, filters);
   const pagination = paginationFor(filters);
   const [items, total] = await Promise.all([
@@ -703,7 +707,7 @@ export async function listSalesDocuments(prisma: PrismaClient, actor: CurrentUse
 }
 
 export async function listSalesSellers(prisma: PrismaClient, actor: CurrentUser) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   const items = await prisma.sellerProfile.findMany({
     where: { ...sellerScopeWhere(actor), active: true },
     include: { salesGroup: true, user: { select: { id: true, name: true, email: true, role: true } } },
@@ -713,7 +717,7 @@ export async function listSalesSellers(prisma: PrismaClient, actor: CurrentUser)
 }
 
 export async function getSalesDocumentTimeline(prisma: PrismaClient, actor: CurrentUser, documentId: string) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   const document = await getScopedSalesDocument(prisma, actor, documentId);
   const auditLogs = await prisma.auditLog.findMany({
     where: { organizationId: actor.organizationId, entityType: "SalesDocument", entityId: document.id },
@@ -825,7 +829,7 @@ export async function getSalesDocumentTimeline(prisma: PrismaClient, actor: Curr
 }
 
 export async function getSalesDocumentDiagnostics(prisma: PrismaClient, actor: CurrentUser, documentId: string) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   const document = await getScopedSalesDocument(prisma, actor, documentId);
   const latestExtraction = document.extractions[0] ?? null;
   const extractedAccessKey = extractedAccessKeyFromJson(latestExtraction?.extractedJson);
@@ -1028,7 +1032,7 @@ export async function analyzeSalesDocumentWithAi(
   documentId: string,
   options: { forceAi?: boolean } = {}
 ) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   if (!provider.analyzeSalesDocument) throw new SalesDocumentError("PROVIDER_ERROR");
 
   const document = await getScopedSalesDocument(prisma, actor, documentId);
@@ -1397,7 +1401,7 @@ export async function reviewSalesDocument(
 }
 
 export async function listSalesCampaigns(prisma: PrismaClient, actor: CurrentUser) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "campaign.read");
   const campaigns = await prisma.salesCampaign.findMany({
     where: {
       organizationId: actor.organizationId,
@@ -1509,7 +1513,7 @@ export async function createRankingSnapshot(prisma: PrismaClient, actor: Current
 }
 
 export async function listRankingSnapshots(prisma: PrismaClient, actor: CurrentUser) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "campaign.read");
   const snapshots = await prisma.rankingSnapshot.findMany({
     where: {
       organizationId: actor.organizationId,
@@ -1523,7 +1527,7 @@ export async function listRankingSnapshots(prisma: PrismaClient, actor: CurrentU
 }
 
 export async function getSalesRanking(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "ranking.read");
   const campaign = filters.campaignId
     ? await prisma.salesCampaign.findFirst({ where: { id: filters.campaignId, organizationId: actor.organizationId } })
     : null;
@@ -1568,7 +1572,7 @@ export async function getSalesRanking(prisma: PrismaClient, actor: CurrentUser, 
 }
 
 export async function getSalesRankingExplanation(prisma: PrismaClient, actor: CurrentUser, sellerProfileId: string, filters: SalesPeriodFilters = {}) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "ranking.read");
   const ranking = await getSalesRanking(prisma, actor, { ...filters, sellerProfileId });
   const row = ranking.items.find((item) => item.sellerId === sellerProfileId);
   if (!row) throw new SalesDocumentError("NOT_FOUND");
@@ -1674,7 +1678,7 @@ export async function getSalesRankingExplanation(prisma: PrismaClient, actor: Cu
 }
 
 export async function getSalesStatements(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "statements.read");
   const where = periodDocumentWhere(actor, filters);
   const pagination = paginationFor(filters);
   const documents = await prisma.salesDocument.findMany({
@@ -1907,7 +1911,7 @@ function csvCell(value: string) {
 }
 
 export async function getSalesDashboard(prisma: PrismaClient, actor: CurrentUser, filters: SalesPeriodFilters = {}, today = new Date()) {
-  assertCommercialRole(actor);
+  assertCommercialPermission(actor, "sales.read");
   const documentWhere = salesDocumentWhere(actor);
   const approvedWhere = { ...documentWhere, status: "APPROVED" };
   const chartRange = dashboardChartRange(filters, today);

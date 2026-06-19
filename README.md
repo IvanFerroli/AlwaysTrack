@@ -424,6 +424,18 @@ GOOGLE_LOGIN_REDIRECT_URI="https://SEU_DOMINIO/v1/auth/google/callback"
 
 No Google Cloud Console, o redirect precisa estar exatamente cadastrado em Authorized redirect URIs.
 
+### Beta fechado por allowlist
+
+Para homologação local controlada, use `APP_MODE=beta-local` na API e `VITE_APP_MODE=beta-local` no frontend. Nesse modo, login tradicional e Google Login só aceitam emails listados em `BETA_ALLOWED_EMAILS`.
+
+```env
+APP_MODE="beta-local"
+VITE_APP_MODE="beta-local"
+BETA_ALLOWED_EMAILS="admin@alwaysfit.com.br,vendedor@alwaysfit.com.br,sac@alwaysfit.com.br"
+```
+
+Allowlist define quem entra. Role define o que cada usuário pode fazer depois de entrar.
+
 ### Roles
 
 Roles comerciais canonicas:
@@ -513,6 +525,7 @@ GOOGLE_LOGIN_CLIENT_ID="..."
 GOOGLE_LOGIN_CLIENT_SECRET="..."
 GOOGLE_LOGIN_REDIRECT_URI="https://SEU_DOMINIO/v1/auth/google/callback"
 GOOGLE_LOGIN_ALLOWED_DOMAINS="alwaysfit.com.br"
+APP_MODE="production"
 
 JOB_QUEUE_DRIVER="bullmq"
 REDIS_URL="redis://..."

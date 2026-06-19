@@ -37,4 +37,14 @@ describe("api env", () => {
     expect(env.storageS3Region).toBe("sa-east-1");
     expect(env.storageS3ForcePathStyle).toBe(false);
   });
+
+  it("parses beta-local mode and email allowlist", () => {
+    const env = loadEnv({
+      APP_MODE: "beta-local",
+      BETA_ALLOWED_EMAILS: " Admin@Example.com, vendedor@example.com "
+    });
+
+    expect(env.appMode).toBe("beta-local");
+    expect(env.betaAllowedEmails).toEqual(["admin@example.com", "vendedor@example.com"]);
+  });
 });

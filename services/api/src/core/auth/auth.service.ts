@@ -8,7 +8,7 @@ import { recordAuditLog } from "../audit/audit.service.js";
 import { optionalString, parseObjectPayload } from "../validation/input-validation.js";
 
 export class AuthError extends Error {
-  constructor(public readonly code: "INVALID_CREDENTIALS" | "INACTIVE_USER" | "EMAIL_NOT_VERIFIED" | "DOMAIN_NOT_ALLOWED") {
+  constructor(public readonly code: "INVALID_CREDENTIALS" | "INACTIVE_USER" | "EMAIL_NOT_VERIFIED" | "DOMAIN_NOT_ALLOWED" | "EMAIL_NOT_ALLOWED") {
     super(code);
   }
 }
@@ -28,6 +28,19 @@ function toUserRole(value: string): UserRole {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function uniqueNormalizedEmails(values: string[] | undefined) {
+  return [...new Set((values ?? []).map((email) => normalizeEmail(email)).filter(Boolean))];
+}
+
+export function assertBetaEmailAllowed(input: { email: string; appMode?: string; allowedEmails?: string[] }) {
+  if (input.appMode !== "beta-local") return;
+  const normalizedEmail = normalizeEmail(input.email);
+  const allowedEmails = uniqueNormalizedEmails(input.allowedEmails);
+  if (allowedEmails.length === 0 || !allowedEmails.includes(normalizedEmail)) {
+    throw new AuthError("EMAIL_NOT_ALLOWED");
+  }
 }
 
 export function parseLoginInput(payload: unknown): LoginInput {
@@ -87,8 +100,9 @@ async function recordAuthFailure(
   });
 }
 
-export async function loginUser(prisma: PrismaClient, input: LoginInput, sessionSecret: string) {
+export async function loginUser(prisma: PrismaClient, input: LoginInput, sessionSecret: string, options: { appMode?: string; allowedEmails?: string[] } = {}) {
   const normalizedEmail = normalizeEmail(input.email);
+  assertBetaEmailAllowed({ email: normalizedEmail, appMode: options.appMode, allowedEmails: options.allowedEmails });
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
@@ -122,10 +136,11 @@ export async function loginUser(prisma: PrismaClient, input: LoginInput, session
 
 export async function loginUserByVerifiedGoogleEmail(
   prisma: PrismaClient,
-  input: { email: string; emailVerified: boolean; allowedDomains?: string[] },
+  input: { email: string; emailVerified: boolean; allowedDomains?: string[]; appMode?: string; allowedEmails?: string[] },
   sessionSecret: string
 ) {
   const normalizedEmail = normalizeEmail(input.email);
+  assertBetaEmailAllowed({ email: normalizedEmail, appMode: input.appMode, allowedEmails: input.allowedEmails });
   const allowedDomains = [...new Set((input.allowedDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))];
   if (!input.emailVerified) {
     throw new AuthError("EMAIL_NOT_VERIFIED");

@@ -18,6 +18,12 @@ const seller: CurrentUser = {
   role: "VENDEDOR"
 };
 
+const sac: CurrentUser = {
+  ...admin,
+  id: "sac-1",
+  role: "SAC"
+};
+
 function prismaMock() {
   return {
     salesDocument: {
@@ -66,6 +72,8 @@ describe("global search service", () => {
     expect(result.total).toBe(7);
     expect(result.groups.map((group) => group.key)).toEqual(["notes", "sellers", "campaigns", "wiki", "faq", "announcements", "scripts"]);
     expect(result.groups[0].items[0]).toMatchObject({ type: "note", title: "NF 703444", href: "/notas" });
+    expect(result.groups.find((group) => group.key === "faq")?.items[0]).toMatchObject({ type: "faq" });
+    expect(result.groups.find((group) => group.key === "announcements")?.items[0]).toMatchObject({ type: "announcement" });
     expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
   });
 
@@ -85,5 +93,15 @@ describe("global search service", () => {
         where: expect.objectContaining({ userId: "seller-user-1" })
       })
     );
+  });
+
+  it("does not query commercial data for SAC users", async () => {
+    const prisma = prismaMock();
+    const result = await globalSearch(prisma as never, sac, { query: "danfe", limit: 5 });
+
+    expect(result.groups.map((group) => group.key)).toEqual(["wiki", "faq", "announcements", "scripts"]);
+    expect(prisma.salesDocument.findMany).not.toHaveBeenCalled();
+    expect(prisma.sellerProfile.findMany).not.toHaveBeenCalled();
+    expect(prisma.salesCampaign.findMany).not.toHaveBeenCalled();
   });
 });

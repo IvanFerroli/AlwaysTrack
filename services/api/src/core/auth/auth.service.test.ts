@@ -1,8 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { hashPassword } from "./password.js";
-import { AuthError, loginUser, loginUserByVerifiedGoogleEmail } from "./auth.service.js";
+import { assertBetaEmailAllowed, AuthError, loginUser, loginUserByVerifiedGoogleEmail } from "./auth.service.js";
 
 describe("auth service", () => {
+  it("enforces beta-local allowlist without affecting normal login modes", () => {
+    expect(() => assertBetaEmailAllowed({ email: "admin@example.com", appMode: "local", allowedEmails: [] })).not.toThrow();
+    expect(() =>
+      assertBetaEmailAllowed({ email: "Admin@Example.com", appMode: "beta-local", allowedEmails: [" admin@example.com "] })
+    ).not.toThrow();
+    expect(() => assertBetaEmailAllowed({ email: "outsider@example.com", appMode: "beta-local", allowedEmails: ["admin@example.com"] })).toThrow(
+      AuthError
+    );
+    expect(() => assertBetaEmailAllowed({ email: "admin@example.com", appMode: "beta-local", allowedEmails: [] })).toThrow(AuthError);
+  });
+
   it("logs in active users and records audit", async () => {
     const passwordHash = await hashPassword("secret");
     const prisma = {
@@ -45,6 +56,22 @@ describe("auth service", () => {
         })
       })
     );
+  });
+
+  it("blocks password login outside beta-local allowlist before user lookup", async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn()
+      }
+    };
+
+    await expect(
+      loginUser(prisma as never, { email: "outsider@example.com", password: "secret" }, "secret", {
+        appMode: "beta-local",
+        allowedEmails: ["admin@example.com"]
+      })
+    ).rejects.toMatchObject({ code: "EMAIL_NOT_ALLOWED" });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
   it("rejects inactive users", async () => {
@@ -137,7 +164,7 @@ describe("auth service", () => {
 
     const result = await loginUserByVerifiedGoogleEmail(
       prisma as never,
-      { email: "ADMIN@example.com", emailVerified: true, allowedDomains: ["EXAMPLE.com"] },
+      { email: "ADMIN@example.com", emailVerified: true, allowedDomains: ["EXAMPLE.com"], appMode: "beta-local", allowedEmails: ["admin@example.com"] },
       "secret"
     );
 
@@ -174,6 +201,14 @@ describe("auth service", () => {
     await expect(
       loginUserByVerifiedGoogleEmail(prisma as never, { email: "admin@example.com", emailVerified: true, allowedDomains: ["example.com"] }, "secret")
     ).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
+
+    await expect(
+      loginUserByVerifiedGoogleEmail(
+        prisma as never,
+        { email: "outsider@example.com", emailVerified: true, allowedDomains: ["example.com"], appMode: "beta-local", allowedEmails: ["admin@example.com"] },
+        "secret"
+      )
+    ).rejects.toMatchObject({ code: "EMAIL_NOT_ALLOWED" });
   });
 
   it("audits inactive Google login attempts for known users", async () => {

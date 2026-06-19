@@ -3,6 +3,7 @@ import type { ApiResult } from "@alwaystrack/shared";
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 export const appName = import.meta.env.VITE_APP_NAME?.trim() || "AlwaysTrack";
 export const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+export const appMode = import.meta.env.VITE_APP_MODE ?? "local";
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {

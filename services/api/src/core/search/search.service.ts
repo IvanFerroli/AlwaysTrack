@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 
 export interface GlobalSearchInput {
   query?: string;
@@ -34,7 +34,7 @@ export function parseGlobalSearchInput(query: Record<string, unknown>): GlobalSe
 }
 
 function sellerScopeWhere(actor: CurrentUser): Prisma.SellerProfileWhereInput {
-  if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(actor.role)) return { organizationId: actor.organizationId };
+  if (["ADMIN", "GESTOR", "FINANCEIRO"].includes(actor.role)) return { organizationId: actor.organizationId };
   if (actor.role === "VENDEDOR") return { organizationId: actor.organizationId, userId: actor.id };
   if (actor.role === "SUPERVISOR") return { organizationId: actor.organizationId, salesGroup: { supervisorId: actor.id } };
   return { organizationId: "__forbidden__" };
@@ -62,35 +62,43 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
   if (!query) {
     return { query: query ?? "", groups: [], total: 0 };
   }
+  const canSearchSales = canUseCommercialPermission(actor.role, "sales.read");
+  const canSearchCampaigns = canUseCommercialPermission(actor.role, "campaign.read");
 
   const [notes, sellers, campaigns, wikiPages, faqThreads, announcements, scripts] = await Promise.all([
-    prisma.salesDocument.findMany({
-      where: {
-        ...salesDocumentScopeWhere(actor),
-        OR: containsQuery(["fileName", "invoiceNumber", "accessKey", "issuerName", "buyerName"], query)
-      },
-      include: { sellerProfile: { include: { salesGroup: true } } },
-      orderBy: { createdAt: "desc" },
-      take: limit
-    }),
-    prisma.sellerProfile.findMany({
-      where: {
-        ...sellerScopeWhere(actor),
-        OR: containsQuery(["displayName", "code", "email", "document"], query)
-      },
-      include: { salesGroup: true },
-      orderBy: { displayName: "asc" },
-      take: limit
-    }),
-    prisma.salesCampaign.findMany({
-      where: {
-        ...campaignScopeWhere(actor),
-        OR: containsQuery(["name", "description", "status"], query)
-      },
-      include: { salesGroup: true },
-      orderBy: [{ status: "asc" }, { startsAt: "desc" }],
-      take: limit
-    }),
+    canSearchSales
+      ? prisma.salesDocument.findMany({
+          where: {
+            ...salesDocumentScopeWhere(actor),
+            OR: containsQuery(["fileName", "invoiceNumber", "accessKey", "issuerName", "buyerName"], query)
+          },
+          include: { sellerProfile: { include: { salesGroup: true } } },
+          orderBy: { createdAt: "desc" },
+          take: limit
+        })
+      : Promise.resolve([]),
+    canSearchSales
+      ? prisma.sellerProfile.findMany({
+          where: {
+            ...sellerScopeWhere(actor),
+            OR: containsQuery(["displayName", "code", "email", "document"], query)
+          },
+          include: { salesGroup: true },
+          orderBy: { displayName: "asc" },
+          take: limit
+        })
+      : Promise.resolve([]),
+    canSearchCampaigns
+      ? prisma.salesCampaign.findMany({
+          where: {
+            ...campaignScopeWhere(actor),
+            OR: containsQuery(["name", "description", "status"], query)
+          },
+          include: { salesGroup: true },
+          orderBy: [{ status: "asc" }, { startsAt: "desc" }],
+          take: limit
+        })
+      : Promise.resolve([]),
     prisma.wikiPage.findMany({
       where: {
         organizationId: actor.organizationId,
@@ -196,7 +204,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
       label: "FAQ",
       items: faqThreads.map(
         (item): GlobalSearchResult => ({
-          type: "announcement",
+          type: "faq",
           id: item.id,
           title: item.title,
           subtitle: item.status,
@@ -210,7 +218,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
       label: "Avisos",
       items: announcements.map(
         (item): GlobalSearchResult => ({
-          type: "faq",
+          type: "announcement",
           id: item.id,
           title: item.title,
           subtitle: `${item.priority} · Aviso interno`,
