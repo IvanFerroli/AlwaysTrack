@@ -1,7 +1,7 @@
 # TASK-AT-163 - Seeds e usuarios controlados do beta
 
 ## Metadata
-- status: proposed
+- status: completed-existing-seed
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-163-beta-controlled-seeds-users.md

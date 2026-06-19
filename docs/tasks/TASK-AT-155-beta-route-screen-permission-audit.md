@@ -1,7 +1,7 @@
 # TASK-AT-155 - Auditoria de rotas e telas contra matriz beta
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-155-beta-route-screen-permission-audit.md

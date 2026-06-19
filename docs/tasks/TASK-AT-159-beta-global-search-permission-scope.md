@@ -1,7 +1,7 @@
 # TASK-AT-159 - Busca global escopada por permissao beta
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-159-beta-global-search-permission-scope.md

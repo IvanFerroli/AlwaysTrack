@@ -1,7 +1,7 @@
 # TASK-AT-157 - Testes negativos de permissao do beta
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-157-beta-negative-permission-tests.md

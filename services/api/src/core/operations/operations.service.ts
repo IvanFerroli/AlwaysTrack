@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { getSalesRanking } from "../sales-documents/sales-documents.service.js";
 
 function startOfUtcDay(date: Date) {
@@ -23,7 +23,7 @@ function isoDate(date: Date) {
 }
 
 function sellerScopeWhere(actor: CurrentUser): Prisma.SellerProfileWhereInput {
-  if (["ADMIN", "GESTOR", "SAC", "FINANCEIRO"].includes(actor.role)) return { organizationId: actor.organizationId };
+  if (["ADMIN", "GESTOR", "FINANCEIRO"].includes(actor.role)) return { organizationId: actor.organizationId };
   if (actor.role === "VENDEDOR") return { organizationId: actor.organizationId, userId: actor.id };
   if (actor.role === "SUPERVISOR") return { organizationId: actor.organizationId, salesGroup: { supervisorId: actor.id } };
   return { organizationId: "__forbidden__" };
@@ -55,6 +55,9 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
   const dayStart = startOfUtcDay(today);
   const dayEnd = endOfUtcDay(today);
   const todayText = isoDate(dayStart);
+  const canSeeSales = canUseCommercialPermission(actor.role, "sales.read");
+  const canSeeCampaigns = canUseCommercialPermission(actor.role, "campaign.read");
+  const canSeeRanking = canUseCommercialPermission(actor.role, "ranking.read");
   const documentScope = salesDocumentScopeWhere(actor);
   const managerKnowledgeScope = canSeeKnowledgeReviewQueue(actor);
   const campaignScope: Prisma.SalesCampaignWhereInput = {
@@ -86,35 +89,43 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
     criticalAnnouncements,
     ranking
   ] = await Promise.all([
-    prisma.salesDocument.count({ where: { ...documentScope, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } } }),
-    prisma.salesDocument.count({ where: { ...documentScope, status: "APPROVED", reviewedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.salesDocument.count({ where: { ...documentScope, status: "REJECTED", reviewedAt: { gte: dayStart, lte: dayEnd } } }),
-    prisma.salesDocument.count({ where: { ...documentScope, status: "DUPLICATE" } }),
-    prisma.auditLog.count({
-      where: {
-        organizationId: actor.organizationId,
-        action: "sales_document.extract_failed",
-        createdAt: { gte: dayStart, lte: dayEnd }
-      }
-    }),
-    prisma.salesDocument.findMany({
-      where: { ...documentScope, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } },
-      include: { sellerProfile: { include: { salesGroup: true } } },
-      orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-      take: 5
-    }),
-    prisma.salesCampaign.findMany({
-      where: campaignScope,
-      include: { salesGroup: true },
-      orderBy: [{ endsAt: "asc" }, { name: "asc" }],
-      take: 5
-    }),
-    prisma.salesCampaign.count({
-      where: {
-        ...campaignScope,
-        endsAt: { gte: dayStart, lte: endOfUtcDay(addUtcDays(dayStart, 7)) }
-      }
-    }),
+    canSeeSales ? prisma.salesDocument.count({ where: { ...documentScope, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } } }) : Promise.resolve(0),
+    canSeeSales ? prisma.salesDocument.count({ where: { ...documentScope, status: "APPROVED", reviewedAt: { gte: dayStart, lte: dayEnd } } }) : Promise.resolve(0),
+    canSeeSales ? prisma.salesDocument.count({ where: { ...documentScope, status: "REJECTED", reviewedAt: { gte: dayStart, lte: dayEnd } } }) : Promise.resolve(0),
+    canSeeSales ? prisma.salesDocument.count({ where: { ...documentScope, status: "DUPLICATE" } }) : Promise.resolve(0),
+    canSeeSales
+      ? prisma.auditLog.count({
+          where: {
+            organizationId: actor.organizationId,
+            action: "sales_document.extract_failed",
+            createdAt: { gte: dayStart, lte: dayEnd }
+          }
+        })
+      : Promise.resolve(0),
+    canSeeSales
+      ? prisma.salesDocument.findMany({
+          where: { ...documentScope, status: { in: ["UPLOADED", "EXTRACTING", "PENDING_REVIEW"] } },
+          include: { sellerProfile: { include: { salesGroup: true } } },
+          orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+          take: 5
+        })
+      : Promise.resolve([]),
+    canSeeCampaigns
+      ? prisma.salesCampaign.findMany({
+          where: campaignScope,
+          include: { salesGroup: true },
+          orderBy: [{ endsAt: "asc" }, { name: "asc" }],
+          take: 5
+        })
+      : Promise.resolve([]),
+    canSeeCampaigns
+      ? prisma.salesCampaign.count({
+          where: {
+            ...campaignScope,
+            endsAt: { gte: dayStart, lte: endOfUtcDay(addUtcDays(dayStart, 7)) }
+          }
+        })
+      : Promise.resolve(0),
     managerKnowledgeScope ? prisma.wikiEditRequest.count({ where: { organizationId: actor.organizationId, status: "PENDING" } }) : Promise.resolve(0),
     managerKnowledgeScope
       ? prisma.wikiEditRequest.findMany({
@@ -144,7 +155,7 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
       take: 3
     }),
     prisma.announcement.count({ where: { ...announcementScope, priority: { in: ["HIGH", "CRITICAL"] } } }),
-    getSalesRanking(prisma, actor, { from: todayText, to: todayText })
+    canSeeRanking ? getSalesRanking(prisma, actor, { from: todayText, to: todayText }) : Promise.resolve({ items: [] })
   ]);
 
   const alerts = [

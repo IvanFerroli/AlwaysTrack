@@ -1,7 +1,7 @@
 # TASK-AT-164 - Runbook Beta Fechado via Tailscale
 
 ## Metadata
-- status: proposed
+- status: completed-docs
 - owner: olympus_taskyfier
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-164-beta-tailscale-runbook.md

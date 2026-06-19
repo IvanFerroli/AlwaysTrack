@@ -1,7 +1,7 @@
 # TASK-AT-162 - Banner visual de homologacao beta-local
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-162-beta-local-banner.md

@@ -22,6 +22,12 @@ const seller: CurrentUser = {
   sectorScopeIds: []
 };
 
+const sac: CurrentUser = {
+  ...admin,
+  id: "sac-1",
+  role: "SAC"
+};
+
 function prismaMock() {
   return {
     salesDocument: {
@@ -120,5 +126,18 @@ describe("operations service", () => {
       }
     });
     expect(prisma.wikiEditRequest.count).not.toHaveBeenCalled();
+  });
+
+  it("keeps SAC operational center away from commercial queries", async () => {
+    const prisma = prismaMock();
+    const result = await getOperationalToday(prisma as never, sac, new Date("2026-06-12T10:00:00.000Z"));
+
+    expect(result.metrics.pendingDocuments).toBe(0);
+    expect(result.metrics.activeCampaigns).toBe(0);
+    expect(result.queues.ranking).toEqual([]);
+    expect(prisma.salesDocument.count).not.toHaveBeenCalled();
+    expect(prisma.salesDocument.findMany).not.toHaveBeenCalled();
+    expect(prisma.salesCampaign.findMany).not.toHaveBeenCalled();
+    expect(prisma.salesItem.findMany).not.toHaveBeenCalled();
   });
 });

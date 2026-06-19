@@ -1,7 +1,7 @@
 # TASK-AT-165 - Checklists de homologacao Beta SAC e Beta Vendedor
 
 ## Metadata
-- status: proposed
+- status: completed-docs
 - owner: olympus_taskyfier
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-165-beta-sac-seller-homologation-checklists.md

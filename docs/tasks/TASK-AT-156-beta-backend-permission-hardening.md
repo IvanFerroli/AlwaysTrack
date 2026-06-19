@@ -1,7 +1,7 @@
 # TASK-AT-156 - Backend hardening por role e escopo beta
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-156-beta-backend-permission-hardening.md

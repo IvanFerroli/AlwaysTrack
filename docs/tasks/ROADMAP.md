@@ -173,14 +173,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 154. `EXEC-AT-150`: provider S3-compatible para storage privado (`TASK-AT-150`). Status: completed-mvp.
 155. `EXEC-AT-151`: entidade generica de anexos operacionais para Avisos/FAQ/Fluxos/Scriptoteca (`TASK-AT-151`). Status: completed-mvp-slice.
 156. `EXEC-AT-149`: preflight de migracao real Postgres e guardas de backup/storage (`TASK-AT-149`). Status: blocked-external-infra-ready.
+157. `EXEC-AT-154`: Fase Beta Fechado por Permissoes com matriz, backend, busca, frontend, allowlist, banner, runbook e checklists (`TASK-AT-154` a `TASK-AT-165`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-154-beta-permission-matrix-canonical.md`: consolidar a matriz canonica do Beta Fechado por Permissoes antes de qualquer hardening.
-2. `TASK-AT-155-beta-route-screen-permission-audit.md`: auditar rotas, telas, menus e busca contra a matriz aprovada.
-3. `TASK-AT-156-beta-backend-permission-hardening.md`: aplicar autorizacao real no backend por role e escopo.
-4. `TASK-AT-157-beta-negative-permission-tests.md`: proteger a segregacao com testes negativos por role.
-5. `TASK-AT-158-beta-frontend-route-guards-navigation.md`: ajustar guards, navegacao e visibilidade no frontend.
-6. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
+1. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -292,15 +288,15 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 4. `TASK-AT-120`: Checklist rapido de diagnostico. Status: completed.
 
 ### Fase F - Beta Fechado por Permissoes
-1. `TASK-AT-154`: Matriz canonica de permissoes do Beta Fechado. Status: proposed.
-2. `TASK-AT-155`: Auditoria de rotas e telas contra matriz beta. Status: proposed.
-3. `TASK-AT-156`: Backend hardening por role e escopo beta. Status: proposed.
-4. `TASK-AT-157`: Testes negativos de permissao do beta. Status: proposed.
-5. `TASK-AT-158`: Frontend route guards e navegacao por role beta. Status: proposed.
-6. `TASK-AT-159`: Busca global escopada por permissao beta. Status: proposed.
-7. `TASK-AT-160`: Ranking e extratos escopados para vendedor beta. Status: proposed.
-8. `TASK-AT-161`: Allowlist nominal beta-local por email. Status: proposed.
-9. `TASK-AT-162`: Banner visual de homologacao beta-local. Status: proposed.
-10. `TASK-AT-163`: Seeds e usuarios controlados do beta. Status: proposed.
-11. `TASK-AT-164`: Runbook Beta Fechado via Tailscale. Status: proposed.
-12. `TASK-AT-165`: Checklists de homologacao Beta SAC e Beta Vendedor. Status: proposed.
+1. `TASK-AT-154`: Matriz canonica de permissoes do Beta Fechado. Status: completed-mvp.
+2. `TASK-AT-155`: Auditoria de rotas e telas contra matriz beta. Status: completed-mvp.
+3. `TASK-AT-156`: Backend hardening por role e escopo beta. Status: completed-mvp.
+4. `TASK-AT-157`: Testes negativos de permissao do beta. Status: completed-mvp.
+5. `TASK-AT-158`: Frontend route guards e navegacao por role beta. Status: completed-mvp.
+6. `TASK-AT-159`: Busca global escopada por permissao beta. Status: completed-mvp.
+7. `TASK-AT-160`: Ranking e extratos escopados para vendedor beta. Status: completed-mvp.
+8. `TASK-AT-161`: Allowlist nominal beta-local por email. Status: completed-mvp.
+9. `TASK-AT-162`: Banner visual de homologacao beta-local. Status: completed-mvp.
+10. `TASK-AT-163`: Seeds e usuarios controlados do beta. Status: completed-existing-seed.
+11. `TASK-AT-164`: Runbook Beta Fechado via Tailscale. Status: completed-docs.
+12. `TASK-AT-165`: Checklists de homologacao Beta SAC e Beta Vendedor. Status: completed-docs.

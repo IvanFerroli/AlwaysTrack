@@ -1,7 +1,7 @@
 # TASK-AT-154 - Matriz canonica de permissoes do Beta Fechado
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_taskyfier
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-154-beta-permission-matrix-canonical.md

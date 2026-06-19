@@ -1,7 +1,7 @@
 # TASK-AT-161 - Allowlist nominal beta-local por email
 
 ## Metadata
-- status: proposed
+- status: completed-mvp
 - owner: olympus_orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-161-beta-email-allowlist.md
