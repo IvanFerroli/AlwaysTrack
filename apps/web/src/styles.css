@@ -2954,10 +2954,22 @@ legend {
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-sm);
+  cursor: grab;
   display: grid;
   gap: 8px;
-  grid-template-columns: 30px minmax(0, 1fr) minmax(110px, 0.5fr) auto auto auto;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(120px, 0.5fr) auto auto auto;
   padding: 8px;
+}
+
+.script-pack-order-list > div.dragging {
+  background: #ecfdf7;
+  border-color: var(--color-success);
+  box-shadow: 0 0 0 3px rgb(34 160 107 / 14%);
+  opacity: 0.72;
+}
+
+.script-pack-order-list > div:active {
+  cursor: grabbing;
 }
 
 .script-pack-order-list > div > span {

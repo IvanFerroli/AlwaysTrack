@@ -1,9 +1,10 @@
 # TASK-AT-153 - Scriptoteca: drag/drop de pacotes e versionamento de roteiros
 
 ## Metadata
-- status: proposed-watchlist
+- status: completed-mvp
 - owner: olympus-orchestrator
 - last-updated: 2026-06-19
+- completed: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-153-script-library-pack-drag-drop-versioning.md
 
 ## Modo
@@ -59,11 +60,17 @@ A Scriptoteca ja tem pacotes, scripts, governanca, metricas e validacao runtime.
 - Adicionar complexidade visual sem ganho.
 - Quebrar atendimento rapido.
 
-## Blockers possiveis
-- Falta de feedback operacional.
-
 ## Retorno esperado
 - resumo curto do que mudou
 - evidencia de validacao
 - riscos ou ressalvas
 - proximo passo recomendado
+
+## Resultado
+- O builder de pacotes/roteiros da Scriptoteca agora permite reordenar scripts por drag/drop.
+- Os botoes `Subir`, `Descer` e `Remover` continuam como fallback acessivel.
+- A ordem persistida continua sendo a lista `scriptIds` enviada ao endpoint existente de pacotes.
+- O estado visual do item arrastado ajuda a entender a interacao.
+
+## Fora do MVP
+- Historico visual dedicado de reorder continua coberto pelas revisoes/eventos existentes; uma linha do tempo propria so deve entrar se o uso real pedir auditoria mais granular.

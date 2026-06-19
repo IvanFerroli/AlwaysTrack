@@ -169,12 +169,12 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 150. `EXEC-AT-147`: runbook de prontidao Postgres/storage externo (`TASK-AT-147`). Status: completed-docs.
 151. `EXEC-AT-152`: Google Sheets/Drive com timeout via `externalFetch` (`TASK-AT-152`). Status: completed.
 152. `EXEC-AT-074`: polimento visual por print da Scriptoteca (`TASK-AT-074`). Status: completed-screenshot-slice.
+153. `EXEC-AT-153`: drag/drop de scripts em roteiros da Scriptoteca (`TASK-AT-153`). Status: completed-mvp.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-149-prod-postgres-migration-execution.md`: migracao real para Postgres quando houver infraestrutura decidida.
 2. `TASK-AT-150-external-storage-provider.md`: provider S3/GCS ou equivalente para `StorageProvider`.
 3. `TASK-AT-151-generic-operational-attachments.md`: entidade generica transversal se a duplicacao entre Wiki/Avisos/FAQ/Fluxos/Scriptoteca virar dor real.
-4. `TASK-AT-153-script-library-pack-drag-drop-versioning.md`: drag/drop de pacotes e historico/versionamento de roteiros se virar dor real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -260,7 +260,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 52. `TASK-AT-150`: Provider externo de storage privado. Status: proposed-blocked-by-infra-decision.
 53. `TASK-AT-151`: Entidade generica de anexos operacionais. Status: proposed-watchlist.
 54. `TASK-AT-152`: Google Sheets/Drive com timeout e redaction. Status: completed.
-55. `TASK-AT-153`: Scriptoteca drag/drop e versionamento de roteiros. Status: proposed-watchlist.
+55. `TASK-AT-153`: Scriptoteca drag/drop e versionamento de roteiros. Status: completed-mvp.
 
 ### Fase D - Cyber seguranca e exposicao externa
 1. `TASK-AT-102`: Modelo de ameacas e auditoria base. Status: completed.

@@ -1,5 +1,5 @@
 import { Check, Clipboard } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadWikiImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
@@ -232,6 +232,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [decisionComment, setDecisionComment] = useState("");
   const [editingScriptId, setEditingScriptId] = useState<string | null>(null);
   const [editingPackId, setEditingPackId] = useState<string | null>(null);
+  const [draggedPackScriptId, setDraggedPackScriptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -349,6 +350,24 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       [scriptIds[index], scriptIds[target]] = [scriptIds[target], scriptIds[index]];
       return { ...current, scriptIds };
     });
+  }
+
+  function movePackScriptTo(scriptId: string, targetIndex: number) {
+    setPackDraft((current) => {
+      const index = current.scriptIds.indexOf(scriptId);
+      if (index < 0 || targetIndex < 0 || targetIndex >= current.scriptIds.length || index === targetIndex) return current;
+      const scriptIds = [...current.scriptIds];
+      const [moved] = scriptIds.splice(index, 1);
+      scriptIds.splice(targetIndex, 0, moved);
+      return { ...current, scriptIds };
+    });
+  }
+
+  function onPackScriptDrop(event: DragEvent<HTMLDivElement>, targetIndex: number) {
+    event.preventDefault();
+    if (!draggedPackScriptId) return;
+    movePackScriptTo(draggedPackScriptId, targetIndex);
+    setDraggedPackScriptId(null);
   }
 
   async function run(action: () => Promise<void>) {
@@ -1102,7 +1121,19 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                     const script = scriptLookup.get(scriptId);
                     if (!script) return null;
                     return (
-                      <div key={scriptId}>
+                      <div
+                        className={draggedPackScriptId === scriptId ? "dragging" : ""}
+                        draggable
+                        key={scriptId}
+                        onDragEnd={() => setDraggedPackScriptId(null)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", scriptId);
+                          setDraggedPackScriptId(scriptId);
+                        }}
+                        onDrop={(event) => onPackScriptDrop(event, index)}
+                      >
                         <span>{index + 1}</span>
                         <strong>{script.title}</strong>
                         <small>{script.category.name} / {script.channel}</small>
