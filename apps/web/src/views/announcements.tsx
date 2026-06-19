@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialAllRoles, commercialManagerRoles, type CurrentUser, type UserRole } from "@alwaystrack/shared";
-import { api, uploadWikiImage } from "../api";
+import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
@@ -475,7 +475,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   rows={8}
                   value={draft.content}
                   onChange={(value) => setDraft((current) => ({ ...current, content: value }))}
-                  onUploadImage={(file) => uploadWikiImage(file)}
+                  onUploadImage={(file) => uploadOperationalImage(file, "announcement", selected?.id)}
                 />
               </div>
               <label>

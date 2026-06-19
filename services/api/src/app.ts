@@ -156,6 +156,11 @@ import {
 import { operationalTodayHandler } from "./core/operations/operations.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
+  archiveOperationalAttachmentHandler,
+  getOperationalAttachmentFileHandler,
+  uploadOperationalAttachmentHandler
+} from "./core/attachments/operational-attachments.handlers.js";
+import {
   acknowledgeAnnouncementHandler,
   archiveAnnouncementHandler,
   createAnnouncementHandler,
@@ -482,6 +487,22 @@ export function createApp() {
   );
   app.get("/v1/wiki/attachments/:attachmentId/file", requireAuth, requireRole(commercialAllRoles), getWikiAttachmentFileHandler);
   app.delete("/v1/wiki/attachments/:attachmentId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, archiveWikiAttachmentHandler);
+  app.post(
+    "/v1/attachments/operational",
+    requireAuth,
+    requireRole(commercialAllRoles),
+    rateLimits.upload,
+    express.raw({ limit: "11mb", type: ["image/jpeg", "image/png", "image/webp"] }),
+    uploadOperationalAttachmentHandler
+  );
+  app.get("/v1/attachments/operational/:attachmentId/file", requireAuth, requireRole(commercialAllRoles), getOperationalAttachmentFileHandler);
+  app.delete(
+    "/v1/attachments/operational/:attachmentId",
+    requireAuth,
+    requireRole(adminOnlyRoles),
+    rateLimits.adminSensitive,
+    archiveOperationalAttachmentHandler
+  );
   app.get("/v1/wiki/edit-requests", requireAuth, requireRole(commercialAllRoles), listWikiEditRequestsHandler);
   app.post("/v1/wiki/edit-requests", requireAuth, requireRole(commercialKnowledgeContributorRoles), rateLimits.interaction, createWikiEditRequestHandler);
   app.post("/v1/wiki/edit-requests/:requestId/approve", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, approveWikiEditRequestHandler);

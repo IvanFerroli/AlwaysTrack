@@ -171,10 +171,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 152. `EXEC-AT-074`: polimento visual por print da Scriptoteca (`TASK-AT-074`). Status: completed-screenshot-slice.
 153. `EXEC-AT-153`: drag/drop de scripts em roteiros da Scriptoteca (`TASK-AT-153`). Status: completed-mvp.
 154. `EXEC-AT-150`: provider S3-compatible para storage privado (`TASK-AT-150`). Status: completed-mvp.
+155. `EXEC-AT-151`: entidade generica de anexos operacionais para Avisos/FAQ/Fluxos/Scriptoteca (`TASK-AT-151`). Status: completed-mvp-slice.
 
 ## Proximas tasks recomendadas
 1. `TASK-AT-149-prod-postgres-migration-execution.md`: migracao real para Postgres quando houver infraestrutura decidida.
-2. `TASK-AT-151-generic-operational-attachments.md`: entidade generica transversal se a duplicacao entre Wiki/Avisos/FAQ/Fluxos/Scriptoteca virar dor real.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -257,8 +257,8 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 49. `TASK-AT-146`: Anexos com remocao auditavel. Status: completed-mvp-slice.
 50. `TASK-AT-147`: Prontidao Postgres/storage externo. Status: completed-docs.
 51. `TASK-AT-149`: Migracao real para Postgres. Status: proposed-blocked-by-infra-decision.
-52. `TASK-AT-150`: Provider externo de storage privado. Status: proposed-blocked-by-infra-decision.
-53. `TASK-AT-151`: Entidade generica de anexos operacionais. Status: proposed-watchlist.
+52. `TASK-AT-150`: Provider externo de storage privado. Status: completed-mvp.
+53. `TASK-AT-151`: Entidade generica de anexos operacionais. Status: completed-mvp-slice.
 54. `TASK-AT-152`: Google Sheets/Drive com timeout e redaction. Status: completed.
 55. `TASK-AT-153`: Scriptoteca drag/drop e versionamento de roteiros. Status: completed-mvp.
 

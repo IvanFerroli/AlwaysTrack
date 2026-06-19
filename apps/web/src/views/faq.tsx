@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
-import { api, uploadWikiImage } from "../api";
+import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
@@ -255,7 +255,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
             <input value={title} onChange={(event) => setTitle(event.target.value)} />
           </label>
           <div className="full-span">
-            <MarkdownEditor label="Contexto" rows={3} value={body} onChange={setBody} onUploadImage={(file) => uploadWikiImage(file)} />
+            <MarkdownEditor label="Contexto" rows={3} value={body} onChange={setBody} onUploadImage={(file) => uploadOperationalImage(file, "faq")} />
           </div>
           <label>
             Tags
@@ -373,7 +373,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
               </div>
               <form className="wiki-edit-form" onSubmit={addComment}>
                 <h3>Responder</h3>
-                <MarkdownEditor label="Resposta" rows={4} value={comment} onChange={setComment} onUploadImage={(file) => uploadWikiImage(file)} />
+                <MarkdownEditor label="Resposta" rows={4} value={comment} onChange={setComment} onUploadImage={(file) => uploadOperationalImage(file, "faq", selected.id)} />
                 <div className="form-actions">
                   <button disabled={saving || !comment.trim()}>Publicar resposta</button>
                 </div>

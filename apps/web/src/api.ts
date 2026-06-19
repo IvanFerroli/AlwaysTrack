@@ -33,3 +33,17 @@ export async function uploadWikiImage(file: File, pageId?: string) {
   });
   return `![${result.attachment.fileName}](${apiBaseUrl}${result.attachment.markdownUrl})`;
 }
+
+export async function uploadOperationalImage(file: File, surface: string, entityId?: string) {
+  const search = new URLSearchParams({ surface });
+  if (entityId) search.set("entityId", entityId);
+  const result = await api<{ attachment: { id: string; fileName: string; markdownUrl: string } }>(`/v1/attachments/operational?${search.toString()}`, {
+    method: "POST",
+    headers: {
+      "content-type": file.type,
+      "x-file-name": file.name
+    },
+    body: await file.arrayBuffer()
+  });
+  return `![${result.attachment.fileName}](${apiBaseUrl}${result.attachment.markdownUrl})`;
+}

@@ -53,6 +53,7 @@ model Organization {
   wikiPresences                 WikiPresence[]
   wikiRevisions                 WikiRevision[]
   wikiAttachments               WikiAttachment[]
+  operationalAttachments        OperationalAttachment[]
   professionals                 Professional[]
   auditLogs                     AuditLog[]
   documentAiExtractions         DocumentAiExtraction[]
@@ -132,6 +133,8 @@ model User {
   wikiPresences                        WikiPresence[]                 @relation("WikiPresenceUser")
   wikiRevisions                        WikiRevision[]                 @relation("WikiRevisionAuthor")
   wikiAttachments                      WikiAttachment[]               @relation("WikiAttachmentUploader")
+  operationalAttachmentsUploaded       OperationalAttachment[]        @relation("OperationalAttachmentUploader")
+  operationalAttachmentsArchived       OperationalAttachment[]        @relation("OperationalAttachmentArchiver")
   sellerProfile                        SellerProfile?                 @relation("SellerProfileUser")
   supervisedSalesGroups                SalesGroup[]                   @relation("SalesGroupSupervisor")
   uploadedSalesDocuments               SalesDocument[]                @relation("SalesDocumentUploadedBy")
@@ -1314,6 +1317,31 @@ model WikiAttachment {
   @@index([archivedAt])
   @@index([pageId])
   @@index([requestId])
+}
+
+model OperationalAttachment {
+  id             String    @id @default(cuid())
+  organizationId String
+  uploadedById   String
+  archivedById   String?
+  surface        String
+  entityId       String?
+  fileKey        String
+  fileName       String
+  mimeType       String
+  size           Int
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  uploadedBy   User         @relation("OperationalAttachmentUploader", fields: [uploadedById], references: [id])
+  archivedBy   User?        @relation("OperationalAttachmentArchiver", fields: [archivedById], references: [id])
+
+  @@index([organizationId])
+  @@index([uploadedById])
+  @@index([surface])
+  @@index([entityId])
+  @@index([archivedAt])
 }
 
 model WikiEditRequest {

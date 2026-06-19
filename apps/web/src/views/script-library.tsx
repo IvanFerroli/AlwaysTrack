@@ -1,7 +1,7 @@
 import { Check, Clipboard } from "lucide-react";
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
-import { api, uploadWikiImage } from "../api";
+import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
@@ -998,7 +998,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                 rows={5}
                 value={suggestionDraft.body}
                 onChange={(value) => setSuggestionDraft((current) => ({ ...current, body: value }))}
-                onUploadImage={(file) => uploadWikiImage(file)}
+                onUploadImage={(file) => uploadOperationalImage(file, "script-library", selected?.id)}
               />
             </div>
             <label className="full-span">
@@ -1250,7 +1250,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                   rows={8}
                   value={scriptDraft.body}
                   onChange={(value) => setScriptDraft((current) => ({ ...current, body: value }))}
-                  onUploadImage={(file) => uploadWikiImage(file)}
+                  onUploadImage={(file) => uploadOperationalImage(file, "script-library", selected?.id)}
                 />
               </div>
               <label className="full-span">

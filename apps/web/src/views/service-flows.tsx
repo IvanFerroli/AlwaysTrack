@@ -1,7 +1,7 @@
 import { Check, Clipboard, GitBranch, Plus } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
-import { api, uploadWikiImage } from "../api";
+import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState } from "../components/operational";
 import { formatDateBr } from "../sales";
@@ -688,7 +688,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                     rows={4}
                     value={personalDraft.body}
                     onChange={(body) => setPersonalDraft((current) => ({ ...current, body }))}
-                    onUploadImage={(file) => uploadWikiImage(file)}
+                    onUploadImage={(file) => uploadOperationalImage(file, "service-flow", selected?.id)}
                   />
                   <button disabled={saving || !personalDraft.title.trim() || !personalDraft.body.trim()}>Salvar script pessoal</button>
                 </form>
@@ -715,7 +715,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
               rows={5}
               value={flowDraft.content}
               onChange={(content) => setFlowDraft((current) => ({ ...current, content }))}
-              onUploadImage={(file) => uploadWikiImage(file)}
+              onUploadImage={(file) => uploadOperationalImage(file, "service-flow", selected?.id)}
             />
             <div className="service-flow-step-editor">
               {stepDrafts.map((step, index) => (
@@ -729,7 +729,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                     rows={4}
                     value={step.body}
                     onChange={(body) => updateStep(index, { body })}
-                    onUploadImage={(file) => uploadWikiImage(file)}
+                    onUploadImage={(file) => uploadOperationalImage(file, "service-flow", selected?.id)}
                   />
                   {step.kind === "YES_NO" ? (
                     <div className="form-grid">
