@@ -16,9 +16,14 @@
 - Ajustadas quebras de texto em cards/listas.
 - Avisos de canal agora usam bloco compacto em vez de pill alongado.
 - Layout da Scriptoteca passa a empilhar abaixo de 1280px para evitar sobreposicao.
+- Segundo print de Scriptoteca revisado em 2026-06-19:
+  - `Roteiros` e `Scripts do atendimento` agora usam blocos visuais equivalentes.
+  - O botao `Editar` passou a fazer parte do card de roteiro, evitando o visual de acao solta.
+  - Cards de roteiro usam borda/sombra/padding consistentes com o resto da ferramenta.
 
 ## Arquivos
 - `apps/web/src/styles.css`
+- `apps/web/src/views/script-library.tsx`
 - `docs/tasks/TASK-AT-074-final-visual-polish-by-real-screenshots.md`
 - `docs/tasks/ROADMAP.md`
 

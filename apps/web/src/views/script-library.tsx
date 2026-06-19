@@ -560,7 +560,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
           <div className="script-attendance-layout">
             <div className="script-attendance-results">
               {packs.length ? (
-                <>
+                <div className="script-list-block">
                   <h2>Roteiros</h2>
                   {packs.map((pack) => (
                     <div className={selectedPackId === pack.id ? "script-pack-list-item active" : "script-pack-list-item"} key={pack.id}>
@@ -583,29 +583,31 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
                       ) : null}
                     </div>
                   ))}
-                </>
+                </div>
               ) : null}
-              <h2>Scripts do atendimento</h2>
-              {loading ? <OperationalState state="loading" title="Carregando scripts" /> : null}
-              {paginatedScripts.map((script) => (
-                <button
-                  className={selectedId === script.id ? "wiki-page-button active" : "wiki-page-button"}
-                  key={script.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedId(script.id);
-                    setSelectedPackId("");
-                    setPlaceholderValues({});
-                    setScriptDraft(draftFrom(script));
-                  }}
-                >
-                  <strong>{script.title}</strong>
-                  <small>{script.category.name} / {script.channel}</small>
-                  <small>{script.tags?.map((tagItem) => `#${tagItem}`).join(" ")}</small>
-                </button>
-              ))}
-              {!loading && scripts.length === 0 ? <OperationalState state="empty" title="Nenhum script encontrado" /> : null}
-              <PaginationControls page={page} pageSize={pageSize} total={scripts.length} onPageChange={setPage} />
+              <div className="script-list-block">
+                <h2>Scripts do atendimento</h2>
+                {loading ? <OperationalState state="loading" title="Carregando scripts" /> : null}
+                {paginatedScripts.map((script) => (
+                  <button
+                    className={selectedId === script.id ? "wiki-page-button active" : "wiki-page-button"}
+                    key={script.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(script.id);
+                      setSelectedPackId("");
+                      setPlaceholderValues({});
+                      setScriptDraft(draftFrom(script));
+                    }}
+                  >
+                    <strong>{script.title}</strong>
+                    <small>{script.category.name} / {script.channel}</small>
+                    <small>{script.tags?.map((tagItem) => `#${tagItem}`).join(" ")}</small>
+                  </button>
+                ))}
+                {!loading && scripts.length === 0 ? <OperationalState state="empty" title="Nenhum script encontrado" /> : null}
+                <PaginationControls page={page} pageSize={pageSize} total={scripts.length} onPageChange={setPage} />
+              </div>
             </div>
             <div className="script-attendance-reader">
               {selectedPack ? (
