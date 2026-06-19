@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { loadEnv, type ApiEnv } from "../../config/env.js";
+import { externalFetch } from "../integrations/external-http.js";
 import { resolveGoogleTemplateAccess } from "../integrations/google/google-oauth.service.js";
 import {
   ImportError,
@@ -173,11 +174,16 @@ export async function requestServiceAccountAccessToken(env: ApiEnv, fetcher: Fet
     assertion
   });
 
-  const response = await fetcher(googleTokenUrl, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body
-  });
+  const response = await externalFetch(
+    fetcher,
+    googleTokenUrl,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body
+    },
+    { operation: "google.sheets.serviceAccountToken", timeoutMs: 15_000 }
+  );
 
   if (!response.ok) {
     await throwGoogleApiError("token", response);
@@ -191,17 +197,22 @@ export async function requestServiceAccountAccessToken(env: ApiEnv, fetcher: Fet
 }
 
 async function createSpreadsheet(accessToken: string, title: string, fetcher: Fetcher) {
-  const response = await fetcher(`${googleApiBaseUrl}/spreadsheets`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json"
+  const response = await externalFetch(
+    fetcher,
+    `${googleApiBaseUrl}/spreadsheets`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        properties: { title },
+        sheets: [{ properties: { title: "Modelo" } }, { properties: { title: "Listas" } }]
+      })
     },
-    body: JSON.stringify({
-      properties: { title },
-      sheets: [{ properties: { title: "Modelo" } }, { properties: { title: "Listas" } }]
-    })
-  });
+    { operation: "google.sheets.createSpreadsheet", timeoutMs: 15_000 }
+  );
 
   if (!response.ok) {
     await throwGoogleApiError("createSpreadsheet", response);
@@ -216,27 +227,37 @@ async function createSpreadsheetInDriveFolder(
   folderId: string,
   fetcher: Fetcher
 ) {
-  const createResponse = await fetcher(`${googleDriveBaseUrl}/files?supportsAllDrives=true&fields=id,webViewLink`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json"
+  const createResponse = await externalFetch(
+    fetcher,
+    `${googleDriveBaseUrl}/files?supportsAllDrives=true&fields=id,webViewLink`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        name: title,
+        mimeType: "application/vnd.google-apps.spreadsheet",
+        parents: [folderId]
+      })
     },
-    body: JSON.stringify({
-      name: title,
-      mimeType: "application/vnd.google-apps.spreadsheet",
-      parents: [folderId]
-    })
-  });
+    { operation: "google.drive.createSpreadsheetInFolder", timeoutMs: 15_000 }
+  );
 
   if (!createResponse.ok) {
     await throwGoogleApiError("createSpreadsheetInFolder", createResponse, { folderId });
   }
 
   const driveFile = (await createResponse.json()) as DriveFileCreateResponse;
-  const metadataResponse = await fetcher(`${googleApiBaseUrl}/spreadsheets/${driveFile.id}`, {
-    headers: { authorization: `Bearer ${accessToken}` }
-  });
+  const metadataResponse = await externalFetch(
+    fetcher,
+    `${googleApiBaseUrl}/spreadsheets/${driveFile.id}`,
+    {
+      headers: { authorization: `Bearer ${accessToken}` }
+    },
+    { operation: "google.sheets.getSpreadsheetMetadata", timeoutMs: 15_000 }
+  );
   if (!metadataResponse.ok) {
     await throwGoogleApiError("getSpreadsheetMetadata", metadataResponse);
   }
@@ -256,26 +277,31 @@ async function writeSheetValues(
   fetcher: Fetcher
 ) {
   const listMatrix = buildListsMatrix(lists);
-  const response = await fetcher(`${googleApiBaseUrl}/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json"
+  const response = await externalFetch(
+    fetcher,
+    `${googleApiBaseUrl}/spreadsheets/${spreadsheetId}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        valueInputOption: "RAW",
+        data: [
+          {
+            range: `Modelo!A1:${columnLetter(professionalsLicensesImportHeaders.length)}1`,
+            values: [Array.from(professionalsLicensesImportHeaders)]
+          },
+          {
+            range: `Listas!A1:E${listMatrix.length}`,
+            values: listMatrix
+          }
+        ]
+      })
     },
-    body: JSON.stringify({
-      valueInputOption: "RAW",
-      data: [
-        {
-          range: `Modelo!A1:${columnLetter(professionalsLicensesImportHeaders.length)}1`,
-          values: [Array.from(professionalsLicensesImportHeaders)]
-        },
-        {
-          range: `Listas!A1:E${listMatrix.length}`,
-          values: listMatrix
-        }
-      ]
-    })
-  });
+    { operation: "google.sheets.writeValues", timeoutMs: 15_000 }
+  );
 
   if (!response.ok) {
     await throwGoogleApiError("writeSheetValues", response);
@@ -318,14 +344,19 @@ async function applySheetFormatting(
     ...buildValidationRequests(modelSheetId, lists)
   ];
 
-  const response = await fetcher(`${googleApiBaseUrl}/spreadsheets/${spreadsheetId}:batchUpdate`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json"
+  const response = await externalFetch(
+    fetcher,
+    `${googleApiBaseUrl}/spreadsheets/${spreadsheetId}:batchUpdate`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ requests })
     },
-    body: JSON.stringify({ requests })
-  });
+    { operation: "google.sheets.applyFormatting", timeoutMs: 15_000 }
+  );
 
   if (!response.ok) {
     await throwGoogleApiError("applySheetFormatting", response);
@@ -339,18 +370,23 @@ async function shareSpreadsheet(
   role: "reader" | "commenter" | "writer",
   fetcher: Fetcher
 ) {
-  const response = await fetcher(`${googleDriveBaseUrl}/files/${spreadsheetId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/json"
+  const response = await externalFetch(
+    fetcher,
+    `${googleDriveBaseUrl}/files/${spreadsheetId}/permissions?supportsAllDrives=true&sendNotificationEmail=false`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        type: "user",
+        role,
+        emailAddress: email
+      })
     },
-    body: JSON.stringify({
-      type: "user",
-      role,
-      emailAddress: email
-    })
-  });
+    { operation: "google.drive.shareSpreadsheet", timeoutMs: 15_000 }
+  );
 
   if (!response.ok) {
     await throwGoogleApiError("shareSpreadsheet", response, { email });
