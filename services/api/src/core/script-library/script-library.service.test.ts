@@ -5,12 +5,18 @@ import {
   createOperationalScriptSuggestion,
   createScriptPack,
   decideOperationalScriptSuggestion,
+  decideSmartScriptItem,
+  exportSmartScriptEspanso,
+  getSmartScriptMetrics,
+  importSmartScriptCandidates,
   listScriptLibrary,
   parseOperationalScriptInput,
   parseScriptFilters,
   recertifyOperationalScript,
+  recordSmartScriptUse,
   recordScriptCopy,
   restoreOperationalScriptRevision,
+  suggestSmartScriptItemAsCanonical,
   validateOperationalScript
 } from "./script-library.service.js";
 
@@ -47,7 +53,8 @@ function prismaMock() {
     recertifiedById: null,
     recertifiedAt: null
   };
-  return {
+  let db: any;
+  db = {
     scriptCategory: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue({ id: "cat-1", organizationId: "org-1" })
@@ -90,6 +97,26 @@ function prismaMock() {
       create: vi.fn().mockResolvedValue({ id: "search-1" }),
       findMany: vi.fn().mockResolvedValue([])
     },
+    personalScript: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      count: vi.fn().mockResolvedValue(0),
+      create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: `ps-${data.title}`, ...data, updatedAt: new Date(), smartScriptDecisionLogs: [], flows: [], suggestion: null })),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "ps-1", organizationId: "org-1", ownerId: "sac-1", title: "Reenvio", channel: "WHATSAPP", body: "Texto", tagsJson: "[]", placeholdersJson: "[]", smartScriptBatchId: "batch-1", smartScriptState: data.smartScriptState ?? "IN_USE", smartScriptTrigger: data.smartScriptTrigger ?? ":reenvio", smartScriptSanitizationJson: data.smartScriptSanitizationJson ?? "{\"markers\":[]}", smartScriptUsageCount: 1, smartScriptUsedAt: new Date(), updatedAt: new Date(), smartScriptDecisionLogs: [], flows: [], suggestion: null })),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 })
+    },
+    smartScriptBatch: {
+      count: vi.fn().mockResolvedValue(1),
+      create: vi.fn().mockResolvedValue({ id: "batch-1", organizationId: "org-1", ownerId: "sac-1", candidateCount: 1 })
+    },
+    smartScriptDecisionLog: {
+      create: vi.fn().mockResolvedValue({ id: "decision-1" }),
+      groupBy: vi.fn().mockResolvedValue([{ action: "APPROVE", _count: { _all: 1 } }, { action: "USE", _count: { _all: 2 } }])
+    },
+    smartScriptExport: {
+      count: vi.fn().mockResolvedValue(1),
+      create: vi.fn().mockResolvedValue({ id: "export-1", itemCount: 1, checksum: "abc" })
+    },
     operationalScriptRevision: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: "rev-1" })
@@ -112,8 +139,10 @@ function prismaMock() {
     inAppNotification: {
       upsert: vi.fn().mockResolvedValue({ id: "notif-1" }),
       create: vi.fn().mockResolvedValue({ id: "notif-1" })
-    }
+    },
+    $transaction: vi.fn(async (callback) => callback(db))
   };
+  return db;
 }
 
 describe("script library service", () => {
@@ -220,5 +249,108 @@ describe("script library service", () => {
     await expect(decideOperationalScriptSuggestion(prisma as never, admin, "sug-1", { decision: "REJECTED" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
     await expect(decideOperationalScriptSuggestion(prisma as never, admin, "sug-1", { decision: "MERGED" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
     expect(prisma.operationalScriptSuggestion.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("imports SmartScript candidates with rollover, sanitization and no raw logs", async () => {
+    const prisma = prismaMock();
+    const result = await importSmartScriptCandidates(prisma as never, sac, {
+      batchId: "local-1",
+      processedAt: "2026-07-06T12:00:00.000Z",
+      candidates: [{
+        title: "Reenvio",
+        body: "Cliente Ana CPF 123.456.789-09 pediu reenvio do pedido 123456.",
+        trigger: ":reenvio",
+        channel: "WHATSAPP",
+        tags: ["reenvio"],
+        source: "AlwaysChat",
+        occurrenceCount: 3
+      }]
+    });
+
+    expect(prisma.personalScript.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { smartScriptState: "IN_REVIEW" } }));
+    expect(prisma.personalScript.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        smartScriptState: "GENERATED_TODAY",
+        smartScriptTrigger: ":reenvio",
+        smartScriptSanitized: true,
+        body: expect.not.stringContaining("123.456.789-09")
+      })
+    }));
+    expect(prisma.smartScriptDecisionLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "IMPORT", metadataJson: expect.not.stringContaining("Cliente Ana") }) }));
+    expect(result.items).toHaveLength(1);
+  });
+
+  it("rejects slash triggers when approving SmartScript items", async () => {
+    const prisma = prismaMock();
+    prisma.personalScript.findFirst.mockResolvedValueOnce({
+      id: "ps-1",
+      organizationId: "org-1",
+      ownerId: "sac-1",
+      title: "NAC",
+      channel: "WHATSAPP",
+      body: "Texto limpo do atendimento",
+      tagsJson: "[]",
+      smartScriptState: "GENERATED_TODAY",
+      smartScriptTrigger: "/nac"
+    });
+    await expect(decideSmartScriptItem(prisma as never, sac, "ps-1", { action: "APPROVE", trigger: "/nac" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  it("exports only SmartScript items in use as Espanso YAML", async () => {
+    const prisma = prismaMock();
+    prisma.personalScript.findMany.mockResolvedValueOnce([
+      { id: "ps-1", title: "Reenvio", body: "Vamos reenviar seu pedido.", smartScriptTrigger: ":reenvio" }
+    ]);
+    const result = await exportSmartScriptEspanso(prisma as never, sac);
+
+    expect(result.yaml).toContain("matches:");
+    expect(result.yaml).toContain(":reenvio");
+    expect(prisma.personalScript.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ smartScriptState: "IN_USE" }) }));
+    expect(prisma.smartScriptExport.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ itemCount: 1 }) }));
+  });
+
+  it("records SmartScript usage only for in-use personal snippets", async () => {
+    const prisma = prismaMock();
+    prisma.personalScript.findFirst.mockResolvedValueOnce({
+      id: "ps-1",
+      organizationId: "org-1",
+      ownerId: "sac-1",
+      title: "Reenvio",
+      channel: "WHATSAPP",
+      body: "Texto limpo",
+      smartScriptState: "IN_USE",
+      smartScriptBatchId: "batch-1"
+    });
+    const result = await recordSmartScriptUse(prisma as never, sac, "ps-1");
+
+    expect(prisma.personalScript.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ smartScriptUsageCount: { increment: 1 } }) }));
+    expect(prisma.smartScriptDecisionLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "USE", metadataJson: null }) }));
+    expect(result.item.smartScriptUsageCount).toBe(1);
+  });
+
+  it("returns SmartScript metrics without raw log content", async () => {
+    const prisma = prismaMock();
+    prisma.personalScript.findMany
+      .mockResolvedValueOnce([{ id: "ps-1", title: "Reenvio", smartScriptTrigger: ":reenvio", smartScriptUsageCount: 2, smartScriptUsedAt: new Date(), suggestionId: null }])
+      .mockResolvedValueOnce([{ id: "ps-1", title: "Reenvio", smartScriptTrigger: ":reenvio", smartScriptUsageCount: 2 }]);
+
+    const result = await getSmartScriptMetrics(prisma as never, sac);
+
+    expect(result.summary.used).toBe(2);
+    expect(result.summary.batches).toBe(1);
+    expect(result.mostUsed[0]?.title).toBe("Reenvio");
+    expect(JSON.stringify(result)).not.toContain("raw");
+  });
+
+  it("suggests only in-use SmartScript snippets to the canonical queue", async () => {
+    const prisma = prismaMock();
+    prisma.personalScript.findFirst
+      .mockResolvedValueOnce({ id: "ps-1", organizationId: "org-1", ownerId: "sac-1", smartScriptState: "IN_USE" })
+      .mockResolvedValueOnce({ id: "ps-1", organizationId: "org-1", ownerId: "sac-1", title: "Reenvio", channel: "WHATSAPP", body: "Texto limpo", tagsJson: "[]", suggestionId: null, flows: [], smartScriptBatchId: "batch-1" });
+
+    const result = await suggestSmartScriptItemAsCanonical(prisma as never, sac, "ps-1");
+
+    expect(result.suggestion.id).toBe("sug-1");
+    expect(prisma.smartScriptDecisionLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "SUGGEST_CANONICAL" }) }));
   });
 });

@@ -39,6 +39,9 @@ model Organization {
   serviceFlowSearchEvents       ServiceFlowSearchEvent[]
   personalScripts               PersonalScript[]
   personalScriptFlows           PersonalScriptFlow[]
+  smartScriptBatches            SmartScriptBatch[]
+  smartScriptDecisionLogs       SmartScriptDecisionLog[]
+  smartScriptExports            SmartScriptExport[]
   operationalScriptRevisions    OperationalScriptRevision[]
   operationalScriptEvents       OperationalScriptEvent[]
   operationalScriptSuggestions  OperationalScriptSuggestion[]
@@ -161,6 +164,11 @@ model User {
   serviceFlowSearchEvents              ServiceFlowSearchEvent[]       @relation("ServiceFlowSearchEventUser")
   serviceFlowSessions                  ServiceFlowSession[]           @relation("ServiceFlowSessionUser")
   personalScripts                      PersonalScript[]               @relation("PersonalScriptOwner")
+  smartScriptBatches                   SmartScriptBatch[]             @relation("SmartScriptBatchOwner")
+  smartScriptOwnedDecisionLogs         SmartScriptDecisionLog[]        @relation("SmartScriptDecisionOwner")
+  smartScriptDecisionLogs              SmartScriptDecisionLog[]        @relation("SmartScriptDecisionActor")
+  smartScriptOwnedExports              SmartScriptExport[]            @relation("SmartScriptExportOwner")
+  smartScriptExports                   SmartScriptExport[]            @relation("SmartScriptExportActor")
   operationalScriptRevisionsAuthored   OperationalScriptRevision[]    @relation("OperationalScriptRevisionAuthor")
   operationalScriptEvents              OperationalScriptEvent[]       @relation("OperationalScriptEventUser")
   operationalScriptSuggestionsAuthored OperationalScriptSuggestion[]  @relation("OperationalScriptSuggestionAuthor")
@@ -1005,11 +1013,23 @@ model PersonalScript {
   id               String    @id @default(cuid())
   organizationId   String
   ownerId          String
+  smartScriptBatchId String?
   title            String
   channel          String    @default("WHATSAPP")
   body             String
   tagsJson         String?
   placeholdersJson String?
+  smartScriptState String?
+  smartScriptTrigger String?
+  smartScriptSource String?
+  smartScriptSanitized Boolean @default(false)
+  smartScriptSanitizationJson String?
+  smartScriptOccurrenceCount Int?
+  smartScriptUsageCount Int @default(0)
+  smartScriptUsedAt DateTime?
+  smartScriptApprovedAt DateTime?
+  smartScriptRejectedAt DateTime?
+  smartScriptExportedAt DateTime?
   suggestionId     String?
   suggestedAt      DateTime?
   createdAt        DateTime  @default(now())
@@ -1017,15 +1037,91 @@ model PersonalScript {
 
   organization Organization                 @relation(fields: [organizationId], references: [id])
   owner        User                         @relation("PersonalScriptOwner", fields: [ownerId], references: [id])
+  smartScriptBatch SmartScriptBatch?        @relation(fields: [smartScriptBatchId], references: [id], onDelete: SetNull)
   suggestion   OperationalScriptSuggestion? @relation("PersonalScriptSuggestion", fields: [suggestionId], references: [id])
   flows        PersonalScriptFlow[]
+  smartScriptDecisionLogs SmartScriptDecisionLog[]
 
   @@unique([organizationId, ownerId, title])
+  @@unique([organizationId, ownerId, smartScriptTrigger])
   @@index([organizationId])
   @@index([ownerId])
+  @@index([smartScriptBatchId])
+  @@index([smartScriptState])
+  @@index([smartScriptTrigger])
+  @@index([smartScriptUsageCount])
   @@index([suggestionId])
   @@index([channel])
   @@index([updatedAt])
+}
+
+model SmartScriptBatch {
+  id             String   @id @default(cuid())
+  organizationId String
+  ownerId        String
+  externalBatchId String?
+  processedAt    DateTime?
+  candidateCount Int      @default(0)
+  importedAt     DateTime @default(now())
+  metadataJson   String?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  owner        User         @relation("SmartScriptBatchOwner", fields: [ownerId], references: [id])
+  personalScripts PersonalScript[]
+  decisions    SmartScriptDecisionLog[]
+
+  @@unique([organizationId, ownerId, externalBatchId])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([importedAt])
+}
+
+model SmartScriptDecisionLog {
+  id               String   @id @default(cuid())
+  organizationId   String
+  ownerId          String
+  actorId          String
+  personalScriptId String?
+  batchId          String?
+  action           String
+  source           String
+  metadataJson     String?
+  createdAt        DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  owner          User         @relation("SmartScriptDecisionOwner", fields: [ownerId], references: [id])
+  actor          User         @relation("SmartScriptDecisionActor", fields: [actorId], references: [id])
+  personalScript PersonalScript? @relation(fields: [personalScriptId], references: [id], onDelete: SetNull)
+  batch          SmartScriptBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([actorId])
+  @@index([personalScriptId])
+  @@index([batchId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SmartScriptExport {
+  id             String   @id @default(cuid())
+  organizationId String
+  ownerId        String
+  actorId        String
+  format         String   @default("ESPANSO_YAML")
+  itemCount      Int      @default(0)
+  triggersJson   String?
+  checksum       String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  owner        User         @relation("SmartScriptExportOwner", fields: [ownerId], references: [id])
+  actor        User         @relation("SmartScriptExportActor", fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([actorId])
+  @@index([createdAt])
 }
 
 model PersonalScriptFlow {

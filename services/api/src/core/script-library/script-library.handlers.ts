@@ -9,20 +9,30 @@ import {
   createScriptPack,
   createScriptCategory,
   decideOperationalScriptSuggestion,
+  decideSmartScriptItem,
+  exportSmartScriptEspanso,
+  getSmartScriptMetrics,
+  importSmartScriptCandidates,
   listScriptLibrary,
   listPersonalScripts,
+  listSmartScriptItems,
   obsoleteOperationalScript,
   parseOperationalScriptInput,
   parseScriptCategoryInput,
   parseScriptCopyInput,
+  parseSmartScriptDecisionPayload,
+  parseSmartScriptImportPayload,
+  parseSmartScriptListFilters,
   parseScriptFilters,
   parseScriptPackInput,
   parseScriptSuggestionInput,
   parsePersonalScriptInput,
   recertifyOperationalScript,
+  recordSmartScriptUse,
   recordScriptCopy,
   restoreOperationalScriptRevision,
   ScriptLibraryError,
+  suggestSmartScriptItemAsCanonical,
   suggestPersonalScriptAsCanonical,
   updateScriptPack,
   updateOperationalScript,
@@ -77,6 +87,62 @@ export async function createPersonalScriptHandler(request: Request, response: Re
 export async function suggestPersonalScriptHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await suggestPersonalScriptAsCanonical(prisma, actorFrom(request), routeParam(request.params.personalScriptId)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function listSmartScriptItemsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listSmartScriptItems(prisma, actorFrom(request), parseSmartScriptListFilters(request.query)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function importSmartScriptCandidatesHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await importSmartScriptCandidates(prisma, actorFrom(request), parseSmartScriptImportPayload(request.body)), 201);
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function decideSmartScriptItemHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await decideSmartScriptItem(prisma, actorFrom(request), routeParam(request.params.smartScriptItemId), parseSmartScriptDecisionPayload(request.body)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function exportSmartScriptEspansoHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await exportSmartScriptEspanso(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function getSmartScriptMetricsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await getSmartScriptMetrics(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function recordSmartScriptUseHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await recordSmartScriptUse(prisma, actorFrom(request), routeParam(request.params.smartScriptItemId)));
+  } catch (error) {
+    return sendScriptError(response, error);
+  }
+}
+
+export async function suggestSmartScriptCanonicalHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await suggestSmartScriptItemAsCanonical(prisma, actorFrom(request), routeParam(request.params.smartScriptItemId)));
   } catch (error) {
     return sendScriptError(response, error);
   }

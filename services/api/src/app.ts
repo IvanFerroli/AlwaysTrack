@@ -178,13 +178,20 @@ import {
   createScriptCategoryHandler,
   createScriptPackHandler,
   decideOperationalScriptSuggestionHandler,
+  decideSmartScriptItemHandler,
+  exportSmartScriptEspansoHandler,
+  getSmartScriptMetricsHandler,
+  importSmartScriptCandidatesHandler,
   listScriptLibraryHandler,
   listPersonalScriptsHandler,
+  listSmartScriptItemsHandler,
   obsoleteOperationalScriptHandler,
   updateScriptPackHandler,
   updateOperationalScriptHandler,
   recertifyOperationalScriptHandler,
+  recordSmartScriptUseHandler,
   restoreOperationalScriptRevisionHandler,
+  suggestSmartScriptCanonicalHandler,
   suggestPersonalScriptHandler,
   validateOperationalScriptHandler
 } from "./core/script-library/script-library.handlers.js";
@@ -284,6 +291,13 @@ export function createApp() {
   app.get("/v1/script-library/personal-scripts", requireAuth, requireRole(commercialAllRoles), listPersonalScriptsHandler);
   app.post("/v1/script-library/personal-scripts", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createPersonalScriptHandler);
   app.post("/v1/script-library/personal-scripts/:personalScriptId/suggest", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, suggestPersonalScriptHandler);
+  app.get("/v1/script-library/smartscript/items", requireAuth, requireRole(commercialAllRoles), listSmartScriptItemsHandler);
+  app.get("/v1/script-library/smartscript/metrics", requireAuth, requireRole(commercialAllRoles), getSmartScriptMetricsHandler);
+  app.post("/v1/script-library/smartscript/import", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, importSmartScriptCandidatesHandler);
+  app.post("/v1/script-library/smartscript/items/:smartScriptItemId/decision", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, decideSmartScriptItemHandler);
+  app.post("/v1/script-library/smartscript/items/:smartScriptItemId/use", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, recordSmartScriptUseHandler);
+  app.post("/v1/script-library/smartscript/items/:smartScriptItemId/suggest", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, suggestSmartScriptCanonicalHandler);
+  app.post("/v1/script-library/smartscript/export/espanso", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, exportSmartScriptEspansoHandler);
   app.post("/v1/script-library/categories", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createScriptCategoryHandler);
   app.post("/v1/script-library/packs", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createScriptPackHandler);
   app.patch("/v1/script-library/packs/:packId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateScriptPackHandler);

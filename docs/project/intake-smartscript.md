@@ -393,3 +393,4 @@ smartscript status
 smartscript process --today
 smartscript import --today
 smartscript export-espanso
+```

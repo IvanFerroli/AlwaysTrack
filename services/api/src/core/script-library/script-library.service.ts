@@ -1,5 +1,20 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
+import { createHash } from "node:crypto";
+import {
+  commercialManagerRoles,
+  sanitizeSmartScriptText,
+  smartScriptDecisionActions,
+  smartScriptDecisionSources,
+  smartScriptVisibleStateLabels,
+  smartScriptVisibleStates,
+  validateSmartScriptTrigger,
+  type CurrentUser,
+  type SmartScriptDecisionAction,
+  type SmartScriptDecisionPayload,
+  type SmartScriptDecisionSource,
+  type SmartScriptImportPayload,
+  type SmartScriptVisibleState
+} from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import {
@@ -69,6 +84,10 @@ export interface PersonalScriptInput {
   flowIds?: string[];
 }
 
+export interface SmartScriptListFilters {
+  state?: SmartScriptVisibleState;
+}
+
 export interface ScriptPackInput {
   categoryId?: string | null;
   wikiPageId?: string | null;
@@ -92,6 +111,9 @@ const channelValues = ["WHATSAPP", "EMAIL", "PHONE", "INSTAGRAM", "INTERNAL"] as
 const suggestionStatusValues = ["SUGGESTED", "ACCEPTED", "REJECTED", "MERGED"] as const;
 const suggestionTypeValues = ["NEW", "CHANGE"] as const;
 const packStatusValues = ["ACTIVE", "DRAFT", "ARCHIVED"] as const;
+const smartScriptStateValues = smartScriptVisibleStates;
+const smartScriptDecisionSourceValues = smartScriptDecisionSources;
+const smartScriptDecisionActionValues = smartScriptDecisionActions;
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -173,6 +195,10 @@ function normalizedTags(values: unknown[] = []) {
 
 function tagsJsonFor(values: unknown[] = []) {
   return JSON.stringify(normalizedTags(values));
+}
+
+function jsonString(value: unknown) {
+  return JSON.stringify(value);
 }
 
 function tagsFromJson(value: string | null | undefined) {
@@ -316,6 +342,47 @@ export function parsePersonalScriptInput(payload: unknown): PersonalScriptInput 
     body: optionalString(input, "body", { maxLength: 20000 }),
     tags: normalizedOptionalTags(input),
     flowIds: optionalStringArray(input, "flowIds", { maxItems: 20, itemMaxLength: 80 }) ? [...new Set(optionalStringArray(input, "flowIds", { maxItems: 20, itemMaxLength: 80 }))] : []
+  }));
+}
+
+export function parseSmartScriptImportPayload(payload: unknown): SmartScriptImportPayload {
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const candidates = input.candidates;
+    if (!Array.isArray(candidates)) throw validationError("candidates", "INVALID_TYPE");
+    if (candidates.length > 10) throw validationError("candidates", "TOO_MANY_ITEMS");
+    return {
+      batchId: optionalString(input, "batchId", { maxLength: 120, nullable: true }),
+      processedAt: optionalString(input, "processedAt", { maxLength: 80, nullable: true }),
+      candidates: candidates.map((candidate, index) => {
+        const parsed = parseObjectPayload(candidate ?? {}, (candidateInput) => ({
+          title: optionalString(candidateInput, "title", { maxLength: 160 }) ?? "",
+          body: optionalString(candidateInput, "body", { maxLength: 20000 }) ?? "",
+          trigger: optionalString(candidateInput, "trigger", { maxLength: 60, nullable: true }),
+          channel: optionalUpperEnum(candidateInput, "channel", channelValues) ?? "WHATSAPP",
+          tags: normalizedOptionalTags(candidateInput) ?? [],
+          source: optionalString(candidateInput, "source", { maxLength: 80, nullable: true }),
+          occurrenceCount: optionalInteger(candidateInput, "occurrenceCount", { min: 1, max: 10000 }) ?? null
+        }));
+        if (!parsed.title.trim() || !parsed.body.trim()) throw validationError(`candidates.${index}`, "INVALID_VALUE");
+        return parsed;
+      })
+    };
+  });
+}
+
+export function parseSmartScriptListFilters(query: Record<string, unknown>): SmartScriptListFilters {
+  return { state: optionalUpperEnum(query, "state", smartScriptStateValues) };
+}
+
+export function parseSmartScriptDecisionPayload(payload: unknown): SmartScriptDecisionPayload {
+  return parseObjectPayload(payload ?? {}, (input) => ({
+    action: optionalUpperEnum(input, "action", smartScriptDecisionActionValues.filter((action) => !["IMPORT", "EXPORT", "USE", "SUGGEST_CANONICAL"].includes(action)) as Exclude<SmartScriptDecisionAction, "IMPORT" | "EXPORT" | "USE" | "SUGGEST_CANONICAL">[]) ?? "REVIEW",
+    source: optionalUpperEnum(input, "source", smartScriptDecisionSourceValues) ?? "BUTTON",
+    title: optionalString(input, "title", { maxLength: 160 }),
+    body: optionalString(input, "body", { maxLength: 20000 }),
+    trigger: optionalString(input, "trigger", { maxLength: 60, nullable: true }),
+    channel: optionalUpperEnum(input, "channel", channelValues),
+    tags: normalizedOptionalTags(input)
   }));
 }
 
@@ -618,6 +685,336 @@ function withPersonalScriptFormat<T extends { tagsJson?: string | null; placehol
     tags: tagsFromJson(item.tagsJson),
     placeholders: placeholdersFromJson(item.placeholdersJson),
     flows: item.flows?.map((link) => link.flow) ?? []
+  };
+}
+
+function withSmartScriptFormat<
+  T extends {
+    tagsJson?: string | null;
+    placeholdersJson?: string | null;
+    smartScriptState?: string | null;
+    smartScriptSanitizationJson?: string | null;
+    smartScriptDecisionLogs?: Array<{ id: string; action: string; source: string; metadataJson: string | null; createdAt: Date | string; actor?: { id: string; name: string; role: string } }>;
+  }
+>(item: T) {
+  const formatted = withPersonalScriptFormat(item);
+  return {
+    ...formatted,
+    visibleState: item.smartScriptState,
+    visibleStateLabel: item.smartScriptState ? smartScriptVisibleStateLabels[item.smartScriptState as SmartScriptVisibleState] : null,
+    sanitization: item.smartScriptSanitizationJson ? JSON.parse(item.smartScriptSanitizationJson) : null,
+    decisions: item.smartScriptDecisionLogs ?? []
+  };
+}
+
+async function smartScriptDecisionLog(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  input: {
+    ownerId?: string;
+    personalScriptId?: string | null;
+    batchId?: string | null;
+    action: SmartScriptDecisionAction;
+    source?: SmartScriptDecisionSource;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  return prisma.smartScriptDecisionLog.create({
+    data: {
+      organizationId: actor.organizationId,
+      ownerId: input.ownerId ?? actor.id,
+      actorId: actor.id,
+      personalScriptId: input.personalScriptId ?? null,
+      batchId: input.batchId ?? null,
+      action: input.action,
+      source: input.source ?? "BUTTON",
+      metadataJson: input.metadata ? jsonString(input.metadata) : null
+    }
+  });
+}
+
+function smartScriptInclude() {
+  return {
+    flows: { include: { flow: { select: { id: true, slug: true, title: true, status: true } } }, orderBy: { createdAt: "asc" } },
+    suggestion: { select: { id: true, status: true, createdScriptId: true } },
+    smartScriptDecisionLogs: {
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: { actor: { select: { id: true, name: true, role: true } } }
+    }
+  } satisfies Prisma.PersonalScriptInclude;
+}
+
+async function uniquePersonalScriptTitle(prisma: PrismaClient, actor: CurrentUser, title: string) {
+  const base = title.trim().slice(0, 150) || "SmartScript";
+  let candidate = base;
+  for (let index = 2; index < 50; index += 1) {
+    const existing = await prisma.personalScript.findFirst({ where: { organizationId: actor.organizationId, ownerId: actor.id, title: candidate } });
+    if (!existing) return candidate;
+    candidate = `${base} ${index}`.slice(0, 160);
+  }
+  return `${base} ${Date.now()}`.slice(0, 160);
+}
+
+function smartScriptTriggerOrThrow(trigger: string | null | undefined, required = false) {
+  if (!trigger && !required) return null;
+  const result = validateSmartScriptTrigger(trigger);
+  if (!result.ok) throw new ScriptLibraryError("INVALID_INPUT");
+  return result.trigger;
+}
+
+function sanitizeSmartScriptPayload(body: string) {
+  const result = sanitizeSmartScriptText(body);
+  if (!result.text || result.text.length < 8) throw new ScriptLibraryError("INVALID_INPUT");
+  return result;
+}
+
+export async function listSmartScriptItems(prisma: PrismaClient, actor: CurrentUser, filters: SmartScriptListFilters = {}) {
+  const state = filters.state;
+  const items = await prisma.personalScript.findMany({
+    where: {
+      organizationId: actor.organizationId,
+      ownerId: actor.id,
+      smartScriptState: state ?? { in: [...smartScriptVisibleStates] }
+    },
+    orderBy: [{ smartScriptState: "asc" }, { updatedAt: "desc" }, { title: "asc" }],
+    include: smartScriptInclude()
+  });
+  const counts = Object.fromEntries(
+    await Promise.all(smartScriptVisibleStates.map(async (visibleState) => [visibleState, await prisma.personalScript.count({ where: { organizationId: actor.organizationId, ownerId: actor.id, smartScriptState: visibleState } })]))
+  ) as Record<SmartScriptVisibleState, number>;
+  return { items: items.map(withSmartScriptFormat), counts, states: smartScriptVisibleStateLabels };
+}
+
+export async function importSmartScriptCandidates(prisma: PrismaClient, actor: CurrentUser, input: SmartScriptImportPayload) {
+  if (!input.candidates.length || input.candidates.length > 10) throw new ScriptLibraryError("INVALID_INPUT");
+  const processedAt = input.processedAt ? new Date(input.processedAt) : new Date();
+  if (Number.isNaN(processedAt.getTime())) throw new ScriptLibraryError("INVALID_INPUT");
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.personalScript.updateMany({
+      where: { organizationId: actor.organizationId, ownerId: actor.id, smartScriptState: "GENERATED_TODAY" },
+      data: { smartScriptState: "IN_REVIEW" }
+    });
+    const batch = await tx.smartScriptBatch.create({
+      data: {
+        organizationId: actor.organizationId,
+        ownerId: actor.id,
+        externalBatchId: input.batchId ?? null,
+        processedAt,
+        candidateCount: input.candidates.length,
+        metadataJson: jsonString({ rawLogsPersisted: false })
+      }
+    });
+    const created = [];
+    for (const candidate of input.candidates) {
+      const sanitized = sanitizeSmartScriptPayload(candidate.body);
+      const trigger = smartScriptTriggerOrThrow(candidate.trigger, false);
+      const title = await uniquePersonalScriptTitle(tx as PrismaClient, actor, candidate.title);
+      const script = await tx.personalScript.create({
+        data: {
+          organizationId: actor.organizationId,
+          ownerId: actor.id,
+          smartScriptBatchId: batch.id,
+          title,
+          channel: candidate.channel ?? "WHATSAPP",
+          body: sanitized.text,
+          tagsJson: tagsJsonFor(candidate.tags ?? []),
+          placeholdersJson: placeholdersJsonFor(sanitized.text),
+          smartScriptState: "GENERATED_TODAY",
+          smartScriptTrigger: trigger,
+          smartScriptSource: candidate.source ?? "companion",
+          smartScriptSanitized: true,
+          smartScriptSanitizationJson: jsonString({ markers: sanitized.markers, changed: sanitized.changed }),
+          smartScriptOccurrenceCount: candidate.occurrenceCount ?? null
+        },
+        include: smartScriptInclude()
+      });
+      await smartScriptDecisionLog(tx as PrismaClient, actor, {
+        personalScriptId: script.id,
+        batchId: batch.id,
+        action: "IMPORT",
+        source: "COMPANION",
+        metadata: { source: candidate.source ?? "companion", markers: sanitized.markers, rawLogStored: false }
+      });
+      created.push(script);
+    }
+    return { batch, created };
+  });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "smartscript.import", entityType: "SmartScriptBatch", entityId: result.batch.id, metadata: { candidateCount: result.created.length, rawLogsPersisted: false } });
+  return { batch: result.batch, items: result.created.map(withSmartScriptFormat) };
+}
+
+export async function decideSmartScriptItem(prisma: PrismaClient, actor: CurrentUser, itemId: string, input: SmartScriptDecisionPayload) {
+  const current = await prisma.personalScript.findFirst({ where: { id: itemId, organizationId: actor.organizationId, ownerId: actor.id } });
+  if (!current || !current.smartScriptState) throw new ScriptLibraryError("NOT_FOUND");
+  const source = input.source ?? "BUTTON";
+  if (input.action === "REJECT") {
+    const script = await prisma.personalScript.update({
+      where: { id: current.id },
+      data: { smartScriptState: null, smartScriptRejectedAt: new Date() },
+      include: smartScriptInclude()
+    });
+    await smartScriptDecisionLog(prisma, actor, { personalScriptId: script.id, batchId: script.smartScriptBatchId, action: "REJECT", source });
+    return { item: withSmartScriptFormat(script) };
+  }
+  if (input.action === "REVIEW") {
+    const script = await prisma.personalScript.update({ where: { id: current.id }, data: { smartScriptState: "IN_REVIEW" }, include: smartScriptInclude() });
+    await smartScriptDecisionLog(prisma, actor, { personalScriptId: script.id, batchId: script.smartScriptBatchId, action: "REVIEW", source });
+    return { item: withSmartScriptFormat(script) };
+  }
+  const body = input.body ?? current.body;
+  const sanitized = sanitizeSmartScriptPayload(body);
+  const trigger = smartScriptTriggerOrThrow(input.trigger ?? current.smartScriptTrigger, input.action === "APPROVE");
+  const data = {
+    title: input.title ?? current.title,
+    channel: input.channel ?? current.channel,
+    body: sanitized.text,
+    tagsJson: input.tags ? tagsJsonFor(input.tags) : current.tagsJson,
+    placeholdersJson: placeholdersJsonFor(sanitized.text),
+    smartScriptTrigger: trigger,
+    smartScriptSanitized: true,
+    smartScriptSanitizationJson: jsonString({ markers: sanitized.markers, changed: sanitized.changed })
+  };
+  if (input.action === "EDIT" && current.smartScriptState === "IN_USE") {
+    const title = await uniquePersonalScriptTitle(prisma, actor, `${data.title} revisão`);
+    const script = await prisma.personalScript.create({
+      data: {
+        organizationId: actor.organizationId,
+        ownerId: actor.id,
+        smartScriptBatchId: current.smartScriptBatchId,
+        ...data,
+        title,
+        smartScriptState: "IN_REVIEW",
+        smartScriptSource: "active-edit-proposal",
+        smartScriptOccurrenceCount: current.smartScriptOccurrenceCount
+      },
+      include: smartScriptInclude()
+    });
+    await smartScriptDecisionLog(prisma, actor, { personalScriptId: script.id, batchId: script.smartScriptBatchId, action: "EDIT", source, metadata: { proposedFrom: current.id } });
+    return { item: withSmartScriptFormat(script) };
+  }
+  const nextState = input.action === "APPROVE" ? "IN_USE" : "IN_REVIEW";
+  const script = await prisma.personalScript.update({
+    where: { id: current.id },
+    data: { ...data, smartScriptState: nextState, smartScriptApprovedAt: input.action === "APPROVE" ? new Date() : current.smartScriptApprovedAt },
+    include: smartScriptInclude()
+  });
+  await smartScriptDecisionLog(prisma, actor, { personalScriptId: script.id, batchId: script.smartScriptBatchId, action: input.action, source, metadata: { markers: sanitized.markers } });
+  if (input.action === "APPROVE") {
+    await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "smartscript.approve", entityType: "PersonalScript", entityId: script.id, metadata: { trigger } });
+  }
+  return { item: withSmartScriptFormat(script) };
+}
+
+function espansoYamlFor(items: Array<{ title: string; body: string; smartScriptTrigger: string | null }>) {
+  const quote = (value: string) => JSON.stringify(value);
+  const lines = ["matches:"];
+  for (const item of items) {
+    lines.push(`  - trigger: ${quote(item.smartScriptTrigger ?? "")}`);
+    lines.push(`    replace: ${quote(item.body)}`);
+    lines.push(`    label: ${quote(item.title)}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+export async function exportSmartScriptEspanso(prisma: PrismaClient, actor: CurrentUser) {
+  const items = await prisma.personalScript.findMany({
+    where: { organizationId: actor.organizationId, ownerId: actor.id, smartScriptState: "IN_USE" },
+    orderBy: [{ smartScriptTrigger: "asc" }, { title: "asc" }]
+  });
+  for (const item of items) {
+    smartScriptTriggerOrThrow(item.smartScriptTrigger, true);
+    sanitizeSmartScriptPayload(item.body);
+  }
+  const yaml = espansoYamlFor(items);
+  const triggers = items.map((item) => item.smartScriptTrigger).filter((trigger): trigger is string => Boolean(trigger));
+  const checksum = createHash("sha256").update(yaml).digest("hex");
+  const exportRecord = await prisma.smartScriptExport.create({
+    data: {
+      organizationId: actor.organizationId,
+      ownerId: actor.id,
+      actorId: actor.id,
+      itemCount: items.length,
+      triggersJson: jsonString(triggers),
+      checksum
+    }
+  });
+  await prisma.personalScript.updateMany({ where: { id: { in: items.map((item) => item.id) } }, data: { smartScriptExportedAt: new Date() } });
+  await smartScriptDecisionLog(prisma, actor, { action: "EXPORT", source: "BUTTON", metadata: { exportId: exportRecord.id, itemCount: items.length, checksum } });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "smartscript.export", entityType: "SmartScriptExport", entityId: exportRecord.id, metadata: { itemCount: items.length, checksum } });
+  return { export: exportRecord, yaml, items: items.map((item) => ({ id: item.id, title: item.title, trigger: item.smartScriptTrigger })) };
+}
+
+export async function recordSmartScriptUse(prisma: PrismaClient, actor: CurrentUser, itemId: string) {
+  const current = await prisma.personalScript.findFirst({
+    where: { id: itemId, organizationId: actor.organizationId, ownerId: actor.id, smartScriptState: "IN_USE" }
+  });
+  if (!current) throw new ScriptLibraryError("NOT_FOUND");
+  const item = await prisma.personalScript.update({
+    where: { id: current.id },
+    data: { smartScriptUsageCount: { increment: 1 }, smartScriptUsedAt: new Date() },
+    include: smartScriptInclude()
+  });
+  await smartScriptDecisionLog(prisma, actor, { personalScriptId: item.id, batchId: item.smartScriptBatchId, action: "USE", source: "COMPANION" });
+  return { item: withSmartScriptFormat(item) };
+}
+
+export async function suggestSmartScriptItemAsCanonical(prisma: PrismaClient, actor: CurrentUser, itemId: string) {
+  const current = await prisma.personalScript.findFirst({
+    where: { id: itemId, organizationId: actor.organizationId, ownerId: actor.id, smartScriptState: "IN_USE" }
+  });
+  if (!current) throw new ScriptLibraryError("NOT_FOUND");
+  const result = await suggestPersonalScriptAsCanonical(prisma, actor, current.id);
+  await smartScriptDecisionLog(prisma, actor, { personalScriptId: current.id, batchId: current.smartScriptBatchId, action: "SUGGEST_CANONICAL", source: "BUTTON", metadata: { suggestionId: result.suggestion.id } });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "smartscript.suggest_canonical", entityType: "PersonalScript", entityId: current.id, metadata: { suggestionId: result.suggestion.id } });
+  return result;
+}
+
+export async function getSmartScriptMetrics(prisma: PrismaClient, actor: CurrentUser) {
+  const whereBase = { organizationId: actor.organizationId, ownerId: actor.id };
+  const [generatedToday, inReview, inUse, rejected, exported, batches, exports, decisions, mostUsed, readyToCanonical] = await Promise.all([
+    prisma.personalScript.count({ where: { ...whereBase, smartScriptState: "GENERATED_TODAY" } }),
+    prisma.personalScript.count({ where: { ...whereBase, smartScriptState: "IN_REVIEW" } }),
+    prisma.personalScript.count({ where: { ...whereBase, smartScriptState: "IN_USE" } }),
+    prisma.personalScript.count({ where: { ...whereBase, smartScriptRejectedAt: { not: null } } }),
+    prisma.personalScript.count({ where: { ...whereBase, smartScriptExportedAt: { not: null } } }),
+    prisma.smartScriptBatch.count({ where: whereBase }),
+    prisma.smartScriptExport.count({ where: whereBase }),
+    prisma.smartScriptDecisionLog.groupBy({
+      by: ["action"],
+      where: { organizationId: actor.organizationId, ownerId: actor.id },
+      _count: { _all: true }
+    }),
+    prisma.personalScript.findMany({
+      where: { ...whereBase, smartScriptState: "IN_USE", smartScriptUsageCount: { gt: 0 } },
+      orderBy: [{ smartScriptUsageCount: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+      select: { id: true, title: true, smartScriptTrigger: true, smartScriptUsageCount: true, smartScriptUsedAt: true, suggestionId: true }
+    }),
+    prisma.personalScript.findMany({
+      where: { ...whereBase, smartScriptState: "IN_USE", suggestionId: null, smartScriptUsageCount: { gte: 1 } },
+      orderBy: [{ smartScriptUsageCount: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+      select: { id: true, title: true, smartScriptTrigger: true, smartScriptUsageCount: true }
+    })
+  ]);
+  const actions = Object.fromEntries(decisions.map((decision) => [decision.action, decision._count._all])) as Record<string, number>;
+  return {
+    summary: {
+      generatedToday,
+      inReview,
+      inUse,
+      rejected,
+      exported,
+      batches,
+      exports,
+      approved: actions.APPROVE ?? 0,
+      used: actions.USE ?? 0,
+      suggestedCanonical: actions.SUGGEST_CANONICAL ?? 0
+    },
+    actions,
+    mostUsed,
+    readyToCanonical
   };
 }
 

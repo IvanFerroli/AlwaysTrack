@@ -96,6 +96,44 @@ interface ScriptLibraryMetrics {
   probableDuplicates?: Array<{ key: string; count: number; titles: string[]; category: string }>;
 }
 
+interface SmartScriptItem {
+  id: string;
+  title: string;
+  channel: string;
+  body: string;
+  tags?: string[];
+  smartScriptState: "IN_USE" | "GENERATED_TODAY" | "IN_REVIEW";
+  visibleStateLabel: string;
+  smartScriptTrigger: string | null;
+  smartScriptSource: string | null;
+  smartScriptOccurrenceCount: number | null;
+  smartScriptApprovedAt: string | null;
+  smartScriptExportedAt: string | null;
+  updatedAt: string;
+}
+
+interface SmartScriptResponse {
+  items: SmartScriptItem[];
+  counts: Record<string, number>;
+}
+
+interface SmartScriptMetrics {
+  summary: {
+    generatedToday: number;
+    inReview: number;
+    inUse: number;
+    rejected: number;
+    exported: number;
+    batches: number;
+    exports: number;
+    approved: number;
+    used: number;
+    suggestedCanonical: number;
+  };
+  mostUsed: Array<{ id: string; title: string; smartScriptTrigger: string | null; smartScriptUsageCount: number; smartScriptUsedAt: string | null; suggestionId: string | null }>;
+  readyToCanonical: Array<{ id: string; title: string; smartScriptTrigger: string | null; smartScriptUsageCount: number }>;
+}
+
 const channelOptions = [
   { value: "WHATSAPP", label: "WhatsApp" },
   { value: "EMAIL", label: "E-mail" },
@@ -194,6 +232,16 @@ function emptyPackDraft(categoryId = "") {
   return { categoryId, wikiPageId: "", faqThreadId: "", title: "", summary: "", tags: "", status: "ACTIVE", scriptIds: [] as string[] };
 }
 
+function smartScriptDraftFrom(item?: SmartScriptItem | null) {
+  return {
+    title: item?.title ?? "",
+    trigger: item?.smartScriptTrigger ?? ":",
+    channel: item?.channel ?? "WHATSAPP",
+    body: item?.body ?? "",
+    tags: item?.tags?.join(", ") ?? ""
+  };
+}
+
 function dateInputValue(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
@@ -207,6 +255,14 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [scripts, setScripts] = useState<OperationalScriptItem[]>([]);
   const [packs, setPacks] = useState<ScriptPackItem[]>([]);
   const [suggestions, setSuggestions] = useState<ScriptSuggestionItem[]>([]);
+  const [smartScriptItems, setSmartScriptItems] = useState<SmartScriptItem[]>([]);
+  const [smartScriptCounts, setSmartScriptCounts] = useState<Record<string, number>>({});
+  const [smartScriptState, setSmartScriptState] = useState<"GENERATED_TODAY" | "IN_REVIEW" | "IN_USE">("GENERATED_TODAY");
+  const [selectedSmartScriptId, setSelectedSmartScriptId] = useState("");
+  const [smartScriptDraft, setSmartScriptDraft] = useState(smartScriptDraftFrom());
+  const [numberedReview, setNumberedReview] = useState("");
+  const [smartScriptExport, setSmartScriptExport] = useState("");
+  const [smartScriptMetrics, setSmartScriptMetrics] = useState<SmartScriptMetrics | null>(null);
   const [metrics, setMetrics] = useState<ScriptLibraryMetrics | null>(null);
   const [wikiPages, setWikiPages] = useState<Array<{ id: string; slug: string; title: string }>>([]);
   const [faqThreads, setFaqThreads] = useState<Array<{ id: string; title: string; status: string }>>([]);
@@ -223,7 +279,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [page, setPage] = useState(1);
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
-  const [mode, setMode] = useState<"attendance" | "management">("attendance");
+  const [mode, setMode] = useState<"attendance" | "smartscript" | "management">("attendance");
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
@@ -271,9 +327,34 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     }
   }
 
+  async function loadSmartScript(nextSelectedId = selectedSmartScriptId) {
+    setLoading(true);
+    setError(null);
+    try {
+      const [result, metricsResult] = await Promise.all([
+        api<SmartScriptResponse>(`/v1/script-library/smartscript/items?state=${smartScriptState}`),
+        api<SmartScriptMetrics>("/v1/script-library/smartscript/metrics")
+      ]);
+      setSmartScriptItems(result.items);
+      setSmartScriptCounts(result.counts ?? {});
+      setSmartScriptMetrics(metricsResult);
+      const next = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id ?? "";
+      setSelectedSmartScriptId(next);
+      setSmartScriptDraft(smartScriptDraftFrom(result.items.find((item) => item.id === next)));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar SmartScript.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (mode === "smartscript") void loadSmartScript("");
+  }, [mode, smartScriptState]);
 
   useEffect(() => {
     void load("");
@@ -293,6 +374,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   }, [canManage]);
 
   const selected = scripts.find((script) => script.id === selectedId) ?? null;
+  const selectedSmartScript = smartScriptItems.find((item) => item.id === selectedSmartScriptId) ?? null;
   const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? null;
   const scriptLookup = useMemo(() => {
     const map = new Map<string, OperationalScriptItem>();
@@ -533,6 +615,60 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
     });
   }
 
+  async function decideSmartScript(action: "APPROVE" | "REJECT" | "EDIT" | "REVIEW", source: "BUTTON" | "NUMBERED_REVIEW" = "BUTTON") {
+    if (!selectedSmartScript) return;
+    await run(async () => {
+      const result = await api<{ item: SmartScriptItem }>(`/v1/script-library/smartscript/items/${selectedSmartScript.id}/decision`, {
+        method: "POST",
+        body: JSON.stringify({
+          action,
+          source,
+          title: smartScriptDraft.title,
+          trigger: smartScriptDraft.trigger,
+          channel: smartScriptDraft.channel,
+          body: smartScriptDraft.body,
+          tags: parseTags(smartScriptDraft.tags)
+        })
+      });
+      await loadSmartScript(result.item.id);
+    });
+  }
+
+  async function applyNumberedReview() {
+    const normalized = numberedReview.trim().toLowerCase();
+    const action = normalized.startsWith("1") ? "APPROVE" : normalized.startsWith("2") ? "REJECT" : normalized.startsWith("3") ? "EDIT" : normalized.startsWith("4") ? "REVIEW" : null;
+    if (!action) {
+      setError("Use 1 sim, 2 nao, 3 editar ou 4 revisao.");
+      return;
+    }
+    setNumberedReview("");
+    await decideSmartScript(action, "NUMBERED_REVIEW");
+  }
+
+  async function exportSmartScript() {
+    await run(async () => {
+      const result = await api<{ yaml: string }>("/v1/script-library/smartscript/export/espanso", { method: "POST" });
+      setSmartScriptExport(result.yaml);
+      await loadSmartScript(selectedSmartScriptId);
+    });
+  }
+
+  async function recordSmartScriptUse() {
+    if (!selectedSmartScript) return;
+    await run(async () => {
+      const result = await api<{ item: SmartScriptItem }>(`/v1/script-library/smartscript/items/${selectedSmartScript.id}/use`, { method: "POST" });
+      await loadSmartScript(result.item.id);
+    });
+  }
+
+  async function suggestSmartScriptCanonical() {
+    if (!selectedSmartScript) return;
+    await run(async () => {
+      await api(`/v1/script-library/smartscript/items/${selectedSmartScript.id}/suggest`, { method: "POST" });
+      await loadSmartScript(selectedSmartScript.id);
+    });
+  }
+
   return (
     <div className="content-stack">
       <OperationalFilters
@@ -547,6 +683,9 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       <div className="knowledge-curation-bar">
         <button className={mode === "attendance" ? "active" : ""} type="button" onClick={() => setMode("attendance")}>
           Atendimento
+        </button>
+        <button className={mode === "smartscript" ? "active" : ""} type="button" onClick={() => setMode("smartscript")}>
+          SmartScript
         </button>
         {canManage ? (
           <button className={mode === "management" ? "active" : ""} type="button" onClick={() => setMode("management")}>
@@ -739,6 +878,150 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
               ) : <OperationalState state="empty" title="Selecione um script" />}
             </div>
           </div>
+        </section>
+      ) : null}
+      {mode === "smartscript" ? (
+        <section className="panel script-attendance-panel">
+          <div className="table-panel-toolbar">
+            <div>
+              <p className="eyebrow">Scriptoteca &gt; SmartScript</p>
+              <h2>Revisão de snippets pessoais</h2>
+              <p className="muted">AlwaysTrack é a fonte da verdade. Espanso é apenas runtime/exportador dos itens Em uso.</p>
+            </div>
+            <button className="secondary" type="button" disabled={saving || (smartScriptCounts.IN_USE ?? 0) === 0} onClick={() => void exportSmartScript()}>
+              Exportar agora
+            </button>
+          </div>
+          <div className="knowledge-curation-bar">
+            {[
+              ["GENERATED_TODAY", "Gerados hoje"],
+              ["IN_REVIEW", "Em revisão"],
+              ["IN_USE", "Em uso"]
+            ].map(([value, label]) => (
+              <button className={smartScriptState === value ? "active" : ""} key={value} type="button" onClick={() => setSmartScriptState(value as typeof smartScriptState)}>
+                {label} ({smartScriptCounts[value] ?? 0})
+              </button>
+            ))}
+          </div>
+          {smartScriptMetrics ? (
+            <div className="script-metrics-grid">
+              <div className="script-metric-card"><span>Aprovados</span><strong>{smartScriptMetrics.summary.approved}</strong></div>
+              <div className="script-metric-card"><span>Usos registrados</span><strong>{smartScriptMetrics.summary.used}</strong></div>
+              <div className="script-metric-card"><span>Exportados</span><strong>{smartScriptMetrics.summary.exported}</strong></div>
+              <div className="script-metric-card"><span>Sugeridos ao cânon</span><strong>{smartScriptMetrics.summary.suggestedCanonical}</strong></div>
+            </div>
+          ) : null}
+          <div className="script-attendance-layout">
+            <div className="script-attendance-results">
+              <div className="script-list-block">
+                <h2>{smartScriptState === "GENERATED_TODAY" ? "Gerados hoje" : smartScriptState === "IN_REVIEW" ? "Em revisão" : "Em uso"}</h2>
+                {loading ? <OperationalState state="loading" title="Carregando SmartScript" /> : null}
+                {smartScriptItems.map((item) => (
+                  <button
+                    className={selectedSmartScriptId === item.id ? "wiki-page-button active" : "wiki-page-button"}
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSmartScriptId(item.id);
+                      setSmartScriptDraft(smartScriptDraftFrom(item));
+                    }}
+                  >
+                    <strong>{item.title}</strong>
+                    <small>{item.visibleStateLabel} / {item.smartScriptTrigger ?? "sem trigger"} / {item.channel}</small>
+                    <small>{item.smartScriptOccurrenceCount ?? 1} ocorrência(s) · atualizado {formatDateBr(item.updatedAt)}</small>
+                  </button>
+                ))}
+                {!loading && smartScriptItems.length === 0 ? <OperationalState state="empty" title="Sem itens SmartScript" detail="Importe candidatos processados pelo companion local para revisar aqui." /> : null}
+              </div>
+            </div>
+            <div className="script-attendance-reader">
+              {selectedSmartScript ? (
+                <>
+                  <div className="detail-header">
+                    <div>
+                      <p className="eyebrow">{selectedSmartScript.visibleStateLabel}</p>
+                      <h2>{selectedSmartScript.title}</h2>
+                      <p className="muted">Trigger pessoal com ':'; '/' segue reservado para comandos internos.</p>
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <label>
+                      Trigger
+                      <input value={smartScriptDraft.trigger} onChange={(event) => setSmartScriptDraft((current) => ({ ...current, trigger: event.target.value }))} />
+                    </label>
+                    <label>
+                      Canal
+                      <select value={smartScriptDraft.channel} onChange={(event) => setSmartScriptDraft((current) => ({ ...current, channel: event.target.value }))}>
+                        {channelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="full-span">
+                      Título
+                      <input value={smartScriptDraft.title} onChange={(event) => setSmartScriptDraft((current) => ({ ...current, title: event.target.value }))} />
+                    </label>
+                    <label className="full-span">
+                      Texto
+                      <textarea rows={8} value={smartScriptDraft.body} onChange={(event) => setSmartScriptDraft((current) => ({ ...current, body: event.target.value }))} />
+                    </label>
+                    <label className="full-span">
+                      Tags
+                      <input value={smartScriptDraft.tags} onChange={(event) => setSmartScriptDraft((current) => ({ ...current, tags: event.target.value }))} />
+                    </label>
+                  </div>
+                  {selectedSmartScript.smartScriptState === "IN_USE" ? <p className="form-warning">Editar item Em uso cria proposta Em revisão; o snippet ativo não é alterado silenciosamente.</p> : null}
+                  <div className="form-actions">
+                    <button type="button" disabled={saving} onClick={() => void decideSmartScript("APPROVE")}>Aprovar</button>
+                    <button className="secondary" type="button" disabled={saving} onClick={() => void decideSmartScript("REJECT")}>Rejeitar</button>
+                    <button className="secondary" type="button" disabled={saving} onClick={() => void decideSmartScript("EDIT")}>Editar</button>
+                    <button className="secondary" type="button" disabled={saving} onClick={() => void decideSmartScript("REVIEW")}>Enviar para revisão</button>
+                  </div>
+                  {selectedSmartScript.smartScriptState === "IN_USE" ? (
+                    <div className="form-actions">
+                      <button className="secondary" type="button" disabled={saving} onClick={() => void recordSmartScriptUse()}>Registrar uso</button>
+                      <button className="secondary" type="button" disabled={saving} onClick={() => void suggestSmartScriptCanonical()}>Sugerir para cânon</button>
+                    </div>
+                  ) : null}
+                  <div className="form-grid">
+                    <label className="full-span">
+                      Revisão numerada
+                      <input placeholder="1 sim, 2 nao, 3 editar, 4 revisao" value={numberedReview} onChange={(event) => setNumberedReview(event.target.value)} />
+                    </label>
+                  </div>
+                  <div className="form-actions">
+                    <button className="secondary" type="button" disabled={saving || !numberedReview.trim()} onClick={() => void applyNumberedReview()}>Aplicar revisão numerada</button>
+                  </div>
+                </>
+              ) : <OperationalState state="empty" title="Selecione um item SmartScript" />}
+            </div>
+          </div>
+          {smartScriptExport ? (
+            <div className="script-preview">
+              <p className="eyebrow">YAML Espanso gerado</p>
+              <pre className="script-channel-preview">{smartScriptExport}</pre>
+            </div>
+          ) : null}
+          {smartScriptMetrics?.mostUsed.length || smartScriptMetrics?.readyToCanonical.length ? (
+            <div className="script-metrics-columns">
+              <div className="script-metric-list">
+                <h3>Snippets pessoais mais usados</h3>
+                <div>
+                  {smartScriptMetrics.mostUsed.map((item) => (
+                    <span key={item.id}><strong>{item.title}</strong><small>{item.smartScriptTrigger ?? "sem trigger"} · {item.smartScriptUsageCount} uso(s)</small></span>
+                  ))}
+                  {smartScriptMetrics.mostUsed.length ? null : <span className="muted">Sem uso registrado ainda.</span>}
+                </div>
+              </div>
+              <div className="script-metric-list">
+                <h3>Prontos para sugerir ao cânon</h3>
+                <div>
+                  {smartScriptMetrics.readyToCanonical.map((item) => (
+                    <span key={item.id}><strong>{item.title}</strong><small>{item.smartScriptTrigger ?? "sem trigger"} · {item.smartScriptUsageCount} uso(s)</small></span>
+                  ))}
+                  {smartScriptMetrics.readyToCanonical.length ? null : <span className="muted">Nenhum candidato com uso suficiente.</span>}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
       {mode === "management" && canManage && metrics ? (

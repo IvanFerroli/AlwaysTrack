@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-06-19
+- last-updated: 2026-07-06
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -178,8 +178,9 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 159. `EXEC-AT-167`: fechamento de Playwright, validacao runtime ativa e anexos operacionais por superficie. Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-166-beta-host-preflight-and-evidence.md`: executar o gate final na maquina host e registrar decisao GO/NO-GO.
-2. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
+1. `TASK-AT-182-smartscript-end-to-end-release-gate.md`: executar smoke operacional com Espanso real antes de uso diario.
+2. `TASK-AT-166-beta-host-preflight-and-evidence.md`: executar o gate final do beta na maquina host quando houver ambiente real.
+3. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -304,3 +305,20 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 11. `TASK-AT-164`: Runbook Beta Fechado via Tailscale. Status: completed-docs.
 12. `TASK-AT-165`: Checklists de homologacao Beta SAC e Beta Vendedor. Status: completed-docs.
 13. `TASK-AT-166`: Preflight final do beta na maquina host. Status: ready-external-host.
+
+### Fase G - SmartScript dentro da Scriptoteca
+1. `TASK-AT-168`: SmartScript - modelo de dados e permissoes. Status: completed-mvp.
+2. `TASK-AT-169`: SmartScript - sanitizacao e regras de trigger. Status: completed-mvp.
+3. `TASK-AT-170`: SmartScript - APIs de candidatos e revisao. Status: completed-mvp.
+4. `TASK-AT-171`: SmartScript - DecisionLog e eventos auditaveis. Status: completed-mvp.
+5. `TASK-AT-172`: SmartScript - aba na Scriptoteca e revisao humana. Status: completed-mvp.
+6. `TASK-AT-173`: SmartScript - workspace do companion local. Status: completed-mvp.
+7. `TASK-AT-174`: SmartScript - captura local por allowlist. Status: completed-mvp.
+8. `TASK-AT-175`: SmartScript - processamento local e geracao de candidatos. Status: completed-mvp.
+9. `TASK-AT-176`: SmartScript - importacao e rollover de Gerados hoje. Status: completed-mvp.
+10. `TASK-AT-177`: SmartScript - export Espanso. Status: completed-mvp.
+11. `TASK-AT-178`: SmartScript - metricas de uso e melhoria continua. Status: completed-mvp.
+12. `TASK-AT-179`: SmartScript - sugestao para Scriptoteca canonica. Status: completed-mvp.
+13. `TASK-AT-180`: SmartScript - regressao de seguranca e privacidade. Status: completed-mvp.
+14. `TASK-AT-181`: SmartScript - runbook operacional e readiness. Status: completed-mvp.
+15. `TASK-AT-182`: SmartScript - gate ponta a ponta para uso real. Status: completed-mvp.

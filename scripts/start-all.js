@@ -15,6 +15,7 @@ const noDocs = process.argv.includes("--no-docs");
 const noOpen = process.argv.includes("--no-open");
 const skipInstall = process.argv.includes("--skip-install") || process.argv.includes("--no-install");
 const noPerfSmoke = process.argv.includes("--no-perf-smoke");
+const noSmartScript = process.argv.includes("--no-smartscript");
 const defaultDatabaseUrl = "file:./dev.db";
 const devSeedPassword = "AlwaysTrackDev123!";
 
@@ -34,6 +35,7 @@ loadDotEnv();
 const env = {
   ...process.env,
   DATABASE_URL: process.env.DATABASE_URL ?? defaultDatabaseUrl,
+  ALWAYSTRACK_API_URL: process.env.ALWAYSTRACK_API_URL ?? `http://localhost:${process.env.API_PORT ?? "3333"}`,
   SESSION_SECRET: process.env.SESSION_SECRET ?? "dev-session-secret",
   API_PORT: process.env.API_PORT ?? "3333",
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD ?? devSeedPassword,
@@ -419,6 +421,12 @@ async function main() {
     return;
   }
 
+  if (!noSmartScript) {
+    await run("npm run smartscript:start", "Ativando SmartScript Local Companion");
+  } else {
+    console.log("\n[AlwaysTrack Setup] SmartScript Local Companion desativado por flag --no-smartscript.");
+  }
+
   console.log("\n[AlwaysTrack Setup] Iniciando servicos...");
   const processes = [
     spawnService("api", "npm", ["run", "dev:api"], "34"),
@@ -446,6 +454,11 @@ async function main() {
     }
     if (!noStudio) {
       console.log("- Prisma Studio: http://localhost:5555");
+    }
+    if (!noSmartScript) {
+      console.log("- SmartScript: ativo no storage local do companion");
+      console.log("- SmartScript status: npm run smartscript:status");
+      console.log("- SmartScript opt-out: npm run up -- --no-smartscript");
     }
 
     if (!noOpen) {
