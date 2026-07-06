@@ -37,8 +37,10 @@
 - `npm run typecheck --workspace @alwaystrack/api`
 - `npm run typecheck --workspace @alwaystrack/web`
 - `APP_MODE=beta-local BETA_ALLOWED_EMAILS=admin@example.com npm run env:check`
+- `npm run beta:preflight` como gate integrado na maquina host.
 
 ## Riscos residuais
 - A decisao sobre esconder leitura de Campanhas para roles comerciais nao gestoras pode ser refinada depois de teste real.
 - `VITE_APP_MODE` precisa ser preenchida junto com `APP_MODE` para o banner aparecer no frontend.
 - Beta com dados reais ainda depende da disciplina operacional do runbook Tailscale.
+- Nesta sessao, o runner sandbox bloqueou `spawnSync npx` e o executor externo nao devolveu a conclusao do Playwright/smoke; ambos devem ser executados na maquina host pelo `npm run beta:preflight` antes de abrir o acesso.

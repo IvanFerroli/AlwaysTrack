@@ -1,7 +1,7 @@
 # TASK-AT-036 - Wiki rich quality gate
 
 ## Metadata
-- status: completed-partial
+- status: completed-with-host-environment-note
 - owner: olympus_taskyfier
 - last-updated: 2026-05-30
 - source-of-truth: docs/tasks/TASK-AT-036-wiki-rich-quality-gate.md
@@ -20,8 +20,7 @@ Proteger a Wiki rica contra regressao de seguranca, acesso e usabilidade.
 - Renderer evita `dangerouslySetInnerHTML`, reduzindo risco de XSS no MVP Markdown.
 
 ## Residual
-- Falta teste browser/DOM dedicado para toolbar e renderer.
-- Falta checklist manual mobile formal.
+- A execucao integral no Chromium do host integra o preflight externo de `TASK-AT-166`.
 
 ## Aceite
 - `npm run check` passa.
@@ -33,3 +32,8 @@ Proteger a Wiki rica contra regressao de seguranca, acesso e usabilidade.
 ## Riscos
 - Sem harness frontend dedicado, regressao visual pode escapar.
 - Editor rico pode depender de APIs DOM dificeis de testar em unit tests.
+
+## Encerramento
+- A regressao de navegador cobre toolbar, preview, neutralizacao de HTML executavel e URL `javascript:`.
+- O mesmo cenario fixa viewport mobile e verifica que todos os controles da toolbar permanecem dentro da largura visivel.
+- A suite compila e e enumerada pelo Playwright; a evidencia de execucao real no Chromium permanece no preflight do host por causa da dependencia nativa registrada em `TASK-AT-166`.

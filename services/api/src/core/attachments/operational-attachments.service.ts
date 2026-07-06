@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { FileValidationError, validateAllowedFile } from "../documents/file-validation.js";
@@ -24,6 +24,16 @@ export interface OperationalAttachmentUploadInput {
 
 const allowedImageKinds = new Set(["png", "jpeg", "webp"] as const);
 const allowedSurfaces = new Set(["announcement", "faq", "service-flow", "script-library", "profile", "settings"] as const);
+
+export function canUploadOperationalAttachment(actor: CurrentUser, surface: string, entityId?: string) {
+  if (surface === "settings") return actor.role === "ADMIN";
+  if (surface === "announcement") return canUseCommercialPermission(actor.role, "announcements.manage");
+  if (surface === "service-flow") return (commercialManagerRoles as readonly string[]).includes(actor.role);
+  if (surface === "faq") return canUseCommercialPermission(actor.role, "knowledge.read");
+  if (surface === "script-library") return canUseCommercialPermission(actor.role, "scriptLibrary.read");
+  if (surface === "profile") return !entityId || entityId === actor.id;
+  return false;
+}
 
 function cleanSurface(value: unknown) {
   const surface = cleanOptionalString(value, 64)?.toLowerCase();
@@ -78,6 +88,7 @@ export async function uploadOperationalAttachment(
   input: OperationalAttachmentUploadInput
 ) {
   if (!input.surface) throw new OperationalAttachmentError("INVALID_INPUT");
+  if (!canUploadOperationalAttachment(actor, input.surface, input.entityId)) throw new OperationalAttachmentError("FORBIDDEN");
   if (!input.body || input.body.length === 0) throw new OperationalAttachmentError("INVALID_INPUT");
   if (!input.mimeType) throw new OperationalAttachmentError("UNSUPPORTED_TYPE");
   try {

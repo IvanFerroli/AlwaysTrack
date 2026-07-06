@@ -1,7 +1,7 @@
 # TASK-AT-107 - Seguranca: validacao runtime de entrada e contratos de API
 
 ## Metadata
-- status: completed-first-slice
+- status: completed-active-surfaces
 - owner: olympus_taskyfier
 - last-updated: 2026-06-18
 - source-of-truth: docs/tasks/TASK-AT-107-runtime-input-validation-contracts.md
@@ -90,3 +90,5 @@ Sem validacao forte, alguem pode mandar campos enormes, tipos errados, valores n
 - Evidencia: `npm run test --workspace @alwaystrack/api -- validation`, suite focada de parsers tocados e `npm run typecheck --workspace @alwaystrack/api` passaram.
 - Documento de convencao criado em `docs/architecture/api-input-validation.md`.
 - Restante: announcements, script-library, organizations e demais parsers em rodadas futuras.
+- 2026-06-18: `TASK-AT-141` e `TASK-AT-143` cobriram Scriptoteca, Avisos, Configuracoes, Notificacoes e Fluxos com o helper compartilhado.
+- 2026-06-21: task encerrada para todas as superficies ativas do AlwaysTrack. Relatorios/imports legados continuam default-off e so devem ser migrados se voltarem ao produto ativo.

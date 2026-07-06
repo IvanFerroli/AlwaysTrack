@@ -1,7 +1,7 @@
 # TASK-AT-151 - Entidade generica de anexos operacionais
 
 ## Metadata
-- status: completed-mvp-slice
+- status: completed
 - owner: olympus-orchestrator
 - last-updated: 2026-06-19
 - source-of-truth: docs/tasks/TASK-AT-151-generic-operational-attachments.md
@@ -74,6 +74,11 @@ Unificar anexos de Wiki, FAQ, Avisos, Fluxos e Scriptoteca em um contrato operac
 ## Riscos
 - Markdown antigo da Wiki segue no contrato antigo por compatibilidade.
 - Ainda nao ha UI de inventario/galeria de anexos por superficie.
+
+## Fechamento 2026-06-21
+- Permissao de upload passou a ser validada por superficie: Configuracoes apenas ADMIN; Avisos e Fluxos apenas ADMIN/GESTOR; FAQ e Scriptoteca conforme acesso de conhecimento; Perfil apenas do proprio usuario.
+- Testes cobrem permissao por superficie, anti-IDOR organizacional, upload, download e arquivamento auditavel.
+- A ausencia de galeria nao bloqueia o contrato de anexo nem o beta.
 
 ## Blockers possiveis
 - Falta de evidencia de necessidade.

@@ -75,4 +75,45 @@ test.describe("commercial browser regression flows", () => {
       await adminContext.close();
     }
   });
+
+  test("Wiki editor previews unsafe Markdown without executing it on mobile", async ({ page, request }) => {
+    await loginAsAdminApi(request);
+    const suffix = `${Date.now()}-${test.info().workerIndex}`;
+    const title = `E2E Wiki Segura ${suffix}`;
+    const unsafeContent = `## Preview seguro\n<script>window.__wikiXss = true</script>\n[link inseguro](javascript:alert(1))`;
+
+    await expectOk(await request.post("/v1/wiki/pages", {
+      data: {
+        title,
+        slug: `e2e-wiki-segura-${suffix}`,
+        content: "## Conteudo inicial\nPagina usada pelo quality gate da Wiki."
+      }
+    }));
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginAsAdminPage(page);
+    await page.getByRole("link", { name: /Wiki/ }).first().click();
+    await page.getByRole("button", { name: new RegExp(title) }).click();
+
+    const editForm = page.locator(".wiki-edit-form");
+    const editor = editForm.locator(".wiki-editor");
+    await expect(editor.getByLabel("Ferramentas de formatacao")).toBeVisible();
+    await editor.locator("textarea").fill(unsafeContent);
+    await editor.getByRole("button", { name: "Preview" }).click();
+
+    await expect(editor.getByRole("heading", { name: "Preview seguro" })).toBeVisible();
+    await expect(editor.getByText("<script>window.__wikiXss = true</script>")).toBeVisible();
+    await expect(editor.getByRole("link", { name: "link inseguro" })).toHaveAttribute("href", "#");
+    await expect(editor.locator("script")).toHaveCount(0);
+    expect(await page.evaluate(() => (window as Window & { __wikiXss?: boolean }).__wikiXss)).toBeUndefined();
+
+    const toolbarFitsViewport = await editor.getByLabel("Ferramentas de formatacao").evaluate((toolbar) => {
+      const viewportWidth = document.documentElement.clientWidth;
+      return Array.from(toolbar.querySelectorAll("button")).every((button) => {
+        const bounds = button.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= viewportWidth;
+      });
+    });
+    expect(toolbarFitsViewport).toBe(true);
+  });
 });

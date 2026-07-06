@@ -20,9 +20,9 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 1. `TASK-AT-012-product-pivot-sales-operations.md`: pivot canonico para operacao comercial. Status: completed.
 2. `TASK-AT-013-commercial-roles-access.md`: roles comerciais e escopo base. Status: completed.
 3. `TASK-AT-015-commercial-domain-model.md`: schema de vendedores, grupos, notas, itens, campanhas e ranking. Status: completed.
-4. `TASK-AT-024-commercial-users-teams-seed.md`: seed comercial de usuarios, vendedor e time. Status: completed-partial.
+4. `TASK-AT-024-commercial-users-teams-seed.md`: seed comercial de usuarios, vendedor e time. Status: completed.
 5. `TASK-AT-016-seller-danfe-upload.md`: upload autenticado de DANFE. Status: completed-mvp.
-6. `TASK-AT-020-commercial-dashboard-initial.md`: dashboard comercial inicial. Status: completed-partial.
+6. `TASK-AT-020-commercial-dashboard-initial.md`: dashboard comercial inicial. Status: completed.
 7. `TASK-AT-023-frankenstein-ui-cleanup.md`: navegacao ativa comercial e rotas legadas opt-in. Status: completed-mvp.
 8. `TASK-AT-017-danfe-structured-extraction.md`: extracao estruturada de DANFE com IA. Status: completed-mvp.
 9. `TASK-AT-018-sales-document-review.md`: revisao/aprovacao MVP de notas. Status: completed-mvp.
@@ -74,7 +74,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 55. `EXEC-AT-050`: extracao da view de Notas para `apps/web/src/views/notes.tsx` (`TASK-AT-054`). Status: completed.
 56. `EXEC-AT-051`: extracao da view Como usar para `apps/web/src/views/help.tsx` (`TASK-AT-054`). Status: completed.
 57. `EXEC-AT-052`: extracao da view Wiki e do centro de notificacoes para modulos dedicados (`TASK-AT-054`). Status: completed.
-58. `EXEC-AT-053`: regressao Playwright de navegador para upload/aprovacao DANFE e review Wiki com comentario (`TASK-AT-049`). Status: completed-partial.
+58. `EXEC-AT-053`: regressao Playwright de navegador para upload/aprovacao DANFE e review Wiki com comentario (`TASK-AT-049`). Status: completed-with-host-environment-note.
 59. `EXEC-AT-054`: validacao BullMQ com Redis real via teste opcional, CI dedicado, compose e guard de ambiente (`TASK-AT-052`). Status: completed.
 60. `EXEC-AT-055`: workflow de relatorio Artillery com snapshots diagnosticos e bloqueio de benchmark 1000 em localhost (`TASK-AT-051`/`TASK-AT-053`). Status: completed-partial.
 61. `EXEC-AT-056`: Google login restrito por dominio corporativo e env guard (`TASK-AT-057`). Status: completed.
@@ -133,12 +133,12 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 114. `EXEC-AT-110`: segredos, envs e deploy de producao (`TASK-AT-110`). Status: completed.
 115. `EXEC-AT-111`: auditoria, monitoramento e alertas (`TASK-AT-111`). Status: completed.
 116. `EXEC-AT-112`: dependencias, SCA e gates no CI (`TASK-AT-112`). Status: completed.
-117. `EXEC-AT-107`: validacao runtime de entrada e contratos de API (`TASK-AT-107`). Status: completed-first-slice.
+117. `EXEC-AT-107`: validacao runtime de entrada e contratos de API (`TASK-AT-107`). Status: completed-active-surfaces.
 118. `EXEC-AT-113`: banco, backup e protecao de dados (`TASK-AT-113`). Status: completed-docs.
 119. `EXEC-AT-114`: integracoes externas, webhooks e IA (`TASK-AT-114`). Status: completed.
 120. `EXEC-AT-115`: runbook de incidente e operacao segura (`TASK-AT-115`). Status: completed.
 121. `EXEC-AT-116`: gate antes de exposicao externa (`TASK-AT-116`). Status: completed-no-go-until-prod.
-122. `EXEC-AT-101`: anexos de imagem transversais em conteudo operacional (`TASK-AT-101`). Status: completed-mvp-slice.
+122. `EXEC-AT-101`: anexos de imagem transversais em conteudo operacional (`TASK-AT-101`). Status: completed-mvp.
 123. `EXEC-AT-121`: `npm run up` como bancada completa de estudo, com instalacao, setup, TypeDoc, app, Prisma Studio, reports existentes e smoke local opcional (`TASK-AT-121`). Status: completed.
 124. `EXEC-AT-122`: auditoria de testes/documentacao das mudancas recentes e mapa de lacunas residuais (`TASK-AT-122`). Status: completed.
 125. `EXEC-AT-123`: Scriptoteca com botao compacto de clipboard para copia rapida (`TASK-AT-123`). Status: completed.
@@ -165,18 +165,21 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 146. `EXEC-AT-144`: workbench local com indice navegavel de reports (`TASK-AT-144`). Status: completed-mvp.
 147. `EXEC-AT-145`: coverage HTML da API e documentacao de leitura (`TASK-AT-145`). Status: completed-mvp.
 148. `EXEC-AT-148`: timeout/redaction para integracoes externas criticas (`TASK-AT-148`). Status: completed-mvp.
-149. `EXEC-AT-146`: arquivamento auditavel de anexos da Wiki (`TASK-AT-146`). Status: completed-mvp-slice.
+149. `EXEC-AT-146`: arquivamento auditavel de anexos da Wiki (`TASK-AT-146`). Status: completed-mvp.
 150. `EXEC-AT-147`: runbook de prontidao Postgres/storage externo (`TASK-AT-147`). Status: completed-docs.
 151. `EXEC-AT-152`: Google Sheets/Drive com timeout via `externalFetch` (`TASK-AT-152`). Status: completed.
 152. `EXEC-AT-074`: polimento visual por print da Scriptoteca (`TASK-AT-074`). Status: completed-screenshot-slice.
 153. `EXEC-AT-153`: drag/drop de scripts em roteiros da Scriptoteca (`TASK-AT-153`). Status: completed-mvp.
 154. `EXEC-AT-150`: provider S3-compatible para storage privado (`TASK-AT-150`). Status: completed-mvp.
-155. `EXEC-AT-151`: entidade generica de anexos operacionais para Avisos/FAQ/Fluxos/Scriptoteca (`TASK-AT-151`). Status: completed-mvp-slice.
+155. `EXEC-AT-151`: entidade generica de anexos operacionais para Avisos/FAQ/Fluxos/Scriptoteca (`TASK-AT-151`). Status: completed.
 156. `EXEC-AT-149`: preflight de migracao real Postgres e guardas de backup/storage (`TASK-AT-149`). Status: blocked-external-infra-ready.
 157. `EXEC-AT-154`: Fase Beta Fechado por Permissoes com matriz, backend, busca, frontend, allowlist, banner, runbook e checklists (`TASK-AT-154` a `TASK-AT-165`). Status: completed-mvp.
+158. `EXEC-AT-157`: regressao negativa e comando integrado de preflight do beta. Status: completed-host-gate-pending.
+159. `EXEC-AT-167`: fechamento de Playwright, validacao runtime ativa e anexos operacionais por superficie. Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
+1. `TASK-AT-166-beta-host-preflight-and-evidence.md`: executar o gate final na maquina host e registrar decisao GO/NO-GO.
+2. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -231,7 +234,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 21. `TASK-AT-097`: Scriptoteca - metricas de uso e lacunas. Status: completed.
 22. `TASK-AT-099`: Scriptoteca - validade e recertificacao de scripts. Status: completed-mvp.
 23. `TASK-AT-100`: Scriptoteca - polimento visual de metricas e copia. Status: completed.
-24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: completed-mvp-slice.
+24. `TASK-AT-101`: Anexos de imagem transversais em conteudo operacional. Status: completed-mvp.
 25. `TASK-AT-123`: Scriptoteca - clipe de copia rapida. Status: completed.
 26. `TASK-AT-124`: Scriptoteca - modo atendimento rapido. Status: completed-mvp.
 27. `TASK-AT-125`: Scriptoteca - qualidade de placeholders. Status: completed-mvp.
@@ -256,11 +259,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 46. `TASK-AT-144`: Workbench local com indice navegavel de reports. Status: completed-mvp.
 47. `TASK-AT-145`: Coverage HTML e documentacao. Status: completed-mvp.
 48. `TASK-AT-148`: Integracoes externas com timeout e redaction. Status: completed-mvp.
-49. `TASK-AT-146`: Anexos com remocao auditavel. Status: completed-mvp-slice.
+49. `TASK-AT-146`: Anexos com remocao auditavel. Status: completed-mvp.
 50. `TASK-AT-147`: Prontidao Postgres/storage externo. Status: completed-docs.
 51. `TASK-AT-149`: Migracao real para Postgres. Status: blocked-external-infra-ready.
 52. `TASK-AT-150`: Provider externo de storage privado. Status: completed-mvp.
-53. `TASK-AT-151`: Entidade generica de anexos operacionais. Status: completed-mvp-slice.
+53. `TASK-AT-151`: Entidade generica de anexos operacionais. Status: completed.
 54. `TASK-AT-152`: Google Sheets/Drive com timeout e redaction. Status: completed.
 55. `TASK-AT-153`: Scriptoteca drag/drop e versionamento de roteiros. Status: completed-mvp.
 
@@ -270,7 +273,7 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 3. `TASK-AT-104`: Hardening de login, senha e sessao. Status: completed.
 4. `TASK-AT-105`: Protecao CSRF e validacao de origem. Status: completed.
 5. `TASK-AT-106`: Rate limit e protecao contra abuso. Status: completed.
-6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: completed-first-slice.
+6. `TASK-AT-107`: Validacao runtime de entrada e contratos de API. Status: completed-active-surfaces.
 7. `TASK-AT-108`: Hardening de uploads e arquivos. Status: completed.
 8. `TASK-AT-109`: Autorizacao, tenancy e testes anti-IDOR. Status: completed.
 9. `TASK-AT-110`: Segredos, envs e deploy de producao. Status: completed.
@@ -300,3 +303,4 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 10. `TASK-AT-163`: Seeds e usuarios controlados do beta. Status: completed-existing-seed.
 11. `TASK-AT-164`: Runbook Beta Fechado via Tailscale. Status: completed-docs.
 12. `TASK-AT-165`: Checklists de homologacao Beta SAC e Beta Vendedor. Status: completed-docs.
+13. `TASK-AT-166`: Preflight final do beta na maquina host. Status: ready-external-host.

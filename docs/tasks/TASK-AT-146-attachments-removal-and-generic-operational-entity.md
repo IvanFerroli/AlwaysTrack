@@ -1,7 +1,7 @@
 # TASK-AT-146 - Anexos operacionais: remocao auditavel e entidade generica
 
 ## Metadata
-- status: completed-mvp-slice
+- status: completed-mvp
 - owner: olympus-orchestrator
 - priority: medium
 - created: 2026-06-19
@@ -37,3 +37,7 @@ Completar o slice de anexos/imagens transversais com remocao auditavel, entidade
 ## Fora do MVP
 - Entidade generica unica para anexos de Avisos, FAQ, Fluxos e Scriptoteca continua como evolucao futura se a duplicacao virar dor real.
 - Seeds visuais adicionais ficam cobertos pela frente de polimento/demo, nao por esta task.
+
+## Fechamento transversal
+- `TASK-AT-151` entregou a entidade generica que estava fora do primeiro slice.
+- O arquivo continua preservado no storage durante arquivamento, com auditoria e bloqueio de leitura.

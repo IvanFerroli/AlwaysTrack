@@ -1,7 +1,7 @@
 # TASK-AT-049 - Playwright E2E regression suite
 
 ## Metadata
-- status: completed-partial
+- status: completed-with-host-environment-note
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-049-playwright-e2e-regression-suite.md
@@ -66,6 +66,12 @@ O app e uma SPA Vite/React com API Express. O backend tem boa cobertura service-
   - `npm run test:e2e -- --project=api` passou.
   - `npm run test:e2e -- --project=desktop` segue bloqueado no host local por `libnspr4.so`; o teste nao chegou na logica do app.
 - Proximo passo: observar o job de CI com Playwright/deps e ampliar browser para FAQ/notificacoes/usuarios se isso virar necessidade.
+
+## Fechamento 2026-06-21
+- Suite API dedicada do Beta Fechado adicionada para SAC, VENDEDOR, SUPERVISOR e FINANCEIRO.
+- Cobertura inclui limites comerciais/admin, escopo proprio do vendedor, scripts pessoais, sugestao de canonizacao e anexos por superficie.
+- `npm run beta:preflight` concentra a execucao final na maquina host.
+- A limitacao local de subprocessos/browser permanece registrada em `TASK-AT-166`; nao ha implementacao pendente nesta task.
 
 ## Riscos
 - E2E flaky se servidor/banco nao forem isolados.

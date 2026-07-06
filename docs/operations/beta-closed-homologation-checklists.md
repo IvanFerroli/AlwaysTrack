@@ -79,3 +79,15 @@ Validar a experiencia de participantes controlados antes de apresentar ou amplia
 - Print do vendedor vendo apenas proprio ranking/extrato.
 - Print de tentativa bloqueada por role, quando houver tela de erro.
 - Log de `npm run env:check` com beta-local e allowlist.
+
+## Formulario curto de feedback
+- Participante/role:
+- Data e duracao da sessao:
+- O que foi mais util:
+- O que ficou confuso:
+- Alguma tela pareceu lenta:
+- Alguma informacao esperada ficou faltando:
+- Encontrou dado ou acao que nao deveria ver:
+- Nota geral de 0 a 10:
+- Evidencias anexadas:
+- Acao recomendada antes da proxima sessao:

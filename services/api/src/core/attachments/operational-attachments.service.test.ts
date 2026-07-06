@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import {
   archiveOperationalAttachment,
+  canUploadOperationalAttachment,
   getOperationalAttachmentFile,
   OperationalAttachmentError,
   parseOperationalAttachmentUploadInput,
@@ -19,9 +20,21 @@ const admin: CurrentUser = {
 };
 
 const seller: CurrentUser = { ...admin, id: "seller-1", role: "VENDEDOR" };
+const sac: CurrentUser = { ...admin, id: "sac-1", role: "SAC" };
 const pngBody = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
 
 describe("operational attachments service", () => {
+  it("enforces upload permission by operational surface", () => {
+    expect(canUploadOperationalAttachment(admin, "settings")).toBe(true);
+    expect(canUploadOperationalAttachment(sac, "settings")).toBe(false);
+    expect(canUploadOperationalAttachment(sac, "announcement")).toBe(false);
+    expect(canUploadOperationalAttachment(sac, "service-flow")).toBe(false);
+    expect(canUploadOperationalAttachment(sac, "faq")).toBe(true);
+    expect(canUploadOperationalAttachment(sac, "script-library")).toBe(true);
+    expect(canUploadOperationalAttachment(seller, "profile", seller.id)).toBe(true);
+    expect(canUploadOperationalAttachment(seller, "profile", "other-user")).toBe(false);
+  });
+
   it("parses upload input with controlled surfaces", () => {
     expect(
       parseOperationalAttachmentUploadInput({
@@ -134,5 +147,16 @@ describe("operational attachments service", () => {
 
   it("rejects non-admin archive attempts", async () => {
     await expect(archiveOperationalAttachment({} as never, seller, "att-1")).rejects.toEqual(new OperationalAttachmentError("FORBIDDEN"));
+  });
+
+  it("rejects uploads to surfaces outside the actor permission", async () => {
+    await expect(
+      uploadOperationalAttachment({} as never, {} as never, sac, {
+        surface: "settings",
+        fileName: "forbidden.png",
+        mimeType: "image/png",
+        body: pngBody
+      })
+    ).rejects.toEqual(new OperationalAttachmentError("FORBIDDEN"));
   });
 });

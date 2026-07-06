@@ -38,10 +38,11 @@ O redirect acima precisa existir no Google Cloud Console exatamente como usado.
 1. Conferir `git status --short`.
 2. Rodar `npm install`.
 3. Rodar `npm run setup`.
-4. Rodar `APP_MODE=beta-local BETA_ALLOWED_EMAILS=admin@example.com npm run env:check`.
-5. Rodar `npm run test --workspace @alwaystrack/api -- auth.service.test.ts access-policy.test.ts search.service.test.ts operations.service.test.ts sales-documents.service.test.ts`.
-6. Rodar `npm run typecheck --workspaces --if-present`.
-7. Conferir visualmente o banner: "Ambiente Beta Fechado".
+4. Preencher `APP_MODE=beta-local`, `VITE_APP_MODE=beta-local` e `BETA_ALLOWED_EMAILS` no `.env` da maquina host.
+5. Rodar `npm run beta:preflight`.
+6. Conferir visualmente o banner: "Ambiente Beta Fechado".
+
+`npm run beta:preflight` valida env beta, testes negativos, typechecks, Playwright API por role e smoke beta com banco SQLite temporario em `.tmp/smoke-beta`. O comando nao deve usar nem limpar o banco de trabalho.
 
 ## Exposicao via Tailscale
 1. Entrar no Tailscale na maquina host.

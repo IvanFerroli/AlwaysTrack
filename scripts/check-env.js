@@ -11,7 +11,7 @@ function loadDotEnv(fileName) {
   }
 }
 
-const mode = process.argv.includes("--production") ? "production" : "local";
+const mode = process.argv.includes("--production") ? "production" : process.argv.includes("--beta") ? "beta" : "local";
 loadDotEnv(mode === "production" ? ".env.production" : ".env");
 
 const required = mode === "production"
@@ -144,6 +144,15 @@ if (mode === "production") {
   validatePublicUrl("VITE_API_BASE_URL");
   validateHttpsUrl("GOOGLE_REDIRECT_URI");
   validateHttpsUrl("GOOGLE_LOGIN_REDIRECT_URI");
+}
+
+if (mode === "beta") {
+  if (appMode !== "beta-local") {
+    missing.push("APP_MODE");
+  }
+  if (!process.env.BETA_ALLOWED_EMAILS) {
+    missing.push("BETA_ALLOWED_EMAILS");
+  }
 }
 
 if (provider === "meta") {

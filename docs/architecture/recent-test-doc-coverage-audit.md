@@ -27,7 +27,7 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 ### Imagens ricas em conteudo operacional
 - Coberto: suporte MVP transversal para anexos/imagens em conteudos operacionais.
 - Evidencias: `TASK-AT-101`, `EXEC-AT-101`, `docs/architecture/rich-content-images.md`, typecheck/build.
-- Lacuna recomendada: remocao auditavel de anexos, seeds visuais e validacao manual por navegador/upload real.
+- Fechamento: remocao auditavel, entidade generica, anti-IDOR e permissao por superficie foram entregues por `TASK-AT-146`/`TASK-AT-151`. Seeds visuais permanecem opcionais de demo; validacao host fica no preflight do beta.
 
 ### `npm run up` e onboarding local
 - Coberto: instalacao, setup, seed, TypeDoc, app, Prisma Studio, artefatos de testes/docs/reports e smoke local opcional.
@@ -45,12 +45,8 @@ O AlwaysTrack esta em estado de MVP interno avancado com trilhas funcionais de D
 - Lacuna recomendada: adicionar coverage gate formal somente se o projeto decidir um alvo minimo por modulo. Hoje a prioridade e smoke confiavel e testes direcionados por risco.
 
 ## Backlog ativo apos auditoria
-1. `TASK-AT-074-final-visual-polish-by-real-screenshots.md`: bloqueada por prints reais de acabamento visual.
-2. `TASK-AT-144-report-index-and-browser-workbench-hardening.md`: workbench local com indice navegavel de reports.
-3. `TASK-AT-145-coverage-html-gate-and-docs.md`: coverage formal com HTML gerado por comando padrao.
-4. `TASK-AT-146-attachments-removal-and-generic-operational-entity.md`: anexos com remocao auditavel e seeds visuais.
-5. `TASK-AT-147-prod-postgres-storage-readiness.md`: preparacao de infraestrutura final de deploy.
-6. `TASK-AT-148-integrations-timeout-redaction-provider-hardening.md`: timeout/redaction em integracoes externas.
+1. `TASK-AT-166-beta-host-preflight-and-evidence.md`: gate final na maquina host, dependente do ambiente real.
+2. `TASK-AT-149-prod-postgres-migration-execution.md`: migracao real, dependente de infraestrutura/credenciais.
 
 ## Decisao
 Auditoria reaberta em 18/06/2026 apos `TASK-AT-126`, `TASK-AT-140` e `TASK-AT-141`. A cobertura existente continua suficiente para DANFE, Wiki/FAQ, seguranca, docs e validacao runtime da Scriptoteca em nivel unit/service. Em 19/06/2026, `TASK-AT-142` fechou a lacuna dos pacotes/roteiros com regressao API e Artillery cobrindo Fluxos/Scriptoteca/copia. `TASK-AT-143` reduziu a lacuna de validacao runtime em Avisos, Configuracoes, Notificacoes e Fluxos. Os demais follow-ups agora estao taskificados formalmente em `TASK-AT-144` a `TASK-AT-148`.

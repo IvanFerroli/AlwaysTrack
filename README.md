@@ -436,6 +436,14 @@ BETA_ALLOWED_EMAILS="admin@alwaysfit.com.br,vendedor@alwaysfit.com.br,sac@always
 
 Allowlist define quem entra. Role define o que cada usuário pode fazer depois de entrar.
 
+Antes de abrir o beta via Tailscale, execute:
+
+```bash
+npm run beta:preflight
+```
+
+O preflight valida env, permissões negativas, typechecks, E2E API por role e smoke beta em banco temporário isolado.
+
 ### Roles
 
 Roles comerciais canonicas:

@@ -1,7 +1,7 @@
 # TASK-AT-054 - Code hardening and modularization rounds
 
 ## Metadata
-- status: completed-partial
+- status: completed-active-scope
 - owner: olympus_taskyfier
 - last-updated: 2026-06-11
 - source-of-truth: docs/tasks/TASK-AT-054-code-hardening-modularization-rounds.md
@@ -69,3 +69,6 @@ Executar rodadas controladas de otimizacao de codigo para reduzir risco, acoplam
 ## Riscos
 - Refatoracao grande pode introduzir regressao visual.
 - Extrair abstracao cedo demais pode piorar manutencao.
+
+## Encerramento
+As views operacionais ativas, o cliente API, contratos comerciais, marca e notificacoes foram separados de `main.tsx` em rodadas pequenas e protegidas. Novas extracoes passam a exigir um hotspot mensuravel ou uma mudanca funcional concreta; nao existe rodada ampla pendente que justifique aumentar o risco antes do beta.

@@ -1,7 +1,7 @@
 # TASK-AT-020 - Initial commercial dashboard
 
 ## Metadata
-- status: completed-partial
+- status: completed
 - owner: product-builder
 - last-updated: 2026-05-29
 - source-of-truth: docs/tasks/TASK-AT-020-commercial-dashboard-initial.md
@@ -21,3 +21,6 @@ Trocar o dashboard visivel para metricas comerciais.
 ## Aceite
 - UI inicial do produto nao abre com licencas.
 - Seed comercial mostra valores e ranking inicial.
+
+## Encerramento
+O dashboard comercial inicial foi sucedido pela Central Operacional e pelo grafico dinamico, com cards acionaveis, filtros de periodo e indicadores do fluxo comercial. Graficos e ranking explicavel passaram a ter tasks e entregas proprias, portanto nao permanecem como residual desta task fundacional.

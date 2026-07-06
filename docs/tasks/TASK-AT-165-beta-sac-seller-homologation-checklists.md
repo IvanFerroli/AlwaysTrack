@@ -64,7 +64,7 @@ O beta precisa validar experiencia real e tambem permissoes negativas. Os partic
 - Checklist curto demais nao pegar vazamento de permissao.
 
 ## Blockers possiveis
-- Implementacao de permissao ainda pendente.
+- Execucao do preflight na maquina host (`TASK-AT-166`).
 
 ## Retorno esperado
 - resumo curto dos checklists

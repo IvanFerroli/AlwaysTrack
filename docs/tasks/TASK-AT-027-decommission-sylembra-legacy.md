@@ -1,7 +1,7 @@
 # TASK-AT-027 - Remover/descontinuar legado SyLembra em fases
 
 ## Metadata
-- status: completed-partial
+- status: completed-default-off-boundary
 - owner: product-builder
 - last-updated: 2026-06-04
 - source-of-truth: docs/tasks/TASK-AT-027-decommission-sylembra-legacy.md
@@ -57,3 +57,6 @@ Descontinuar o legado SyLembra/licencas/compliance sem quebrar o produto comerci
 - Remover rotas antigas antes de atualizar testes pode quebrar suites de dashboard, reports, documents, notifications e qualidade.
 - Remover seed legado sem ajustar smoke/testes pode deixar usuarios `RT`/`SUPERVISOR` e escopos antigos sem fixture.
 - Desativar upload publico antigo pode afetar handlers compartilhados com storage/documentos se nao houver separacao clara de anexos comerciais/wiki.
+
+## Encerramento
+O produto comercial nao expoe o vertical SyLembra por padrao: rotas, seed e fixtures antigas exigem `ENABLE_LEGACY_SYLEMBRA=true`. O schema e os handlers residuais ficam como fronteira de compatibilidade opt-in, sem participarem da navegacao ou dos fluxos do AlwaysTrack. A remocao fisica futura somente deve ocorrer com migracao real e evidencia de que nenhum dado legado precisa ser preservado.
