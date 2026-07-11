@@ -1,0 +1,58 @@
+[
+  {
+    "id": "demo-evt-001",
+    "timestamp": "2026-07-07T12:00:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Ola, vamos seguir com o reenvio do pedido 123456. Confirma por favor se o endereco Rua das Flores, 123 continua correto e se o telefone 1198765-4321 esta ativo."
+  },
+  {
+    "id": "demo-evt-002",
+    "timestamp": "2026-07-07T12:04:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Ola, vamos seguir com o reenvio do pedido 987654. Confirma por favor se o endereco Avenida Central, 456 continua correto e se o telefone 2199999-0000 esta ativo."
+  },
+  {
+    "id": "demo-evt-003",
+    "timestamp": "2026-07-07T12:07:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Ola, vamos seguir com o reenvio do pedido 555555. Confirma por favor se o endereco Travessa Modelo, 77 continua correto e se o telefone 3198765-1111 esta ativo."
+  },
+  {
+    "id": "demo-evt-004",
+    "timestamp": "2026-07-07T13:10:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Boa tarde, identificamos que o pagamento ainda nao compensou. Pode aguardar alguns minutos e nos chamar novamente com o comprovante caso o status nao atualize."
+  },
+  {
+    "id": "demo-evt-005",
+    "timestamp": "2026-07-07T13:15:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Boa tarde, identificamos que o pagamento ainda nao compensou. Pode aguardar alguns minutos e nos chamar novamente com o comprovante caso o status nao atualize."
+  },
+  {
+    "id": "demo-evt-006",
+    "timestamp": "2026-07-07T14:00:00.000Z",
+    "type": "chatgpt-copy",
+    "source": "ChatGPT",
+    "destination": "AlwaysChat",
+    "text": "Segue uma resposta curta e cordial: recebemos sua solicitacao, vamos validar as informacoes com o financeiro e retornamos ainda hoje pelo atendimento."
+  },
+  {
+    "id": "demo-evt-007",
+    "timestamp": "2026-07-07T14:20:00.000Z",
+    "type": "clipboard",
+    "source": "Planilha privada",
+    "destination": "Banco interno",
+    "text": "Evento fora da allowlist que deve ser descartado pelo companion."
+  }
+]

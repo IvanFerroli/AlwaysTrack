@@ -16,6 +16,7 @@ const noOpen = process.argv.includes("--no-open");
 const skipInstall = process.argv.includes("--skip-install") || process.argv.includes("--no-install");
 const noPerfSmoke = process.argv.includes("--no-perf-smoke");
 const noSmartScript = process.argv.includes("--no-smartscript");
+const noSmartScriptDemo = process.argv.includes("--no-smartscript-demo");
 const defaultDatabaseUrl = "file:./dev.db";
 const devSeedPassword = "AlwaysTrackDev123!";
 
@@ -43,7 +44,9 @@ const env = {
   SEED_FINANCEIRO_PASSWORD: process.env.SEED_FINANCEIRO_PASSWORD ?? devSeedPassword,
   SEED_SELLER_PASSWORD: process.env.SEED_SELLER_PASSWORD ?? devSeedPassword,
   SEED_SUPERVISOR_PASSWORD: process.env.SEED_SUPERVISOR_PASSWORD ?? devSeedPassword,
-  SEED_RT_PASSWORD: process.env.SEED_RT_PASSWORD ?? devSeedPassword
+  SEED_RT_PASSWORD: process.env.SEED_RT_PASSWORD ?? devSeedPassword,
+  ALWAYSTRACK_EMAIL: process.env.ALWAYSTRACK_EMAIL ?? "sac@example.com",
+  ALWAYSTRACK_PASSWORD: process.env.ALWAYSTRACK_PASSWORD ?? process.env.SEED_SAC_PASSWORD ?? devSeedPassword
 };
 
 function shellQuote(value) {
@@ -365,6 +368,22 @@ async function waitForUrl(url, { timeoutMs = 30_000, intervalMs = 750 } = {}) {
   return false;
 }
 
+async function bootstrapSmartScriptAfterApi() {
+  if (noSmartScript) return;
+  const ready = await waitForUrl(`http://localhost:${env.API_PORT}/health`, { timeoutMs: 45_000 });
+  if (!ready) {
+    console.warn("\n[AlwaysTrack Setup] API nao respondeu a tempo; bootstrap SmartScript nao foi executado.");
+    return;
+  }
+  const command = noSmartScriptDemo ? "npm run smartscript:bootstrap -- --no-demo" : "npm run smartscript:bootstrap";
+  try {
+    await run(command, "Deixando SmartScript pronto para uso");
+  } catch (error) {
+    console.warn(`\n[AlwaysTrack Setup] SmartScript nao ficou 100% pronto automaticamente: ${error.message}`);
+    console.warn("[AlwaysTrack Setup] App continua rodando; confira `npm run smartscript:status`.");
+  }
+}
+
 async function prepareDatabase() {
   await run(`npx prisma generate --schema ${schemaPath}`, "Gerando Prisma Client");
 
@@ -423,6 +442,7 @@ async function main() {
 
   if (!noSmartScript) {
     await run("npm run smartscript:start", "Ativando SmartScript Local Companion");
+    await run("npm run smartscript:espanso", "Preparando Espanso para SmartScript");
   } else {
     console.log("\n[AlwaysTrack Setup] SmartScript Local Companion desativado por flag --no-smartscript.");
   }
@@ -457,7 +477,11 @@ async function main() {
     }
     if (!noSmartScript) {
       console.log("- SmartScript: ativo no storage local do companion");
+      console.log("- SmartScript Espanso: preparado com trigger de teste :at-test");
+      console.log("- SmartScript bootstrap: login/import/export automaticos apos API health");
+      console.log("- SmartScript UI: Scriptoteca > SmartScript");
       console.log("- SmartScript status: npm run smartscript:status");
+      console.log("- SmartScript demo opt-out: npm run up -- --no-smartscript-demo");
       console.log("- SmartScript opt-out: npm run up -- --no-smartscript");
     }
 
@@ -472,6 +496,8 @@ async function main() {
       }
     }
   }, 2500);
+
+  bootstrapSmartScriptAfterApi();
 
   if (!noPerfSmoke) {
     waitForUrl("http://localhost:3333/health").then((ready) => {

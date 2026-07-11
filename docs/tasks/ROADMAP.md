@@ -3,7 +3,7 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-07-06
+- last-updated: 2026-07-11
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
@@ -178,9 +178,10 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 159. `EXEC-AT-167`: fechamento de Playwright, validacao runtime ativa e anexos operacionais por superficie. Status: completed.
 
 ## Proximas tasks recomendadas
-1. `TASK-AT-182-smartscript-end-to-end-release-gate.md`: executar smoke operacional com Espanso real antes de uso diario.
-2. `TASK-AT-166-beta-host-preflight-and-evidence.md`: executar o gate final do beta na maquina host quando houver ambiente real.
-3. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
+1. `TASK-AT-183-smartscript-real-capture-contract.md`: iniciar a Fase H do SmartScript com contrato do nucleo real de logging/captura.
+2. `TASK-AT-184-smartscript-local-logger-control-plane.md`: tornar `start/stop/status/pause/resume` controles reais do logger local.
+3. `TASK-AT-166-beta-host-preflight-and-evidence.md`: executar o gate final do beta na maquina host quando houver ambiente real.
+4. `TASK-AT-149-prod-postgres-migration-execution.md`: executar migracao real para Postgres quando houver infraestrutura/credenciais.
 
 ## Backlog proposto - reta final produto interno
 1. `TASK-AT-057`: Google login restrito por dominio corporativo. Status: completed.
@@ -322,3 +323,155 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 13. `TASK-AT-180`: SmartScript - regressao de seguranca e privacidade. Status: completed-mvp.
 14. `TASK-AT-181`: SmartScript - runbook operacional e readiness. Status: completed-mvp.
 15. `TASK-AT-182`: SmartScript - gate ponta a ponta para uso real. Status: completed-mvp.
+
+### Fase H - SmartScript nucleo real de logging e captura
+1. `TASK-AT-183`: SmartScript - contrato da captura real. Status: planned.
+2. `TASK-AT-184`: SmartScript - control plane do logger local. Status: planned.
+3. `TASK-AT-185`: SmartScript - resolver de contexto ativo e allowlist. Status: planned.
+4. `TASK-AT-186`: SmartScript - adapter de clipboard, paste e envio. Status: planned.
+5. `TASK-AT-187`: SmartScript - bridge local de eventos AlwaysChat. Status: planned.
+6. `TASK-AT-188`: SmartScript - store local, TTL e retencao de raw logs. Status: planned.
+7. `TASK-AT-189`: SmartScript - pipeline de eventos reais para candidatos. Status: planned.
+8. `TASK-AT-190`: SmartScript - bootstrap de captura real no `npm run up`. Status: planned.
+9. `TASK-AT-191`: SmartScript - observabilidade local e evidencia redigida. Status: planned.
+10. `TASK-AT-192`: SmartScript - regressao de privacidade da captura real. Status: planned.
+11. `TASK-AT-193`: SmartScript - gate de captura real. Status: planned.
+
+### Fase I - CaseFlow Engine + AlwaysTrack Companion
+Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. Status geral: planned; rodada corretiva materializada em `docs/tasks/CASEFLOW-CORRECTIVE-REVIEW-REPORT.md`.
+
+#### Fundacao corrigida
+1. `TASK-AT-194`: CaseFlow: arquitetura, fronteiras e nao objetivos. Status: planned.
+2. `TASK-AT-195`: Companion: spike Windows + WSL + Chrome. Status: planned.
+3. `TASK-AT-196`: CaseFlow: topologia de autenticacao e confianca. Status: planned.
+4. `TASK-AT-197`: Companion: threat model da extensao e host local. Status: planned.
+5. `TASK-AT-198`: CaseFlow: contratos compartilhados de caso e evidencia. Status: planned.
+6. `TASK-AT-199`: CaseFlow: contrato de capabilities e firewall de acao. Status: planned.
+7. `TASK-AT-200`: Companion: contrato de conector consultivo. Status: planned.
+8. `TASK-AT-201`: Companion: protocolo e fronteiras entre extensao, host e API. Status: planned.
+9. `TASK-AT-202`: CaseFlow: scaffolding de workspaces. Status: planned.
+
+#### Extensao Chromium
+1. `TASK-AT-203`: Extensao: shell Chromium Manifest V3. Status: planned.
+2. `TASK-AT-204`: Extensao: side panel shell do Copiloto SAC. Status: planned.
+3. `TASK-AT-205`: Extensao: cliente de protocolo no background. Status: planned.
+4. `TASK-AT-206`: Extensao: content script read-only base. Status: planned.
+5. `TASK-AT-207`: Extensao: tab registry e reuso de abas. Status: planned.
+6. `TASK-AT-208`: Extensao: UI de intervencao humana. Status: planned.
+7. `TASK-AT-209`: Extensao: diagnostico de Chrome perfil de trabalho. Status: planned.
+
+#### Companion Host
+1. `TASK-AT-210`: Companion Host: shell Node TypeScript. Status: planned.
+2. `TASK-AT-211`: Companion Host: WebSocket loopback e pairing. Status: planned.
+3. `TASK-AT-212`: Companion Host: cliente API AlwaysTrack e confianca local. Status: planned.
+4. `TASK-AT-213`: Companion Host: orquestrador progressivo. Status: planned.
+5. `TASK-AT-214`: Companion Host: cache, timeout e cancelamento. Status: planned.
+6. `TASK-AT-215`: Companion Host: preaquecimento e saude local. Status: planned.
+
+#### CaseFlow Core e APIs base
+1. `TASK-AT-216`: CaseFlow Core: persistencia inicial. Status: planned.
+2. `TASK-AT-217`: CaseFlow Core: lifecycle service. Status: planned.
+3. `TASK-AT-218`: CaseFlow Core: EvidenceFact service. Status: planned.
+4. `TASK-AT-219`: CaseFlow Core: conflitos e autoridade por campo. Status: planned.
+5. `TASK-AT-220`: CaseFlow Core: ledger de ConnectorRun. Status: planned.
+6. `TASK-AT-221`: CaseFlow Core: auditoria, retencao e redaction. Status: planned.
+7. `TASK-AT-222`: CaseFlow Security: enforcement do action firewall. Status: planned.
+8. `TASK-AT-223`: CaseFlow Security: regressao de acoes proibidas. Status: planned.
+9. `TASK-AT-224`: CaseFlow API: casos, evidencias e conflitos. Status: planned.
+10. `TASK-AT-225`: CaseFlow API: evidencia manual. Status: planned.
+11. `TASK-AT-226`: CaseFlow API: resolucao manual de conflito. Status: planned.
+12. `TASK-AT-227`: CaseFlow API: correcao manual de classificacao e fluxo. Status: planned.
+13. `TASK-AT-228`: CaseFlow Core: desfazer overrides e metricas de correcao. Status: planned.
+
+#### Primeira vertical AlwaysChat + Rastreio
+1. `TASK-AT-229`: AlwaysChat: parser e fixture de intake. Status: planned.
+2. `TASK-AT-230`: AlwaysChat: content script read-only. Status: planned.
+3. `TASK-AT-231`: CaseFlow: intake ponta a ponta do caso inicial. Status: planned.
+4. `TASK-AT-232`: Side panel: montar, cancelar e atualizar caso. Status: planned.
+5. `TASK-AT-233`: Rastreio no Lancador: parser e fixtures. Status: planned.
+6. `TASK-AT-234`: Rastreio no Lancador: runtime read-only. Status: planned.
+7. `TASK-AT-235`: CaseFlow: resumo deterministico parcial. Status: planned.
+8. `TASK-AT-236`: CaseFlow: shadow mode vertical simples. Status: planned.
+9. `TASK-AT-237`: CaseFlow: comparacao manual no shadow mode. Status: planned.
+
+#### Heuristica deterministica
+1. `TASK-AT-238`: CaseFlow Heuristica: normalizacao textual e sinais. Status: planned.
+2. `TASK-AT-239`: CaseFlow Heuristica: DSL de regras. Status: planned.
+3. `TASK-AT-240`: CaseFlow Heuristica: scoring, hard rules e candidatos. Status: planned.
+4. `TASK-AT-241`: CaseFlow Heuristica: baixa confianca e triagem. Status: planned.
+5. `TASK-AT-242`: CaseFlow API: resolucao heuristica. Status: planned.
+6. `TASK-AT-243`: CaseFlow Heuristica: golden cases. Status: planned.
+
+#### ServiceFlow executavel e plano
+1. `TASK-AT-244`: ServiceFlow: versionamento imutavel publicado. Status: planned.
+2. `TASK-AT-245`: ServiceFlow: grafo, nos e transicoes. Status: planned.
+3. `TASK-AT-246`: ServiceFlow: testes estruturais de grafo. Status: planned.
+4. `TASK-AT-247`: CaseFlowPlan: compilador de multiplos fluxos. Status: planned.
+5. `TASK-AT-248`: CaseFlowPlan: reconciliacao incremental. Status: planned.
+6. `TASK-AT-249`: ServiceFlowSession: sessao presa a versao. Status: planned.
+7. `TASK-AT-250`: CaseFlow API: sessoes e passos. Status: planned.
+8. `TASK-AT-251`: CaseFlow API: plano compilado. Status: planned.
+
+#### UI guiada e mensagens
+1. `TASK-AT-252`: Side panel: stepper guiado operacional. Status: planned.
+2. `TASK-AT-253`: Side panel: estabilidade visual da reconciliacao incremental. Status: planned.
+3. `TASK-AT-254`: Side panel: fluxos detectados e razoes. Status: planned.
+4. `TASK-AT-255`: Side panel: mapa de possibilidades. Status: planned.
+5. `TASK-AT-256`: Side panel: ergonomia e atalhos configuraveis. Status: planned.
+6. `TASK-AT-257`: Mensagens: compilador sem IA via Scriptoteca. Status: planned.
+7. `TASK-AT-258`: Mensagens: politica de placeholders faltantes. Status: planned.
+8. `TASK-AT-259`: Mensagens: testes estruturais e snapshots. Status: planned.
+9. `TASK-AT-260`: Mensagens: saidas por canal e tipo. Status: planned.
+10. `TASK-AT-261`: CaseFlow API: mensagens e copia. Status: planned.
+11. `TASK-AT-262`: Side panel: acoes de copia sem escrita. Status: planned.
+
+#### Conectores consultivos e rascunhos
+1. `TASK-AT-263`: Connectors: registry runtime. Status: planned.
+2. `TASK-AT-264`: Yampi: parser e fixtures. Status: planned.
+3. `TASK-AT-265`: Yampi: runtime read-only. Status: planned.
+4. `TASK-AT-266`: OMIE: parser base e fixtures. Status: planned.
+5. `TASK-AT-267`: OMIE Filial: runtime read-only. Status: planned.
+6. `TASK-AT-268`: OMIE Pharma: runtime restrito. Status: planned.
+7. `TASK-AT-269`: Loggi: parser e fixtures. Status: planned.
+8. `TASK-AT-270`: Loggi: runtime read-only. Status: planned.
+9. `TASK-AT-271`: J&T VIP: parser e fixtures. Status: planned.
+10. `TASK-AT-272`: J&T VIP: runtime read-only. Status: planned.
+11. `TASK-AT-273`: Correios/Reversa: parser e fixtures. Status: planned.
+12. `TASK-AT-274`: Correios/Reversa: runtime read-only. Status: planned.
+13. `TASK-AT-275`: Lancador de Pedidos: parser de consulta e fixtures. Status: planned.
+14. `TASK-AT-276`: Lancador de Pedidos: runtime de consulta. Status: planned.
+15. `TASK-AT-277`: Slack: suporte manual por draft copiado. Status: planned.
+16. `TASK-AT-278`: CaseFlow: ChatGPT fora do runtime inicial. Status: planned.
+17. `TASK-AT-279`: Scriptoteca: interoperabilidade Espanso e SmartScript. Status: planned.
+18. `TASK-AT-280`: AlwaysChat: inserir rascunho autorizado. Status: planned.
+19. `TASK-AT-281`: Lancador de Pedidos: preparacao de rascunho. Status: planned.
+20. `TASK-AT-282`: Lancador: deteccao pos-acao manual e alerta Slack. Status: planned.
+
+#### Seguranca, performance, testes e recuperacao
+1. `TASK-AT-283`: CaseFlow: testes de seguranca do protocolo local. Status: planned.
+2. `TASK-AT-284`: CaseFlow: instrumentacao de SLO progressivo. Status: planned.
+3. `TASK-AT-285`: CaseFlow: testes de performance, cache e concorrencia. Status: planned.
+4. `TASK-AT-286`: Connectors: harness de fixtures e parser tests. Status: planned.
+5. `TASK-AT-287`: Connectors: checklists de live smoke manual. Status: planned.
+6. `TASK-AT-288`: Connectors: drift detection e degradacao. Status: planned.
+7. `TASK-AT-289`: CaseFlow: painel de saude dos conectores. Status: planned.
+8. `TASK-AT-290`: CaseFlow: metricas de sucesso do Copiloto SAC. Status: planned.
+9. `TASK-AT-291`: CaseFlow: regressao anti dado cruzado. Status: planned.
+10. `TASK-AT-292`: CaseFlow: E2E com paginas fake. Status: planned.
+11. `TASK-AT-293`: CaseFlow: recuperacao operacional e reidratacao. Status: planned.
+12. `TASK-AT-294`: Companion: instalacao, atualizacao e rollback. Status: planned.
+13. `TASK-AT-295`: CaseFlow: export, backup e restore de regras, fluxos e configuracoes. Status: planned.
+
+#### Admin, docs, demo e rollout
+1. `TASK-AT-296`: AlwaysTrack Web: historico de casos CaseFlow. Status: planned.
+2. `TASK-AT-297`: AlwaysTrack Web: administracao de regras heuristicas. Status: planned.
+3. `TASK-AT-298`: AlwaysTrack Web: administracao de conectores e sistemas. Status: planned.
+4. `TASK-AT-299`: Docs: arquitetura, API e contratos CaseFlow. Status: planned.
+5. `TASK-AT-300`: Runbooks: Companion, drift e recuperacao. Status: planned.
+6. `TASK-AT-301`: Demo: seeds, fixtures e roteiro guiado. Status: planned.
+7. `TASK-AT-302`: Rollout: Fase 1 shadow mode gate. Status: planned.
+8. `TASK-AT-303`: Rollout: Fase 2 fluxo guiado gate. Status: planned.
+9. `TASK-AT-304`: Rollout: Fase 3 cobertura consultiva gate. Status: planned.
+10. `TASK-AT-305`: Rollout: Fase 4 rascunhos e rollback gate. Status: planned.
+11. `TASK-AT-306`: Rollout: Fase 5 hardening gate. Status: planned.
+12. `TASK-AT-307`: CaseFlow: prontidao para agente futuro sem implementa-lo. Status: planned.

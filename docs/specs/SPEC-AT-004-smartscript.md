@@ -3,7 +3,7 @@
 ## Metadata
 - status: accepted
 - owner: product-builder
-- last-updated: 2026-07-06
+- last-updated: 2026-07-07
 - source-of-truth: docs/specs/SPEC-AT-004-smartscript.md
 
 ## Objetivo unico
@@ -54,9 +54,29 @@ A Scriptoteca ja possui scripts canonicos, scripts pessoais, sugestoes, metricas
 10. Uso/export/copia alimentam metricas.
 11. Usuario pode sugerir snippet `Em uso` para a Scriptoteca canonica.
 
+## Recorte pos-MVP - nucleo real de logging
+O MVP validou o ciclo de companion, fixture/eventos locais, processamento, importacao, revisao e export. Isso nao equivale a listener real continuo.
+
+A Fase H (`TASK-AT-183` a `TASK-AT-193`) cobre o nucleo real de logging/captura:
+
+1. contrato de eventos reais;
+2. control plane local com start/stop/status/pause/resume;
+3. resolucao de contexto ativo e allowlist;
+4. adapter de clipboard/paste/envio;
+5. bridge local de eventos AlwaysChat quando disponivel;
+6. store local com TTL, dedupe e retencao;
+7. pipeline de eventos reais para candidatos;
+8. bootstrap no `npm run up`;
+9. observabilidade redigida;
+10. regressao de privacidade;
+11. gate de captura real.
+
+As restricoes originais permanecem: raw logs ficam locais, AlwaysTrack nao recebe raw logs, captura so ocorre com controle explicito do usuario e fontes fora da allowlist sao descartadas sem salvar texto.
+
 ## Dependencias
 - satisfeitas: Scriptoteca operacional, scripts pessoais privados, sugestoes canonicas, metricas de uso, validacao runtime da Scriptoteca, Fluxos de Atendimento e permissao beta por role.
-- em aberto: modelo SmartScript, endpoints dedicados, aba SmartScript, companion local, export Espanso e regressao fim a fim.
+- satisfeitas no MVP: modelo SmartScript, endpoints dedicados, aba SmartScript, companion local, export Espanso e regressao fim a fim.
+- em aberto para uso real continuo: nucleo real de logging/captura da Fase H (`TASK-AT-183` a `TASK-AT-193`).
 
 ## Alvos explicitos
 1. `services/api/prisma/schema.prisma`
@@ -65,6 +85,7 @@ A Scriptoteca ja possui scripts canonicos, scripts pessoais, sugestoes, metricas
 4. `packages/shared/src/`
 5. `apps/smartscript-companion/` ou workspace equivalente definido na implementacao.
 6. `docs/tasks/TASK-AT-168-*` a `docs/tasks/TASK-AT-182-*`
+7. `docs/tasks/TASK-AT-183-*` a `docs/tasks/TASK-AT-193-*`
 
 ## Acceptance Criteria
 1. Um atendente consegue capturar uma sessao local permitida, processar candidatos, importar para AlwaysTrack, revisar, aprovar, exportar para Espanso e usar snippets aprovados.
@@ -77,9 +98,10 @@ A Scriptoteca ja possui scripts canonicos, scripts pessoais, sugestoes, metricas
 
 ## Definition of Done
 1. Todas as tasks `TASK-AT-168` a `TASK-AT-182` concluidas ou explicitamente substituidas por decisao documentada.
-2. Testes unitarios, API, frontend e E2E cobrem o ciclo principal.
-3. Runbook local permite operar o companion e diagnosticar export Espanso.
-4. Roadmap aponta SmartScript como pronto para uso.
+2. Para declarar captura real continua como ativa, todas as tasks `TASK-AT-183` a `TASK-AT-193` concluidas ou bloqueadas com decisao documentada.
+3. Testes unitarios, API, frontend e E2E cobrem o ciclo principal.
+4. Runbook local permite operar o companion e diagnosticar export Espanso.
+5. Roadmap aponta SmartScript como pronto para uso.
 
 ## Validacao
 - comandos/checks: `npm run typecheck --workspaces --if-present`, `npm run test --workspace @alwaystrack/api -- script-library`, `npm run test:e2e:api`, teste/smoke do companion local definido na task correspondente.
