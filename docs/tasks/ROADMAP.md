@@ -341,11 +341,11 @@ O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. 
 Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. Status geral: planned; rodada corretiva materializada em `docs/tasks/CASEFLOW-CORRECTIVE-REVIEW-REPORT.md`.
 
 #### Fundacao corrigida
-1. `TASK-AT-194`: CaseFlow: arquitetura, fronteiras e nao objetivos. Status: planned.
+1. `TASK-AT-194`: CaseFlow: arquitetura, fronteiras e nao objetivos. Status: completed.
 2. `TASK-AT-195`: Companion: spike Windows + WSL + Chrome. Status: planned.
 3. `TASK-AT-196`: CaseFlow: topologia de autenticacao e confianca. Status: planned.
 4. `TASK-AT-197`: Companion: threat model da extensao e host local. Status: planned.
-5. `TASK-AT-198`: CaseFlow: contratos compartilhados de caso e evidencia. Status: planned.
+5. `TASK-AT-198`: CaseFlow: contratos compartilhados de caso e evidencia. Status: completed.
 6. `TASK-AT-199`: CaseFlow: contrato de capabilities e firewall de acao. Status: planned.
 7. `TASK-AT-200`: Companion: contrato de conector consultivo. Status: planned.
 8. `TASK-AT-201`: Companion: protocolo e fronteiras entre extensao, host e API. Status: planned.

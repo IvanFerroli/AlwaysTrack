@@ -1,7 +1,7 @@
 # TASK-AT-198 - CaseFlow: contratos compartilhados de caso e evidencia
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-198-caseflow-shared-contracts.md

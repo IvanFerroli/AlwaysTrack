@@ -1,4 +1,5 @@
 export const userRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR", "RT"] as const;
+export * from "./case-flow/index.js";
 export type UserRole = (typeof userRoles)[number];
 
 export const commercialUserRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR"] as const;

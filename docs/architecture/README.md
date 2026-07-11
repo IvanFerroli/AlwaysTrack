@@ -18,6 +18,8 @@ Dar a um dev novo um mapa curto do AlwaysTrack: dominios, fluxos, contratos e on
 - Auth: sessao por cookie, login email/senha e Google login opcional.
 - Storage privado local: `.storage/`.
 
+Nova frente local-first: [CaseFlow Engine + AlwaysTrack Companion](./caseflow-architecture.md).
+
 ## Dominio ativo
 AlwaysTrack e uma plataforma comercial para empresa de suplementos:
 1. Vendedores sobem DANFEs.

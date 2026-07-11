@@ -1,7 +1,7 @@
 # TASK-AT-194 - CaseFlow: arquitetura, fronteiras e nao objetivos
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-194-caseflow-architecture-boundaries.md
