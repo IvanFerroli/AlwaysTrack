@@ -1,7 +1,7 @@
 # TASK-AT-243 - CaseFlow Heuristica: golden cases
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-243-heuristic-golden-cases.md

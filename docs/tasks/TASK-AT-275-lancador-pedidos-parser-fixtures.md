@@ -1,7 +1,7 @@
 # TASK-AT-275 - Lancador de Pedidos: parser de consulta e fixtures
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-275-lancador-pedidos-parser-fixtures.md

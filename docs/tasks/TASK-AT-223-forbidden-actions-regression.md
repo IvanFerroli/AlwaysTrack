@@ -1,7 +1,7 @@
 # TASK-AT-223 - CaseFlow Security: regressao de acoes proibidas
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-223-forbidden-actions-regression.md

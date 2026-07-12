@@ -1,7 +1,7 @@
 # TASK-AT-224 - CaseFlow API: casos, evidencias e conflitos
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-224-caseflow-case-evidence-conflict-api.md

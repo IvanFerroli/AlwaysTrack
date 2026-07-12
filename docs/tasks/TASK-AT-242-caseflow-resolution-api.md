@@ -1,7 +1,7 @@
 # TASK-AT-242 - CaseFlow API: resolucao heuristica
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-242-caseflow-resolution-api.md

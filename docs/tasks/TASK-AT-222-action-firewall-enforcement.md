@@ -1,7 +1,7 @@
 # TASK-AT-222 - CaseFlow Security: enforcement do action firewall
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-222-action-firewall-enforcement.md

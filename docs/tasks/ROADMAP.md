@@ -375,9 +375,9 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 4. `TASK-AT-219`: CaseFlow Core: conflitos e autoridade por campo. Status: completed.
 5. `TASK-AT-220`: CaseFlow Core: ledger de ConnectorRun. Status: completed.
 6. `TASK-AT-221`: CaseFlow Core: auditoria, retencao e redaction. Status: completed.
-7. `TASK-AT-222`: CaseFlow Security: enforcement do action firewall. Status: planned.
-8. `TASK-AT-223`: CaseFlow Security: regressao de acoes proibidas. Status: planned.
-9. `TASK-AT-224`: CaseFlow API: casos, evidencias e conflitos. Status: planned.
+7. `TASK-AT-222`: CaseFlow Security: enforcement do action firewall. Status: completed.
+8. `TASK-AT-223`: CaseFlow Security: regressao de acoes proibidas. Status: completed.
+9. `TASK-AT-224`: CaseFlow API: casos, evidencias e conflitos. Status: completed.
 10. `TASK-AT-225`: CaseFlow API: evidencia manual. Status: planned.
 11. `TASK-AT-226`: CaseFlow API: resolucao manual de conflito. Status: planned.
 12. `TASK-AT-227`: CaseFlow API: correcao manual de classificacao e fluxo. Status: planned.
@@ -399,8 +399,8 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 2. `TASK-AT-239`: CaseFlow Heuristica: DSL de regras. Status: completed.
 3. `TASK-AT-240`: CaseFlow Heuristica: scoring, hard rules e candidatos. Status: completed.
 4. `TASK-AT-241`: CaseFlow Heuristica: baixa confianca e triagem. Status: completed.
-5. `TASK-AT-242`: CaseFlow API: resolucao heuristica. Status: planned.
-6. `TASK-AT-243`: CaseFlow Heuristica: golden cases. Status: planned.
+5. `TASK-AT-242`: CaseFlow API: resolucao heuristica. Status: completed.
+6. `TASK-AT-243`: CaseFlow Heuristica: golden cases. Status: completed.
 
 #### ServiceFlow executavel e plano
 1. `TASK-AT-244`: ServiceFlow: versionamento imutavel publicado. Status: planned.
@@ -426,19 +426,19 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 11. `TASK-AT-262`: Side panel: acoes de copia sem escrita. Status: planned.
 
 #### Conectores consultivos e rascunhos
-1. `TASK-AT-263`: Connectors: registry runtime. Status: planned.
-2. `TASK-AT-264`: Yampi: parser e fixtures. Status: planned.
+1. `TASK-AT-263`: Connectors: registry runtime. Status: completed.
+2. `TASK-AT-264`: Yampi: parser e fixtures. Status: completed.
 3. `TASK-AT-265`: Yampi: runtime read-only. Status: planned.
-4. `TASK-AT-266`: OMIE: parser base e fixtures. Status: planned.
+4. `TASK-AT-266`: OMIE: parser base e fixtures. Status: completed.
 5. `TASK-AT-267`: OMIE Filial: runtime read-only. Status: planned.
 6. `TASK-AT-268`: OMIE Pharma: runtime restrito. Status: planned.
-7. `TASK-AT-269`: Loggi: parser e fixtures. Status: planned.
+7. `TASK-AT-269`: Loggi: parser e fixtures. Status: completed.
 8. `TASK-AT-270`: Loggi: runtime read-only. Status: planned.
-9. `TASK-AT-271`: J&T VIP: parser e fixtures. Status: planned.
+9. `TASK-AT-271`: J&T VIP: parser e fixtures. Status: completed.
 10. `TASK-AT-272`: J&T VIP: runtime read-only. Status: planned.
-11. `TASK-AT-273`: Correios/Reversa: parser e fixtures. Status: planned.
+11. `TASK-AT-273`: Correios/Reversa: parser e fixtures. Status: completed.
 12. `TASK-AT-274`: Correios/Reversa: runtime read-only. Status: planned.
-13. `TASK-AT-275`: Lancador de Pedidos: parser de consulta e fixtures. Status: planned.
+13. `TASK-AT-275`: Lancador de Pedidos: parser de consulta e fixtures. Status: completed.
 14. `TASK-AT-276`: Lancador de Pedidos: runtime de consulta. Status: planned.
 15. `TASK-AT-277`: Slack: suporte manual por draft copiado. Status: planned.
 16. `TASK-AT-278`: CaseFlow: ChatGPT fora do runtime inicial. Status: planned.
