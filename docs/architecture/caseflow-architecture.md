@@ -16,6 +16,8 @@ Persiste casos e fatos normalizados, resolve conflitos e heuristicas, compila fl
 
 O Core nao le DOM, nao controla abas, nao guarda cookies de terceiros e nao depende de IA ou de uma API externa para o caminho principal.
 
+Essa independencia e um contrato verificavel: heuristica, reconciliacao, compilador de plano e mensagens nao importam provedores de IA, nao leem chaves de IA e nao fazem chamadas de rede. O teste arquitetural em `services/api/src/core/case-flow/architecture.test.ts` protege essa fronteira. ChatGPT pode continuar como ferramenta externa de uso livre do operador, sem integrar o runtime, receber contexto automaticamente ou se tornar requisito do caso.
+
 ### Companion Host
 Processo local separado, com bind futuro somente em `127.0.0.1`. Orquestra consultas progressivas, concorrencia, timeout e cache efemero; intermedeia Core e extensao; reporta saude e resultados normalizados. Nao persiste credenciais dos sistemas consultados.
 
@@ -39,6 +41,14 @@ AlwaysChat aberto
 ```
 
 Raw HTML nao entra no Core por padrao. Cookies nunca sao extraidos. Cache de navegacao permanece local e efemero. O contrato entre componentes deve transportar identidade de instalacao, perfil, usuario e caso sem transportar segredos dos sites externos.
+
+Drift gera um diagnostico por allowlist (`connectorId`, versoes, codigo, tipo de pagina, duracao, horario, `caseId` e `runId`). URL, HTML e screenshot nao sao persistidos por padrao. O conector fica degradado e sem retry automatico ate um health posterior indicar recuperacao; outros conectores e o estado central do caso seguem independentes.
+
+## Scriptoteca e interoperabilidade
+
+A Scriptoteca no AlwaysTrack e a fonte canonica de snippets e o compilador CaseFlow continua responsavel por montar mensagens com fatos do caso atual. SmartScript captura e propoe conteudo no modulo local isolado; nao substitui o compilador. Copia por botao funciona no modo padrao `COPY_ONLY`, sem Espanso.
+
+Espanso e uma interoperabilidade opcional de exportacao (`ESPANSO_EXPORT`). Ele recebe somente snippets revisados e nao recebe fatos, `caseId`, navegacao ou captura CaseFlow. Como Espanso nao conhece semanticamente o campo do atendimento, expansao automatica deve ser desabilitada onde o contexto nao puder ser validado; nesses locais, usar copia explicita.
 
 ## Acoes e limites
 

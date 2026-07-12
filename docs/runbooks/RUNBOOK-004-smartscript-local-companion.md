@@ -18,6 +18,8 @@ Operar o SmartScript ponta a ponta: capturar material permitido localmente, proc
 6. Estados visiveis sao apenas `Em uso`, `Gerados hoje` e `Em revisão`.
 7. Triggers pessoais usam `:`.
 8. `/` fica reservado para comandos internos.
+9. Copia explicita (`COPY_ONLY`) e o modo padrao e nao depende de Espanso.
+10. Exportacao Espanso (`ESPANSO_EXPORT`) e opcional e nao substitui o compilador de mensagens CaseFlow.
 
 ## Pre-requisitos
 1. AlwaysTrack rodando localmente.
@@ -104,6 +106,9 @@ Esse comando carrega `apps/smartscript-companion/fixtures/alwayschat-sample.json
 10. Exportar apenas itens `Em uso`.
 11. Rodar `npm run smartscript:export` para gravar o match file real detectado do Espanso.
 12. Validar trigger `:` no Espanso.
+    - habilitar expansao somente em campos cujo contexto possa ser confirmado;
+    - manter copia por botao em campos ambiguos, sensiveis ou nao reconhecidos;
+    - nunca exportar fatos de caso, `caseId`, conversa bruta ou placeholders resolvidos de cliente.
 13. Registrar uso quando o snippet for acionado fora da copia normal.
 14. Sugerir para canon apenas snippets `Em uso` que tenham utilidade para mais pessoas.
 
@@ -127,6 +132,7 @@ Esse comando carrega `apps/smartscript-companion/fixtures/alwayschat-sample.json
 - `Invalid script library payload`: confira trigger `:` e dados sensiveis no texto.
 - Export sem itens: aprove pelo menos um candidato como `Em uso`.
 - Espanso nao expande: confira caminho do arquivo, reload do Espanso, `npm run smartscript:export` e trigger com `:`.
+- Espanso expande no campo errado: desabilite o match/export nesse contexto e retorne a `COPY_ONLY`; nao tente corrigir com captura de DOM CaseFlow dentro do SmartScript.
 - Eventos nao capturados: confira allowlist e se o companion foi iniciado explicitamente.
 
 ## Evidencia esperada

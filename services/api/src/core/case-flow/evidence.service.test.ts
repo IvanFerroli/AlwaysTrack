@@ -24,4 +24,14 @@ describe("EvidenceFact service", () => {
   it("rejects a connector run from another case", async () => {
     await expect(createEvidenceFact(prismaMock(null, null) as never, { organizationId: "org-1" }, "case-1", input)).rejects.toEqual(new EvidenceFactError("SCOPE_MISMATCH"));
   });
+
+  it("processes cases A then B without reusing run or evidence identity", async () => {
+    const caseA = prismaMock();
+    await createEvidenceFact(caseA as never, { organizationId: "org-1" }, "case-a", { ...input, id: "fact-a", connectorRunId: "run-a" });
+    expect(caseA.connectorRun.findFirst).toHaveBeenCalledWith({ where: { id: "run-a", caseId: "case-a", organizationId: "org-1" }, select: { id: true } });
+
+    const caseB = prismaMock(null, null);
+    await expect(createEvidenceFact(caseB as never, { organizationId: "org-1" }, "case-b", { ...input, id: "fact-b", connectorRunId: "run-a" })).rejects.toEqual(new EvidenceFactError("SCOPE_MISMATCH"));
+    expect(caseB.evidenceFact.create).not.toHaveBeenCalled();
+  });
 });

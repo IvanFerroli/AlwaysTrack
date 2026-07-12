@@ -43,3 +43,5 @@ IDs de caso, run e conector aparecem uma vez no envelope. Objetos transportados 
 - `INSERT_DRAFT` e `FILL_FORM` carregam `authorizationRef` opaca emitida pelo Core, de uso unico e vinculada ao contexto; nunca implicam `SUBMIT`.
 - Mensagens desconhecidas, capabilities desconhecidas e versoes incompatíveis sao bloqueadas.
 - HTML bruto, cookies, senhas e tokens externos nao atravessam o protocolo.
+- Eventos de drift preservam `caseId` e `runId` do envelope; consumidores nao podem completar essas identidades com o ultimo caso ativo.
+- `HEALTH_REPORT` informa estado por conector e nao carrega HTML, URL, screenshot ou fatos de caso.

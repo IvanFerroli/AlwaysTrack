@@ -6,10 +6,16 @@ export type ConnectorRunStatus = (typeof connectorRunStatuses)[number];
 const terminalStatuses = new Set<ConnectorRunStatus>(["COMPLETE", "PARTIAL", "NOT_APPLICABLE", "NOT_FOUND", "BLOCKED_AUTH", "BLOCKED_CAPTCHA", "BLOCKED_2FA", "FAILED_SELECTOR_DRIFT", "FAILED_TIMEOUT", "FAILED_UNEXPECTED_PAGE", "CANCELLED"]);
 
 export class ConnectorRunError extends Error {
-  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "SCOPE_MISMATCH" | "IDEMPOTENCY_CONFLICT") { super(code); }
+  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "SCOPE_MISMATCH" | "IDEMPOTENCY_CONFLICT" | "CONNECTOR_DEGRADED") { super(code); }
 }
 
 export interface StartConnectorRunInput { runId: string; connectorDefinitionId: string; installationId: string; userId: string; browserProfileId: string; wave?: number; }
+
+const diagnosticKeys = ["connectorVersion", "selectorVersion", "pageKind", "durationMs", "cacheAgeMs", "redactedReference", "code", "occurredAt"] as const;
+function redactedDiagnostics(value: ControlledJsonValue | undefined): ControlledJsonValue | undefined {
+  if (!value || Array.isArray(value) || typeof value !== "object") return undefined;
+  return Object.fromEntries(diagnosticKeys.flatMap((key) => value[key] === undefined ? [] : [[key, value[key]]])) as ControlledJsonValue;
+}
 
 export async function startConnectorRun(prisma: PrismaClient, scope: { organizationId: string }, caseId: string, input: StartConnectorRunInput) {
   if (!input.runId.trim()) throw new ConnectorRunError("INVALID_INPUT");
@@ -35,17 +41,35 @@ export async function startApplicableConnectorRuns(prisma: PrismaClient, scope: 
 
 export async function finishConnectorRun(prisma: PrismaClient, scope: { organizationId: string }, caseId: string, runId: string, input: { status: ConnectorRunStatus; warnings?: ControlledJsonValue[]; diagnostics?: ControlledJsonValue; interventionCode?: string; failureMessage?: string; finishedAt?: Date }) {
   if (!terminalStatuses.has(input.status)) throw new ConnectorRunError("INVALID_INPUT");
-  const run = await prisma.connectorRun.findFirst({ where: { id: runId, caseId, organizationId: scope.organizationId } });
+  const run = await prisma.connectorRun.findFirst({ where: { id: runId, caseId, organizationId: scope.organizationId }, include: { connectorDefinition: true } });
   if (!run) throw new ConnectorRunError("NOT_FOUND");
   if (terminalStatuses.has(run.status as ConnectorRunStatus)) {
     if (run.status !== input.status) throw new ConnectorRunError("IDEMPOTENCY_CONFLICT");
     return run;
   }
-  return prisma.connectorRun.update({ where: { id: run.id }, data: { status: input.status, warningsJson: input.warnings ? stringifyCaseFlowJson("CONNECTOR_WARNINGS", input.warnings) : undefined, diagnosticsJson: input.diagnostics ? stringifyCaseFlowJson("CONNECTOR_DIAGNOSTICS", input.diagnostics) : undefined, interventionCode: input.interventionCode, failureMessage: input.failureMessage, finishedAt: input.finishedAt ?? new Date() } });
+  const finishedAt = input.finishedAt ?? new Date();
+  const diagnostics = redactedDiagnostics(input.diagnostics);
+  const updated = await prisma.connectorRun.update({ where: { id: run.id }, data: { status: input.status, warningsJson: input.warnings ? stringifyCaseFlowJson("CONNECTOR_WARNINGS", input.warnings) : undefined, diagnosticsJson: diagnostics ? stringifyCaseFlowJson("CONNECTOR_DIAGNOSTICS", diagnostics) : undefined, interventionCode: input.interventionCode, failureMessage: input.failureMessage, finishedAt } });
+  if (input.status === "FAILED_SELECTOR_DRIFT" || input.status === "FAILED_UNEXPECTED_PAGE") {
+    await prisma.connectorHealthEvent.create({ data: {
+      organizationId: scope.organizationId,
+      connectorDefinitionId: run.connectorDefinitionId,
+      installationId: run.installationId,
+      state: "DEGRADED",
+      connectorVersion: run.connectorDefinition.version,
+      selectorVersion: run.connectorDefinition.selectorVersion,
+      eventCode: input.status === "FAILED_SELECTOR_DRIFT" ? "SELECTOR_DRIFT" : "UNEXPECTED_PAGE",
+      diagnosticsJson: diagnostics ? stringifyCaseFlowJson("CONNECTOR_HEALTH_DIAGNOSTICS", diagnostics) : undefined,
+      checkedAt: finishedAt
+    } });
+  }
+  return updated;
 }
 
 export async function retryConnectorRun(prisma: PrismaClient, scope: { organizationId: string }, caseId: string, previousRunId: string, runId: string) {
   const previous = await prisma.connectorRun.findFirst({ where: { id: previousRunId, caseId, organizationId: scope.organizationId } });
   if (!previous || !terminalStatuses.has(previous.status as ConnectorRunStatus)) throw new ConnectorRunError("NOT_FOUND");
+  const health = await prisma.connectorHealthEvent.findFirst({ where: { organizationId: scope.organizationId, connectorDefinitionId: previous.connectorDefinitionId }, orderBy: { checkedAt: "desc" }, select: { state: true } });
+  if (health?.state === "DEGRADED") throw new ConnectorRunError("CONNECTOR_DEGRADED");
   return startConnectorRun(prisma, scope, caseId, { runId, connectorDefinitionId: previous.connectorDefinitionId, installationId: previous.installationId, userId: previous.userId, browserProfileId: previous.browserProfileId, wave: previous.wave ?? undefined });
 }

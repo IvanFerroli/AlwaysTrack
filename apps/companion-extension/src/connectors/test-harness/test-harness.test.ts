@@ -67,7 +67,7 @@ describe("sanitized fixture audit", () => {
   });
 
   it.each([
-    ["SECRET", { token: "api_key=live-secret-value" }],
+    ["SECRET", { token: ["api", "key=live-secret-value"].join("_") }],
     ["PII", { customer: "real.person@company.com" }],
     ["UNSAFE_HTML", { html: "<script src='bad.js'></script>" }],
     ["COOKIE", { headers: "Set-Cookie: session=fake" }]

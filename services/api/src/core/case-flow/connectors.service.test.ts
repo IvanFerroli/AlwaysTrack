@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ConnectorRunError, finishConnectorRun, retryConnectorRun, startApplicableConnectorRuns, startConnectorRun } from "./connectors.service.js";
 
 const input = { runId: "run-1", connectorDefinitionId: "connector-1", installationId: "installation-1", userId: "user-1", browserProfileId: "browser-1", wave: 1 };
-function prismaMock(existing: unknown = null) { return { serviceCase: { findFirst: vi.fn().mockResolvedValue({ id: "case-1" }) }, connectorDefinition: { findFirst: vi.fn().mockResolvedValue({ id: "connector-1" }) }, companionInstallation: { findFirst: vi.fn().mockResolvedValue({ id: "installation-1" }) }, connectorRun: { findUnique: vi.fn().mockResolvedValue(existing), findFirst: vi.fn(), create: vi.fn().mockResolvedValue({ id: "run-1", status: "QUEUED" }), update: vi.fn() } }; }
+function prismaMock(existing: unknown = null) { return { serviceCase: { findFirst: vi.fn().mockResolvedValue({ id: "case-1" }) }, connectorDefinition: { findFirst: vi.fn().mockResolvedValue({ id: "connector-1" }) }, companionInstallation: { findFirst: vi.fn().mockResolvedValue({ id: "installation-1" }) }, connectorRun: { findUnique: vi.fn().mockResolvedValue(existing), findFirst: vi.fn(), create: vi.fn().mockResolvedValue({ id: "run-1", status: "QUEUED" }), update: vi.fn() }, connectorHealthEvent: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn() } }; }
 
 describe("ConnectorRun ledger", () => {
   it("creates scoped runs and returns the same run idempotently", async () => {
@@ -23,12 +23,28 @@ describe("ConnectorRun ledger", () => {
 
   it("records visible terminal diagnostics and supports an individual retry", async () => {
     const prisma = prismaMock();
-    prisma.connectorRun.findFirst.mockResolvedValueOnce({ id: "run-1", status: "SEARCHING" });
+    prisma.connectorRun.findFirst.mockResolvedValueOnce({ id: "run-1", status: "SEARCHING", connectorDefinitionId: "connector-1", installationId: "installation-1", connectorDefinition: { version: "1.0.0", selectorVersion: "v1" } });
     prisma.connectorRun.update.mockResolvedValue({ id: "run-1", status: "BLOCKED_CAPTCHA" });
     await finishConnectorRun(prisma as never, { organizationId: "org-1" }, "case-1", "run-1", { status: "BLOCKED_CAPTCHA", warnings: ["captcha"], interventionCode: "CAPTCHA" });
     expect(prisma.connectorRun.update).toHaveBeenCalledWith({ where: { id: "run-1" }, data: expect.objectContaining({ status: "BLOCKED_CAPTCHA", warningsJson: '["captcha"]', interventionCode: "CAPTCHA" }) });
     prisma.connectorRun.findFirst.mockResolvedValueOnce({ ...input, id: "run-1", status: "FAILED_TIMEOUT" });
     await retryConnectorRun(prisma as never, { organizationId: "org-1" }, "case-1", "run-1", "run-2");
     expect(prisma.connectorRun.create).toHaveBeenLastCalledWith({ data: expect.objectContaining({ id: "run-2", connectorDefinitionId: "connector-1", status: "QUEUED" }) });
+  });
+
+  it("marks only the drifting connector degraded and suppresses its retry", async () => {
+    const prisma = prismaMock();
+    prisma.connectorRun.findFirst.mockResolvedValueOnce({ id: "run-a", status: "READING", connectorDefinitionId: "connector-a", installationId: "installation-1", connectorDefinition: { version: "2.0.0", selectorVersion: "selectors-2" } });
+    prisma.connectorRun.update.mockResolvedValueOnce({ id: "run-a", status: "FAILED_SELECTOR_DRIFT" });
+    await finishConnectorRun(prisma as never, { organizationId: "org-1" }, "case-a", "run-a", { status: "FAILED_SELECTOR_DRIFT", diagnostics: { pageKind: "unexpected", url: "https://example.invalid/?cpf=123", screenshot: "base64-secret" } });
+    expect(prisma.connectorHealthEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ connectorDefinitionId: "connector-a", state: "DEGRADED", eventCode: "SELECTOR_DRIFT", diagnosticsJson: '{"pageKind":"unexpected"}' }) });
+    expect(prisma.connectorRun.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ diagnosticsJson: '{"pageKind":"unexpected"}' }) }));
+
+    prisma.connectorRun.findFirst.mockResolvedValueOnce({ ...input, id: "run-a", connectorDefinitionId: "connector-a", status: "FAILED_SELECTOR_DRIFT" });
+    prisma.connectorHealthEvent.findFirst.mockResolvedValueOnce({ state: "DEGRADED" });
+    await expect(retryConnectorRun(prisma as never, { organizationId: "org-1" }, "case-a", "run-a", "retry-a")).rejects.toEqual(new ConnectorRunError("CONNECTOR_DEGRADED"));
+
+    await startConnectorRun(prisma as never, { organizationId: "org-1" }, "case-b", { ...input, runId: "run-b", connectorDefinitionId: "connector-b" });
+    expect(prisma.connectorRun.create).toHaveBeenLastCalledWith({ data: expect.objectContaining({ caseId: "case-b", connectorDefinitionId: "connector-b", status: "QUEUED" }) });
   });
 });
