@@ -353,8 +353,8 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 
 #### Extensao Chromium
 1. `TASK-AT-203`: Extensao: shell Chromium Manifest V3. Status: completed.
-2. `TASK-AT-204`: Extensao: side panel shell do Copiloto SAC. Status: planned.
-3. `TASK-AT-205`: Extensao: cliente de protocolo no background. Status: planned.
+2. `TASK-AT-204`: Extensao: side panel shell do Copiloto SAC. Status: completed.
+3. `TASK-AT-205`: Extensao: cliente de protocolo no background. Status: completed.
 4. `TASK-AT-206`: Extensao: content script read-only base. Status: planned.
 5. `TASK-AT-207`: Extensao: tab registry e reuso de abas. Status: planned.
 6. `TASK-AT-208`: Extensao: UI de intervencao humana. Status: planned.
@@ -362,7 +362,7 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 
 #### Companion Host
 1. `TASK-AT-210`: Companion Host: shell Node TypeScript. Status: completed.
-2. `TASK-AT-211`: Companion Host: WebSocket loopback e pairing. Status: planned.
+2. `TASK-AT-211`: Companion Host: WebSocket loopback e pairing. Status: implementation-complete-manual-gate-pending.
 3. `TASK-AT-212`: Companion Host: cliente API AlwaysTrack e confianca local. Status: planned.
 4. `TASK-AT-213`: Companion Host: orquestrador progressivo. Status: planned.
 5. `TASK-AT-214`: Companion Host: cache, timeout e cancelamento. Status: planned.

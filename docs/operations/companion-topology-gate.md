@@ -15,9 +15,9 @@ Este gate operacional complementa o spike documental concluido. Cada item possui
 - [ ] Probe repetido apos `wsl --shutdown` (`TASK-AT-211`, exige Host shell reiniciavel).
 - [ ] Probe repetido apos suspensao/retomada do Windows (`TASK-AT-211`, validacao manual).
 - [ ] Probe repetido com mudanca de rede ou VPN aplicavel (`TASK-AT-211`, validacao manual).
-- [ ] WebSocket autenticado validado com Origin permitido e rejeitado com Origin arbitrario (`TASK-AT-211`).
-- [ ] Bind externo (`0.0.0.0`/LAN) impedido por teste (`TASK-AT-211`, `TASK-AT-283`).
-- [ ] Host indisponivel e reconexao com backoff verificados (`TASK-AT-211`).
+- [x] WebSocket autenticado validado automaticamente com Origin permitido e rejeitado com Origin arbitrario (`TASK-AT-211`); smoke com ID real ainda pendente.
+- [x] Bind externo (`0.0.0.0`/LAN) impedido por teste (`TASK-AT-211`); verificacao Windows/LAN manual ainda pendente.
+- [x] Host indisponivel, rotacao e reconexao cobertos por testes (`TASK-AT-211`); confirmacao visual ainda pendente.
 - [x] Fallback Host no Windows documentado com o mesmo protocolo em `docs/architecture/companion-windows-wsl-chrome-topology.md`.
 
 Cada evidencia registra data, topologia, resultado e duracao, sem IP persistente, payload, cookie ou segredo. Falha em item obrigatorio bloqueia runtime dependente ate escolha e validacao do fallback local-first.
@@ -35,4 +35,10 @@ O subconjunto de `TASK-AT-202` esta concluido. Suspensao, rede/VPN e WebSocket p
 ## Evidencia de shells
 - [x] `TASK-AT-203`: manifest MV3 validado com somente `sidePanel`, sem host permissions; pacote gera e valida manifest, service worker e side panel.
 - [x] `TASK-AT-210`: health testado em porta efemera com endereco `127.0.0.1`; binds `0.0.0.0`, LAN, IPv6 aberto e alias `localhost` foram rejeitados; `SIGINT` e `SIGTERM` liberam a porta.
-- Lifecycle WSL, suspensao, VPN, WebSocket, Origin e reconexao continuam abertos para `TASK-AT-211`.
+- Lifecycle WSL, suspensao, VPN, carga unpacked com ID real e confirmacao visual continuam abertos para `TASK-AT-211`.
+
+## Evidencia automatizada de protocolo
+- 20 testes do Host cobrem token forte, expiracao, uso unico, rotacao, Origin exata, rate limit, payload maximo, versao, direcao, replay, shutdown e porta liberada.
+- Token de pairing trafega somente no primeiro `COMPANION_HELLO`; query string nao autentica e expira por timeout pre-auth.
+- Allowlist exige `chrome-extension://` com extension ID explicito de 32 caracteres; nenhum wildcard ou origem HTTP e aceito.
+- A conclusao formal da `TASK-AT-211` permanece pendente dos itens manuais desmarcados acima.

@@ -13,7 +13,7 @@ afterEach(async () => {
 
 describe("Companion Host health shell", () => {
   it("serves redacted health only on loopback and releases the port", async () => {
-    server = await startHealthServer({ host: "127.0.0.1", port: 0 });
+    server = await startHealthServer(loadCompanionHostConfig({ COMPANION_HOST_PORT: "0", COMPANION_HOST_ALLOWED_ORIGIN: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" }));
     const address = server.address() as AddressInfo;
     expect(address.address).toBe("127.0.0.1");
 

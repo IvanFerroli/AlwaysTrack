@@ -1,7 +1,7 @@
 # TASK-AT-205 - Extensao: cliente de protocolo no background
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-205-extension-background-protocol-client.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-201`, `TASK-AT-203`.
+- satisfeitas nesta execucao: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-201`, `TASK-AT-203`.
 
 ## Alvos explicitos
 1. apps/companion-extension/src/background/

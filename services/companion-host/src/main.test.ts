@@ -37,7 +37,7 @@ describe.each(["SIGINT", "SIGTERM"] as const)("Companion Host process shutdown w
   it("exits cleanly and releases its ephemeral port", async () => {
     const child = spawn(process.execPath, ["--import", "tsx", "src/main.ts"], {
       cwd: new URL("..", import.meta.url),
-      env: { ...process.env, COMPANION_HOST_PORT: "0" },
+      env: { ...process.env, COMPANION_HOST_PORT: "0", COMPANION_HOST_ALLOWED_ORIGIN: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" },
       stdio: ["ignore", "pipe", "pipe"]
     });
 

@@ -17,6 +17,8 @@ O Host permanece separado da API e nao entra em `npm run up` nesta fase. Para va
 
 `COMPANION_HOST_BIND` aceita apenas `127.0.0.1`; qualquer outro valor encerra o processo antes do listen. `SIGINT` e `SIGTERM` fecham o servidor e liberam a porta. WebSocket, pairing e reconexao pertencem a `TASK-AT-211`.
 
+O WebSocket usa `/companion` no mesmo listener. `COMPANION_HOST_ALLOWED_ORIGIN` e obrigatorio e aceita somente `chrome-extension://<id-real-de-32-caracteres>`. O token de pairing e efemero, de uso unico, enviado no corpo de `COMPANION_HELLO`, nunca em URL ou log. A autoridade real do challenge da API permanece para `TASK-AT-212`.
+
 ## Probe sem dados reais
 Subir um endpoint temporario sem payload em porta nao reservada, consultar `http://localhost:<porta>` pelo PowerShell e encerrar o processo. Registrar apenas horario, sucesso, duracao e topologia; nao registrar headers, cookies ou corpo de paginas.
 

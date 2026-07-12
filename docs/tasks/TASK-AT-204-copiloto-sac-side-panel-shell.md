@@ -1,7 +1,7 @@
 # TASK-AT-204 - Extensao: side panel shell do Copiloto SAC
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-204-copiloto-sac-side-panel-shell.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-203`.
+- satisfeita nesta execucao: `TASK-AT-203`.
 
 ## Alvos explicitos
 1. apps/companion-extension/src/side-panel/

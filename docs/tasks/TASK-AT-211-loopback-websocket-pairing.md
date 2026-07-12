@@ -1,7 +1,7 @@
 # TASK-AT-211 - Companion Host: WebSocket loopback e pairing
 
 ## Metadata
-- status: planned
+- status: implementation-complete-manual-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-211-loopback-websocket-pairing.md
@@ -30,7 +30,8 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-201`, `TASK-AT-210`.
+- satisfeitas na implementacao: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-201`, `TASK-AT-210`.
+- pendente: evidencias manuais do topology gate (Chrome unpacked, lifecycle WSL/Windows e rede).
 - gate operacional obrigatorio: concluir os probes WebSocket, bind e reconexao de `docs/operations/companion-topology-gate.md` como parte desta task.
 
 ## Alvos explicitos

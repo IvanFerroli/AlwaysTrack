@@ -1,1 +1,1 @@
-export const hostProtocolLayerReady = false;
+export const hostProtocolLayerReady = true;
