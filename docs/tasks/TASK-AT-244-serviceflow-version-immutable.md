@@ -1,7 +1,7 @@
 # TASK-AT-244 - ServiceFlow: versionamento imutavel publicado
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-244-serviceflow-version-immutable.md

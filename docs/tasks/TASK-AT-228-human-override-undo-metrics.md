@@ -1,7 +1,7 @@
 # TASK-AT-228 - CaseFlow Core: desfazer overrides e metricas de correcao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-228-human-override-undo-metrics.md

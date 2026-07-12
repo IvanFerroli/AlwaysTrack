@@ -1,7 +1,7 @@
 # TASK-AT-286 - Connectors: harness de fixtures e parser tests
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-286-connector-fixture-parser-test-harness.md

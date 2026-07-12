@@ -1,7 +1,7 @@
 # TASK-AT-226 - CaseFlow API: resolucao manual de conflito
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-226-manual-conflict-resolution-api.md

@@ -1,7 +1,7 @@
 # TASK-AT-227 - CaseFlow API: correcao manual de classificacao e fluxo
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-227-flow-classification-override-api.md

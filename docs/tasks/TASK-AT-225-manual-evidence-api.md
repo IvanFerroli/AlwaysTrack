@@ -1,7 +1,7 @@
 # TASK-AT-225 - CaseFlow API: evidencia manual
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-225-manual-evidence-api.md

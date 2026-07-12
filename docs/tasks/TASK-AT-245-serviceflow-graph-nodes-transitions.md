@@ -1,7 +1,7 @@
 # TASK-AT-245 - ServiceFlow: grafo, nos e transicoes
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-245-serviceflow-graph-nodes-transitions.md

@@ -1,7 +1,7 @@
 # TASK-AT-247 - CaseFlowPlan: compilador de multiplos fluxos
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-247-caseflow-plan-compiler.md

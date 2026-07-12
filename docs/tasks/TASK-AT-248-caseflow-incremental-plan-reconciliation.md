@@ -1,7 +1,7 @@
 # TASK-AT-248 - CaseFlowPlan: reconciliacao incremental
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-248-caseflow-incremental-plan-reconciliation.md

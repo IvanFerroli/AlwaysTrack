@@ -378,10 +378,10 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 7. `TASK-AT-222`: CaseFlow Security: enforcement do action firewall. Status: completed.
 8. `TASK-AT-223`: CaseFlow Security: regressao de acoes proibidas. Status: completed.
 9. `TASK-AT-224`: CaseFlow API: casos, evidencias e conflitos. Status: completed.
-10. `TASK-AT-225`: CaseFlow API: evidencia manual. Status: planned.
-11. `TASK-AT-226`: CaseFlow API: resolucao manual de conflito. Status: planned.
-12. `TASK-AT-227`: CaseFlow API: correcao manual de classificacao e fluxo. Status: planned.
-13. `TASK-AT-228`: CaseFlow Core: desfazer overrides e metricas de correcao. Status: planned.
+10. `TASK-AT-225`: CaseFlow API: evidencia manual. Status: completed.
+11. `TASK-AT-226`: CaseFlow API: resolucao manual de conflito. Status: completed.
+12. `TASK-AT-227`: CaseFlow API: correcao manual de classificacao e fluxo. Status: completed.
+13. `TASK-AT-228`: CaseFlow Core: desfazer overrides e metricas de correcao. Status: completed.
 
 #### Primeira vertical AlwaysChat + Rastreio
 1. `TASK-AT-229`: AlwaysChat: parser e fixture de intake. Status: completed.
@@ -403,12 +403,12 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 6. `TASK-AT-243`: CaseFlow Heuristica: golden cases. Status: completed.
 
 #### ServiceFlow executavel e plano
-1. `TASK-AT-244`: ServiceFlow: versionamento imutavel publicado. Status: planned.
-2. `TASK-AT-245`: ServiceFlow: grafo, nos e transicoes. Status: planned.
-3. `TASK-AT-246`: ServiceFlow: testes estruturais de grafo. Status: planned.
-4. `TASK-AT-247`: CaseFlowPlan: compilador de multiplos fluxos. Status: planned.
-5. `TASK-AT-248`: CaseFlowPlan: reconciliacao incremental. Status: planned.
-6. `TASK-AT-249`: ServiceFlowSession: sessao presa a versao. Status: planned.
+1. `TASK-AT-244`: ServiceFlow: versionamento imutavel publicado. Status: completed.
+2. `TASK-AT-245`: ServiceFlow: grafo, nos e transicoes. Status: completed.
+3. `TASK-AT-246`: ServiceFlow: testes estruturais de grafo. Status: completed.
+4. `TASK-AT-247`: CaseFlowPlan: compilador de multiplos fluxos. Status: completed.
+5. `TASK-AT-248`: CaseFlowPlan: reconciliacao incremental. Status: completed.
+6. `TASK-AT-249`: ServiceFlowSession: sessao presa a versao. Status: completed.
 7. `TASK-AT-250`: CaseFlow API: sessoes e passos. Status: planned.
 8. `TASK-AT-251`: CaseFlow API: plano compilado. Status: planned.
 
@@ -451,7 +451,7 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 1. `TASK-AT-283`: CaseFlow: testes de seguranca do protocolo local. Status: planned.
 2. `TASK-AT-284`: CaseFlow: instrumentacao de SLO progressivo. Status: planned.
 3. `TASK-AT-285`: CaseFlow: testes de performance, cache e concorrencia. Status: planned.
-4. `TASK-AT-286`: Connectors: harness de fixtures e parser tests. Status: planned.
+4. `TASK-AT-286`: Connectors: harness de fixtures e parser tests. Status: completed.
 5. `TASK-AT-287`: Connectors: checklists de live smoke manual. Status: planned.
 6. `TASK-AT-288`: Connectors: drift detection e degradacao. Status: planned.
 7. `TASK-AT-289`: CaseFlow: painel de saude dos conectores. Status: planned.

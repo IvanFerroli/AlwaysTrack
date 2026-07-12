@@ -1,7 +1,7 @@
 # TASK-AT-249 - ServiceFlowSession: sessao presa a versao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-249-serviceflow-session-version-pinning.md
