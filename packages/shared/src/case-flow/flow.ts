@@ -76,3 +76,17 @@ export interface CaseFlowPlan {
   forbiddenCapabilities: ActionCapability[];
   blockedReasons: string[];
 }
+
+export interface CaseFlowPlanRevisionSummary {
+  revision: number;
+  changedAt: string;
+  changedBy: string | null;
+  reasons: string[];
+  warning: string | null;
+}
+
+export interface CaseFlowPlanResponse {
+  plan: CaseFlowPlan;
+  warning: string | null;
+  history: CaseFlowPlanRevisionSummary[];
+}

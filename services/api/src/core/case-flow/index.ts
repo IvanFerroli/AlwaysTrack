@@ -13,3 +13,5 @@ export * from "./plan-compiler.js";
 export * from "./plan-reconciliation.js";
 export * from "./resolve.service.js";
 export * from "./sessions.service.js";
+export * from "./plan.service.js";
+export * from "./messages.service.js";

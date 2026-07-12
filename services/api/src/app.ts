@@ -236,6 +236,9 @@ import { resolveCaseHandler } from "./core/case-flow/resolve.handlers.js";
 import { manualEvidenceHandler } from "./core/case-flow/manual-evidence.handlers.js";
 import { manualConflictHandler } from "./core/case-flow/conflicts.handlers.js";
 import { overrideHandlers } from "./core/case-flow/overrides.handlers.js";
+import { getCaseFlowPlanHandler } from "./core/case-flow/plan.handlers.js";
+import { caseFlowStepHandlers } from "./core/case-flow/steps.handlers.js";
+import { caseFlowMessagesHandlers } from "./core/case-flow/messages.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -329,6 +332,12 @@ export function createApp() {
   app.post("/v1/case-flow/cases/:caseId/overrides/:overrideId/undo", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, overrideHandlers.undo);
   app.get("/v1/case-flow/override-metrics", requireAuth, requireRole(commercialManagerRoles), overrideHandlers.metrics);
   app.post("/v1/case-flow/cases/:caseId/resolve", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, resolveCaseHandler);
+  app.get("/v1/case-flow/cases/:caseId/plan", requireAuth, requireRole(commercialAllRoles), getCaseFlowPlanHandler);
+  app.post("/v1/case-flow/cases/:caseId/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowStepHandlers.start);
+  app.post("/v1/case-flow/cases/:caseId/steps/:stepKey/select", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowStepHandlers.select);
+  app.post("/v1/case-flow/cases/:caseId/steps/:stepKey/rewind", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowStepHandlers.rewind);
+  app.get("/v1/case-flow/cases/:caseId/messages", requireAuth, requireRole(commercialAllRoles), caseFlowMessagesHandlers.list);
+  app.post("/v1/case-flow/cases/:caseId/messages/:messageId/copy", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowMessagesHandlers.copy);
   app.get("/v1/service-flows/metrics/summary", requireAuth, requireRole(commercialManagerRoles), serviceFlowMetricsHandler);
   app.post("/v1/service-flows/:flowIdOrSlug/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createServiceFlowSessionHandler);
   app.get("/v1/service-flow-sessions/:sessionId", requireAuth, requireRole(commercialAllRoles), getServiceFlowSessionHandler);
