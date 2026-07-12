@@ -12,6 +12,8 @@
 3. Confirmar que o listener usa `127.0.0.1`; falhar o startup se receber `0.0.0.0` ou endereco de LAN.
 4. Confirmar que nenhuma senha, cookie ou token de sistema externo foi configurado no Host.
 
+O diagnostico da extensao trata Chrome como referencia, Edge como secundario e qualquer sinal insuficiente como `UNKNOWN`. Marcadores de perfil sao opacos; nome, e-mail, caminho e conteudo do perfil nunca sao lidos. Perfil divergente deve ser sinalizado sem inferir identidade pessoal.
+
 ## Health shell
 O Host permanece separado da API e nao entra em `npm run up` nesta fase. Para validacao manual: compilar com `npm run companion:host:build` e iniciar explicitamente com `npm run companion:host:start`. O unico endpoint e `GET http://127.0.0.1:38472/health`.
 

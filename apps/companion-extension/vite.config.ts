@@ -15,6 +15,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         "service-worker": resolve(import.meta.dirname, "src/background/service-worker.ts"),
+        "content-scripts/index": resolve(import.meta.dirname, "src/content-scripts/index.ts"),
         "side-panel/index": resolve(import.meta.dirname, "src/side-panel/index.html")
       },
       output: { entryFileNames: "[name].js", chunkFileNames: "chunks/[name]-[hash].js", assetFileNames: "assets/[name]-[hash][extname]" }

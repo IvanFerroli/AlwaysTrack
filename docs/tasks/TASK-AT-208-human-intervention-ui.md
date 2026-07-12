@@ -1,7 +1,7 @@
 # TASK-AT-208 - Extensao: UI de intervencao humana
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-208-human-intervention-ui.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-204`, `TASK-AT-205`, `TASK-AT-207`.
+- satisfeitas nesta execucao: `TASK-AT-204`, `TASK-AT-205`, `TASK-AT-207`.
 
 ## Alvos explicitos
 1. apps/companion-extension/src/side-panel/interventions/

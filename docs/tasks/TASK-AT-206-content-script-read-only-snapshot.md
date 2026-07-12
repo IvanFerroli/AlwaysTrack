@@ -1,7 +1,7 @@
 # TASK-AT-206 - Extensao: content script read-only base
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-206-content-script-read-only-snapshot.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-199`, `TASK-AT-200`, `TASK-AT-203`.
+- satisfeitas nesta execucao: `TASK-AT-199`, `TASK-AT-200`, `TASK-AT-203`.
 
 ## Alvos explicitos
 1. apps/companion-extension/src/content-scripts/

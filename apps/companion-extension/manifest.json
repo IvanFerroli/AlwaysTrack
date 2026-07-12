@@ -3,7 +3,7 @@
   "name": "AlwaysTrack Companion",
   "version": "0.1.0",
   "description": "Copiloto SAC local do AlwaysTrack.",
-  "permissions": ["sidePanel"],
+  "permissions": ["sidePanel", "tabs"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"

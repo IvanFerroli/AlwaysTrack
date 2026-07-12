@@ -12,6 +12,14 @@ header { border-bottom: 1px solid #d9dee5; padding-bottom: 14px; }
 h1 { font-size: 20px; letter-spacing: 0; margin: 4px 0 0; }
 .status { align-items: center; display: flex; font-size: 14px; gap: 8px; padding: 16px 0; }
 .status-dot { background: #b42318; border-radius: 50%; height: 8px; width: 8px; }
+.diagnostics { color: #425466; font-size: 12px; padding-top: 0; }
+.diagnostics[data-profile="MISMATCH"] { color: #9a6700; font-weight: 600; }
+.intervention { background: #fff; border: 1px solid #d0d7de; border-left: 4px solid #9a6700; margin: 4px 0 12px; padding: 12px; }
+.intervention p { margin: 0 0 10px; }
+.intervention-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.intervention-actions button { background: #fff; border: 1px solid #8b95a1; color: #17202a; cursor: pointer; font: inherit; font-size: 12px; min-height: 34px; padding: 6px 10px; }
+.intervention-actions button:first-child { background: #185abd; border-color: #185abd; color: #fff; }
+.intervention-actions button:focus-visible { outline: 2px solid #185abd; outline-offset: 2px; }
 .case-head { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
 .case-head div { min-width: 0; }
 .case-head span, .step > span { color: #667281; display: block; font-size: 11px; }

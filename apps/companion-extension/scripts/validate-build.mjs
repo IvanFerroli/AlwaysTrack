@@ -8,7 +8,7 @@ const builtManifest = JSON.parse(await readFile(resolve(root, "dist/manifest.jso
 if (JSON.stringify(sourceManifest) !== JSON.stringify(builtManifest)) {
   throw new Error("Built manifest differs from source manifest");
 }
-if (builtManifest.host_permissions || JSON.stringify(builtManifest.permissions) !== JSON.stringify(["sidePanel"])) {
+if (builtManifest.host_permissions || JSON.stringify(builtManifest.permissions) !== JSON.stringify(["sidePanel", "tabs"])) {
   throw new Error("Built manifest has unexpected permissions");
 }
 
