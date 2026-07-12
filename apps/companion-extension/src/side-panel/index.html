@@ -8,26 +8,55 @@
   </head>
   <body>
     <main class="shell">
-      <header>
-        <span class="product">AlwaysTrack</span>
+      <header class="panel-header">
+        <div class="brand-line"><span class="product">AlwaysTrack</span><span id="host-status" class="connection-status">Companion indisponivel</span></div>
         <h1>Copiloto SAC</h1>
+        <div id="case-head" class="case-head" aria-label="Contexto do caso"></div>
+        <div class="completion" role="progressbar" aria-label="Completude do caso" aria-valuemin="0" aria-valuemax="100"><span id="completion-bar"></span></div>
+        <div class="header-actions">
+          <button id="refresh-case" type="button" class="icon-button" title="Atualizar caso" aria-label="Atualizar caso">&#8635;</button>
+          <button id="cancel-case" type="button" class="icon-button danger-button" title="Cancelar sessao" aria-label="Cancelar sessao">&#215;</button>
+        </div>
       </header>
-      <section class="status" aria-live="polite">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span id="host-status">Companion indisponivel</span>
-      </section>
-      <section id="browser-diagnostics" class="diagnostics" aria-live="polite"></section>
+
+      <p id="browser-diagnostics" class="diagnostics" aria-live="polite"></p>
       <section id="intervention" class="intervention" aria-live="polite" hidden></section>
-      <section class="case-head">
-        <div><span>Cliente</span><strong>Mariana Costa</strong></div><div><span>Pedido</span><strong>O123456</strong></div>
-        <div><span>Canal</span><strong>WhatsApp</strong></div><div><span>Risco</span><strong class="risk">Medio</strong></div>
+      <aside id="plan-update" class="plan-update" role="status" aria-live="polite" hidden></aside>
+
+      <section class="workspace-section current-step-section">
+        <div id="stepper"></div>
       </section>
-      <div class="completion"><span style="width:68%"></span></div>
-      <section><h2>Montagem</h2><ul class="connectors"><li>AlwaysChat <b>Concluido</b></li><li>Rastreio <b>Concluido</b></li><li>Yampi <b>Consultando</b></li><li>OMIE <b>Parcial</b></li></ul></section>
-      <section><h2>Resumo parcial</h2><p>Cliente solicita posicao do pedido. Pagamento aprovado e envio localizado. Consulta fiscal continua em andamento.</p></section>
-      <section><h2>Fluxos detectados</h2><div class="flow"><strong>Posicao de pedido</strong><span>92%</span></div><div class="flow secondary"><strong>Atraso logistico</strong><span>54%</span></div></section>
-      <section><h2>Possibilidades</h2><ol><li>Entrega dentro da previsao</li><li>Previsao vencida</li><li>Divergencia no rastreio</li></ol></section>
-      <section class="step"><span>Passo atual</span><h2>Confirmar status e previsao</h2><p>Aguarde os dados fiscais ou avance com o resumo parcial.</p></section>
+
+      <section class="workspace-section action-section" aria-labelledby="actions-title">
+        <h2 id="actions-title">Copiar conteudo</h2>
+        <div id="copy-actions"></div>
+      </section>
+
+      <details class="supporting-section">
+        <summary>Resumo e montagem</summary>
+        <div id="summary" class="summary-copy"></div>
+        <ul id="connectors" class="connectors"></ul>
+      </details>
+
+      <details class="supporting-section">
+        <summary>Fluxos detectados</summary>
+        <div id="detected-flows"></div>
+      </details>
+
+      <details class="supporting-section">
+        <summary>Mapa de possibilidades</summary>
+        <div id="possibilities" class="possibilities"></div>
+      </details>
+
+      <details class="supporting-section shortcut-settings">
+        <summary>Preferencias de teclado</summary>
+        <label for="shortcut-mode">Atalhos para escolher opcoes</label>
+        <select id="shortcut-mode">
+          <option value="DIRECT">Teclas 1 a 9</option>
+          <option value="ALT">Alt + teclas 1 a 9</option>
+          <option value="DISABLED">Desativados</option>
+        </select>
+      </details>
     </main>
     <script type="module" src="./side-panel.ts"></script>
   </body>
