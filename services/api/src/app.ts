@@ -233,6 +233,9 @@ import {
 } from "./core/sales-documents/sales-documents.handlers.js";
 import { caseFlowHandlers } from "./core/case-flow/case-flow.handlers.js";
 import { resolveCaseHandler } from "./core/case-flow/resolve.handlers.js";
+import { manualEvidenceHandler } from "./core/case-flow/manual-evidence.handlers.js";
+import { manualConflictHandler } from "./core/case-flow/conflicts.handlers.js";
+import { overrideHandlers } from "./core/case-flow/overrides.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -320,6 +323,11 @@ export function createApp() {
   app.post("/v1/case-flow/cases/:caseId/facts", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, caseFlowHandlers.addFacts);
   app.get("/v1/case-flow/cases/:caseId/facts", requireAuth, requireRole(commercialAllRoles), caseFlowHandlers.facts);
   app.get("/v1/case-flow/cases/:caseId/conflicts", requireAuth, requireRole(commercialAllRoles), caseFlowHandlers.conflicts);
+  app.post("/v1/case-flow/cases/:caseId/manual-evidence", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, manualEvidenceHandler);
+  app.post("/v1/case-flow/cases/:caseId/conflicts/:conflictId/resolve", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, manualConflictHandler);
+  app.post("/v1/case-flow/cases/:caseId/flow-override", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, overrideHandlers.flow);
+  app.post("/v1/case-flow/cases/:caseId/overrides/:overrideId/undo", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, overrideHandlers.undo);
+  app.get("/v1/case-flow/override-metrics", requireAuth, requireRole(commercialManagerRoles), overrideHandlers.metrics);
   app.post("/v1/case-flow/cases/:caseId/resolve", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, resolveCaseHandler);
   app.get("/v1/service-flows/metrics/summary", requireAuth, requireRole(commercialManagerRoles), serviceFlowMetricsHandler);
   app.post("/v1/service-flows/:flowIdOrSlug/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createServiceFlowSessionHandler);

@@ -5,6 +5,7 @@ import { parseCaseFlowJson } from "./persistence.js";
 import { evaluateHeuristics } from "./heuristics/engine.js";
 import type { HeuristicRule } from "./heuristics/rules.js";
 import { applyLowConfidenceTriage } from "./heuristics/triage.js";
+import { getCaseOverrideState } from "./overrides.service.js";
 
 export class CaseFlowResolveError extends Error {
   constructor(public readonly code: "NOT_FOUND") { super(code); }
@@ -31,10 +32,12 @@ export const defaultCaseFlowRules: readonly HeuristicRule[] = [
 export async function resolveCase(prisma: PrismaClient, actor: CurrentUser, caseId: string, options: { rules?: readonly HeuristicRule[]; now?: Date } = {}) {
   const serviceCase = await prisma.serviceCase.findFirst({ where: { id: caseId, organizationId: actor.organizationId } });
   if (!serviceCase) throw new CaseFlowResolveError("NOT_FOUND");
-  const [facts, conflicts] = await Promise.all([
+  const [allFacts, conflicts, overrideState] = await Promise.all([
     prisma.evidenceFact.findMany({ where: { caseId, organizationId: actor.organizationId }, orderBy: [{ key: "asc" }, { observedAt: "desc" }] }),
-    prisma.evidenceConflict.findMany({ where: { caseId, organizationId: actor.organizationId }, orderBy: { createdAt: "asc" } })
+    prisma.evidenceConflict.findMany({ where: { caseId, organizationId: actor.organizationId }, orderBy: { createdAt: "asc" } }),
+    getCaseOverrideState(prisma, actor, caseId)
   ]);
+  const facts = allFacts.filter((fact) => !overrideState.undoneManualFactIds.has(fact.id));
   const intent = facts.find((fact) => fact.key === "conversation.intentText");
   const text = intent ? String(parseCaseFlowJson(intent.normalizedValueJson)) : serviceCase.summary ?? "";
   const result = applyLowConfidenceTriage(evaluateHeuristics(options.rules ?? defaultCaseFlowRules, {
@@ -43,9 +46,15 @@ export async function resolveCase(prisma: PrismaClient, actor: CurrentUser, case
     facts: facts.map((fact) => ({ id: fact.id, key: fact.key, normalizedValue: parseCaseFlowJson(fact.normalizedValueJson), sourceSystem: fact.sourceSystem, observedAt: fact.observedAt })),
     conflicts: conflicts.map((conflict) => ({ key: conflict.key, status: conflict.status === "OPEN" ? "OPEN" as const : "RESOLVED" as const }))
   }));
+  const effectiveResult = overrideState.flow
+    ? { ...result, primary: result.primary ? { ...result.primary, flowId: overrideState.flow.chosenFlowId } : {
+      flowId: overrideState.flow.chosenFlowId, score: 0, confidence: 1, role: "PRIMARY" as const, matchedRules: [], supportingFactIds: [],
+      missingFactKeys: [], producedTags: ["HUMAN_OVERRIDE"], reasons: [`Human override ${overrideState.flow.overrideId}`]
+    }, humanOverride: overrideState.flow }
+    : result;
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId, actorId: actor.id, action: "case_flow.case.resolved", entityType: "CaseFlowCandidate", entityId: caseId,
-    metadata: { ruleVersions: [...new Set((options.rules ?? defaultCaseFlowRules).map((item) => `${item.code}@${item.version}`))], primary: result.primary, secondary: result.secondary, riskGates: result.riskGates, lowConfidence: result.lowConfidence }
+    metadata: { ruleVersions: [...new Set((options.rules ?? defaultCaseFlowRules).map((item) => `${item.code}@${item.version}`))], primary: effectiveResult.primary, secondary: result.secondary, riskGates: result.riskGates, lowConfidence: result.lowConfidence, humanOverride: overrideState.flow }
   });
-  return result;
+  return effectiveResult;
 }

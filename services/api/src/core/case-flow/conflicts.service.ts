@@ -1,6 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
 import type { EvidenceConflictResolver } from "@alwaystrack/shared";
 import { stringifyCaseFlowJson } from "./persistence.js";
+import type { CurrentUser } from "@alwaystrack/shared";
+import { recordHumanOverride, type CorrectionCause } from "./overrides.service.js";
+import { resolveCase } from "./resolve.service.js";
 
 export class EvidenceConflictError extends Error {
   constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "SCOPE_MISMATCH" | "IDEMPOTENCY_CONFLICT") { super(code); }
@@ -60,4 +63,24 @@ export async function resolveEvidenceConflict(prisma: PrismaClient, scope: { org
     where: { id: conflict.id },
     data: { status: "RESOLVED", chosenFactId: input.chosenFactId, resolutionReason: input.reason.trim(), resolvedByKind: input.resolvedBy, resolvedByUserId: input.resolvedBy === "USER" ? scope.actorId : null, resolvedAt: input.now ?? new Date() }
   });
+}
+
+export async function resolveEvidenceConflictManually(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  caseId: string,
+  conflictId: string,
+  input: { chosenFactId?: string; reason: string; cause?: CorrectionCause; recompute?: boolean }
+) {
+  const conflict = await prisma.evidenceConflict.findFirst({ where: { id: conflictId, caseId, organizationId: actor.organizationId } });
+  if (!conflict) throw new EvidenceConflictError("NOT_FOUND");
+  if (conflict.status !== "OPEN") throw new EvidenceConflictError("INVALID_INPUT");
+  const resolved = await resolveEvidenceConflict(prisma, { organizationId: actor.organizationId, actorId: actor.id }, caseId, conflictId, {
+    chosenFactId: input.chosenFactId, reason: input.reason, resolvedBy: "USER"
+  });
+  const override = await recordHumanOverride(prisma, actor, caseId, {
+    kind: "CONFLICT_RESOLUTION", reason: input.reason, cause: input.cause ?? "HUMAN_DECISION",
+    payload: { conflictId, chosenFactId: input.chosenFactId ?? null, previousStatus: conflict.status, previousChosenFactId: conflict.chosenFactId }
+  });
+  return { conflict: resolved, override, recomputed: input.recompute ? await resolveCase(prisma, actor, caseId) : null };
 }

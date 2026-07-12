@@ -11,7 +11,8 @@ describe("CaseFlow resolve HTTP", () => {
     const db = {
       serviceCase: { findFirst: vi.fn().mockResolvedValue({ id: "case-1", organizationId: "org-1", summary: "Nao recebi e consta entregue" }) },
       evidenceFact: { findMany: vi.fn().mockResolvedValue([{ id: "f1", key: "logistics.status", normalizedValueJson: '"DELIVERED"', sourceSystem: "CARRIER", observedAt: new Date() }]) },
-      evidenceConflict: { findMany: vi.fn().mockResolvedValue([]) }, auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+      evidenceConflict: { findMany: vi.fn().mockResolvedValue([]) },
+      auditLog: { findMany: vi.fn().mockResolvedValue([]), create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
     const app = express(); app.use((req, _res, next) => { req.user = { id: "user-1", name: "Agent", email: "agent@example.com", role: "SAC", organizationId: "org-1", unitScopeIds: [], sectorScopeIds: [] }; next(); }); app.post("/cases/:caseId/resolve", createResolveHandler(db as never));
     const server = app.listen(0); servers.push(server); await new Promise((done) => server.once("listening", done));
