@@ -68,6 +68,7 @@ export function createApiRateLimiters(env: ApiEnv) {
     upload: createRateLimiter({ name: "upload", windowMs, max: env.rateLimitUploadMax ?? 20, keyBy: "user-or-ip" }),
     ai: createRateLimiter({ name: "ai", windowMs, max: env.rateLimitAiMax ?? 10, keyBy: "user-or-ip" }),
     search: createRateLimiter({ name: "search", windowMs, max: env.rateLimitSearchMax ?? 120, keyBy: "user-or-ip" }),
+    companion: createRateLimiter({ name: "companion", windowMs, max: 300, keyBy: "user-or-ip" }),
     interaction: createRateLimiter({ name: "interaction", windowMs, max: env.rateLimitInteractionMax ?? 60, keyBy: "user-or-ip" }),
     adminSensitive: createRateLimiter({ name: "admin-sensitive", windowMs, max: env.rateLimitAdminMax ?? 90, keyBy: "user-or-ip" })
   };

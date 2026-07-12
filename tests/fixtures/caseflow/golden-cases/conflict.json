@@ -1,0 +1,7 @@
+{
+  "name": "divergent delivery evidence",
+  "text": "Nao recebi, mas consta entregue",
+  "facts": [{ "id": "delivery", "key": "logistics.status", "normalizedValue": "DELIVERED", "sourceSystem": "CARRIER", "observedAt": "2026-07-12T12:00:00Z" }],
+  "conflicts": [{ "key": "logistics.status", "status": "OPEN" }],
+  "expected": { "primary": "UNRECOGNIZED_DELIVERY", "secondary": ["EVIDENCE_REVIEW"], "lowConfidence": false }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ambiguous request keeps alternatives",
+  "text": "Quero o status do pedido e talvez pedir reembolso",
+  "facts": [],
+  "conflicts": [],
+  "expected": { "primary": "GENERIC_TRIAGE", "secondary": ["ORDER_POSITION", "FINANCIAL_TREATMENT"], "lowConfidence": true }
+}

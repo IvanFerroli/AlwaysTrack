@@ -1,0 +1,7 @@
+{
+  "name": "health risk always creates a critical gate",
+  "text": "Estou passando mal com uma reacao adversa",
+  "facts": [],
+  "conflicts": [],
+  "expected": { "primary": "HEALTH_ESCALATION", "riskGate": "HEALTH_SAFETY_GATE", "reason": "ADVERSE_REACTION:CRITICAL" }
+}

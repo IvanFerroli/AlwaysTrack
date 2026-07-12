@@ -1,0 +1,7 @@
+{
+  "name": "order position exposes missing evidence",
+  "text": "Onde esta meu pedido?",
+  "facts": [],
+  "conflicts": [],
+  "expected": { "primary": "GENERIC_TRIAGE", "missing": ["order.primaryId", "logistics.status"] }
+}
