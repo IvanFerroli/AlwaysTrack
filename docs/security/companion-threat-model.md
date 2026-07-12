@@ -33,5 +33,10 @@ Este documento complementa o threat model geral para extensao MV3, DOM de sistem
 
 Nao existe capability de clique generico, browser irrestrito ou execucao arbitraria. `SUBMIT`, comunicacao externa, Slack, alteracao financeira, status, pedido, reversa, ticket, acareacao, reenvio, reembolso e cancelamento permanecem proibidos no core inicial.
 
+## CaseFlow
+Eventos de auditoria do CaseFlow usam uma allowlist minima: hash e identificador mascarado, status, duracao, conector, codigo de erro e versao. CPF, cartao, token, cookie, senha, conversa completa, HTML bruto e payloads livres nao entram na trilha. Valores fora do formato operacional esperado sao descartados, nao apenas truncados.
+
+A retencao padrao mantem fatos normalizados e resumo, limita conversa integral a 30 dias, diagnosticos a 7 dias e cache a 15 minutos. Esses prazos sao configuraveis; expiracao de diagnosticos remove o conteudo e preserva os metadados do run. Exclusao explicita remove o caso e seus dados subordinados dentro do tenant. Screenshots ficam desativadas e exigem opt-in explicito de diagnostico; cookies e dados de autenticacao nunca podem ser capturados.
+
 ## Resposta
 Falha de seguranca cancela apenas o run afetado quando possivel, revoga pairing em suspeita de identidade, preserva evidencias ja normalizadas e registra codigo, conector, versao e duracao sem payload sensivel. Nao tenta contornar bloqueios automaticamente.
