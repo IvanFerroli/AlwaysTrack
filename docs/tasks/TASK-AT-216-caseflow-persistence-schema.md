@@ -1,7 +1,7 @@
 # TASK-AT-216 - CaseFlow Core: persistencia inicial
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-216-caseflow-persistence-schema.md

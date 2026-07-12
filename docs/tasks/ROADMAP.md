@@ -369,7 +369,7 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 6. `TASK-AT-215`: Companion Host: preaquecimento e saude local. Status: planned.
 
 #### CaseFlow Core e APIs base
-1. `TASK-AT-216`: CaseFlow Core: persistencia inicial. Status: planned.
+1. `TASK-AT-216`: CaseFlow Core: persistencia inicial. Status: completed.
 2. `TASK-AT-217`: CaseFlow Core: lifecycle service. Status: planned.
 3. `TASK-AT-218`: CaseFlow Core: EvidenceFact service. Status: planned.
 4. `TASK-AT-219`: CaseFlow Core: conflitos e autoridade por campo. Status: planned.
