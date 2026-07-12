@@ -32,6 +32,9 @@ model Organization {
   operationalScripts            OperationalScript[]
   serviceFlows                  ServiceFlow[]
   serviceFlowSteps              ServiceFlowStep[]
+  serviceFlowVersions           ServiceFlowVersion[]
+  serviceFlowNodes              ServiceFlowNode[]
+  serviceFlowTransitions        ServiceFlowTransition[]
   serviceFlowStepScripts        ServiceFlowStepScript[]
   serviceFlowSessions           ServiceFlowSession[]
   serviceFlowSessionSteps       ServiceFlowSessionStep[]
@@ -168,6 +171,7 @@ model User {
   serviceFlowsCreated                  ServiceFlow[]                  @relation("ServiceFlowCreatedBy")
   serviceFlowsUpdated                  ServiceFlow[]                  @relation("ServiceFlowUpdatedBy")
   serviceFlowsReviewed                 ServiceFlow[]                  @relation("ServiceFlowReviewedBy")
+  serviceFlowVersionsPublished         ServiceFlowVersion[]           @relation("ServiceFlowVersionPublishedBy")
   serviceFlowRevisionsAuthored         ServiceFlowRevision[]          @relation("ServiceFlowRevisionAuthor")
   serviceFlowSearchEvents              ServiceFlowSearchEvent[]       @relation("ServiceFlowSearchEventUser")
   serviceFlowSessions                  ServiceFlowSession[]           @relation("ServiceFlowSessionUser")
@@ -851,6 +855,7 @@ model ServiceFlow {
   slug           String
   summary        String?
   content        String?
+  draftGraphJson String?
   tagsJson       String?
   status         String    @default("DRAFT")
   priority       Int       @default(0)
@@ -871,6 +876,7 @@ model ServiceFlow {
   updatedBy           User                     @relation("ServiceFlowUpdatedBy", fields: [updatedById], references: [id])
   reviewedBy          User?                    @relation("ServiceFlowReviewedBy", fields: [reviewedById], references: [id])
   steps               ServiceFlowStep[]
+  versions            ServiceFlowVersion[]
   sessions            ServiceFlowSession[]
   revisions           ServiceFlowRevision[]
   searchEvents        ServiceFlowSearchEvent[]
@@ -911,6 +917,92 @@ model ServiceFlowStep {
   @@index([order])
 }
 
+model ServiceFlowVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  flowId         String
+  version        Int
+  title          String
+  summary        String?
+  content        String?
+  tagsJson       String?
+  graphJson      String
+  publishedById  String
+  publishedAt    DateTime @default(now())
+  restoredFromId String?
+  createdAt      DateTime @default(now())
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  flow         ServiceFlow             @relation(fields: [flowId], references: [id], onDelete: Restrict)
+  publishedBy  User                    @relation("ServiceFlowVersionPublishedBy", fields: [publishedById], references: [id])
+  restoredFrom ServiceFlowVersion?     @relation("ServiceFlowVersionRestore", fields: [restoredFromId], references: [id], onDelete: Restrict)
+  restorations ServiceFlowVersion[]    @relation("ServiceFlowVersionRestore")
+  nodes        ServiceFlowNode[]
+  transitions  ServiceFlowTransition[]
+  sessions     ServiceFlowSession[]
+
+  @@unique([flowId, version])
+  @@index([organizationId, publishedAt])
+  @@index([publishedById])
+  @@index([restoredFromId])
+}
+
+model ServiceFlowNode {
+  id                        String   @id @default(cuid())
+  organizationId            String
+  versionId                 String
+  key                       String
+  type                      String
+  title                     String
+  operatorInstruction       String?
+  requiredFactsJson         String
+  optionalFactsJson         String
+  scriptsJson               String
+  allowedCapabilitiesJson   String
+  forbiddenCapabilitiesJson String
+  autoAdvance               Boolean  @default(false)
+  riskLevel                 String   @default("LOW")
+  terminal                  Boolean  @default(false)
+  message                   String?
+  dependenciesJson          String?
+  order                     Int      @default(0)
+  createdAt                 DateTime @default(now())
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  version      ServiceFlowVersion      @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  outgoing     ServiceFlowTransition[] @relation("ServiceFlowTransitionFrom")
+  incoming     ServiceFlowTransition[] @relation("ServiceFlowTransitionTo")
+
+  @@unique([versionId, key])
+  @@index([organizationId])
+  @@index([versionId, order])
+}
+
+model ServiceFlowTransition {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  versionId          String
+  fromNodeId         String
+  toNodeId           String
+  label              String
+  order              Int      @default(0)
+  conditionJson      String?
+  requiresUserChoice Boolean  @default(false)
+  allowLoop          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  version      ServiceFlowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  fromNode     ServiceFlowNode    @relation("ServiceFlowTransitionFrom", fields: [fromNodeId], references: [id], onDelete: Restrict)
+  toNode       ServiceFlowNode    @relation("ServiceFlowTransitionTo", fields: [toNodeId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, fromNodeId, toNodeId, label])
+  @@index([organizationId])
+  @@index([versionId, order])
+  @@index([fromNodeId])
+  @@index([toNodeId])
+}
+
 model ServiceFlowStepScript {
   id             String   @id @default(cuid())
   organizationId String
@@ -936,6 +1028,7 @@ model ServiceFlowSession {
   id             String    @id @default(cuid())
   organizationId String
   flowId         String
+  versionId      String?
   userId         String
   status         String    @default("OPEN")
   startedAt      DateTime  @default(now())
@@ -945,33 +1038,39 @@ model ServiceFlowSession {
 
   organization Organization             @relation(fields: [organizationId], references: [id])
   flow         ServiceFlow              @relation(fields: [flowId], references: [id])
+  version      ServiceFlowVersion?      @relation(fields: [versionId], references: [id], onDelete: Restrict)
   user         User                     @relation("ServiceFlowSessionUser", fields: [userId], references: [id])
   steps        ServiceFlowSessionStep[]
 
   @@index([organizationId])
   @@index([flowId])
+  @@index([versionId])
   @@index([userId])
   @@index([status])
   @@index([startedAt])
 }
 
 model ServiceFlowSessionStep {
-  id             String    @id @default(cuid())
-  organizationId String
-  sessionId      String
-  stepId         String
-  status         String    @default("PENDING")
-  decision       String?
-  note           String?
-  completedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  organizationId    String
+  sessionId         String
+  stepId            String?
+  nodeKey           String?
+  nodeSnapshotJson  String?
+  choiceHistoryJson String?
+  visitOrder        Int       @default(0)
+  status            String    @default("PENDING")
+  decision          String?
+  note              String?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   organization Organization       @relation(fields: [organizationId], references: [id])
   session      ServiceFlowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  step         ServiceFlowStep    @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  step         ServiceFlowStep?   @relation(fields: [stepId], references: [id], onDelete: SetNull)
 
-  @@unique([sessionId, stepId])
+  @@unique([sessionId, nodeKey])
   @@index([organizationId])
   @@index([stepId])
   @@index([status])

@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { commercialAllRoles, commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
+import { commercialAllRoles, commercialManagerRoles, flowNodeTypes, type CurrentUser, type FlowNodeDefinition, type FlowTransitionDefinition } from "@alwaystrack/shared";
+import { validateFlowGraph } from "./flow-validation.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import {
@@ -29,6 +30,11 @@ interface FlowStepInput {
   scriptIds?: string[];
 }
 
+export interface ServiceFlowGraphInput {
+  nodes: FlowNodeDefinition[];
+  transitions: FlowTransitionDefinition[];
+}
+
 export interface ServiceFlowInput {
   wikiPageId?: string | null;
   title?: string;
@@ -39,6 +45,7 @@ export interface ServiceFlowInput {
   status?: string;
   priority?: number;
   steps?: FlowStepInput[];
+  graph?: ServiceFlowGraphInput;
 }
 
 export interface ServiceFlowFilters {
@@ -169,6 +176,7 @@ export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
   return parseObjectPayload(payload ?? {}, (input) => {
     const rawSteps = optionalArray(input, "steps", { maxItems: 40 }) ?? [];
     const rawTags = optionalArray(input, "tags", { maxItems: 30 });
+    const graph = input.graph === undefined ? undefined : parseGraphInput(input.graph);
     return {
       wikiPageId: optionalString(input, "wikiPageId", { maxLength: 80, nullable: true }),
       title: optionalString(input, "title", { maxLength: 140 }),
@@ -178,6 +186,7 @@ export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
       tags: rawTags ? tags(rawTags) : undefined,
       status: status(optionalString(input, "status", { maxLength: 20 })),
       priority: optionalInteger(input, "priority", { min: 0, max: 1_000 }),
+      graph,
       steps: rawSteps.map((item, index) =>
         parseObjectPayload(item, (step) => {
           const rawScriptIds = optionalStringArray(step, "scriptIds", { maxItems: 12, itemMaxLength: 80 }) ?? [];
@@ -194,6 +203,43 @@ export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
           };
         })
       )
+    };
+  });
+}
+
+function parseGraphInput(value: unknown): ServiceFlowGraphInput {
+  return parseObjectPayload(value, (graph) => {
+    const nodes = optionalArray(graph, "nodes", { maxItems: 100 }) ?? [];
+    const transitions = optionalArray(graph, "transitions", { maxItems: 300 }) ?? [];
+    return {
+      nodes: nodes.map((value) => parseObjectPayload(value, (node) => {
+        const type = optionalString(node, "type", { maxLength: 30 });
+        if (!type || !(flowNodeTypes as readonly string[]).includes(type)) throw new ServiceFlowError("INVALID_INPUT");
+        return {
+          key: optionalString(node, "key", { maxLength: 80 }) ?? "",
+          type: type as FlowNodeDefinition["type"], title: optionalString(node, "title", { maxLength: 140 }) ?? "",
+          operatorInstruction: optionalString(node, "operatorInstruction", { maxLength: 8_000 }),
+          requiredFacts: optionalStringArray(node, "requiredFacts", { maxItems: 50, itemMaxLength: 100 }) ?? [],
+          optionalFacts: optionalStringArray(node, "optionalFacts", { maxItems: 50, itemMaxLength: 100 }) ?? [],
+          scripts: Array.isArray(node.scripts) ? node.scripts as FlowNodeDefinition["scripts"] : [],
+          allowedCapabilities: (optionalStringArray(node, "allowedCapabilities", { maxItems: 30, itemMaxLength: 50 }) ?? []) as FlowNodeDefinition["allowedCapabilities"],
+          forbiddenCapabilities: (optionalStringArray(node, "forbiddenCapabilities", { maxItems: 30, itemMaxLength: 50 }) ?? []) as FlowNodeDefinition["forbiddenCapabilities"],
+          autoAdvance: optionalBoolean(node, "autoAdvance") ?? false,
+          riskLevel: (optionalString(node, "riskLevel", { maxLength: 20 }) ?? "LOW") as FlowNodeDefinition["riskLevel"],
+          terminal: optionalBoolean(node, "terminal") ?? false,
+          message: optionalString(node, "message", { maxLength: 8_000 }),
+          dependencies: optionalStringArray(node, "dependencies", { maxItems: 50, itemMaxLength: 100 })
+        };
+      })),
+      transitions: transitions.map((value, index) => parseObjectPayload(value, (edge) => ({
+        fromNodeKey: optionalString(edge, "fromNodeKey", { maxLength: 80 }) ?? "",
+        toNodeKey: optionalString(edge, "toNodeKey", { maxLength: 80 }) ?? "",
+        label: optionalString(edge, "label", { maxLength: 140 }) ?? "",
+        order: optionalInteger(edge, "order", { min: 0, max: 10_000 }) ?? index,
+        condition: edge.condition && typeof edge.condition === "object" ? edge.condition as FlowTransitionDefinition["condition"] : undefined,
+        requiresUserChoice: optionalBoolean(edge, "requiresUserChoice") ?? false,
+        allowLoop: optionalBoolean(edge, "allowLoop") ?? false
+      })))
     };
   });
 }
@@ -276,6 +322,7 @@ function snapshotForFlow(flow: Awaited<ReturnType<typeof getRawFlowForRevision>>
     tags: tagsFromJson(flow.tagsJson),
     status: flow.status,
     version: flow.version,
+    graph: flow.draftGraphJson ? JSON.parse(flow.draftGraphJson) : null,
     steps: flow.steps.map((step) => ({
       title: step.title,
       body: step.body,
@@ -361,6 +408,53 @@ async function replaceSteps(prisma: PrismaClient, actor: CurrentUser, flowId: st
   }
 }
 
+function linearGraph(flow: Awaited<ReturnType<typeof getRawFlowForRevision>>): ServiceFlowGraphInput {
+  const nodes: FlowNodeDefinition[] = [
+    { key: "start", type: "START", title: "Inicio", requiredFacts: [], optionalFacts: [], scripts: [], allowedCapabilities: [], forbiddenCapabilities: [], autoAdvance: true, riskLevel: "LOW", terminal: false },
+    ...flow.steps.map((step) => ({
+      key: `step:${step.id}`, type: step.kind === "DECISION" || step.kind === "YES_NO" ? "DECISION" as const : "CHECK" as const,
+      title: step.title, operatorInstruction: step.body ?? undefined, requiredFacts: [], optionalFacts: [],
+      scripts: step.scripts.map((link) => ({ scriptId: link.script.id, label: link.script.title })), allowedCapabilities: [], forbiddenCapabilities: [],
+      autoAdvance: false, riskLevel: "LOW" as const, terminal: false
+    })),
+    { key: "end", type: "END", title: "Fim", requiredFacts: [], optionalFacts: [], scripts: [], allowedCapabilities: [], forbiddenCapabilities: [], autoAdvance: false, riskLevel: "LOW", terminal: true }
+  ];
+  return { nodes, transitions: nodes.slice(0, -1).map((node, index) => ({ fromNodeKey: node.key, toNodeKey: nodes[index + 1].key, label: "Continuar", order: index, requiresUserChoice: node.type === "DECISION" })) };
+}
+
+async function createPublishedVersion(prisma: PrismaClient, actor: CurrentUser, flowId: string, options: { graph?: ServiceFlowGraphInput; restoredFromId?: string } = {}) {
+  const flow = await getRawFlowForRevision(prisma, actor, flowId);
+  const graph = options.graph ?? (flow.draftGraphJson ? JSON.parse(flow.draftGraphJson) as ServiceFlowGraphInput : linearGraph(flow));
+  const validation = validateFlowGraph(graph.nodes, graph.transitions);
+  if (!validation.valid) throw new ServiceFlowError("INVALID_INPUT");
+  const existing = await prisma.serviceFlowVersion.findUnique({ where: { flowId_version: { flowId, version: flow.version } } });
+  if (existing) return existing;
+  return prisma.$transaction(async (tx) => {
+    const version = await tx.serviceFlowVersion.create({ data: {
+      organizationId: actor.organizationId, flowId, version: flow.version, title: flow.title, summary: flow.summary,
+      content: flow.content, tagsJson: flow.tagsJson, graphJson: JSON.stringify(graph), publishedById: actor.id, publishedAt: flow.publishedAt ?? new Date(),
+      restoredFromId: options.restoredFromId
+    } });
+    const nodeIds = new Map<string, string>();
+    for (const [order, node] of graph.nodes.entries()) {
+      const created = await tx.serviceFlowNode.create({ data: {
+        organizationId: actor.organizationId, versionId: version.id, key: node.key, type: node.type, title: node.title,
+        operatorInstruction: node.operatorInstruction, requiredFactsJson: JSON.stringify(node.requiredFacts), optionalFactsJson: JSON.stringify(node.optionalFacts),
+        scriptsJson: JSON.stringify(node.scripts), allowedCapabilitiesJson: JSON.stringify(node.allowedCapabilities), forbiddenCapabilitiesJson: JSON.stringify(node.forbiddenCapabilities),
+        autoAdvance: node.autoAdvance, riskLevel: node.riskLevel, terminal: node.terminal, message: node.message,
+        dependenciesJson: node.dependencies ? JSON.stringify(node.dependencies) : null, order
+      } });
+      nodeIds.set(node.key, created.id);
+    }
+    for (const edge of graph.transitions) await tx.serviceFlowTransition.create({ data: {
+      organizationId: actor.organizationId, versionId: version.id, fromNodeId: nodeIds.get(edge.fromNodeKey)!, toNodeId: nodeIds.get(edge.toNodeKey)!,
+      label: edge.label, order: edge.order, conditionJson: edge.condition ? JSON.stringify(edge.condition) : null,
+      requiresUserChoice: edge.requiresUserChoice, allowLoop: edge.allowLoop ?? false
+    } });
+    return version;
+  });
+}
+
 export async function createServiceFlow(prisma: PrismaClient, actor: CurrentUser, input: ServiceFlowInput) {
   ensureManager(actor);
   if (!input.title) throw new ServiceFlowError("INVALID_INPUT");
@@ -377,6 +471,7 @@ export async function createServiceFlow(prisma: PrismaClient, actor: CurrentUser
       slug,
       summary: input.summary ?? null,
       content: input.content ?? null,
+      draftGraphJson: input.graph ? JSON.stringify(input.graph) : null,
       tagsJson: JSON.stringify(input.tags ?? []),
       status: statusValue,
       priority: input.priority ?? 0,
@@ -387,6 +482,7 @@ export async function createServiceFlow(prisma: PrismaClient, actor: CurrentUser
   });
   await replaceSteps(prisma, actor, flow.id, input.steps ?? []);
   await createFlowRevision(prisma, actor, flow.id, input.status === "PUBLISHED" ? "Publicacao inicial" : "Rascunho inicial");
+  if (statusValue === "PUBLISHED") await createPublishedVersion(prisma, actor, flow.id);
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.create", entityType: "ServiceFlow", entityId: flow.id, metadata: { slug } });
   return getServiceFlow(prisma, actor, flow.id);
 }
@@ -405,6 +501,7 @@ export async function updateServiceFlow(prisma: PrismaClient, actor: CurrentUser
       title: input.title,
       summary: input.summary,
       content: input.content,
+      draftGraphJson: input.graph ? JSON.stringify(input.graph) : undefined,
       tagsJson: input.tags ? JSON.stringify(input.tags) : undefined,
       status: input.status,
       priority: input.priority,
@@ -415,6 +512,7 @@ export async function updateServiceFlow(prisma: PrismaClient, actor: CurrentUser
   });
   if (input.steps) await replaceSteps(prisma, actor, flow.id, input.steps);
   await createFlowRevision(prisma, actor, flow.id, "Atualizacao de fluxo");
+  if (nextStatus === "PUBLISHED") await createPublishedVersion(prisma, actor, flow.id);
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.update", entityType: "ServiceFlow", entityId: flow.id, metadata: { status: flow.status } });
   return getServiceFlow(prisma, actor, flow.id);
 }
@@ -470,6 +568,7 @@ export async function publishServiceFlow(prisma: PrismaClient, actor: CurrentUse
     }
   });
   await createFlowRevision(prisma, actor, flow.id, input.comment);
+  await createPublishedVersion(prisma, actor, flow.id);
   await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.publish", entityType: "ServiceFlow", entityId: flow.id, metadata: { version: flow.version, comment: input.comment } });
   await emitInAppNotifications(prisma, actor.organizationId, {
     recipientRoles: [...commercialAllRoles],
@@ -507,6 +606,34 @@ export async function archiveServiceFlow(prisma: PrismaClient, actor: CurrentUse
   return getServiceFlow(prisma, actor, flow.id);
 }
 
+export async function restoreServiceFlowVersion(prisma: PrismaClient, actor: CurrentUser, flowId: string, versionId: string, comment: string) {
+  ensureManager(actor);
+  if (!comment.trim()) throw new ServiceFlowError("INVALID_INPUT");
+  const [current, source] = await Promise.all([
+    prisma.serviceFlow.findFirst({ where: { id: flowId, organizationId: actor.organizationId } }),
+    prisma.serviceFlowVersion.findFirst({ where: { id: versionId, flowId, organizationId: actor.organizationId }, include: {
+      nodes: { orderBy: { order: "asc" } }, transitions: { orderBy: { order: "asc" }, include: { fromNode: { select: { key: true } }, toNode: { select: { key: true } } } }
+    } })
+  ]);
+  if (!current || !source) throw new ServiceFlowError("NOT_FOUND");
+  const graph: ServiceFlowGraphInput = {
+    nodes: source.nodes.map((node) => ({ key: node.key, type: node.type as FlowNodeDefinition["type"], title: node.title,
+      operatorInstruction: node.operatorInstruction ?? undefined, requiredFacts: JSON.parse(node.requiredFactsJson), optionalFacts: JSON.parse(node.optionalFactsJson),
+      scripts: JSON.parse(node.scriptsJson), allowedCapabilities: JSON.parse(node.allowedCapabilitiesJson), forbiddenCapabilities: JSON.parse(node.forbiddenCapabilitiesJson),
+      autoAdvance: node.autoAdvance, riskLevel: node.riskLevel as FlowNodeDefinition["riskLevel"], terminal: node.terminal,
+      message: node.message ?? undefined, dependencies: node.dependenciesJson ? JSON.parse(node.dependenciesJson) : undefined })),
+    transitions: source.transitions.map((edge) => ({ fromNodeKey: edge.fromNode.key, toNodeKey: edge.toNode.key, label: edge.label, order: edge.order,
+      condition: edge.conditionJson ? JSON.parse(edge.conditionJson) : undefined, requiresUserChoice: edge.requiresUserChoice, allowLoop: edge.allowLoop }))
+  };
+  const restored = await prisma.serviceFlow.update({ where: { id: current.id }, data: { title: source.title, summary: source.summary, content: source.content,
+    tagsJson: source.tagsJson, draftGraphJson: JSON.stringify(graph), status: "PUBLISHED", version: current.version + 1, updatedById: actor.id, publishedAt: new Date() } });
+  await createFlowRevision(prisma, actor, flowId, comment);
+  const published = await createPublishedVersion(prisma, actor, flowId, { graph, restoredFromId: source.id });
+  await recordAuditLog(prisma, { organizationId: actor.organizationId, actorId: actor.id, action: "service_flow.restore", entityType: "ServiceFlow", entityId: flowId,
+    metadata: { restoredFromVersionId: source.id, restoredFromVersion: source.version, versionId: published.id, version: restored.version, comment } });
+  return getServiceFlow(prisma, actor, flowId);
+}
+
 export async function serviceFlowMetrics(prisma: PrismaClient, actor: CurrentUser) {
   ensureManager(actor);
   const [flows, sessionGroups, stepGroups, zeroSearches, openSessions, copyEvents] = await Promise.all([
@@ -523,7 +650,7 @@ export async function serviceFlowMetrics(prisma: PrismaClient, actor: CurrentUse
     })
   ]);
   const flowById = new Map(flows.map((flow) => [flow.id, flow]));
-  const stepIds = [...new Set(stepGroups.map((item) => item.stepId))];
+  const stepIds = [...new Set(stepGroups.map((item) => item.stepId).filter((id): id is string => id !== null))];
   const steps = stepIds.length
     ? await prisma.serviceFlowStep.findMany({ where: { id: { in: stepIds }, organizationId: actor.organizationId }, select: { id: true, title: true, flowId: true } })
     : [];
@@ -552,7 +679,7 @@ export async function serviceFlowMetrics(prisma: PrismaClient, actor: CurrentUse
     mostUsedFlows: sessionGroups.map((item) => ({ flowId: item.flowId, title: flowById.get(item.flowId)?.title ?? "Fluxo removido", sessions: item._count._all })),
     stepBottlenecks: stepGroups
       .filter((item) => item.status !== "DONE")
-      .map((item) => ({ stepId: item.stepId, stepTitle: stepById.get(item.stepId)?.title ?? "Etapa removida", flowTitle: flowById.get(stepById.get(item.stepId)?.flowId ?? "")?.title ?? "Fluxo", status: item.status, count: item._count._all }))
+      .map((item) => ({ stepId: item.stepId, stepTitle: item.stepId ? stepById.get(item.stepId)?.title ?? "Etapa versionada" : "Etapa versionada", flowTitle: flowById.get(item.stepId ? stepById.get(item.stepId)?.flowId ?? "" : "")?.title ?? "Fluxo", status: item.status, count: item._count._all }))
       .sort((left, right) => right.count - left.count)
       .slice(0, 6),
     topScriptsByFlow: [...scriptCopies.values()].sort((left, right) => right.count - left.count).slice(0, 6),
@@ -562,16 +689,27 @@ export async function serviceFlowMetrics(prisma: PrismaClient, actor: CurrentUse
 
 export async function createServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, flowIdOrSlug: string) {
   const { flow } = await getServiceFlow(prisma, actor, flowIdOrSlug);
+  const version = await prisma.serviceFlowVersion.findFirst({
+    where: { flowId: flow.id, organizationId: actor.organizationId }, orderBy: { version: "desc" },
+    include: { nodes: { orderBy: { order: "asc" } } }
+  });
   const session = await prisma.serviceFlowSession.create({
     data: {
       organizationId: actor.organizationId,
       flowId: flow.id,
+      versionId: version?.id,
       userId: actor.id,
       status: "OPEN",
       steps: {
-        create: flow.steps.map((step) => ({
+        create: version ? version.nodes.map((node, index) => ({
+          organizationId: actor.organizationId, nodeKey: node.key, nodeSnapshotJson: JSON.stringify(node), visitOrder: index,
+          status: node.type === "START" ? "DONE" : "PENDING"
+        })) : flow.steps.map((step, index) => ({
           organizationId: actor.organizationId,
           stepId: step.id,
+          nodeKey: `legacy:${step.id}`,
+          nodeSnapshotJson: JSON.stringify({ key: `legacy:${step.id}`, title: step.title, order: step.order, required: step.required }),
+          visitOrder: index,
           status: "PENDING"
         }))
       }
@@ -584,7 +722,7 @@ export async function createServiceFlowSession(prisma: PrismaClient, actor: Curr
     action: "service_flow_session.start",
     entityType: "ServiceFlowSession",
     entityId: session.id,
-    metadata: { flowId: flow.id, slug: flow.slug }
+    metadata: { flowId: flow.id, versionId: version?.id ?? null, version: version?.version ?? flow.version, slug: flow.slug }
   });
   return { session: formatSession(session) };
 }
@@ -599,7 +737,7 @@ export async function updateServiceFlowSessionStep(
   const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
   const step = await prisma.serviceFlowSessionStep.findFirst({
-    where: { sessionId, stepId, organizationId: actor.organizationId },
+    where: { sessionId, organizationId: actor.organizationId, OR: [{ stepId }, { nodeKey: stepId }] },
     include: { step: { select: { title: true } } }
   });
   if (!step) throw new ServiceFlowError("NOT_FOUND");
@@ -619,7 +757,7 @@ export async function updateServiceFlowSessionStep(
     action: "service_flow_session.step",
     entityType: "ServiceFlowSession",
     entityId: session.id,
-    metadata: { stepId, stepTitle: step.step.title, status: updated.status, decision: updated.decision, note: updated.note }
+    metadata: { stepId, stepTitle: step.step?.title ?? step.nodeKey ?? "Etapa versionada", status: updated.status, decision: updated.decision, note: updated.note }
   });
   return getServiceFlowSession(prisma, actor, session.id);
 }
@@ -651,15 +789,16 @@ export async function getServiceFlowSession(prisma: PrismaClient, actor: Current
 function sessionInclude() {
   return {
     flow: { select: { id: true, slug: true, title: true } },
+    version: { select: { id: true, version: true, title: true, publishedAt: true } },
     steps: {
       include: { step: { select: { id: true, title: true, order: true, required: true } } }
     }
   } satisfies Prisma.ServiceFlowSessionInclude;
 }
 
-function formatSession<T extends { steps?: Array<{ step?: { order: number } | null }> }>(session: T) {
+function formatSession<T extends { steps?: Array<{ visitOrder?: number; step?: { order: number } | null }> }>(session: T) {
   return {
     ...session,
-    steps: [...(session.steps ?? [])].sort((left, right) => (left.step?.order ?? 0) - (right.step?.order ?? 0))
+    steps: [...(session.steps ?? [])].sort((left, right) => (left.visitOrder ?? left.step?.order ?? 0) - (right.visitOrder ?? right.step?.order ?? 0))
   };
 }
