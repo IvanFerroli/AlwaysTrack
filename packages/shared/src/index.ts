@@ -2,6 +2,7 @@ export const userRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"
 export * from "./case-flow/index.js";
 export * from "./connectors/index.js";
 export * from "./companion/index.js";
+export * from "./security/index.js";
 export type UserRole = (typeof userRoles)[number];
 
 export const commercialUserRoles = ["ADMIN", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR", "GESTOR"] as const;

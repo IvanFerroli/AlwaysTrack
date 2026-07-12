@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
+export * from "./action-firewall.js";
+
 export interface PairingIdentity {
   installationId: string;
   browserProfileId: string;

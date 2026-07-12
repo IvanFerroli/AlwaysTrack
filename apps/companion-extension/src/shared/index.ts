@@ -35,3 +35,5 @@ export interface ReadOnlyPageSnapshot {
   capturedAt: string;
   policyVersion: string;
 }
+
+export * from "./action-firewall.js";
