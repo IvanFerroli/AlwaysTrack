@@ -1,7 +1,7 @@
 # TASK-AT-199 - CaseFlow: contrato de capabilities e firewall de acao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-199-action-capabilities-firewall-contract.md

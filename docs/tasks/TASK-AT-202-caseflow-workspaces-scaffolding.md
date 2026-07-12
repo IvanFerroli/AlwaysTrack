@@ -31,6 +31,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
 - em aberto: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-197`, `TASK-AT-198`, `TASK-AT-199`, `TASK-AT-200`, `TASK-AT-201`.
+- gate operacional obrigatorio: checklist aplicavel de `docs/operations/companion-topology-gate.md` registrado antes de concluir esta task.
 
 ## Alvos explicitos
 1. packages/shared/src/case-flow/

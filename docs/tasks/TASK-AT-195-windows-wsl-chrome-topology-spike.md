@@ -1,7 +1,7 @@
 # TASK-AT-195 - Companion: spike Windows + WSL + Chrome
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-195-windows-wsl-chrome-topology-spike.md

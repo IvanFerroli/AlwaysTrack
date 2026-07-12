@@ -1,7 +1,7 @@
 # TASK-AT-196 - CaseFlow: topologia de autenticacao e confianca
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-196-caseflow-auth-trust-topology.md

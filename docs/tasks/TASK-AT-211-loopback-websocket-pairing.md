@@ -31,6 +31,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
 - em aberto: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-201`, `TASK-AT-210`.
+- gate operacional obrigatorio: concluir os probes WebSocket, bind e reconexao de `docs/operations/companion-topology-gate.md` como parte desta task.
 
 ## Alvos explicitos
 1. services/companion-host/src/server/

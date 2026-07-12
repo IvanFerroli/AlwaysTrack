@@ -1,7 +1,7 @@
 # TASK-AT-197 - Companion: threat model da extensao e host local
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-197-companion-extension-threat-model.md

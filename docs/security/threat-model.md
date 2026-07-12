@@ -21,6 +21,8 @@ Modelo de ameacas e o mapa de "quem pode atacar, por onde entra, o que quer atin
 - Deploy de referencia em `deploy/docker-compose.example.yml` e `deploy/nginx.conf`.
 - Arquitetura documentada em `docs/architecture/*`.
 
+O modelo especifico da frente local esta em [Companion Extension and Host Threat Model](./companion-threat-model.md).
+
 ## Ativos sensiveis
 | Ativo | Onde aparece | Por que importa | Impacto se vazar/alterar |
 | --- | --- | --- | --- |
