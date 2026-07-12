@@ -1,7 +1,7 @@
 # TASK-AT-200 - Companion: contrato de conector consultivo
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-200-consultative-connector-contract.md

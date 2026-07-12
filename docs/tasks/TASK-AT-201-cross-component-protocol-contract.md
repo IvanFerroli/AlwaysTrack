@@ -1,7 +1,7 @@
 # TASK-AT-201 - Companion: protocolo e fronteiras entre extensao, host e API
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-201-cross-component-protocol-contract.md

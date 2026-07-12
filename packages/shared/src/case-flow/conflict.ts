@@ -1,4 +1,4 @@
-import type { EvidenceFact, EvidenceKey } from "./evidence.js";
+import type { EvidenceFact, NormalizedEvidenceKey } from "./evidence.js";
 
 export const evidenceConflictStatuses = ["OPEN", "RESOLVED", "IGNORED"] as const;
 export type EvidenceConflictStatus = (typeof evidenceConflictStatuses)[number];
@@ -16,7 +16,7 @@ export interface EvidenceConflictResolution {
 interface EvidenceConflictBase {
   id: string;
   caseId: string;
-  key: EvidenceKey;
+  key: NormalizedEvidenceKey;
   facts: EvidenceFact[];
   createdAt: string;
   updatedAt: string;

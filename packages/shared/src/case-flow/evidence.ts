@@ -92,10 +92,22 @@ export const minimumEvidenceKeys = [
 
 export type EvidenceKey = (typeof minimumEvidenceKeys)[number];
 
+declare const customEvidenceKeyBrand: unique symbol;
+export type CustomEvidenceKey = string & { readonly [customEvidenceKeyBrand]: true };
+export type NormalizedEvidenceKey = EvidenceKey | CustomEvidenceKey;
+
+export function customEvidenceKey(value: string): CustomEvidenceKey {
+  const normalized = value.trim().toLowerCase();
+  if (!/^(?:custom|connector)\.[a-z0-9]+(?:\.[a-z0-9]+)+$/.test(normalized)) {
+    throw new Error("Custom evidence keys must use custom.* or connector.* namespacing");
+  }
+  return normalized as CustomEvidenceKey;
+}
+
 export interface EvidenceFact<TValue = unknown, TNormalizedValue = unknown> {
   id: string;
   caseId: string;
-  key: EvidenceKey;
+  key: NormalizedEvidenceKey;
   value: TValue;
   normalizedValue: TNormalizedValue;
   sourceSystem: EvidenceSourceSystem;

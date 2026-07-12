@@ -347,9 +347,9 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 4. `TASK-AT-197`: Companion: threat model da extensao e host local. Status: completed.
 5. `TASK-AT-198`: CaseFlow: contratos compartilhados de caso e evidencia. Status: completed.
 6. `TASK-AT-199`: CaseFlow: contrato de capabilities e firewall de acao. Status: completed.
-7. `TASK-AT-200`: Companion: contrato de conector consultivo. Status: planned.
-8. `TASK-AT-201`: Companion: protocolo e fronteiras entre extensao, host e API. Status: planned.
-9. `TASK-AT-202`: CaseFlow: scaffolding de workspaces. Status: planned.
+7. `TASK-AT-200`: Companion: contrato de conector consultivo. Status: completed.
+8. `TASK-AT-201`: Companion: protocolo e fronteiras entre extensao, host e API. Status: completed.
+9. `TASK-AT-202`: CaseFlow: scaffolding de workspaces. Status: completed.
 
 #### Extensao Chromium
 1. `TASK-AT-203`: Extensao: shell Chromium Manifest V3. Status: planned.

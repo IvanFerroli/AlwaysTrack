@@ -1,7 +1,7 @@
 # TASK-AT-202 - CaseFlow: scaffolding de workspaces
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-202-caseflow-workspaces-scaffolding.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-197`, `TASK-AT-198`, `TASK-AT-199`, `TASK-AT-200`, `TASK-AT-201`.
+- satisfeitas nesta execucao: `TASK-AT-195`, `TASK-AT-196`, `TASK-AT-197`, `TASK-AT-198`, `TASK-AT-199`, `TASK-AT-200`, `TASK-AT-201`.
 - gate operacional obrigatorio: checklist aplicavel de `docs/operations/companion-topology-gate.md` registrado antes de concluir esta task.
 
 ## Alvos explicitos
@@ -51,7 +51,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 3. Definir `package.json`, `tsconfig`, scripts `build`, `typecheck` e `test` para host e extensao quando a task for executada.
 4. Registrar escolha de bundler/build da extensao MV3 antes de `TASK-AT-203`.
 5. Planejar integracao com `npm run up`/bancada local sem iniciar runtime automaticamente.
-6. Atualizar lockfile apenas se a execucao futura instalar dependencia aprovada; nesta rodada documental nao instalar nada.
+6. Atualizar lockfile para registrar os novos workspaces e dependencias ja adotadas no monorepo, sem iniciar runtime.
 
 ## Acceptance Criteria
 1. A estrutura respeita as quatro camadas.
