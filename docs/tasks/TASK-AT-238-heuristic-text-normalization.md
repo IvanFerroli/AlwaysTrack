@@ -1,7 +1,7 @@
 # TASK-AT-238 - CaseFlow Heuristica: normalizacao textual e sinais
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-238-heuristic-text-normalization.md

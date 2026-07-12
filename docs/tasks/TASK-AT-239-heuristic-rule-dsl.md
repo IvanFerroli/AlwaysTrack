@@ -1,7 +1,7 @@
 # TASK-AT-239 - CaseFlow Heuristica: DSL de regras
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-239-heuristic-rule-dsl.md

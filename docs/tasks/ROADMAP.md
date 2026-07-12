@@ -370,11 +370,11 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 
 #### CaseFlow Core e APIs base
 1. `TASK-AT-216`: CaseFlow Core: persistencia inicial. Status: completed.
-2. `TASK-AT-217`: CaseFlow Core: lifecycle service. Status: planned.
-3. `TASK-AT-218`: CaseFlow Core: EvidenceFact service. Status: planned.
-4. `TASK-AT-219`: CaseFlow Core: conflitos e autoridade por campo. Status: planned.
-5. `TASK-AT-220`: CaseFlow Core: ledger de ConnectorRun. Status: planned.
-6. `TASK-AT-221`: CaseFlow Core: auditoria, retencao e redaction. Status: planned.
+2. `TASK-AT-217`: CaseFlow Core: lifecycle service. Status: completed.
+3. `TASK-AT-218`: CaseFlow Core: EvidenceFact service. Status: completed.
+4. `TASK-AT-219`: CaseFlow Core: conflitos e autoridade por campo. Status: completed.
+5. `TASK-AT-220`: CaseFlow Core: ledger de ConnectorRun. Status: completed.
+6. `TASK-AT-221`: CaseFlow Core: auditoria, retencao e redaction. Status: completed.
 7. `TASK-AT-222`: CaseFlow Security: enforcement do action firewall. Status: planned.
 8. `TASK-AT-223`: CaseFlow Security: regressao de acoes proibidas. Status: planned.
 9. `TASK-AT-224`: CaseFlow API: casos, evidencias e conflitos. Status: planned.
@@ -384,21 +384,21 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 13. `TASK-AT-228`: CaseFlow Core: desfazer overrides e metricas de correcao. Status: planned.
 
 #### Primeira vertical AlwaysChat + Rastreio
-1. `TASK-AT-229`: AlwaysChat: parser e fixture de intake. Status: planned.
+1. `TASK-AT-229`: AlwaysChat: parser e fixture de intake. Status: completed.
 2. `TASK-AT-230`: AlwaysChat: content script read-only. Status: planned.
 3. `TASK-AT-231`: CaseFlow: intake ponta a ponta do caso inicial. Status: planned.
 4. `TASK-AT-232`: Side panel: montar, cancelar e atualizar caso. Status: planned.
-5. `TASK-AT-233`: Rastreio no Lancador: parser e fixtures. Status: planned.
+5. `TASK-AT-233`: Rastreio no Lancador: parser e fixtures. Status: completed.
 6. `TASK-AT-234`: Rastreio no Lancador: runtime read-only. Status: planned.
 7. `TASK-AT-235`: CaseFlow: resumo deterministico parcial. Status: planned.
 8. `TASK-AT-236`: CaseFlow: shadow mode vertical simples. Status: planned.
 9. `TASK-AT-237`: CaseFlow: comparacao manual no shadow mode. Status: planned.
 
 #### Heuristica deterministica
-1. `TASK-AT-238`: CaseFlow Heuristica: normalizacao textual e sinais. Status: planned.
-2. `TASK-AT-239`: CaseFlow Heuristica: DSL de regras. Status: planned.
-3. `TASK-AT-240`: CaseFlow Heuristica: scoring, hard rules e candidatos. Status: planned.
-4. `TASK-AT-241`: CaseFlow Heuristica: baixa confianca e triagem. Status: planned.
+1. `TASK-AT-238`: CaseFlow Heuristica: normalizacao textual e sinais. Status: completed.
+2. `TASK-AT-239`: CaseFlow Heuristica: DSL de regras. Status: completed.
+3. `TASK-AT-240`: CaseFlow Heuristica: scoring, hard rules e candidatos. Status: completed.
+4. `TASK-AT-241`: CaseFlow Heuristica: baixa confianca e triagem. Status: completed.
 5. `TASK-AT-242`: CaseFlow API: resolucao heuristica. Status: planned.
 6. `TASK-AT-243`: CaseFlow Heuristica: golden cases. Status: planned.
 

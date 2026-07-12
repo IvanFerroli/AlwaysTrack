@@ -1,7 +1,7 @@
 # TASK-AT-229 - AlwaysChat: parser e fixture de intake
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-229-alwayschat-intake-parser.md

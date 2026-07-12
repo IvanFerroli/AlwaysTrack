@@ -1,7 +1,7 @@
 # TASK-AT-233 - Rastreio no Lancador: parser e fixtures
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-233-rastreio-lancador-parser.md

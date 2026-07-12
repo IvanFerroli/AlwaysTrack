@@ -1,7 +1,7 @@
 # TASK-AT-218 - CaseFlow Core: EvidenceFact service
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-218-caseflow-evidence-service.md

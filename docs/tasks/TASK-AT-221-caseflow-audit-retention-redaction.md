@@ -1,7 +1,7 @@
 # TASK-AT-221 - CaseFlow Core: auditoria, retencao e redaction
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-221-caseflow-audit-retention-redaction.md

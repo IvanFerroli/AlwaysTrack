@@ -1,7 +1,7 @@
 # TASK-AT-241 - CaseFlow Heuristica: baixa confianca e triagem
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-241-heuristic-low-confidence-triage.md
