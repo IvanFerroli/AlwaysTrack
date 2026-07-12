@@ -1,0 +1,1 @@
+{"outcome":"FOUND","records":[{"authorization":"AUT-SYN-1","objectCode":"OBJ-SYN-1","recipient":"Cliente Exemplo","reverseCode":"REV-SYN-1","validity":"2026-08-01","state":"AUTHORIZED"},{"authorization":"AUT-SYN-2","recipient":"Cliente Exemplo","reverseCode":"REV-SYN-2","validity":"2026-08-02","postedAt":"2026-07-12","trackingCode":"CR-SYN-2","state":"POSTED"}]}

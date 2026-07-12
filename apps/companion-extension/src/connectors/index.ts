@@ -1,1 +1,2 @@
-export const extensionConnectorsLayerReady = false;
+export { connectorDefinitions, connectorRegistry } from "@alwaystrack/shared";
+export const extensionConnectorsLayerReady = true;
