@@ -1,7 +1,7 @@
 # TASK-AT-299 - Docs: arquitetura, API e contratos CaseFlow
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-299-caseflow-docs-architecture-api-contracts.md

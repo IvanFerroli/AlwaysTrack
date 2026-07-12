@@ -1,7 +1,7 @@
 # TASK-AT-291 - CaseFlow: regressao anti dado cruzado
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-291-cross-case-data-regression.md

@@ -1,7 +1,7 @@
 # TASK-AT-258 - Mensagens: politica de placeholders faltantes
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-258-message-placeholder-policy.md

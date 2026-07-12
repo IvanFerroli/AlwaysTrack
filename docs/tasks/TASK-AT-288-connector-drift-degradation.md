@@ -1,7 +1,7 @@
 # TASK-AT-288 - Connectors: drift detection e degradacao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-288-connector-drift-degradation.md

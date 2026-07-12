@@ -1,7 +1,7 @@
 # TASK-AT-256 - Side panel: ergonomia e atalhos configuraveis
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-256-side-panel-ergonomics-shortcuts.md

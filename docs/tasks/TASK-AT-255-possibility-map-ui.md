@@ -1,7 +1,7 @@
 # TASK-AT-255 - Side panel: mapa de possibilidades
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-255-possibility-map-ui.md

@@ -1,7 +1,7 @@
 # TASK-AT-253 - Side panel: estabilidade visual da reconciliacao incremental
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-253-progressive-plan-stability-ui.md

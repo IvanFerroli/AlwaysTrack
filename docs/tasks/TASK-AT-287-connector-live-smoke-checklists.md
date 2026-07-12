@@ -1,7 +1,7 @@
 # TASK-AT-287 - Connectors: checklists de live smoke manual
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-287-connector-live-smoke-checklists.md

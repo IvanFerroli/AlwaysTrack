@@ -1,7 +1,7 @@
 # TASK-AT-252 - Side panel: stepper guiado operacional
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-252-guided-stepper-side-panel.md

@@ -1,7 +1,7 @@
 # TASK-AT-261 - CaseFlow API: mensagens e copia
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-261-message-copy-api.md

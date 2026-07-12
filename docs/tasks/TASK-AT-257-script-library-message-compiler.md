@@ -1,7 +1,7 @@
 # TASK-AT-257 - Mensagens: compilador sem IA via Scriptoteca
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-257-script-library-message-compiler.md

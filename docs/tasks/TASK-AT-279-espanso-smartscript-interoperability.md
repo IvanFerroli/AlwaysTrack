@@ -1,7 +1,7 @@
 # TASK-AT-279 - Scriptoteca: interoperabilidade Espanso e SmartScript
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-279-espanso-smartscript-interoperability.md

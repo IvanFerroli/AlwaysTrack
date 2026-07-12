@@ -1,7 +1,7 @@
 # TASK-AT-260 - Mensagens: saidas por canal e tipo
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-260-message-output-channels.md
