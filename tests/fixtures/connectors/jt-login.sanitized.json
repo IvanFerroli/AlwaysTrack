@@ -1,0 +1,1 @@
+{"id":"jt-login","connectorId":"jt-vip","sanitized":true,"pageKind":"LOGIN","html":"<main data-testid=\"login\"><input type=\"text\" autocomplete=\"off\"></main>","selectorMatches":{"[data-testid=login]":"login"},"payload":{"outcome":"BLOCKED_LOGIN","records":[],"message":"Manual login required"},"expectedOutcome":"BLOCKED_LOGIN"}

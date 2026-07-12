@@ -1,0 +1,1 @@
+{"id":"omie-unexpected","connectorId":"omie-filial","sanitized":true,"pageKind":"UNEXPECTED_PAGE","html":"<main data-page=\"unknown\">Synthetic unexpected page</main>","selectorMatches":{},"payload":{"outcome":"FAILED_UNEXPECTED_PAGE","records":[],"message":"Synthetic unexpected page"},"expectedOutcome":"FAILED_UNEXPECTED_PAGE"}

@@ -1,0 +1,1 @@
+{"id":"correios-2fa","connectorId":"correios-reversa","sanitized":true,"pageKind":"TWO_FACTOR","html":"<main aria-label=\"synthetic second factor\">Manual confirmation required</main>","selectorMatches":{"[aria-label='synthetic second factor']":"2fa"},"payload":{"outcome":"BLOCKED_2FA","records":[],"message":"Manual second factor required"},"expectedOutcome":"BLOCKED_2FA"}

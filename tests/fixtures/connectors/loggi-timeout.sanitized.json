@@ -1,0 +1,1 @@
+{"id":"loggi-timeout","connectorId":"loggi","sanitized":true,"pageKind":"TIMEOUT","html":"<main data-testid=\"loading\">Synthetic timeout</main>","selectorMatches":{},"payload":{"outcome":"FAILED_TIMEOUT","records":[],"message":"Synthetic timeout"},"expectedOutcome":"FAILED_TIMEOUT"}

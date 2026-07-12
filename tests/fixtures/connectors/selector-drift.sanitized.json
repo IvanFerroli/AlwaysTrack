@@ -1,0 +1,1 @@
+{"id":"selector-drift","connectorId":"jt-vip","sanitized":true,"pageKind":"SEARCH_RESULT","html":"<main class=\"changed-results\">Synthetic changed layout</main>","selectorMatches":{},"payload":{"outcome":"FAILED_SELECTOR_DRIFT","records":[],"message":"Synthetic selector drift"},"expectedOutcome":"FAILED_SELECTOR_DRIFT"}

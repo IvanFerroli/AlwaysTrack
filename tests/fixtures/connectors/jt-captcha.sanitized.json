@@ -1,0 +1,1 @@
+{"id":"jt-captcha","connectorId":"jt-vip","sanitized":true,"pageKind":"CAPTCHA","html":"<main data-testid=\"captcha\">Synthetic manual challenge</main>","selectorMatches":{"[data-testid=captcha]":"captcha"},"payload":{"outcome":"BLOCKED_CAPTCHA","records":[],"message":"Manual captcha required"},"expectedOutcome":"BLOCKED_CAPTCHA"}

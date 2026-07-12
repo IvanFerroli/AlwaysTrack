@@ -1,0 +1,1 @@
+{"id":"yampi-empty","connectorId":"yampi","sanitized":true,"pageKind":"EMPTY","html":"<main data-testid=\"orders-empty\">Nenhum pedido sintetico</main>","selectorMatches":{"[data-testid=orders-empty]":"empty"},"payload":{"outcome":"NOT_FOUND_IN_SOURCE","records":[]},"expectedOutcome":"NOT_FOUND_IN_SOURCE"}
