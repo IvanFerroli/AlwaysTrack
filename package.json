@@ -14,6 +14,7 @@
     "dev:web": "npm run dev --workspace @alwaystrack/web",
     "caseflow:typecheck": "npm run typecheck --workspace @alwaystrack/shared && npm run typecheck --workspace @alwaystrack/companion-host && npm run typecheck --workspace @alwaystrack/companion-extension",
     "companion:host:build": "npm run build --workspace @alwaystrack/companion-host",
+    "companion:host:start": "npm run start --workspace @alwaystrack/companion-host",
     "companion:extension:build": "npm run build --workspace @alwaystrack/companion-extension",
     "up": "node scripts/start-all.js",
     "setup": "node scripts/start-all.js --setup-only",

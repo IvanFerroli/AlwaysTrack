@@ -1,7 +1,7 @@
 # TASK-AT-203 - Extensao: shell Chromium Manifest V3
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-203-companion-extension-mv3-shell.md
@@ -30,7 +30,7 @@ Esta task faz parte da derivacao corretiva da frente CaseFlow Engine + AlwaysTra
 
 ## Dependencias
 - satisfeitas: SPEC consolidada e backlog corretivo materializado.
-- em aberto: `TASK-AT-195`, `TASK-AT-197`, `TASK-AT-201`, `TASK-AT-202`.
+- satisfeitas nesta execucao: `TASK-AT-195`, `TASK-AT-197`, `TASK-AT-201`, `TASK-AT-202`.
 - gate operacional obrigatorio: checklist aplicavel de `docs/operations/companion-topology-gate.md` registrado antes de concluir esta task.
 
 ## Alvos explicitos

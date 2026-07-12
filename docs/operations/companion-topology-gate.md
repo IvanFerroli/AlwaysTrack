@@ -31,3 +31,8 @@ Cada evidencia registra data, topologia, resultado e duracao, sem IP persistente
 | `TASK-AT-211` | todos os probes de lifecycle, Origin, bind e reconexao aplicaveis |
 
 O subconjunto de `TASK-AT-202` esta concluido. Suspensao, rede/VPN e WebSocket permanecem explicitamente deferidos para `TASK-AT-211`, sem serem tratados como aprovados.
+
+## Evidencia de shells
+- [x] `TASK-AT-203`: manifest MV3 validado com somente `sidePanel`, sem host permissions; pacote gera e valida manifest, service worker e side panel.
+- [x] `TASK-AT-210`: health testado em porta efemera com endereco `127.0.0.1`; binds `0.0.0.0`, LAN, IPv6 aberto e alias `localhost` foram rejeitados; `SIGINT` e `SIGTERM` liberam a porta.
+- Lifecycle WSL, suspensao, VPN, WebSocket, Origin e reconexao continuam abertos para `TASK-AT-211`.

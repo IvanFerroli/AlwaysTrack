@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "AlwaysTrack Companion",
+  "version": "0.1.0",
+  "description": "Copiloto SAC local do AlwaysTrack.",
+  "permissions": ["sidePanel"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Abrir Copiloto SAC"
+  },
+  "side_panel": {
+    "default_path": "side-panel/index.html"
+  }
+}

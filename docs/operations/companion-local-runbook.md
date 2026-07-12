@@ -1,7 +1,7 @@
 # Companion Local Runbook
 
 ## Metadata
-- status: draft-until-host-shell
+- status: active-health-shell
 - owner: operations-maintainers
 - last-updated: 2026-07-12
 - related-task: TASK-AT-195
@@ -11,6 +11,11 @@
 2. Confirmar que WSL2 esta ativo e que `localhost` Windows encaminha para um endpoint descartavel no WSL.
 3. Confirmar que o listener usa `127.0.0.1`; falhar o startup se receber `0.0.0.0` ou endereco de LAN.
 4. Confirmar que nenhuma senha, cookie ou token de sistema externo foi configurado no Host.
+
+## Health shell
+O Host permanece separado da API e nao entra em `npm run up` nesta fase. Para validacao manual: compilar com `npm run companion:host:build` e iniciar explicitamente com `npm run companion:host:start`. O unico endpoint e `GET http://127.0.0.1:38472/health`.
+
+`COMPANION_HOST_BIND` aceita apenas `127.0.0.1`; qualquer outro valor encerra o processo antes do listen. `SIGINT` e `SIGTERM` fecham o servidor e liberam a porta. WebSocket, pairing e reconexao pertencem a `TASK-AT-211`.
 
 ## Probe sem dados reais
 Subir um endpoint temporario sem payload em porta nao reservada, consultar `http://localhost:<porta>` pelo PowerShell e encerrar o processo. Registrar apenas horario, sucesso, duracao e topologia; nao registrar headers, cookies ou corpo de paginas.
