@@ -1,0 +1,7 @@
+{
+  "searchedBy": "EMAIL",
+  "orders": [
+    { "id": "ORDER-DEMO-3001", "status": "EM_TRANSITO", "products": [{ "name": "Produto Sintetico B", "quantity": 1 }], "payment": { "status": "APROVADO", "method": "CARTAO" }, "carrier": "Transportadora Exemplo", "trackingCodes": ["TRACK-DEMO-3001"], "movements": [{ "status": "COLETADO", "occurredAt": "2026-02-01T08:00:00.000Z" }], "reshipments": [] },
+    { "id": "ORDER-DEMO-3002", "status": "PROCESSANDO", "products": [{ "name": "Produto Sintetico C", "quantity": 1 }], "trackingCodes": [], "movements": [], "reshipments": [] }
+  ]
+}

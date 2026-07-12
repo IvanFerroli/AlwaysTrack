@@ -1,0 +1,11 @@
+{
+  "searchedBy": "ORDER",
+  "orders": [{
+    "id": "ORDER-DEMO-2001", "createdAt": "2026-01-02T12:00:00.000Z", "status": "ENTREGUE", "forecast": "2026-01-08",
+    "products": [{ "name": "Produto Sintetico A", "quantity": 2 }], "payment": { "status": "APROVADO", "method": "PIX" },
+    "address": "Endereco Sintetico, 100", "carrier": "Transportadora Exemplo", "trackingCodes": ["TRACK-DEMO-2001"],
+    "movements": [{ "status": "EM_ROTA", "occurredAt": "2026-01-08T09:00:00.000Z", "location": "Centro Exemplo" }, { "status": "ENTREGUE", "occurredAt": "2026-01-08T14:30:00.000Z", "details": "Entrega sintetica concluida" }],
+    "reshipments": [{ "orderId": "ORDER-DEMO-2001-R1", "trackingCode": "TRACK-DEMO-2001-R1", "createdAt": "2026-01-05T10:00:00.000Z", "status": "SUBSTITUIDO" }],
+    "delivery": { "deliveredAt": "2026-01-08T14:30:00.000Z", "receiver": "Recebedor Exemplo", "proof": "proof-demo-2001" }
+  }]
+}

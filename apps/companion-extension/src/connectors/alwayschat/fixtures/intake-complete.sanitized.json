@@ -1,0 +1,13 @@
+{
+  "conversation": { "id": "conversation-demo-001", "url": "https://alwayschat.invalid/conversations/demo-001", "channel": "WHATSAPP", "tags": ["entrega", "prioridade-normal"], "previousAgent": "Agente Exemplo" },
+  "customer": { "name": "Cliente Exemplo", "cpf": "CPF-DEMO-0001", "email": "cliente@example.invalid", "phone": "PHONE-DEMO-0001" },
+  "displayedOrder": "ORDER-DEMO-1001",
+  "orders": [{ "id": "ORDER-DEMO-1001", "status": "EM_TRANSPORTE", "coupons": ["CUPOM-DEMO"] }],
+  "history": [{ "id": "message-demo-001", "author": "CUSTOMER", "text": "Meu pedido sintetico ainda nao chegou.", "sentAt": "2026-01-10T10:00:00.000Z", "attachments": [] }],
+  "recentMessages": [{ "id": "message-demo-002", "author": "AGENT", "text": "Vou consultar o rastreio.", "sentAt": "2026-01-10T10:01:00.000Z", "attachments": [{ "id": "attachment-demo-001", "name": "comprovante-sintetico.pdf", "mediaType": "application/pdf", "url": "https://files.invalid/attachment-demo-001" }] }],
+  "visibleAttachments": [{ "id": "attachment-demo-001", "name": "comprovante-sintetico.pdf", "mediaType": "application/pdf", "url": "https://files.invalid/attachment-demo-001" }],
+  "visibleCoupons": ["CUPOM-DEMO"],
+  "customerText": "Meu pedido sintetico ainda nao chegou.",
+  "apparentIntent": "Consultar atraso de entrega",
+  "citedInformation": ["Cliente informou que a previsao exibida venceu ontem."]
+}
