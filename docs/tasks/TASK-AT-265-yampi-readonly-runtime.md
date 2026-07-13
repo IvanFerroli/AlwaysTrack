@@ -1,7 +1,7 @@
 # TASK-AT-265 - Yampi: runtime read-only
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-265-yampi-readonly-runtime.md

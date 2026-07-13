@@ -1,7 +1,7 @@
 # TASK-AT-232 - Side panel: montar, cancelar e atualizar caso
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-232-side-panel-montar-caso.md

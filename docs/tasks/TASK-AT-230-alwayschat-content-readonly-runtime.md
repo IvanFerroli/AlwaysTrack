@@ -1,7 +1,7 @@
 # TASK-AT-230 - AlwaysChat: content script read-only
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-230-alwayschat-content-readonly-runtime.md

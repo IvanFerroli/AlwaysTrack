@@ -1,7 +1,7 @@
 # TASK-AT-214 - Companion Host: cache, timeout e cancelamento
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-214-host-cache-timeout-cancel.md

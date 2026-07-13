@@ -1,7 +1,7 @@
 # TASK-AT-231 - CaseFlow: intake ponta a ponta do caso inicial
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-231-caseflow-intake-e2e.md

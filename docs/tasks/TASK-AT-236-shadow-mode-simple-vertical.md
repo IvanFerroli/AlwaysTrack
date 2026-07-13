@@ -1,7 +1,7 @@
 # TASK-AT-236 - CaseFlow: shadow mode vertical simples
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-236-shadow-mode-simple-vertical.md

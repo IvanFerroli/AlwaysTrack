@@ -1,7 +1,7 @@
 # TASK-AT-212 - Companion Host: cliente API AlwaysTrack e confianca local
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-212-host-alwaystrack-api-client-trust.md

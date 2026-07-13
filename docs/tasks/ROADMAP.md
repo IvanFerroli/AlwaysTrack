@@ -363,10 +363,10 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 #### Companion Host
 1. `TASK-AT-210`: Companion Host: shell Node TypeScript. Status: completed.
 2. `TASK-AT-211`: Companion Host: WebSocket loopback e pairing. Status: implementation-complete-manual-gate-pending.
-3. `TASK-AT-212`: Companion Host: cliente API AlwaysTrack e confianca local. Status: planned.
-4. `TASK-AT-213`: Companion Host: orquestrador progressivo. Status: planned.
-5. `TASK-AT-214`: Companion Host: cache, timeout e cancelamento. Status: planned.
-6. `TASK-AT-215`: Companion Host: preaquecimento e saude local. Status: planned.
+3. `TASK-AT-212`: Companion Host: cliente API AlwaysTrack e confianca local. Status: implementation-complete-live-gate-pending.
+4. `TASK-AT-213`: Companion Host: orquestrador progressivo. Status: implementation-complete-live-gate-pending.
+5. `TASK-AT-214`: Companion Host: cache, timeout e cancelamento. Status: implementation-complete-live-gate-pending.
+6. `TASK-AT-215`: Companion Host: preaquecimento e saude local. Status: implementation-complete-live-gate-pending.
 
 #### CaseFlow Core e APIs base
 1. `TASK-AT-216`: CaseFlow Core: persistencia inicial. Status: completed.
@@ -385,13 +385,13 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 
 #### Primeira vertical AlwaysChat + Rastreio
 1. `TASK-AT-229`: AlwaysChat: parser e fixture de intake. Status: completed.
-2. `TASK-AT-230`: AlwaysChat: content script read-only. Status: planned.
-3. `TASK-AT-231`: CaseFlow: intake ponta a ponta do caso inicial. Status: planned.
-4. `TASK-AT-232`: Side panel: montar, cancelar e atualizar caso. Status: planned.
+2. `TASK-AT-230`: AlwaysChat: content script read-only. Status: implementation-complete-live-gate-pending.
+3. `TASK-AT-231`: CaseFlow: intake ponta a ponta do caso inicial. Status: completed.
+4. `TASK-AT-232`: Side panel: montar, cancelar e atualizar caso. Status: completed.
 5. `TASK-AT-233`: Rastreio no Lancador: parser e fixtures. Status: completed.
-6. `TASK-AT-234`: Rastreio no Lancador: runtime read-only. Status: planned.
-7. `TASK-AT-235`: CaseFlow: resumo deterministico parcial. Status: planned.
-8. `TASK-AT-236`: CaseFlow: shadow mode vertical simples. Status: planned.
+6. `TASK-AT-234`: Rastreio no Lancador: runtime read-only. Status: implementation-complete-live-gate-pending.
+7. `TASK-AT-235`: CaseFlow: resumo deterministico parcial. Status: completed.
+8. `TASK-AT-236`: CaseFlow: shadow mode vertical simples. Status: implementation-complete-live-gate-pending.
 9. `TASK-AT-237`: CaseFlow: comparacao manual no shadow mode. Status: planned.
 
 #### Heuristica deterministica
@@ -428,10 +428,10 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 #### Conectores consultivos e rascunhos
 1. `TASK-AT-263`: Connectors: registry runtime. Status: completed.
 2. `TASK-AT-264`: Yampi: parser e fixtures. Status: completed.
-3. `TASK-AT-265`: Yampi: runtime read-only. Status: planned.
+3. `TASK-AT-265`: Yampi: runtime read-only. Status: implementation-complete-live-gate-pending.
 4. `TASK-AT-266`: OMIE: parser base e fixtures. Status: completed.
-5. `TASK-AT-267`: OMIE Filial: runtime read-only. Status: planned.
-6. `TASK-AT-268`: OMIE Pharma: runtime restrito. Status: planned.
+5. `TASK-AT-267`: OMIE Filial: runtime read-only. Status: implementation-complete-live-gate-pending.
+6. `TASK-AT-268`: OMIE Pharma: runtime restrito. Status: implementation-complete-live-gate-pending.
 7. `TASK-AT-269`: Loggi: parser e fixtures. Status: completed.
 8. `TASK-AT-270`: Loggi: runtime read-only. Status: planned.
 9. `TASK-AT-271`: J&T VIP: parser e fixtures. Status: completed.

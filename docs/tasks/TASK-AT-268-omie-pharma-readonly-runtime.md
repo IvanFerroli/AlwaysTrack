@@ -1,7 +1,7 @@
 # TASK-AT-268 - OMIE Pharma: runtime restrito
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-268-omie-pharma-readonly-runtime.md

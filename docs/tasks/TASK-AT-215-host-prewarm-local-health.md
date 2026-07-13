@@ -1,7 +1,7 @@
 # TASK-AT-215 - Companion Host: preaquecimento e saude local
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-215-host-prewarm-local-health.md
