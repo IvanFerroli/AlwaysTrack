@@ -16,3 +16,7 @@ export * from "./sessions.service.js";
 export * from "./plan.service.js";
 export * from "./messages.service.js";
 export * from "./partial-summary.service.js";
+export * from "./shadow-comparison.service.js";
+export * from "./shadow-comparison.handlers.js";
+export * from "./recovery.service.js";
+export * from "./recovery.handlers.js";

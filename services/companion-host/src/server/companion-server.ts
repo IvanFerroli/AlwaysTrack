@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import type { CompanionHostConfig } from "../config.js";
 import type { PairingAuthority, ConsumedPairingGrant } from "../security/index.js";
+import { ProtocolSecurityGuard } from "../security/protocol-security.js";
 
 const extensionEventTypes = new Set([
   "BROWSER_READY", "CASE_INTAKE", "CONNECTOR_PROGRESS", "CONNECTOR_RESULT",
@@ -55,7 +56,7 @@ export function attachCompanionGateway(options: CompanionGatewayOptions): Compan
   const now = options.now ?? Date.now;
   const websocketServer = new WebSocketServer({ noServer: true, maxPayload: config.maxPayloadBytes });
   const attempts = new Map<string, number[]>();
-  const seenMessageIds = new Map<string, number>();
+  const security = new ProtocolSecurityGuard({ messageTtlMs: config.sessionTokenTtlMs, maxFutureSkewMs: 30_000, messageRateLimit: config.connectionRateLimit * 10, messageRateWindowMs: config.connectionRateWindowMs }, now);
   const identities = new WeakMap<WebSocket, ConsumedPairingGrant>();
   let closing = false;
 
@@ -64,6 +65,7 @@ export function attachCompanionGateway(options: CompanionGatewayOptions): Compan
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     if (url.pathname !== "/" && url.pathname !== "/companion") return rejectUpgrade(socket, 404, "Not Found");
     if (request.headers.origin !== config.allowedOrigin) return rejectUpgrade(socket, 403, "Forbidden");
+    if (security.validatePeer(request.socket.remoteAddress) !== "OK") return rejectUpgrade(socket, 403, "Forbidden");
 
     const address = request.socket.remoteAddress ?? "unknown";
     const cutoff = now() - config.connectionRateWindowMs;
@@ -133,13 +135,8 @@ export function attachCompanionGateway(options: CompanionGatewayOptions): Compan
         websocket.close(1008, "INVALID_DIRECTION");
         return;
       }
-      const replayCutoff = now() - config.sessionTokenTtlMs;
-      for (const [id, time] of seenMessageIds) if (time <= replayCutoff) seenMessageIds.delete(id);
-      if (seenMessageIds.has(message.messageId)) {
-        websocket.close(1008, "REPLAYED_MESSAGE");
-        return;
-      }
-      seenMessageIds.set(message.messageId, now());
+      const securityResult = security.validateMessage(identity.installationId, message.messageId, message.timestamp);
+      if (securityResult !== "OK") { websocket.close(1008, securityResult); return; }
       void Promise.resolve(options.onMessage?.(message, identity)).catch(() => websocket.close(1011, "HANDLER_FAILURE"));
     });
     websocket.once("close", () => clearTimeout(preAuthTimeout));

@@ -32,9 +32,9 @@ export const companionHandlers = {
   },
   ingestFacts: async (request: Request, response: Response) => {
     try {
-      const input = body(request); const authorization = request.header("authorization") ?? ""; const token = authorization.startsWith("Companion ") ? authorization.slice(10) : "";
+      const input = body(request); const authorization = request.header("authorization") ?? ""; const credential = authorization.startsWith("Companion ") ? authorization.slice(10) : "";
       const correlation = { installationId: text(input.installationId) ?? "", userId: text(input.userId) ?? "", browserProfileId: text(input.browserProfileId) ?? "", caseId: String(request.params.caseId ?? ""), runId: String(request.params.runId ?? "") };
-      const trusted = await authorizeCompanionMutation(prisma, token, correlation, { enabled: enabled() });
+      const trusted = await authorizeCompanionMutation(prisma, credential, correlation, { enabled: enabled() });
       if (!Array.isArray(input.facts) || input.facts.some((fact) => !fact || typeof fact !== "object" || (fact as { caseId?: unknown }).caseId !== correlation.caseId || (fact as { connectorRunId?: unknown }).connectorRunId !== correlation.runId)) throw new CompanionTrustError("CORRELATION_MISMATCH");
       const actor = { id: trusted.actor.id, organizationId: trusted.actor.organizationId } as CurrentUser;
       return sendOk(response, await ingestFacts(prisma, actor, correlation.caseId, input.facts as never), 201);
