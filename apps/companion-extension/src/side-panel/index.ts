@@ -5,5 +5,6 @@ export * from "./plan-updates/plan-updates.js";
 export * from "./possibilities/possibilities.js";
 export * from "./stepper/stepper.js";
 export * from "./messages/index.js";
+export * from "./case-intake/index.js";
 
 export const sidePanelLayerReady = true;
