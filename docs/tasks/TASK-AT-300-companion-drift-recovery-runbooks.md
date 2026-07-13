@@ -1,7 +1,7 @@
 # TASK-AT-300 - Runbooks: Companion, drift e recuperacao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-300-companion-drift-recovery-runbooks.md

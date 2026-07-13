@@ -1,7 +1,7 @@
 # TASK-AT-295 - CaseFlow: export, backup e restore de regras, fluxos e configuracoes
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-295-caseflow-backup-restore-config.md

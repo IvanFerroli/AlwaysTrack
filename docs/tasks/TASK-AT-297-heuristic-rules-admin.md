@@ -1,7 +1,7 @@
 # TASK-AT-297 - AlwaysTrack Web: administracao de regras heuristicas
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-297-heuristic-rules-admin.md

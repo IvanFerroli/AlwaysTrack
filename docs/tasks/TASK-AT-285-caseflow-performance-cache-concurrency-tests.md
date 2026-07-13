@@ -1,7 +1,7 @@
 # TASK-AT-285 - CaseFlow: testes de performance, cache e concorrencia
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-285-caseflow-performance-cache-concurrency-tests.md

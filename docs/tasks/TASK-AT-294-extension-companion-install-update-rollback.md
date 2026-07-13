@@ -1,7 +1,7 @@
 # TASK-AT-294 - Companion: instalacao, atualizacao e rollback
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-294-extension-companion-install-update-rollback.md

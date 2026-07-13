@@ -1,7 +1,7 @@
 # TASK-AT-284 - CaseFlow: instrumentacao de SLO progressivo
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-284-caseflow-slo-instrumentation.md

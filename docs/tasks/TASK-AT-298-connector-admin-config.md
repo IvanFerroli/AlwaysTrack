@@ -1,7 +1,7 @@
 # TASK-AT-298 - AlwaysTrack Web: administracao de conectores e sistemas
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-298-connector-admin-config.md

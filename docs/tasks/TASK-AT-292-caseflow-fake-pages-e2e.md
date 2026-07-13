@@ -1,7 +1,7 @@
 # TASK-AT-292 - CaseFlow: E2E com paginas fake
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-292-caseflow-fake-pages-e2e.md

@@ -1,7 +1,7 @@
 # TASK-AT-296 - AlwaysTrack Web: historico de casos CaseFlow
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-296-caseflow-web-admin-history.md

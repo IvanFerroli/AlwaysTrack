@@ -1,7 +1,7 @@
 # TASK-AT-301 - Demo: seeds, fixtures e roteiro guiado
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-301-caseflow-demo-seeds-fixtures.md
