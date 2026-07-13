@@ -1,4 +1,11 @@
 export { connectorDefinitions, connectorRegistry } from "@alwaystrack/shared";
 export * from "./alwayschat/runtime.js";
 export * from "./rastreio/runtime.js";
+export * from "./loggi/runtime.js";
+export * from "./jt-vip/runtime.js";
+export * from "./correios-reversa/runtime.js";
+export * from "./lancador/read-only.js";
+export * from "./alwayschat/draft.js";
+export * from "./lancador/draft.js";
+export * from "./lancador/manual-detection.js";
 export const extensionConnectorsLayerReady = true;
