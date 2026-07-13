@@ -58,6 +58,7 @@ export interface ApiEnv {
   rateLimitSearchMax?: number;
   rateLimitInteractionMax?: number;
   rateLimitAdminMax?: number;
+  enableCompanionRuntime?: boolean;
 }
 
 let dotEnvLoaded = false;
@@ -162,6 +163,7 @@ export function loadEnv(source = process.env): ApiEnv {
     rateLimitAiMax: Number(source.RATE_LIMIT_AI_MAX ?? "10"),
     rateLimitSearchMax: Number(source.RATE_LIMIT_SEARCH_MAX ?? "120"),
     rateLimitInteractionMax: Number(source.RATE_LIMIT_INTERACTION_MAX ?? "60"),
-    rateLimitAdminMax: Number(source.RATE_LIMIT_ADMIN_MAX ?? "90")
+    rateLimitAdminMax: Number(source.RATE_LIMIT_ADMIN_MAX ?? "90"),
+    enableCompanionRuntime: source.ENABLE_COMPANION_RUNTIME === "true"
   };
 }

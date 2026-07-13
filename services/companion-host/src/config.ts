@@ -9,6 +9,11 @@ export interface CompanionHostConfig {
   connectionRateLimit: number;
   connectionRateWindowMs: number;
   preAuthTimeoutMs: number;
+  runtimeEnabled: boolean;
+  connectorConcurrency: number;
+  connectorTimeoutMs: number;
+  operationalCacheTtlMs: number;
+  stableCacheTtlMs: number;
 }
 
 function positiveInteger(value: string | undefined, fallback: number, name: string): number {
@@ -40,6 +45,11 @@ export function loadCompanionHostConfig(env: NodeJS.ProcessEnv = process.env): C
     maxPayloadBytes: positiveInteger(env.COMPANION_HOST_MAX_PAYLOAD_BYTES, 64 * 1024, "COMPANION_HOST_MAX_PAYLOAD_BYTES"),
     connectionRateLimit: positiveInteger(env.COMPANION_HOST_RATE_LIMIT, 20, "COMPANION_HOST_RATE_LIMIT"),
     connectionRateWindowMs: positiveInteger(env.COMPANION_HOST_RATE_WINDOW_MS, 60_000, "COMPANION_HOST_RATE_WINDOW_MS"),
-    preAuthTimeoutMs: positiveInteger(env.COMPANION_HOST_PREAUTH_TIMEOUT_MS, 5_000, "COMPANION_HOST_PREAUTH_TIMEOUT_MS")
+    preAuthTimeoutMs: positiveInteger(env.COMPANION_HOST_PREAUTH_TIMEOUT_MS, 5_000, "COMPANION_HOST_PREAUTH_TIMEOUT_MS"),
+    runtimeEnabled: env.COMPANION_HOST_RUNTIME_ENABLED === "true",
+    connectorConcurrency: positiveInteger(env.COMPANION_HOST_CONNECTOR_CONCURRENCY, 3, "COMPANION_HOST_CONNECTOR_CONCURRENCY"),
+    connectorTimeoutMs: positiveInteger(env.COMPANION_HOST_CONNECTOR_TIMEOUT_MS, 30_000, "COMPANION_HOST_CONNECTOR_TIMEOUT_MS"),
+    operationalCacheTtlMs: positiveInteger(env.COMPANION_HOST_OPERATIONAL_CACHE_TTL_MS, 120_000, "COMPANION_HOST_OPERATIONAL_CACHE_TTL_MS"),
+    stableCacheTtlMs: positiveInteger(env.COMPANION_HOST_STABLE_CACHE_TTL_MS, 300_000, "COMPANION_HOST_STABLE_CACHE_TTL_MS")
   };
 }

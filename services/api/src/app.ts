@@ -241,6 +241,7 @@ import { caseFlowStepHandlers } from "./core/case-flow/steps.handlers.js";
 import { caseFlowMessagesHandlers } from "./core/case-flow/messages.handlers.js";
 import { caseFlowAdminHandlers } from "./core/case-flow/admin/admin.handlers.js";
 import { caseFlowMetricsHandlers } from "./core/case-flow/metrics.handlers.js";
+import { companionHandlers } from "./core/case-flow/companion/companion.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -322,6 +323,9 @@ export function createApp() {
   app.post("/v1/script-library/scripts/:scriptId/copy", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, copyOperationalScriptHandler);
   app.get("/v1/service-flows", requireAuth, requireRole(commercialAllRoles), listServiceFlowsHandler);
   app.post("/v1/case-flow/cases", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, caseFlowHandlers.create);
+  app.post("/v1/companion/installations/credential", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, companionHandlers.issue);
+  app.post("/v1/companion/installations/:installationId/revoke", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, companionHandlers.revoke);
+  app.post("/v1/companion/cases/:caseId/runs/:runId/facts", rateLimits.companion, companionHandlers.ingestFacts);
   app.get("/v1/case-flow/cases/:caseId", requireAuth, requireRole(commercialAllRoles), caseFlowHandlers.get);
   app.patch("/v1/case-flow/cases/:caseId", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, caseFlowHandlers.patch);
   app.post("/v1/case-flow/cases/:caseId/intake", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, caseFlowHandlers.intake);

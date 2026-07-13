@@ -60,3 +60,12 @@ export function caseFlowSloDiagnostic(milestone: keyof typeof caseFlowSloTargets
   const targetMs = caseFlowSloTargetsMs[milestone];
   return { milestone, durationMs: Math.max(0, Math.round(durationMs)), targetMs, met: durationMs <= targetMs };
 }
+
+export type LocalPreflightState = "READY" | "BLOCKED_AUTH" | "UNAVAILABLE";
+export interface LocalConnectorProbe { connectorId: string; probeLocal(): Promise<{ state: LocalPreflightState; version: string; detail?: string }>; }
+export interface LocalPreflightInput { enabled: boolean; hostActive: boolean; extensionPaired: boolean; activeProfile: boolean; probes: readonly LocalConnectorProbe[]; now?: () => number; }
+export async function runLocalPreflight(input: LocalPreflightInput) {
+  if (!input.enabled) return { enabled: false, ready: false, checkedAt: new Date((input.now ?? Date.now)()).toISOString(), connectors: [] };
+  const connectors = await Promise.all(input.probes.map(async (probe) => ({ connectorId: probe.connectorId, ...await probe.probeLocal() })));
+  return { enabled: true, ready: input.hostActive && input.extensionPaired && input.activeProfile, checkedAt: new Date((input.now ?? Date.now)()).toISOString(), hostActive: input.hostActive, extensionPaired: input.extensionPaired, activeProfile: input.activeProfile, connectors };
+}
