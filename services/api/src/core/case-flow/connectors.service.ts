@@ -50,15 +50,16 @@ export async function finishConnectorRun(prisma: PrismaClient, scope: { organiza
   const finishedAt = input.finishedAt ?? new Date();
   const diagnostics = redactedDiagnostics(input.diagnostics);
   const updated = await prisma.connectorRun.update({ where: { id: run.id }, data: { status: input.status, warningsJson: input.warnings ? stringifyCaseFlowJson("CONNECTOR_WARNINGS", input.warnings) : undefined, diagnosticsJson: diagnostics ? stringifyCaseFlowJson("CONNECTOR_DIAGNOSTICS", diagnostics) : undefined, interventionCode: input.interventionCode, failureMessage: input.failureMessage, finishedAt } });
-  if (input.status === "FAILED_SELECTOR_DRIFT" || input.status === "FAILED_UNEXPECTED_PAGE") {
+  if (["FAILED_SELECTOR_DRIFT", "FAILED_UNEXPECTED_PAGE", "BLOCKED_AUTH", "BLOCKED_CAPTCHA"].includes(input.status)) {
+    const eventCode = input.status === "FAILED_SELECTOR_DRIFT" ? "SELECTOR_DRIFT" : input.status === "FAILED_UNEXPECTED_PAGE" ? "UNEXPECTED_PAGE" : input.status === "BLOCKED_AUTH" ? "LOGIN" : "CAPTCHA";
     await prisma.connectorHealthEvent.create({ data: {
       organizationId: scope.organizationId,
       connectorDefinitionId: run.connectorDefinitionId,
       installationId: run.installationId,
-      state: "DEGRADED",
+      state: input.status.startsWith("FAILED_") ? "DEGRADED" : "BLOCKED",
       connectorVersion: run.connectorDefinition.version,
       selectorVersion: run.connectorDefinition.selectorVersion,
-      eventCode: input.status === "FAILED_SELECTOR_DRIFT" ? "SELECTOR_DRIFT" : "UNEXPECTED_PAGE",
+      eventCode,
       diagnosticsJson: diagnostics ? stringifyCaseFlowJson("CONNECTOR_HEALTH_DIAGNOSTICS", diagnostics) : undefined,
       checkedAt: finishedAt
     } });

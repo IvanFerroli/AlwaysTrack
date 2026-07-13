@@ -38,5 +38,12 @@ Repetir o probe apos:
 - `WSL_FORWARDING_UNAVAILABLE`: executar Host no Windows ou aplicar proxy loopback aprovado pela arquitetura.
 - `PROFILE_MISMATCH`: impedir coleta e orientar troca para o perfil de trabalho.
 
+Depois de suspensao/retomada, considerar o Host indisponivel ate novo health. A extensao deve reconectar com backoff limitado, sem repetir runs terminais e sem migrar um run para outro caso. Pairing expirado exige novo fluxo; backup/rollback nunca restaura credencial de instalacao.
+
+Procedimentos coordenados: `companion-update-rollback-runbook.md` e `companion-backup-restore-runbook.md`.
+
+## Evidencia desta rodada
+Builds, testes e fixtures podem ser validados localmente. Chrome/Windows/WSL, pairing real, firewall e suspensao fisica continuam como checklist manual pendente; nao registrar esses itens como aprovados sem evidencia do ambiente autorizado.
+
 ## Proibicoes
 Nao abrir firewall para rede publica, fixar IP interno do WSL, exportar cookie, automatizar login/captcha/2FA ou testar conectores reais neste runbook. Logs devem ser redigidos conforme o threat model do Companion.

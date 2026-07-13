@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { degradedHealthFromDiagnostic, redactConnectorDiagnostic, type ConnectorDiagnosticInput } from "./index.js";
+import { caseFlowSloDiagnostic, degradedHealthFromDiagnostic, redactConnectorDiagnostic, type ConnectorDiagnosticInput } from "./index.js";
 
 const diagnostic = (caseId: string, runId: string): ConnectorDiagnosticInput => ({
   connectorId: "YAMPI",
@@ -17,6 +17,10 @@ const diagnostic = (caseId: string, runId: string): ConnectorDiagnosticInput => 
 });
 
 describe("connector drift diagnostics", () => {
+  it("exposes deterministic CaseFlow SLO diagnostics", () => {
+    expect(caseFlowSloDiagnostic("slowConnector", 10_001)).toEqual({ milestone: "slowConnector", durationMs: 10_001, targetMs: 10_000, met: false });
+    expect(caseFlowSloDiagnostic("connectorTimeout", 30_000).met).toBe(true);
+  });
   it("keeps only the diagnostic allowlist and derives degraded health", () => {
     const redacted = redactConnectorDiagnostic(diagnostic("case-a", "run-a"));
     expect(redacted).not.toHaveProperty("html");

@@ -1,0 +1,26 @@
+config:
+  target: "http://127.0.0.1:3333"
+  phases:
+    - duration: 5
+      arrivalRate: 1
+      name: offline fake connector diagnostics
+  defaults:
+    headers:
+      content-type: application/json
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+scenarios:
+  - name: tenant-scoped CaseFlow health and success metrics
+    flow:
+      - get:
+          url: "/health"
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - get:
+          url: "/v1/case-flow/connectors/health"
+      - get:
+          url: "/v1/case-flow/metrics/success"

@@ -1459,6 +1459,17 @@ button .icon {
   padding: 18px 18px 0;
 }
 
+.caseflow-health-view { display: grid; gap: 16px; }
+.caseflow-health-view .section-heading { align-items: center; display: flex; justify-content: space-between; }
+.caseflow-health-view .section-heading h1 { font-size: 24px; margin: 4px 0; }
+.caseflow-health-view .section-heading p { color: var(--color-muted); margin: 0; }
+.caseflow-health-view .eyebrow { align-items: center; color: var(--color-primary); display: flex; font-size: 12px; font-weight: 900; gap: 6px; text-transform: uppercase; }
+.caseflow-health-view td strong, .caseflow-health-view td small { display: block; }
+.caseflow-health-view td small { color: var(--color-muted); margin-top: 4px; }
+.caseflow-success-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .caseflow-success-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .caseflow-success-grid { grid-template-columns: 1fr; } }
+
 .operational-today-panel {
   display: grid;
   gap: 16px;
@@ -4226,6 +4237,18 @@ legend {
 }
 
 /* Responsividade */
+
+.caseflow-admin { display: grid; gap: 16px; min-width: 0; }
+.caseflow-admin-toolbar { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.segmented-control { display: flex; flex-wrap: wrap; gap: 4px; }
+.segmented-control button { min-height: 40px; }
+.caseflow-admin .error { align-items: center; display: flex; gap: 8px; }
+.caseflow-admin .error svg { height: 18px; width: 18px; }
+.caseflow-backup-layout { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.caseflow-backup-layout section { border-top: 3px solid var(--color-primary); padding-top: 16px; }
+.caseflow-backup-layout textarea { display: block; margin: 12px 0; resize: vertical; width: 100%; }
+
+@media (max-width: 860px) { .caseflow-backup-layout { grid-template-columns: 1fr; } }
 
 @media (max-width: 1100px) {
   .topbar {

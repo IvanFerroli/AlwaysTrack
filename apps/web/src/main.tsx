@@ -28,6 +28,7 @@ import {
   notificationStatuses,
   userRoles,
   commercialAllRoles,
+  commercialManagerRoles,
   commercialSalesAccessRoles,
   adminOnlyRoles,
   type ApiResult,
@@ -59,9 +60,11 @@ import { RankingView } from "./views/ranking";
 import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResponse } from "./views/settings";
 import { ScriptLibraryView } from "./views/script-library";
 import { ServiceFlowsView } from "./views/service-flows";
+import { CaseFlowHealthView } from "./views/case-flow/health";
 import { StatementsView } from "./views/statements";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
+import { CaseFlowAdminView } from "./views/case-flow/admin";
 import type { SalesDocumentListFilters, SalesFilters } from "./sales";
 import "./styles.css";
 
@@ -88,6 +91,7 @@ type ViewKey =
   | "statements"
   | "announcements"
   | "serviceFlows"
+  | "caseFlowHealth"
   | "scriptLibrary"
   | "wiki"
   | "faq"
@@ -99,7 +103,8 @@ type ViewKey =
   | "licenses"
   | "documents"
   | "reports"
-  | "settings";
+  | "settings"
+  | "caseFlowAdmin";
 type IconName =
   | "home"
   | "users"
@@ -495,6 +500,7 @@ const navItems: NavItem[] = [
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialSalesAccessRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
   { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: commercialAllRoles },
+  { key: "caseFlowHealth", label: "Saúde CaseFlow", description: "Conectores e métricas", icon: "scan", roles: commercialManagerRoles },
   { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
@@ -502,6 +508,7 @@ const navItems: NavItem[] = [
   { key: "settings", label: "Configurações", description: "Organização e defaults", icon: "settings", roles: adminOnlyRoles },
   { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: commercialAllRoles },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: adminOnlyRoles },
+  { key: "caseFlowAdmin", label: "CaseFlow Admin", description: "Casos, regras, conectores e backup", icon: "scan", roles: adminOnlyRoles },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
 ];
 
@@ -4438,6 +4445,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
         ) : activeItem.key === "serviceFlows" ? (
           <ServiceFlowsView user={user} />
+        ) : activeItem.key === "caseFlowHealth" ? (
+          <CaseFlowHealthView />
         ) : activeItem.key === "scriptLibrary" ? (
           <ScriptLibraryView user={user} />
         ) : activeItem.key === "users" ? (
@@ -4458,6 +4467,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           <FaqThreadsView user={user} initialStatus={viewIntent.faq?.status} />
         ) : activeItem.key === "audit" ? (
           <AuditView />
+        ) : activeItem.key === "caseFlowAdmin" ? (
+          <CaseFlowAdminView />
         ) : activeItem.key === "settings" ? (
           <OrganizationSettingsView onSaved={setOrganizationSettings} onOpenAudit={() => openView("audit")} />
         ) : activeItem.key === "profile" ? (

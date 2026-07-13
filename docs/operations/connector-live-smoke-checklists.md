@@ -4,6 +4,8 @@
 
 Este documento prepara uma validacao manual posterior. Nao e teste automatizado, nao substitui fixtures e nao autoriza credenciais no repositorio, logs ou evidencias. Nesta rodada nenhum smoke live foi executado.
 
+Pairing real, sessao autenticada, captcha/2FA, suspensao e firewall Windows nao podem ser aprovados por fixture. Marcar cada um como `PENDENTE_LIVE` ate execucao humana autorizada; nao inferir sucesso a partir de health fake.
+
 Antes de cada sistema: usar perfil de trabalho autorizado, confirmar ambiente nao produtivo quando disponivel, iniciar somente leitura, mascarar evidencias, registrar versao do conector/seletor e interromper diante de login, captcha, 2FA, pagina inesperada ou tentativa de escrita.
 
 ## Checklist comum por sistema

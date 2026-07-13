@@ -239,6 +239,8 @@ import { overrideHandlers } from "./core/case-flow/overrides.handlers.js";
 import { getCaseFlowPlanHandler } from "./core/case-flow/plan.handlers.js";
 import { caseFlowStepHandlers } from "./core/case-flow/steps.handlers.js";
 import { caseFlowMessagesHandlers } from "./core/case-flow/messages.handlers.js";
+import { caseFlowAdminHandlers } from "./core/case-flow/admin/admin.handlers.js";
+import { caseFlowMetricsHandlers } from "./core/case-flow/metrics.handlers.js";
 
 export function createApp() {
   const app = express();
@@ -326,6 +328,14 @@ export function createApp() {
   app.post("/v1/case-flow/cases/:caseId/facts", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, caseFlowHandlers.addFacts);
   app.get("/v1/case-flow/cases/:caseId/facts", requireAuth, requireRole(commercialAllRoles), caseFlowHandlers.facts);
   app.get("/v1/case-flow/cases/:caseId/conflicts", requireAuth, requireRole(commercialAllRoles), caseFlowHandlers.conflicts);
+  app.get("/v1/case-flow/admin/cases", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.cases);
+  app.get("/v1/case-flow/admin/cases/:caseId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.caseDetail);
+  app.get("/v1/case-flow/admin/rules", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.rules);
+  app.post("/v1/case-flow/admin/rules/versions", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.createRuleVersion);
+  app.get("/v1/case-flow/admin/connectors", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.connectors);
+  app.patch("/v1/case-flow/admin/connectors/:connectorId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.updateConnector);
+  app.get("/v1/case-flow/admin/config/export", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.exportConfig);
+  app.post("/v1/case-flow/admin/config/restore", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, caseFlowAdminHandlers.restoreConfig);
   app.post("/v1/case-flow/cases/:caseId/manual-evidence", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, manualEvidenceHandler);
   app.post("/v1/case-flow/cases/:caseId/conflicts/:conflictId/resolve", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, manualConflictHandler);
   app.post("/v1/case-flow/cases/:caseId/flow-override", requireAuth, requireRole(commercialAllRoles), rateLimits.companion, overrideHandlers.flow);
@@ -338,6 +348,9 @@ export function createApp() {
   app.post("/v1/case-flow/cases/:caseId/steps/:stepKey/rewind", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowStepHandlers.rewind);
   app.get("/v1/case-flow/cases/:caseId/messages", requireAuth, requireRole(commercialAllRoles), caseFlowMessagesHandlers.list);
   app.post("/v1/case-flow/cases/:caseId/messages/:messageId/copy", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowMessagesHandlers.copy);
+  app.post("/v1/case-flow/cases/:caseId/metrics", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, caseFlowMetricsHandlers.record);
+  app.get("/v1/case-flow/connectors/health", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, caseFlowMetricsHandlers.health);
+  app.get("/v1/case-flow/metrics/success", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, caseFlowMetricsHandlers.success);
   app.get("/v1/service-flows/metrics/summary", requireAuth, requireRole(commercialManagerRoles), serviceFlowMetricsHandler);
   app.post("/v1/service-flows/:flowIdOrSlug/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createServiceFlowSessionHandler);
   app.get("/v1/service-flow-sessions/:sessionId", requireAuth, requireRole(commercialAllRoles), getServiceFlowSessionHandler);
