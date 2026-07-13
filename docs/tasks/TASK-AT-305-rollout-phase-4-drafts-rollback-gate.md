@@ -1,7 +1,7 @@
 # TASK-AT-305 - Rollout: Fase 4 rascunhos e rollback gate
 
 ## Metadata
-- status: planned
+- status: audit-complete-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-305-rollout-phase-4-drafts-rollback-gate.md

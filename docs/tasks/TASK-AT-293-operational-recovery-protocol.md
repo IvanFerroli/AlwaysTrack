@@ -1,7 +1,7 @@
 # TASK-AT-293 - CaseFlow: recuperacao operacional e reidratacao
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-recovery-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-293-operational-recovery-protocol.md

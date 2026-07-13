@@ -1,7 +1,7 @@
 # TASK-AT-270 - Loggi: runtime read-only
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-270-loggi-readonly-runtime.md

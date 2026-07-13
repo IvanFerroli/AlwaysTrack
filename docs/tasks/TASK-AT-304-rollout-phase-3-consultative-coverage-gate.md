@@ -1,7 +1,7 @@
 # TASK-AT-304 - Rollout: Fase 3 cobertura consultiva gate
 
 ## Metadata
-- status: planned
+- status: audit-complete-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-304-rollout-phase-3-consultative-coverage-gate.md

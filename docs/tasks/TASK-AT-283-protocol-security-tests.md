@@ -1,7 +1,7 @@
 # TASK-AT-283 - CaseFlow: testes de seguranca do protocolo local
 
 ## Metadata
-- status: planned
+- status: implementation-complete-manual-topology-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-283-protocol-security-tests.md

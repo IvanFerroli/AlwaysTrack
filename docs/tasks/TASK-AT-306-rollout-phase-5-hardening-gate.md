@@ -1,7 +1,7 @@
 # TASK-AT-306 - Rollout: Fase 5 hardening gate
 
 ## Metadata
-- status: planned
+- status: audit-complete-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-306-rollout-phase-5-hardening-gate.md

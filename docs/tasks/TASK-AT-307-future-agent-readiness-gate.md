@@ -1,7 +1,7 @@
 # TASK-AT-307 - CaseFlow: prontidao para agente futuro sem implementa-lo
 
 ## Metadata
-- status: planned
+- status: documentation-complete-rollout-blocked
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-307-future-agent-readiness-gate.md

@@ -1,7 +1,7 @@
 # TASK-AT-237 - CaseFlow: comparacao manual no shadow mode
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-validation-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-237-shadow-manual-comparison.md

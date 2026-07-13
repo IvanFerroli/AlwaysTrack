@@ -1,7 +1,7 @@
 # TASK-AT-276 - Lancador de Pedidos: runtime de consulta
 
 ## Metadata
-- status: planned
+- status: implementation-complete-live-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-276-lancador-readonly-runtime.md

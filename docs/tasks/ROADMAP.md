@@ -392,7 +392,7 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 6. `TASK-AT-234`: Rastreio no Lancador: runtime read-only. Status: implementation-complete-live-gate-pending.
 7. `TASK-AT-235`: CaseFlow: resumo deterministico parcial. Status: completed.
 8. `TASK-AT-236`: CaseFlow: shadow mode vertical simples. Status: implementation-complete-live-gate-pending.
-9. `TASK-AT-237`: CaseFlow: comparacao manual no shadow mode. Status: planned.
+9. `TASK-AT-237`: CaseFlow: comparacao manual no shadow mode. Status: implementation-complete-live-validation-pending.
 
 #### Heuristica deterministica
 1. `TASK-AT-238`: CaseFlow Heuristica: normalizacao textual e sinais. Status: completed.
@@ -433,22 +433,22 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 5. `TASK-AT-267`: OMIE Filial: runtime read-only. Status: implementation-complete-live-gate-pending.
 6. `TASK-AT-268`: OMIE Pharma: runtime restrito. Status: implementation-complete-live-gate-pending.
 7. `TASK-AT-269`: Loggi: parser e fixtures. Status: completed.
-8. `TASK-AT-270`: Loggi: runtime read-only. Status: planned.
+8. `TASK-AT-270`: Loggi: runtime read-only. Status: implementation-complete-live-gate-pending.
 9. `TASK-AT-271`: J&T VIP: parser e fixtures. Status: completed.
-10. `TASK-AT-272`: J&T VIP: runtime read-only. Status: planned.
+10. `TASK-AT-272`: J&T VIP: runtime read-only. Status: implementation-complete-live-gate-pending.
 11. `TASK-AT-273`: Correios/Reversa: parser e fixtures. Status: completed.
-12. `TASK-AT-274`: Correios/Reversa: runtime read-only. Status: planned.
+12. `TASK-AT-274`: Correios/Reversa: runtime read-only. Status: implementation-complete-live-gate-pending.
 13. `TASK-AT-275`: Lancador de Pedidos: parser de consulta e fixtures. Status: completed.
-14. `TASK-AT-276`: Lancador de Pedidos: runtime de consulta. Status: planned.
+14. `TASK-AT-276`: Lancador de Pedidos: runtime de consulta. Status: implementation-complete-live-gate-pending.
 15. `TASK-AT-277`: Slack: suporte manual por draft copiado. Status: completed.
 16. `TASK-AT-278`: CaseFlow: ChatGPT fora do runtime inicial. Status: completed.
 17. `TASK-AT-279`: Scriptoteca: interoperabilidade Espanso e SmartScript. Status: completed.
-18. `TASK-AT-280`: AlwaysChat: inserir rascunho autorizado. Status: planned.
-19. `TASK-AT-281`: Lancador de Pedidos: preparacao de rascunho. Status: planned.
-20. `TASK-AT-282`: Lancador: deteccao pos-acao manual e alerta Slack. Status: planned.
+18. `TASK-AT-280`: AlwaysChat: inserir rascunho autorizado. Status: implementation-complete-live-gate-pending.
+19. `TASK-AT-281`: Lancador de Pedidos: preparacao de rascunho. Status: implementation-complete-live-gate-pending.
+20. `TASK-AT-282`: Lancador: deteccao pos-acao manual e alerta Slack. Status: implementation-complete-live-gate-pending.
 
 #### Seguranca, performance, testes e recuperacao
-1. `TASK-AT-283`: CaseFlow: testes de seguranca do protocolo local. Status: planned.
+1. `TASK-AT-283`: CaseFlow: testes de seguranca do protocolo local. Status: implementation-complete-manual-topology-gate-pending.
 2. `TASK-AT-284`: CaseFlow: instrumentacao de SLO progressivo. Status: completed.
 3. `TASK-AT-285`: CaseFlow: testes de performance, cache e concorrencia. Status: completed.
 4. `TASK-AT-286`: Connectors: harness de fixtures e parser tests. Status: completed.
@@ -458,7 +458,7 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 8. `TASK-AT-290`: CaseFlow: metricas de sucesso do Copiloto SAC. Status: completed.
 9. `TASK-AT-291`: CaseFlow: regressao anti dado cruzado. Status: completed.
 10. `TASK-AT-292`: CaseFlow: E2E com paginas fake. Status: completed.
-11. `TASK-AT-293`: CaseFlow: recuperacao operacional e reidratacao. Status: planned.
+11. `TASK-AT-293`: CaseFlow: recuperacao operacional e reidratacao. Status: implementation-complete-live-recovery-gate-pending.
 12. `TASK-AT-294`: Companion: instalacao, atualizacao e rollback. Status: completed.
 13. `TASK-AT-295`: CaseFlow: export, backup e restore de regras, fluxos e configuracoes. Status: completed.
 
@@ -469,9 +469,9 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 4. `TASK-AT-299`: Docs: arquitetura, API e contratos CaseFlow. Status: completed.
 5. `TASK-AT-300`: Runbooks: Companion, drift e recuperacao. Status: completed.
 6. `TASK-AT-301`: Demo: seeds, fixtures e roteiro guiado. Status: completed.
-7. `TASK-AT-302`: Rollout: Fase 1 shadow mode gate. Status: planned.
-8. `TASK-AT-303`: Rollout: Fase 2 fluxo guiado gate. Status: planned.
-9. `TASK-AT-304`: Rollout: Fase 3 cobertura consultiva gate. Status: planned.
-10. `TASK-AT-305`: Rollout: Fase 4 rascunhos e rollback gate. Status: planned.
-11. `TASK-AT-306`: Rollout: Fase 5 hardening gate. Status: planned.
-12. `TASK-AT-307`: CaseFlow: prontidao para agente futuro sem implementa-lo. Status: planned.
+7. `TASK-AT-302`: Rollout: Fase 1 shadow mode gate. Status: audit-complete-no-go.
+8. `TASK-AT-303`: Rollout: Fase 2 fluxo guiado gate. Status: audit-complete-no-go.
+9. `TASK-AT-304`: Rollout: Fase 3 cobertura consultiva gate. Status: audit-complete-no-go.
+10. `TASK-AT-305`: Rollout: Fase 4 rascunhos e rollback gate. Status: audit-complete-no-go.
+11. `TASK-AT-306`: Rollout: Fase 5 hardening gate. Status: audit-complete-no-go.
+12. `TASK-AT-307`: CaseFlow: prontidao para agente futuro sem implementa-lo. Status: documentation-complete-rollout-blocked.

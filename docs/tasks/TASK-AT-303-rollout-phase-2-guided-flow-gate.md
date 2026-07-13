@@ -1,7 +1,7 @@
 # TASK-AT-303 - Rollout: Fase 2 fluxo guiado gate
 
 ## Metadata
-- status: planned
+- status: audit-complete-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-11
 - source-of-truth: docs/tasks/TASK-AT-303-rollout-phase-2-guided-flow-gate.md
