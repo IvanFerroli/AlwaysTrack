@@ -1,0 +1,10 @@
+{
+  "id": "demo-low-confidence-manual-order",
+  "synthetic": true,
+  "sanitized": true,
+  "scenario": "MANUAL_ORDER_DRAFT",
+  "intake": { "text": "Talvez precise reenviar o pedido AT-SYN-4004", "orderId": "AT-SYN-4004" },
+  "connectors": { "YAMPI": "COMPLETED", "LANCADOR_PEDIDOS": "DRAFT_READY" },
+  "facts": { "risk.manualConfirmationRequired": true },
+  "expected": { "state": "WAITING_MANUAL_CONFIRMATION", "confidence": "LOW", "alternativesVisible": true, "finalConfirmationEnabled": false, "slackDraftCopyOnly": true }
+}

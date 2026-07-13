@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "offline": true,
+  "sanitized": true,
+  "pages": [
+    { "id": "order-position", "file": "order-position.html", "expected": "READY_FOR_RESPONSE" },
+    { "id": "unrecognized-delivery", "file": "unrecognized-delivery.html", "expected": "CONFLICT_VISIBLE" },
+    { "id": "jt-captcha", "file": "jt-captcha.html", "expected": "BLOCKED_CAPTCHA" },
+    { "id": "manual-order-draft", "file": "manual-order-draft.html", "expected": "STOPPED_BEFORE_CONFIRMATION" }
+  ]
+}

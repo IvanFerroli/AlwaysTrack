@@ -1,0 +1,10 @@
+{
+  "id": "demo-success-order-position",
+  "synthetic": true,
+  "sanitized": true,
+  "scenario": "ORDER_POSITION",
+  "intake": { "text": "Qual e a previsao do pedido AT-SYN-1001?", "orderId": "AT-SYN-1001" },
+  "connectors": { "RASTREIO": "COMPLETED", "YAMPI": "COMPLETED", "LOGGI": "COMPLETED" },
+  "facts": { "logistics.status": "IN_TRANSIT", "logistics.eta": "2026-07-15" },
+  "expected": { "state": "READY_FOR_RESPONSE", "primaryFlow": "ORDER_POSITION", "confidence": "HIGH", "messageCopyOnly": true }
+}

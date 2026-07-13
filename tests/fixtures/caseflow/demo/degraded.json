@@ -1,0 +1,10 @@
+{
+  "id": "demo-degraded-selector-drift",
+  "synthetic": true,
+  "sanitized": true,
+  "scenario": "ORDER_POSITION_DEGRADED",
+  "intake": { "text": "Onde esta o pedido AT-SYN-5005?", "orderId": "AT-SYN-5005" },
+  "connectors": { "RASTREIO": "COMPLETED", "YAMPI": "COMPLETED", "OMIE": "FAILED_SELECTOR_DRIFT" },
+  "facts": { "logistics.status": "IN_TRANSIT" },
+  "expected": { "state": "PARTIAL", "connectorHealth": { "OMIE": "DEGRADED" }, "fallback": "MANUAL_INPUT", "summaryUsable": true, "retryDestructive": false }
+}

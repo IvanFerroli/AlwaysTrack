@@ -1,0 +1,11 @@
+{
+  "id": "demo-conflict-unrecognized-delivery",
+  "synthetic": true,
+  "sanitized": true,
+  "scenario": "UNRECOGNIZED_DELIVERY",
+  "intake": { "text": "Nao reconheco a entrega do pedido AT-SYN-2002", "orderId": "AT-SYN-2002" },
+  "connectors": { "RASTREIO": "COMPLETED", "LOGGI": "COMPLETED" },
+  "facts": { "logistics.status": "DELIVERED", "logistics.receiver": "Recebedor Exemplo" },
+  "conflicts": [{ "key": "logistics.deliveryRecognition", "status": "OPEN", "reason": "CUSTOMER_DENIES_RECEIPT" }],
+  "expected": { "state": "READY_FOR_REVIEW", "primaryFlow": "UNRECOGNIZED_DELIVERY", "secondaryFlows": ["EVIDENCE_REVIEW", "LOGISTICS_RISK"], "automaticDecision": false }
+}

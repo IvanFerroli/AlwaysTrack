@@ -1,0 +1,10 @@
+{
+  "id": "demo-partial-jt-captcha",
+  "synthetic": true,
+  "sanitized": true,
+  "scenario": "ORDER_POSITION_WITH_CAPTCHA",
+  "intake": { "text": "Preciso da posicao do pedido AT-SYN-3003", "orderId": "AT-SYN-3003" },
+  "connectors": { "RASTREIO": "COMPLETED", "YAMPI": "COMPLETED", "OMIE": "COMPLETED", "JT_VIP": "BLOCKED_CAPTCHA" },
+  "facts": { "logistics.status": "IN_TRANSIT" },
+  "expected": { "state": "PARTIAL", "summaryUsable": true, "intervention": "RESOLVE_CAPTCHA_MANUALLY", "otherConnectorsBlocked": false }
+}
