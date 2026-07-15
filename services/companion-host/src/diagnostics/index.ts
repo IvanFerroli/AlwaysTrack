@@ -54,6 +54,7 @@ export function degradedHealthFromDiagnostic(input: ConnectorDiagnosticInput) {
 
 export const hostDiagnosticsLayerReady = true;
 export * from "./offline-simulator.js";
+export * from "./slo.js";
 
 export const caseFlowSloTargetsMs = { sidePanelInteractive: 500, intakeVisible: 2_000, firstPartialSummary: 3_000, firstActionableFlow: 5_000, slowConnector: 10_000, connectorTimeout: 30_000 } as const;
 export function caseFlowSloDiagnostic(milestone: keyof typeof caseFlowSloTargetsMs, durationMs: number) {

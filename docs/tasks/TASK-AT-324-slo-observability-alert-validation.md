@@ -1,8 +1,8 @@
 # TASK-AT-324 - Observabilidade: SLOs, telemetria correlacionada e alertas exercitados
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed-local-validation
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-324-slo-observability-alert-validation.md
 
@@ -30,8 +30,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-284, TASK-AT-323.
+- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307`, auditoria transversal e instrumentacao local da TASK-AT-284.
+- em aberto: TASK-AT-323 para calibracao production-like e TASK-AT-335 para roteamento/aprovacao operacional.
 
 ## Alvos explicitos
 1. services/api/src/core/diagnostics/**
@@ -90,3 +90,10 @@ TASK-AT-325
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- SLOs de erro, latencia, fila, dependencias, conectores, drift e Companion possuem formula, threshold, owner e janela inicial documentados.
+- Avaliador API produz alertas allowlisted, dashboard com quatro estados e transicoes `FIRING`/`RESOLVED`.
+- Correlacao preserva request/run IDs seguros e converte case ID em SHA-256; erros, URLs, payloads e PII nao sao transportados.
+- Companion Host diferencia estado saudavel, falha parcial, degradacao e indisponibilidade por contadores limitados.
+- Testes controlados disparam e resolvem alertas e validam redaction; API e Host passam typecheck.
+- Evidencia `local`/fake. Alert manager, pager, dashboards externos e calibracao por carga continuam pendentes, sem promocao a production-like/live.

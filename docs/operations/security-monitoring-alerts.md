@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: ops/security
-- last-updated: 2026-06-17
+- last-updated: 2026-07-15
 - source-of-truth: docs/operations/security-monitoring-alerts.md
 
 ## Objetivo
@@ -50,7 +50,27 @@ Use apenas identificadores, contagens, extensao/tamanho de arquivo e motivo de r
 - Logs anonimos de seguranca: manter pelo menor periodo operacional suficiente para investigacao.
 - Artefatos com dados pessoais devem ser expurgados ou anonimizados antes de compartilhamento.
 
-## Pendencias de implementacao
-- Painel admin dedicado para agregados `security.*`.
-- Alertas internos para eventos criticos.
-- Testes especificos de redaction em logs e auditoria.
+## SLOs e alertas operacionais
+
+| Sinal | Formula e janela inicial | Threshold | Owner |
+| --- | --- | --- | --- |
+| Erro API | respostas 5xx / requests em 5 min | maior que 1% | api-oncall |
+| Latencia API | P95 da duracao em 5 min | maior que 500 ms | api-oncall |
+| Backlog de jobs | waiting e idade do item mais antigo | mais de 100 ou 300 s | platform-oncall |
+| Falha de job | jobs terminais com falha na janela | maior que 0 | platform-oncall |
+| Banco/storage | probe allowlisted | diferente de `UP` | data/platform-oncall |
+| Conector | success / total e health | abaixo de 90% ou degradado | integrations-oncall |
+| Drift | eventos `SELECTOR_DRIFT` na janela | maior que 0 | companion-oncall |
+| Companion | Host, pairing e falhas de reconnect | desconectado ou mais de 3 | companion-oncall |
+
+`services/api/src/core/diagnostics/slo-alerts.ts` materializa as formulas e o modelo de dashboard. Estados sao `HEALTHY`, `PARTIAL_FAILURE`, `DEGRADED` e `UNAVAILABLE`; alertas possuem owner, severidade e transicoes `FIRING`/`RESOLVED`. O Host possui o mesmo contrato de estados em `services/companion-host/src/diagnostics/slo.ts`.
+
+Correlacao aceita somente `requestId` e `runId` com charset/tamanho allowlisted. `caseId` e convertido para SHA-256 antes de entrar em sinal; URL, erro bruto, cookie, token, payload e PII nao fazem parte do modelo.
+
+## Exercicio controlado
+```bash
+npm run test --workspace @alwaystrack/api -- --run src/core/diagnostics/slo-alerts.test.ts
+npm run test --workspace @alwaystrack/companion-host -- --run src/diagnostics/slo.test.ts
+```
+
+Os testes disparam e resolvem alertas e diferenciam falha parcial, degradacao e indisponibilidade. Essa evidencia e `local`/fake. Roteamento para pager/notificacao, dashboards production-like e calibracao com carga sustentada dependem das TASK-AT-323 e TASK-AT-335.
