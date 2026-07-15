@@ -1,8 +1,8 @@
 # TASK-AT-316 - API: OpenAPI versionado e testes de contrato HTTP
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-316-http-openapi-contract-tests.md
 
@@ -30,13 +30,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-310, TASK-AT-107, TASK-AT-299.
+- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307`, auditoria transversal, `TASK-AT-107`, `TASK-AT-299` e `TASK-AT-310`.
+- em aberto: nenhuma para o contrato P0 local/CI.
 
 ## Alvos explicitos
-1. docs/api/openapi.yaml
-2. services/api/src/**/*.test.ts
-3. apps/web/src/api.ts
+1. `docs/api/openapi.v1.yaml`
+2. `services/api/src/contracts/openapi.ts`
+3. `services/api/src/contracts/openapi.contract.test.ts`
+4. `scripts/validate-openapi-contract.mjs`
 
 ## Fora de escopo
 - Declarar validacao live a partir de mocks, fixtures ou execucao local.
@@ -89,3 +90,13 @@ TASK-AT-317
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- OpenAPI `3.1.0` versionado em `1.0.0`, armazenado como JSON compativel com YAML para parsing deterministico sem dependencia.
+- Vinte e quatro operacoes P0 cobrem login/sessao, caminho vertical CaseFlow, evidencias, conflitos, resolucao, plano, sessao guiada, mensagens, metricas, consultas administrativas essenciais e fronteira Companion.
+- Autenticacao por cookie e credencial Companion, papeis, rate limiting, status de sucesso/erro, parametros, requests, responses e exemplos sinteticos estao explicitos.
+- O teste importa os enums de `@alwaystrack/shared`, impedindo tipos HTTP concorrentes para papeis, estados de caso, freshness, sensitivity e acquisition.
+- O gate inspeciona as rotas realmente registradas pelo Express, handler, `requireAuth`, metodo, path e status de sucesso; tambem abre servidor apenas em loopback e confirma o envelope `401` antes de persistencia.
+- Referencias locais e exemplos sao verificados contra o subconjunto de JSON Schema usado pelo contrato; exemplos com CPF, telefone, email nao reservado ou credencial falham.
+- `scripts/validate-openapi-contract.mjs` fornece uma verificacao estatica rapida contra `services/api/src/app.ts`; o teste Vitest e descoberto pelo gate API ja executado no CI, sem alterar manifests ou workflows.
+- Rotas ativas fora do caminho P0 permanecem fora desta versao inicial e devem entrar por priorizacao P1/P2, sem inferencia de cobertura integral da API legada.
+- Evidencia classificada como `local/fake`: somente loopback, payloads sinteticos, sem banco externo, credenciais ou sistemas live.
