@@ -1,7 +1,7 @@
 # TASK-AT-347 - Companion Host coverage: bootstrap e branches residuais
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: companion/host
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-347-companion-host-residual-coverage.md
@@ -29,6 +29,12 @@ Consolidar o workspace mais coberto sem deixar bootstrap, protocolo e encerramen
 
 ## Validacao
 - coverage Host repetido, protocolo, lifecycle, security e build.
+
+## Resultado
+- Bootstrap e shutdown passaram a ser exercitados com servidor e configuracao controlados, sem sockets ou storage reais; SIGINT/SIGTERM, idempotencia e falha de cleanup possuem assertions diretas.
+- Protocolo, cache, deduplicacao, configuracao, recovery e barrels publicos receberam cobertura comportamental de sucesso e rejeicao.
+- O Host passou 70 testes em duas execucoes e atingiu 97.80% de linhas/statements, 89.60% de branches e 98.30% de funcoes.
+- Firewalls permanecem em 100%; os pisos globais subiram para 92% de linhas/statements, 84% de branches e 95% de funcoes.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

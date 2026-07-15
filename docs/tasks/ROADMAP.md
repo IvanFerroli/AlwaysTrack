@@ -527,5 +527,5 @@ Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
 8. `TASK-AT-344`: Shared coverage: action firewall e contratos executaveis. Status: completed-local-validation.
 9. `TASK-AT-345`: API coverage: harness HTTP e funcoes de handlers. Status: planned.
 10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: planned.
-11. `TASK-AT-347`: Companion Host coverage: bootstrap e branches residuais. Status: planned.
+11. `TASK-AT-347`: Companion Host coverage: bootstrap e branches residuais. Status: completed-local-validation.
 12. `TASK-AT-348`: Coverage: gate final e ensaio da apresentacao. Status: planned.

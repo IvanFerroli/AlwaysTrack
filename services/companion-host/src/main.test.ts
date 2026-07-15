@@ -1,51 +1,81 @@
-import { spawn } from "node:child_process";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function waitForReady(child: ReturnType<typeof spawn>): Promise<{ port: number }> {
-  return new Promise((resolve, reject) => {
-    let output = "";
-    const timeout = setTimeout(() => reject(new Error(`Host readiness timeout: ${output}`)), 5_000);
-    child.once("error", reject);
-    const stdout = child.stdout;
-    if (!stdout) {
-      clearTimeout(timeout);
-      reject(new Error("Host subprocess stdout is unavailable"));
-      return;
-    }
-    stdout.on("data", (chunk) => {
-      output += chunk.toString();
-      for (const line of output.split("\n")) {
-        if (!line.includes("companion_host.ready")) continue;
-        clearTimeout(timeout);
-        resolve(JSON.parse(line) as { port: number });
-      }
+const mocks = vi.hoisted(() => ({
+  closeCompanionServer: vi.fn(),
+  loadCompanionHostConfig: vi.fn(() => ({ host: "127.0.0.1", port: 0 })),
+  startCompanionServer: vi.fn()
+}));
+
+vi.mock("./config.js", () => ({ loadCompanionHostConfig: mocks.loadCompanionHostConfig }));
+vi.mock("./server/health-server.js", () => ({
+  closeCompanionServer: mocks.closeCompanionServer,
+  startCompanionServer: mocks.startCompanionServer
+}));
+
+describe("Companion Host bootstrap", () => {
+  const signalHandlers = new Map<string, (...args: never[]) => void>();
+  let originalExitCode: typeof process.exitCode;
+
+  beforeEach(() => {
+    vi.resetModules();
+    mocks.closeCompanionServer.mockReset().mockResolvedValue(undefined);
+    mocks.loadCompanionHostConfig.mockClear();
+    mocks.startCompanionServer.mockReset().mockResolvedValue({
+      server: { address: () => ({ address: "127.0.0.1", port: 38472 }) },
+      gateway: { close: vi.fn() }
     });
+    signalHandlers.clear();
+    vi.spyOn(process, "once").mockImplementation(((event: string, listener: (...args: never[]) => void) => {
+      signalHandlers.set(event, listener);
+      return process;
+    }) as typeof process.once);
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    originalExitCode = process.exitCode;
+    process.exitCode = undefined;
   });
-}
 
-function waitForExit(child: ReturnType<typeof spawn>): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Host shutdown timeout")), 5_000);
-    child.once("exit", (code, signal) => {
-      clearTimeout(timeout);
-      resolve({ code, signal });
-    });
+  afterEach(() => {
+    process.exitCode = originalExitCode;
+    vi.restoreAllMocks();
   });
-}
 
-describe.each(["SIGINT", "SIGTERM"] as const)("Companion Host process shutdown with %s", (signal) => {
-  it("exits cleanly and releases its ephemeral port", async () => {
-    const child = spawn(process.execPath, ["--import", "tsx", "src/main.ts"], {
-      cwd: new URL("..", import.meta.url),
-      env: { ...process.env, COMPANION_HOST_PORT: "0", COMPANION_HOST_ALLOWED_ORIGIN: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" },
-      stdio: ["ignore", "pipe", "pipe"]
-    });
+  it.each(["SIGINT", "SIGTERM"] as const)("starts and shuts down once for %s without real resources", async (signal) => {
+    let release!: () => void;
+    mocks.closeCompanionServer.mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
 
-    const { port } = await waitForReady(child);
-    expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
-    const exited = waitForExit(child);
-    child.kill(signal);
-    expect(await exited).toEqual({ code: 0, signal: null });
-    await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
+    await import("./main.js");
+
+    expect(mocks.loadCompanionHostConfig).toHaveBeenCalledOnce();
+    expect(mocks.startCompanionServer).toHaveBeenCalledOnce();
+    expect(console.log).toHaveBeenCalledWith(JSON.stringify({
+      event: "companion_host.ready",
+      host: "127.0.0.1",
+      port: 38472,
+      protocol: "websocket"
+    }));
+
+    signalHandlers.get(signal)?.();
+    signalHandlers.get(signal)?.();
+    expect(mocks.closeCompanionServer).toHaveBeenCalledOnce();
+    release();
+    await vi.waitFor(() => expect(console.log).toHaveBeenCalledWith(JSON.stringify({ event: "companion_host.stopped", signal })));
+  });
+
+  it.each([
+    [new Error("close failed"), "close failed"],
+    ["opaque failure", "UNKNOWN"]
+  ])("reports shutdown failure without leaking the rejection", async (failure, expectedMessage) => {
+    mocks.closeCompanionServer.mockRejectedValue(failure);
+    await import("./main.js");
+
+    signalHandlers.get("SIGTERM")?.();
+
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(JSON.stringify({
+      event: "companion_host.stop_failed",
+      signal: "SIGTERM",
+      message: expectedMessage
+    })));
+    expect(process.exitCode).toBe(1);
   });
 });

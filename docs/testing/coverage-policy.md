@@ -21,7 +21,7 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 | SmartScript | 80.59 / 80 | 72.44 / 70 | 91.48 / 90 | companion/smartscript |
 | Web | 6.59 / 6 | 56.77 / 50 | 29.77 / 25 | web/product |
 | API | 68.82 / 60 | 67.03 / 60 | 64.88 / 64 | api/core |
-| Host | 89.52 / 85 | 80.27 / 75 | 93.10 / 90 | companion/host |
+| Host | 97.80 / 92 | 89.60 / 84 | 98.30 / 95 | companion/host |
 
 Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript agora combina testes diretos atribuiveis com E2E de subprocesso separado; Web mede toda a SPA e conserva divida explicita. O proximo marco global e 10% de linhas no Web sem reduzir os demais pisos.
 

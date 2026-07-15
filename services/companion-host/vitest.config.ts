@@ -7,10 +7,10 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       reporter: ["text-summary", "json-summary", "html"],
       thresholds: {
-        statements: 85,
-        lines: 85,
-        branches: 75,
-        functions: 90,
+        statements: 92,
+        lines: 92,
+        branches: 84,
+        functions: 95,
         "src/security/action-firewall.ts": { 100: true },
         "src/security/protocol-security.ts": { statements: 100, lines: 100, branches: 90, functions: 100 }
       }

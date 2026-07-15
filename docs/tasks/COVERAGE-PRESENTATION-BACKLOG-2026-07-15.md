@@ -18,7 +18,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 | Shared | 71.20% | 85.44% | 88.60% | firewall canonico em 100%; piso global elevado |
 | Extension | 61.23% | 73.86% | 78.22% | saudavel, ampliar runtime MV3 critico |
 | API | 68.82% | 67.03% | 64.88% | ampliar handlers e entrypoints |
-| Companion Host | 89.84% | 80.88% | 93.33% | manter piso e evitar regressao |
+| Companion Host | 97.80% | 89.60% | 98.30% | bootstrap, protocolo e lifecycle cobertos sem recursos reais |
 
 ## Ordem de execucao
 1. TASK-AT-337: inventario executavel e mapa de risco. Concluida localmente.
@@ -31,7 +31,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 8. TASK-AT-344: action firewall e contratos Shared. Concluida localmente.
 9. TASK-AT-345: harness HTTP e funcoes de handlers API.
 10. TASK-AT-346: workflows API e encerramento da excecao de 75%.
-11. TASK-AT-347: branches residuais do Companion Host.
+11. TASK-AT-347: branches residuais do Companion Host. Concluida localmente.
 12. TASK-AT-348: gate final e ensaio da apresentacao de coverage.
 
 ## Guardrails
