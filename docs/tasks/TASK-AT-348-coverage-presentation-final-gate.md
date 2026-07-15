@@ -35,7 +35,9 @@ Provar que os novos baselines, reports e scorecard sao reproduziveis, honestos e
 - Decisao para a apresentacao: `GO-WITH-RISK`; a evidencia e local/fake e nao autoriza rollout produtivo.
 - Duas execucoes completas dos seis workspaces passaram thresholds e produziram numeradores e denominadores identicos (`COVERAGE_STABLE=true`).
 - Manifesto: Shared, Extension, API e Companion Host `passed`; SmartScript e Web `at-risk` por margem incremental estreita, sem threshold violado.
-- Coverage final de linhas: Shared 71.20%, Extension 91.17%, SmartScript 80.59%, Web 36.74%, API 77.64% e Companion Host 97.80%.
+- Coverage final de linhas: Shared 71.20%, Extension 91.17%, SmartScript 80.59%, Web 36.75%, API 77.64% e Companion Host 97.80%.
+- Playwright completo e serializado no banco E2E isolado: 34 cenarios aprovados, 1 skip intencional da fixture fiscal duplicada no projeto mobile e 0 falhas.
+- O ensaio real no Chromium atualizou quatro snapshots aprovados, estabilizou a navegacao legada e corrigiu a conversao monetaria da revisao de DANFE antes da demonstracao.
 - Integridade documental, rollout audit, startup contract e higiene do repositorio aprovados; Redis real permanece teste opt-in.
 
 ## Handoff

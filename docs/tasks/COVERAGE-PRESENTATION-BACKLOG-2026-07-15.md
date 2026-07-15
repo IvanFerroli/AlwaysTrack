@@ -13,7 +13,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 
 | Workspace | Linhas | Branches | Funcoes | Leitura |
 | --- | ---: | ---: | ---: | --- |
-| Web | 36.74% | 72.05% | 49.34% | conteudo, Dashboard, Fluxos e CaseFlow operacional cobertos |
+| Web | 36.75% | 72.00% | 49.34% | conteudo, Dashboard, Fluxos e CaseFlow operacional cobertos |
 | SmartScript | 80.59% | 72.44% | 91.48% | CLI/storage atribuidos; quatro arquivos criticos aprovados |
 | Shared | 71.20% | 85.44% | 88.60% | firewall canonico em 100%; piso global elevado |
 | Extension | 91.17% | 79.29% | 89.70% | bootstrap, side panel e fronteiras MV3 cobertos |

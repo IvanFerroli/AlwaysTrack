@@ -6,6 +6,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 8_000 },
   fullyParallel: false,
+  // Browser projects mutate one isolated database; serialize them to preserve deterministic role and dedupe flows.
+  workers: 1,
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: "http://localhost:5174",

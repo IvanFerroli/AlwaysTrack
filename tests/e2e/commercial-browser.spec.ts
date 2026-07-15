@@ -1,28 +1,32 @@
-import { expect, test } from "@playwright/test";
-import { expectOk, loginAsAdminApi, loginAsAdminPage } from "./helpers";
+import { expect, test, type Page } from "@playwright/test";
+import { e2eApiUrl, expectOk, loginAsAdminApi, loginAsAdminPage } from "./helpers";
+
+const navigation = (page: Page) => page.getByRole("navigation", { name: "Navegação principal" });
 
 test.describe("commercial browser regression flows", () => {
-  test("admin uploads and approves a deterministic DANFE XML through the UI", async ({ page }) => {
+  test("admin uploads and approves a deterministic DANFE XML through the UI", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile", "Mutating DANFE fixture runs once against the shared E2E database.");
     await loginAsAdminPage(page);
 
-    await page.getByRole("link", { name: /Notas/ }).first().click();
+    await navigation(page).getByRole("button", { name: /Notas/ }).click();
     await expect(page.getByRole("heading", { name: "Notas" })).toBeVisible();
 
     await page.locator('input[name="danfe"]').setInputFiles("tests/e2e/fixtures/nfe-e2e.xml");
     await page.getByRole("button", { name: "Enviar nota" }).click();
 
     const notesPanel = page.locator(".table-panel").filter({ hasText: "DANFEs recebidas" }).first();
-    await expect(notesPanel.getByText("PENDING_REVIEW").first()).toBeVisible();
-    await expect(notesPanel.getByText("703.444").first()).toBeVisible();
+    const uploadedRow = notesPanel.getByRole("row", { name: /NF 703444/ });
+    await expect(uploadedRow.getByText("PENDING_REVIEW")).toBeVisible();
+    await expect(uploadedRow.getByText("703444", { exact: true })).toBeVisible();
 
-    await notesPanel.getByRole("button", { name: "Aceitar" }).first().click();
-    await expect(notesPanel.getByText("APPROVED").first()).toBeVisible();
+    await uploadedRow.getByRole("button", { name: "Aceitar", exact: true }).click();
+    await expect(uploadedRow.getByText("APPROVED")).toBeVisible();
 
-    await page.getByRole("link", { name: /Ranking/ }).first().click();
+    await navigation(page).getByRole("button", { name: /Ranking/ }).click();
     await expect(page.getByRole("heading", { name: "Ranking" })).toBeVisible();
-    await expect(page.getByText("Vendedor Demo").first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Vendedor Demo", exact: true }).first()).toBeVisible();
 
-    await page.getByRole("link", { name: /Extratos/ }).first().click();
+    await navigation(page).getByRole("button", { name: /Extratos/ }).click();
     await expect(page.getByRole("heading", { name: "Extratos" })).toBeVisible();
     await expect(page.getByText("R$ 194,53").first()).toBeVisible();
   });
@@ -35,7 +39,7 @@ test.describe("commercial browser regression flows", () => {
     const publishedContent = `## Base ${suffix}\nConteudo inicial #e2e`;
     const suggestedContent = `## Base ${suffix}\nConteudo aprovado via browser #e2e`;
 
-    await expectOk(await request.post("/v1/wiki/pages", {
+    await expectOk(await request.post(e2eApiUrl("/v1/wiki/pages"), {
       data: {
         title,
         slug: `e2e-wiki-browser-${suffix}`,
@@ -49,9 +53,10 @@ test.describe("commercial browser regression flows", () => {
     await page.getByRole("button", { name: "Entrar com senha" }).click();
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
-    await page.getByRole("link", { name: /Wiki/ }).first().click();
-    await expect(page.getByRole("heading", { name: "Wiki" })).toBeVisible();
-    await page.getByRole("button", { name: new RegExp(title) }).click();
+    await navigation(page).getByRole("button", { name: /Wiki/ }).click();
+    await expect(page.getByRole("heading", { name: "Wiki", exact: true })).toBeVisible();
+    await page.locator(".wiki-page-button").filter({ hasText: title }).click();
+    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await page.locator(".wiki-edit-form").getByLabel("Titulo").fill(updatedTitle);
     await page.locator(".wiki-edit-form textarea").fill(suggestedContent);
     await page.getByRole("button", { name: "Enviar para aprovacao" }).click();
@@ -61,19 +66,24 @@ test.describe("commercial browser regression flows", () => {
     const adminPage = await adminContext.newPage();
     try {
       await loginAsAdminPage(adminPage);
-      await adminPage.getByRole("link", { name: /Wiki/ }).first().click();
-      await expect(adminPage.getByRole("heading", { name: "Wiki" })).toBeVisible();
-      await adminPage.getByLabel("Busca").fill(title);
+      await navigation(adminPage).getByRole("button", { name: /Wiki/ }).click();
+      await expect(adminPage.getByRole("heading", { name: "Wiki", exact: true })).toBeVisible();
+      await adminPage.getByPlaceholder("Titulo, slug, conteudo ou tag").fill(title);
       await adminPage.getByRole("button", { name: "Filtrar" }).click();
-      await adminPage.getByRole("button", { name: new RegExp(title) }).click();
-      await adminPage.getByLabel("Nota da decisao").fill("Aprovado no fluxo E2E de navegador.");
-      await adminPage.getByRole("button", { name: "Aprovar" }).first().click();
+      await adminPage.locator(".wiki-page-button").filter({ hasText: title }).click();
+      await expect(adminPage.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      await adminPage.locator(".decision-note-field input").fill("Aprovado no fluxo E2E de navegador.");
+      const requestRow = adminPage.getByRole("row", { name: new RegExp(title) });
+      await requestRow.getByRole("button", { name: "Aprovar", exact: true }).click();
       await expect(adminPage.getByRole("heading", { name: updatedTitle })).toBeVisible();
       await expect(adminPage.getByText("Conteudo aprovado via browser").first()).toBeVisible();
-      await expect(adminPage.getByText("Aprovado no fluxo E2E de navegador.").first()).toBeVisible();
     } finally {
       await adminContext.close();
     }
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible();
+    await expect(page.getByText("Aprovado no fluxo E2E de navegador.").first()).toBeVisible();
   });
 
   test("Wiki editor previews unsafe Markdown without executing it on mobile", async ({ page, request }) => {
@@ -82,7 +92,7 @@ test.describe("commercial browser regression flows", () => {
     const title = `E2E Wiki Segura ${suffix}`;
     const unsafeContent = `## Preview seguro\n<script>window.__wikiXss = true</script>\n[link inseguro](javascript:alert(1))`;
 
-    await expectOk(await request.post("/v1/wiki/pages", {
+    await expectOk(await request.post(e2eApiUrl("/v1/wiki/pages"), {
       data: {
         title,
         slug: `e2e-wiki-segura-${suffix}`,
@@ -92,14 +102,15 @@ test.describe("commercial browser regression flows", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAsAdminPage(page);
-    await page.getByRole("link", { name: /Wiki/ }).first().click();
-    await page.getByRole("button", { name: new RegExp(title) }).click();
+    await navigation(page).getByRole("button", { name: /Wiki/ }).click();
+    await page.locator(".wiki-page-button").filter({ hasText: title }).click();
+    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
 
     const editForm = page.locator(".wiki-edit-form");
     const editor = editForm.locator(".wiki-editor");
     await expect(editor.getByLabel("Ferramentas de formatacao")).toBeVisible();
     await editor.locator("textarea").fill(unsafeContent);
-    await editor.getByRole("button", { name: "Preview" }).click();
+    await editor.getByRole("tab", { name: "Preview" }).click();
 
     await expect(editor.getByRole("heading", { name: "Preview seguro" })).toBeVisible();
     await expect(editor.getByText("<script>window.__wikiXss = true</script>")).toBeVisible();

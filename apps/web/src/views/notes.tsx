@@ -27,7 +27,8 @@ function numberOrNull(value: string) {
 }
 
 function centsFromMoneyInput(value: string) {
-  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  const trimmed = value.trim();
+  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;

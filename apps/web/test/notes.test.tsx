@@ -278,6 +278,11 @@ describe("NotesView", () => {
         body: expect.stringContaining('"status":"APPROVED"')
       })
     ));
+    const reviewCall = apiMock.mock.calls.find(([path]) => path === "/v1/sales/documents/document-review/review");
+    expect(JSON.parse(String(reviewCall?.[1]?.body))).toMatchObject({
+      totalAmountCents: 25990,
+      items: [{ unitAmountCents: 12995, totalAmountCents: 25990 }]
+    });
   });
 
   it("abre e fecha a timeline rastreável", async () => {
