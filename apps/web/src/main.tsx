@@ -509,7 +509,7 @@ const navItems: NavItem[] = [
   { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: commercialAllRoles },
   { key: "audit", label: "Auditoria", description: "Trilha de eventos", icon: "audit", roles: adminOnlyRoles },
   { key: "caseFlowAdmin", label: "CaseFlow Admin", description: "Casos, regras, conectores e backup", icon: "scan", roles: adminOnlyRoles },
-  { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: [] }
+  { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: userRoles }
 ];
 
 const helpAnchorIds = new Set([

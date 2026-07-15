@@ -1,7 +1,7 @@
 # TASK-AT-341 - Web coverage: operacao, Fluxos e CaseFlow em 30%
 
 ## Metadata
-- status: planned
+- status: in-progress
 - owner: web/product
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-341-web-operational-caseflow-coverage.md

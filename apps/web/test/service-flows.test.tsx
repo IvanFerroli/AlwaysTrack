@@ -1,0 +1,343 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { CurrentUser } from "@alwaystrack/shared";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ServiceFlowsView } from "../src/views/service-flows";
+
+const apiMock = vi.fn();
+const clipboardWriteMock = vi.fn();
+
+vi.mock("../src/api", () => ({
+  api: (...args: unknown[]) => apiMock(...args),
+  uploadOperationalImage: vi.fn()
+}));
+
+const users = {
+  sac: {
+    id: "sac-1",
+    name: "Analista Sintetica",
+    email: "sac@example.invalid",
+    role: "SAC",
+    organizationId: "organization-1",
+    unitScopeIds: [],
+    sectorScopeIds: []
+  },
+  manager: {
+    id: "manager-1",
+    name: "Gestora Sintetica",
+    email: "manager@example.invalid",
+    role: "GESTOR",
+    organizationId: "organization-1",
+    unitScopeIds: [],
+    sectorScopeIds: []
+  }
+} satisfies Record<string, CurrentUser>;
+
+const canonicalScript = {
+  id: "script-1",
+  title: "Confirmacao de troca",
+  channel: "WHATSAPP",
+  body: "Ola, {cliente}. A troca esta autorizada.",
+  tags: ["troca", "pedido"],
+  placeholders: ["cliente"],
+  status: "VALIDATED",
+  usageCount: 7
+};
+
+const obsoleteScript = { ...canonicalScript, id: "script-obsolete", title: "Texto obsoleto", status: "OBSOLETE" };
+
+const baseFlow = {
+  id: "flow-1",
+  slug: "troca-segura",
+  title: "Troca segura",
+  summary: "Fluxo sintetico para troca auditada",
+  content: "## Orientacao\n<script>nao executar</script> [inseguro](javascript:alert(1))",
+  tags: ["troca", "seguranca"],
+  status: "DRAFT",
+  priority: 10,
+  version: 2,
+  reviewComment: null,
+  reviewDueAt: "2026-08-15T00:00:00.000Z",
+  reviewedAt: null,
+  reviewedBy: null,
+  wikiPage: null,
+  revisions: [{
+    id: "revision-1",
+    version: 1,
+    title: "Troca segura",
+    status: "DRAFT",
+    comment: "Criacao inicial",
+    createdAt: "2026-07-14T12:00:00.000Z",
+    author: { id: "manager-1", name: "Gestora Sintetica", role: "GESTOR" }
+  }],
+  steps: [
+    {
+      id: "step-1",
+      title: "Validar pedido",
+      body: "Confira titularidade e prazo.",
+      kind: "YES_NO",
+      decision: { yes: "Continuar", no: "Escalar" },
+      order: 1,
+      required: true,
+      collapsed: false,
+      scripts: [{ id: "link-1", script: canonicalScript }]
+    },
+    {
+      id: "step-2",
+      title: "Registrar desfecho",
+      body: null,
+      kind: "CHECKLIST",
+      decision: { options: ["Troca", "Estorno"] },
+      order: 2,
+      required: false,
+      collapsed: true,
+      scripts: []
+    }
+  ]
+};
+
+const personalScript = {
+  id: "personal-1",
+  title: "Resposta pessoal",
+  channel: "EMAIL",
+  body: "Retorno para {cliente}",
+  tags: ["troca"],
+  placeholders: ["cliente"],
+  suggestedAt: null,
+  flows: [{ id: baseFlow.id, slug: baseFlow.slug, title: baseFlow.title, status: baseFlow.status }],
+  suggestion: null
+};
+
+const metrics = {
+  summary: { totalFlows: 1, publishedFlows: 0, reviewDue: 1, openSessions: 0 },
+  mostUsedFlows: [{ flowId: baseFlow.id, title: baseFlow.title, sessions: 3 }],
+  stepBottlenecks: [{ stepId: "step-1", stepTitle: "Validar pedido", flowTitle: baseFlow.title, status: "PENDING", count: 2 }],
+  topScriptsByFlow: [{ id: canonicalScript.id, title: canonicalScript.title, count: 4 }],
+  zeroSearches: [{ id: "zero-1", query: "cancelamento", filtersJson: null, createdAt: "2026-07-15T12:00:00.000Z" }]
+};
+
+function session(status = "OPEN", stepStatus = "PENDING") {
+  return {
+    id: "session-1",
+    status,
+    startedAt: "2026-07-15T12:00:00.000Z",
+    completedAt: status === "COMPLETED" ? "2026-07-15T12:10:00.000Z" : null,
+    flow: { id: baseFlow.id, slug: baseFlow.slug, title: baseFlow.title },
+    steps: baseFlow.steps.map((step, index) => ({
+      id: `session-step-${index + 1}`,
+      stepId: step.id,
+      status: index === 0 ? stepStatus : "PENDING",
+      decision: index === 0 && stepStatus !== "PENDING" ? "Troca" : null,
+      note: index === 0 && stepStatus !== "PENDING" ? "Cliente validado" : null,
+      completedAt: stepStatus === "DONE" && index === 0 ? "2026-07-15T12:05:00.000Z" : null,
+      step: { id: step.id, title: step.title, order: step.order, required: step.required }
+    }))
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
+function successfulApi(path: string, init?: RequestInit) {
+  if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [baseFlow], canManage: true });
+  if (path === "/v1/script-library") return Promise.resolve({ scripts: [canonicalScript, obsoleteScript] });
+  if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [personalScript] });
+  if (path === "/v1/service-flows/metrics/summary") return Promise.resolve(metrics);
+  if (path === `/v1/service-flows/${baseFlow.id}/sessions`) return Promise.resolve({ session: session() });
+  if (path.startsWith("/v1/service-flow-sessions/session-1/steps/")) {
+    const body = JSON.parse(String(init?.body));
+    return Promise.resolve({ session: session("OPEN", body.status) });
+  }
+  if (path === "/v1/service-flow-sessions/session-1/complete") return Promise.resolve({ session: session("COMPLETED", "DONE") });
+  if (path === "/v1/service-flows" && init?.method === "POST") return Promise.resolve({ flow: { ...baseFlow, id: "flow-created" } });
+  if (path === `/v1/service-flows/${baseFlow.id}/publish`) return Promise.resolve({ flow: { ...baseFlow, status: "PUBLISHED", version: 3 } });
+  if (path === `/v1/service-flows/${baseFlow.id}/archive`) return Promise.resolve({ flow: { ...baseFlow, status: "ARCHIVED" } });
+  if (path === `/v1/script-library/scripts/${canonicalScript.id}/copy`) return Promise.resolve({});
+  return Promise.resolve({});
+}
+
+describe("ServiceFlowsView", () => {
+  beforeEach(() => {
+    apiMock.mockReset().mockImplementation(successfulApi);
+    clipboardWriteMock.mockReset().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: clipboardWriteMock }
+    });
+  });
+
+  it("keeps loading visible, lists sanitized API data and renders the empty state", async () => {
+    const pendingFlows = deferred<{ items: typeof baseFlow[]; canManage: boolean }>();
+    apiMock.mockImplementation((path: string, init?: RequestInit) => path.startsWith("/v1/service-flows?")
+      ? pendingFlows.promise
+      : successfulApi(path, init));
+
+    const loaded = render(<ServiceFlowsView user={users.sac} />);
+    expect(screen.getByText("Carregando fluxos").closest("[role='status']")).toBeInTheDocument();
+
+    pendingFlows.resolve({ items: [baseFlow], canManage: false });
+    expect(await screen.findByRole("heading", { name: baseFlow.title })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Orientacao" }).nextElementSibling).toHaveTextContent("<script>nao executar</script>");
+    expect(document.querySelector("script")).toBeNull();
+    expect(screen.getByRole("link", { name: "inseguro" })).toHaveAttribute("href", "#");
+    expect(screen.queryByText("Texto obsoleto")).not.toBeInTheDocument();
+    loaded.unmount();
+
+    apiMock.mockImplementation((path: string, init?: RequestInit) => path.startsWith("/v1/service-flows?")
+      ? Promise.resolve({ items: [], canManage: false })
+      : successfulApi(path, init));
+    render(<ServiceFlowsView user={users.sac} />);
+    expect(await screen.findByText("Nenhum fluxo encontrado")).toBeInTheDocument();
+    expect(screen.getByText("Selecione um fluxo")).toBeInTheDocument();
+  });
+
+  it("filters the listing while keeping governance and creation unavailable to SAC", async () => {
+    const user = userEvent.setup();
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+
+    expect(screen.queryByRole("heading", { name: "Governança do fluxo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Novo fluxo de atendimento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument();
+    expect(apiMock).not.toHaveBeenCalledWith("/v1/service-flows/metrics/summary");
+
+    await user.type(screen.getByRole("textbox", { name: "Busca" }), "troca segura");
+    await user.click(screen.getByRole("button", { name: "Filtrar" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/service-flows?query=troca+segura"));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Tag" }), "seguranca");
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith(expect.stringContaining("tag=seguranca")));
+  });
+
+  it("creates a governed flow with normalized tags, decisions and related scripts", async () => {
+    const user = userEvent.setup();
+    render(<ServiceFlowsView user={users.manager} />);
+    await screen.findByRole("heading", { name: "Novo fluxo de atendimento" });
+    expect(await screen.findByRole("heading", { name: "Uso dos fluxos" })).toBeInTheDocument();
+
+    const creation = screen.getByRole("heading", { name: "Novo fluxo de atendimento" }).closest("section");
+    const form = within(creation as HTMLElement);
+    await user.type(form.getByRole("textbox", { name: "Título" }), "Cancelamento assistido");
+    await user.type(form.getByRole("textbox", { name: "Resumo" }), "Decisao segura");
+    await user.type(form.getByRole("textbox", { name: "Tags" }), " Cancelamento, #Pedido, cancelamento ");
+    await user.type(form.getByRole("textbox", { name: "Conteúdo de apoio" }), "## Politica\nSem automacao.");
+    await user.type(form.getByRole("textbox", { name: "Etapa" }), "Validar pedido para troca");
+    await user.selectOptions(form.getByRole("combobox", { name: "Tipo" }), "YES_NO");
+    await user.type(form.getByRole("textbox", { name: "Orientação da etapa" }), "Confirme dados do pedido.");
+    await user.type(form.getByRole("textbox", { name: "Se sim" }), "Prosseguir com cancelamento");
+    await user.type(form.getByRole("textbox", { name: "Se não" }), "Escalar para gestao");
+    await user.selectOptions(form.getByRole("listbox", { name: "Scripts relacionados" }), canonicalScript.id);
+    await user.click(form.getByRole("button", { name: "Criar fluxo" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/service-flows", expect.objectContaining({ method: "POST" })));
+    const request = apiMock.mock.calls.find(([path, init]) => path === "/v1/service-flows" && (init as RequestInit)?.method === "POST");
+    const payload = JSON.parse(String((request?.[1] as RequestInit).body));
+    expect(payload).toMatchObject({
+      title: "Cancelamento assistido",
+      summary: "Decisao segura",
+      tags: ["cancelamento", "pedido"],
+      steps: [{
+        title: "Validar pedido para troca",
+        kind: "YES_NO",
+        order: 1,
+        required: true,
+        decision: { yes: "Prosseguir com cancelamento", no: "Escalar para gestao" },
+        scriptIds: [canonicalScript.id]
+      }]
+    });
+    await waitFor(() => expect(apiMock.mock.calls.filter(([path]) => String(path).startsWith("/v1/service-flows?")).length).toBeGreaterThan(1));
+  });
+
+  it("publishes and archives through HTTP while preserving the visible version on conflict", async () => {
+    const user = userEvent.setup();
+    let publishAttempts = 0;
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === `/v1/service-flows/${baseFlow.id}/publish`) {
+        publishAttempts += 1;
+        return publishAttempts === 1
+          ? Promise.reject(new Error("Conflito: o fluxo ganhou uma nova versao."))
+          : successfulApi(path, init);
+      }
+      return successfulApi(path, init);
+    });
+    render(<ServiceFlowsView user={users.manager} />);
+    await screen.findByText("v2 · DRAFT", { exact: false });
+
+    await user.type(screen.getByRole("textbox", { name: "Comentário obrigatório" }), "Revisao da politica");
+    await user.click(screen.getByRole("button", { name: "Publicar versão" }));
+    expect(await screen.findByText("Conflito: o fluxo ganhou uma nova versao.")).toBeInTheDocument();
+    expect(screen.getByText("v2 · DRAFT", { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Comentário obrigatório" })).toHaveValue("Revisao da politica");
+
+    await user.click(screen.getByRole("button", { name: "Publicar versão" }));
+    await waitFor(() => expect(publishAttempts).toBe(2));
+    expect(screen.getByRole("textbox", { name: "Comentário obrigatório" })).toHaveValue("");
+
+    await user.type(screen.getByRole("textbox", { name: "Comentário obrigatório" }), "Fluxo substituido");
+    await user.click(screen.getByRole("button", { name: "Arquivar" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
+      `/v1/service-flows/${baseFlow.id}/archive`,
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ comment: "Fluxo substituido", reviewDueAt: null }) })
+    ));
+  });
+
+  it("runs the guided session with audited decision, rollback-safe error and completion", async () => {
+    const user = userEvent.setup();
+    let stepAttempts = 0;
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/v1/service-flow-sessions/session-1/steps/step-1") {
+        stepAttempts += 1;
+        return stepAttempts === 1 ? Promise.reject(new Error("Etapa alterada em outra sessao.")) : successfulApi(path, init);
+      }
+      return successfulApi(path, init);
+    });
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    expect(await screen.findByText("Atendimento em andamento")).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Decisão tomada" }), "Troca");
+    await user.type(screen.getByRole("textbox", { name: "Nota interna" }), "Cliente validado");
+    await user.click(screen.getByRole("button", { name: "Concluir etapa" }));
+
+    expect(await screen.findByText("Etapa alterada em outra sessao.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Decisão tomada" })).toHaveValue("Troca");
+    expect(screen.getByRole("textbox", { name: "Nota interna" })).toHaveValue("Cliente validado");
+    await user.click(screen.getByRole("button", { name: "Concluir etapa" }));
+    await waitFor(() => expect(apiMock).toHaveBeenLastCalledWith(
+      "/v1/service-flow-sessions/session-1/steps/step-1",
+      { method: "POST", body: JSON.stringify({ status: "DONE", decision: "Troca", note: "Cliente validado" }) }
+    ));
+    expect(await screen.findByText("DONE · YES_NO · obrigatório")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(await screen.findByText("Atendimento finalizado")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Concluir etapa" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("renders placeholders safely and audits canonical script copy in the active session", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockImplementation(clipboardWriteMock);
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    await screen.findByText("Atendimento em andamento");
+
+    await user.type(screen.getAllByRole("textbox", { name: "cliente" })[0], "Maria <script>");
+    await user.click(screen.getByRole("button", { name: "Copiar script" }));
+    const rendered = "Ola, Maria <script>. A troca esta autorizada.";
+    await waitFor(() => expect(clipboardWriteMock).toHaveBeenCalledWith(rendered));
+    expect(apiMock).toHaveBeenCalledWith(
+      `/v1/script-library/scripts/${canonicalScript.id}/copy`,
+      {
+        method: "POST",
+        body: JSON.stringify({ renderedText: rendered, placeholders: { cliente: "Maria <script>" }, serviceFlowSessionId: "session-1" })
+      }
+    );
+    expect(document.querySelectorAll("script")).toHaveLength(0);
+  });
+});

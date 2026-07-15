@@ -1,7 +1,7 @@
 # TASK-AT-339 - Web coverage: primeiro marco real de 10%
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: web/product
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-339-web-first-ten-percent-coverage.md
@@ -29,6 +29,12 @@ Levar a Web de 6.82% para um primeiro piso sustentavel cobrindo bootstrap, sessa
 
 ## Validacao
 - coverage Web duas vezes, testes de componente/role, acessibilidade e build Web.
+
+## Resultado
+- Bootstrap, sessao, expiracao, retry, logout, fallback e matriz completa de roles possuem regressao comportamental.
+- O evento global de ajuda agora respeita as roles comerciais em vez de cair silenciosamente no Dashboard.
+- `main.tsx` atingiu 12.74% de linhas, 78.83% de branches e 43.63% de funcoes.
+- O piso global Web ultrapassou o marco de 10% e foi elevado em conjunto com a TASK-AT-340.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

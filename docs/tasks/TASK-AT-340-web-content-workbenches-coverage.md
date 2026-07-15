@@ -1,7 +1,7 @@
 # TASK-AT-340 - Web coverage: Scriptoteca, Wiki e Notas em 20%
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: web/product
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-340-web-content-workbenches-coverage.md
@@ -29,6 +29,13 @@ Cobrir as tres maiores workbenches Web atualmente em 0% e atingir o segundo marc
 
 ## Validacao
 - coverage Web, testes das tres views, upload/redaction, acessibilidade e build.
+
+## Resultado
+- Scriptoteca: 63.38% de linhas, 62.77% de branches e 25% de funcoes.
+- Wiki: 70.94% de linhas, 67.85% de branches e 38.09% de funcoes.
+- Notas: 90.77% de linhas, 64.33% de branches e 54.02% de funcoes.
+- A suite Web completa aprovou 37 testes e atingiu 33.08% de linhas, 68.52% de branches e 41.71% de funcoes.
+- Pisos globais subiram para 30% de linhas/statements, 65% de branches e 40% de funcoes, com pisos adicionais por view.
 
 ## Handoff
 - handoff_to: olympus_orchestrator
