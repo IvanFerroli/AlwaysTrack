@@ -1,6 +1,11 @@
 import type { CompanionHelloEvent, CompanionPairedEvent } from "./events.js";
 
 export const companionProtocolVersion = "1" as const;
+export const companionProtocolLimits = {
+  maxPayloadBytes: 64 * 1024,
+  maxStringLength: 1_024,
+  maxSupportedVersions: 8
+} as const;
 
 export const companionProtocolErrorCodes = [
   "INVALID_MESSAGE",
@@ -33,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
+  return typeof value === "string" && value.length > 0 && value.length <= companionProtocolLimits.maxStringLength;
 }
 
 function isTimestamp(value: unknown): value is string {
@@ -43,7 +48,11 @@ function isTimestamp(value: unknown): value is string {
 function schema<T>(validate: (value: unknown) => value is T): RuntimeSchema<T> {
   return {
     safeParse(value) {
-      return validate(value) ? { success: true, data: value } : { success: false };
+      try {
+        return validate(value) ? { success: true, data: value } : { success: false };
+      } catch {
+        return { success: false };
+      }
     }
   };
 }
@@ -58,6 +67,7 @@ export const companionHelloSchema = schema<CompanionHelloEvent>((value): value i
     && isNonEmptyString(value.payload.token)
     && Array.isArray(value.payload.supportedProtocolVersions)
     && value.payload.supportedProtocolVersions.length > 0
+    && value.payload.supportedProtocolVersions.length <= companionProtocolLimits.maxSupportedVersions
     && value.payload.supportedProtocolVersions.every((version) => version === companionProtocolVersion);
 });
 
@@ -91,7 +101,9 @@ export const companionProtocolErrorSchema = schema<CompanionProtocolError>((valu
 
 export function parseCompanionJson(data: unknown): unknown {
   try {
-    return JSON.parse(String(data)) as unknown;
+    const serialized = String(data);
+    if (new TextEncoder().encode(serialized).byteLength > companionProtocolLimits.maxPayloadBytes) return undefined;
+    return JSON.parse(serialized) as unknown;
   } catch {
     return undefined;
   }

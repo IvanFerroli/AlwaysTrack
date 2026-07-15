@@ -1,6 +1,7 @@
 import type { EvidenceFact, EvidenceSensitivity, NormalizedEvidenceKey } from "../case-flow/evidence.js";
 import { connectorId } from "../case-flow/evidence.js";
 import type { ParserFactContext } from "./alwayschat.js";
+import { connectorParserLimits } from "./parser.js";
 
 type JsonObject = Record<string, unknown>;
 export type RastreioSearchKey = "CPF" | "ORDER" | "EMAIL" | "PHONE";
@@ -33,10 +34,12 @@ function object(value: unknown, path: string): JsonObject {
 }
 function string(value: unknown, path: string): string {
   if (typeof value !== "string" || !value.trim()) throw new TypeError(`${path} must be a non-empty string`);
-  return value.trim();
+  const trimmed = value.trim();
+  if (trimmed.length > connectorParserLimits.maxStringLength) throw new TypeError(`${path} is too long`);
+  return trimmed;
 }
 function optionalString(value: unknown, path: string) { return value === undefined || value === null || value === "" ? undefined : string(value, path); }
-function array(value: unknown, path: string): unknown[] { if (!Array.isArray(value)) throw new TypeError(`${path} must be an array`); return value; }
+function array(value: unknown, path: string): unknown[] { if (!Array.isArray(value)) throw new TypeError(`${path} must be an array`); if (value.length > connectorParserLimits.maxCollectionItems) throw new TypeError(`${path} has too many items`); return value; }
 function searchKey(value: unknown): RastreioSearchKey {
   const key = string(value, "searchedBy");
   if (key !== "CPF" && key !== "ORDER" && key !== "EMAIL" && key !== "PHONE") throw new TypeError("searchedBy is invalid");

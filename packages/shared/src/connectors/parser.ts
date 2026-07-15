@@ -9,13 +9,20 @@ export type ParsedSearchResult<T> =
   | { outcome: "FOUND"; records: T[] }
   | { outcome: Exclude<ParserOutcome, "FOUND">; records: []; message?: string };
 
+export const connectorParserLimits = {
+  maxCollectionItems: 100,
+  maxStringLength: 8_192
+} as const;
+
 export function object(value: unknown, path: string): JsonObject {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new TypeError(`${path} must be an object`);
   return value as JsonObject;
 }
 export function string(value: unknown, path: string): string {
   if (typeof value !== "string" || !value.trim()) throw new TypeError(`${path} must be a non-empty string`);
-  return value.trim();
+  const trimmed = value.trim();
+  if (trimmed.length > connectorParserLimits.maxStringLength) throw new TypeError(`${path} is too long`);
+  return trimmed;
 }
 export function optionalString(value: unknown, path: string): string | undefined {
   return value === undefined || value === null || value === "" ? undefined : string(value, path);
@@ -31,6 +38,7 @@ export function positiveInteger(value: unknown, path: string): number {
 }
 export function array(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) throw new TypeError(`${path} must be an array`);
+  if (value.length > connectorParserLimits.maxCollectionItems) throw new TypeError(`${path} has too many items`);
   return value;
 }
 export function strings(value: unknown, path: string): string[] {

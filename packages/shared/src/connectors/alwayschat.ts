@@ -1,5 +1,6 @@
 import type { EvidenceFact, EvidenceSensitivity, NormalizedEvidenceKey } from "../case-flow/evidence.js";
 import { connectorId } from "../case-flow/evidence.js";
+import { connectorParserLimits } from "./parser.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -63,7 +64,9 @@ function object(value: unknown, path: string): JsonObject {
 
 function string(value: unknown, path: string): string {
   if (typeof value !== "string" || !value.trim()) throw new TypeError(`${path} must be a non-empty string`);
-  return value.trim();
+  const trimmed = value.trim();
+  if (trimmed.length > connectorParserLimits.maxStringLength) throw new TypeError(`${path} is too long`);
+  return trimmed;
 }
 
 function optionalString(value: unknown, path: string): string | undefined {
@@ -72,7 +75,14 @@ function optionalString(value: unknown, path: string): string | undefined {
 
 function strings(value: unknown, path: string): string[] {
   if (!Array.isArray(value)) throw new TypeError(`${path} must be an array`);
+  if (value.length > connectorParserLimits.maxCollectionItems) throw new TypeError(`${path} has too many items`);
   return value.map((item, index) => string(item, `${path}[${index}]`));
+}
+
+function collection(value: unknown, path: string): unknown[] {
+  if (!Array.isArray(value)) throw new TypeError(`${path} must be an array`);
+  if (value.length > connectorParserLimits.maxCollectionItems) throw new TypeError(`${path} has too many items`);
+  return value;
 }
 
 function attachment(value: unknown, path: string): AlwaysChatAttachment {
@@ -89,13 +99,13 @@ function message(value: unknown, path: string): AlwaysChatMessage {
   const raw = object(value, path);
   const author = string(raw.author, `${path}.author`);
   if (author !== "CUSTOMER" && author !== "AGENT" && author !== "SYSTEM") throw new TypeError(`${path}.author is invalid`);
-  if (!Array.isArray(raw.attachments)) throw new TypeError(`${path}.attachments must be an array`);
+  const attachments = collection(raw.attachments, `${path}.attachments`);
   return {
     id: string(raw.id, `${path}.id`),
     author,
     text: string(raw.text, `${path}.text`),
     sentAt: string(raw.sentAt, `${path}.sentAt`),
-    attachments: raw.attachments.map((item, index) => attachment(item, `${path}.attachments[${index}]`))
+    attachments: attachments.map((item, index) => attachment(item, `${path}.attachments[${index}]`))
   };
 }
 
@@ -103,9 +113,10 @@ export function parseAlwaysChatIntake(input: unknown): AlwaysChatIntake {
   const raw = object(input, "AlwaysChatIntake");
   const conversation = object(raw.conversation, "conversation");
   const customer = object(raw.customer, "customer");
-  if (!Array.isArray(raw.orders) || !Array.isArray(raw.history) || !Array.isArray(raw.recentMessages) || !Array.isArray(raw.visibleAttachments)) {
-    throw new TypeError("AlwaysChat intake collections must be arrays");
-  }
+  const orders = collection(raw.orders, "orders");
+  const history = collection(raw.history, "history");
+  const recentMessages = collection(raw.recentMessages, "recentMessages");
+  const visibleAttachments = collection(raw.visibleAttachments, "visibleAttachments");
 
   return {
     conversation: {
@@ -122,13 +133,13 @@ export function parseAlwaysChatIntake(input: unknown): AlwaysChatIntake {
       phone: optionalString(customer.phone, "customer.phone")
     },
     displayedOrder: optionalString(raw.displayedOrder, "displayedOrder"),
-    orders: raw.orders.map((item, index) => {
+    orders: orders.map((item, index) => {
       const order = object(item, `orders[${index}]`);
       return { id: string(order.id, `orders[${index}].id`), status: optionalString(order.status, `orders[${index}].status`), coupons: strings(order.coupons, `orders[${index}].coupons`) };
     }),
-    history: raw.history.map((item, index) => message(item, `history[${index}]`)),
-    recentMessages: raw.recentMessages.map((item, index) => message(item, `recentMessages[${index}]`)),
-    visibleAttachments: raw.visibleAttachments.map((item, index) => attachment(item, `visibleAttachments[${index}]`)),
+    history: history.map((item, index) => message(item, `history[${index}]`)),
+    recentMessages: recentMessages.map((item, index) => message(item, `recentMessages[${index}]`)),
+    visibleAttachments: visibleAttachments.map((item, index) => attachment(item, `visibleAttachments[${index}]`)),
     visibleCoupons: strings(raw.visibleCoupons, "visibleCoupons"),
     customerText: string(raw.customerText, "customerText"),
     apparentIntent: optionalString(raw.apparentIntent, "apparentIntent"),
