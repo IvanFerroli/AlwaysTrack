@@ -8,7 +8,7 @@
 - `npm run test:unit`: unit/service tests sem quality e2e.
 - `npm run test:integration`: fluxo principal service-level.
 - `npm run test:regression`: notas, Wiki, FAQ e notificacoes.
-- `npm run coverage:html`: coverage HTML da API em `services/api/coverage/index.html`.
+- `npm run coverage:check` ou `npm run coverage:html`: thresholds e coverage HTML dos seis workspaces; politica em `docs/testing/coverage-policy.md`.
 - `npm run docs:api`: TypeDoc.
 - `npm run check:docs`: valida a integridade da documentacao ativa, preserva os invariantes de rollout e gera TypeDoc.
 - `npm run test:all`: check + integridade documental + TypeDoc.

@@ -16,5 +16,4 @@ docs/generated/
 docs/performance/reports/
 test-results/
 playwright-report/
-services/api/coverage/
-apps/web/coverage/
+coverage/

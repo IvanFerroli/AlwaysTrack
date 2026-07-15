@@ -45,7 +45,8 @@
     "test:e2e:api": "playwright test --project=api",
     "test:e2e:beta-permissions": "playwright test tests/e2e/beta-permissions.api.spec.ts --project=api",
     "test:all": "npm run check && npm run check:docs",
-    "coverage:html": "npm run coverage:html --workspace @alwaystrack/api",
+    "coverage:check": "npm run coverage --workspace @alwaystrack/shared && npm run coverage --workspace @alwaystrack/companion-extension && npm run coverage --workspace @alwaystrack/smartscript-companion && npm run coverage --workspace @alwaystrack/web && npm run coverage --workspace @alwaystrack/api && npm run coverage --workspace @alwaystrack/companion-host",
+    "coverage:html": "npm run coverage:check",
     "docs:api": "typedoc --options typedoc.json",
     "db:test:migrations": "node scripts/test-migrations.js",
     "db:postgres:preflight": "node scripts/postgres-preflight.js",
@@ -76,6 +77,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "artillery": "^2.0.32",
     "prisma": "6.19.3",
     "typedoc": "^0.28.19",

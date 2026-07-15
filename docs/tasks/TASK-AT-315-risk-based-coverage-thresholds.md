@@ -1,8 +1,8 @@
 # TASK-AT-315 - Coverage: thresholds incrementais por workspace e risco
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-315-risk-based-coverage-thresholds.md
 
@@ -30,8 +30,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-310, TASK-AT-311.
+- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307`, auditoria transversal, TASK-AT-310 e TASK-AT-311.
+- em aberto: nenhuma dependencia para o gate local/CI; aumento progressivo permanece continuo.
 
 ## Alvos explicitos
 1. package.json
@@ -91,3 +91,11 @@ TASK-AT-316
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- Os seis workspaces publicam coverage V8 sobre todos os fontes `src`, com summary JSON/texto e HTML.
+- Cada workspace possui piso global abaixo do baseline medido e metas explicitas para contratos, auth, firewall, parsers, API Web e processamento SmartScript.
+- Firewalls de API, Extension e Host e geracao Espanso exigem 100% onde o baseline real sustenta essa meta.
+- O CI executa `npm run coverage:check`, bloqueia regressao e publica `workspace-coverage` por 14 dias.
+- Politica, owners, baselines, dividas Web/SmartScript e regra de excecao estao em `docs/testing/coverage-policy.md`.
+- Validacao local: `npm run coverage:check` passou nos seis workspaces; `npm run check` passou com 632 testes, 1 teste Redis opt-in ignorado e os seis builds aprovados.
+- Evidencia classificada como `local`, sem credenciais, sistemas externos ou promocao de rollout.

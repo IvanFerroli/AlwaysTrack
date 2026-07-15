@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json && vite build",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "coverage": "vitest run --config vitest.config.ts --coverage"
   },
   "dependencies": {
     "@alwaystrack/shared": "file:../../packages/shared",
