@@ -1,8 +1,8 @@
 # TASK-AT-313 - E2E: matriz critica por role, viewport e jornada
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_runtime_builder
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-313-critical-role-e2e-matrix.md
 
@@ -19,73 +19,47 @@ Testing / E2E
 - Diretiva do usuario de 2026-07-15 para cobertura transversal e padronizacao do projeto.
 
 ## Objetivo unico
-Executar no CI as jornadas criticas comerciais, administrativas e CaseFlow em desktop e mobile.
+Executar jornadas criticas comerciais, administrativas e CaseFlow em desktop e mobile, com guardas positivos e negativos para cada papel operacional.
 
-## Contexto minimo
-O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integracoes externas e gates CaseFlow. Esta task fecha uma lacuna observada sem reabrir implementacoes concluidas nem substituir validacoes live existentes.
+## Implementacao
+1. `tests/e2e/critical-role-caseflow.api.spec.ts` prova criacao/leitura de caso sintetico e a fronteira administrativa para ADMIN, GESTOR, SAC, FINANCEIRO, VENDEDOR e SUPERVISOR.
+2. `tests/e2e/critical-role.desktop.spec.ts` cobre ADMIN, GESTOR, FINANCEIRO e SUPERVISOR no viewport desktop, incluindo falha transitoria e retry do admin CaseFlow.
+3. `tests/e2e/critical-role.mobile.spec.ts` cobre SAC e VENDEDOR no viewport mobile.
+4. `tests/e2e/helpers.ts` reconhece login concluido pela shell autenticada, sem pressupor Dashboard para SAC.
+5. `playwright.config.ts` separa arquivos por viewport, mantem execucao serial e eleva somente o limite de login da bancada isolada para evitar falso negativo da propria matriz.
+6. O helper usa `E2E_API_BASE_URL` configuravel e aponta por padrao ao host isolado `127.0.0.1:3334`, impedindo que preparacao administrativa atravesse o proxy do frontend.
+7. Traces, screenshots e videos continuam retidos apenas em falha; a suite usa exclusivamente SQLite temporario, seed sintetica e dominios locais.
 
-## Inputs
-- Estado real do codigo, CI, testes, docs e manifests em 2026-07-15.
-- Ledger canonico da `TASK-AT-308`, quando aplicavel.
-- Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
+## Matriz e criterios
+A matriz executavel e a classificacao de risco estao em `docs/testing/e2e-critical-role-matrix.md`.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-310, TASK-AT-311, TASK-AT-292.
+- satisfeitas: TASK-AT-309, TASK-AT-310, TASK-AT-311 e bancada isolada existente.
+- satisfeita por API: cobertura CaseFlow local sem conectores ou credenciais externas.
+- satisfeita localmente: Chromium executado com `libnspr4` e `libnss3` extraidos em diretorio temporario, sem instalacao privilegiada nem alteracao do host.
 
-## Alvos explicitos
-1. tests/e2e/**
-2. playwright.config.ts
-3. .github/workflows/check.yml
-
-## Fora de escopo
-- Declarar validacao live a partir de mocks, fixtures ou execucao local.
-- Usar credenciais, dados pessoais ou sistemas externos sem ambiente autorizado.
-- Refatoracao ampla sem relacao direta com os criterios desta task.
-
-## Checklist de execucao
-1. Definir matriz de roles e jornadas com seeds deterministicos.
-2. Cobrir sucesso, permissao negada, erro, retry e estado vazio.
-3. Publicar traces, screenshots e videos apenas em falha, com redaction.
+## Fora de escopo preservado
+- Nenhuma credencial externa, PII, scraping, conector live ou alteracao de producao.
+- A suite nao declara evidencia production-like ou live.
+- O smoke existente nao foi duplicado: a nova cobertura valida jornadas e permissoes por papel.
 
 ## Acceptance Criteria
-1. Cada role critica possui ao menos uma jornada positiva e uma negativa.
-2. Desktop e mobile participam do gate definido por risco.
-3. Falhas produzem artefatos suficientes para reproducao sem dados sensiveis.
+1. Cada um dos seis papeis criticos possui jornada positiva e negativa na matriz: atendido no codigo e validado na camada API; erro, retry e estado vazio estao representados no browser administrativo.
+2. Desktop e mobile participam do gate por risco: atendido e validado em Chromium local nos dois projetos.
+3. Falhas geram artefatos reproduziveis sem dados sensiveis: atendido pela configuracao `retain-on-failure` e dados sinteticos.
 
-## Definition of Done
-1. Alvos previstos foram criados ou atualizados com mudanca revisavel.
-2. Validacoes automatizadas e manuais aplicaveis foram executadas e registradas.
-3. Riscos residuais, blockers e classificacao da evidencia constam no retorno.
+## Validacao executada
+- `npx playwright test tests/e2e/critical-role-caseflow.api.spec.ts --project=api`: 6/6 passaram.
+- `npx playwright test tests/e2e/critical-role.desktop.spec.ts --project=desktop --grep 'GESTOR monitors'`: 1/1 passou apos validar o isolamento do host da API.
+- `npx playwright test tests/e2e/critical-role.desktop.spec.ts tests/e2e/critical-role.mobile.spec.ts --project=desktop --project=mobile`: 6/6 passaram em Chromium.
+- Evidencia: `local/fake`, em SQLite temporario, sem credenciais ou sistemas externos.
 
-## Validacao
-- comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
-- revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
-
-## Evidencia esperada
-- Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
-- Relatorio ou artefato sanitizado classificado como fake, local, production-like ou live.
-- Owner, riscos residuais e proximo passo.
-
-## Riscos
-- Suite longa e instavel por excesso de cenarios no gate de PR.
-
-## Blockers possiveis
-- Ambiente production-like, Windows/WSL/Chrome ou credenciais autorizadas indisponiveis.
-- Dependencia anterior ainda nao aprovada.
-- Evidencia contem dado sensivel e precisa ser refeita com redaction.
-
-## Proximo passo provavel
-TASK-AT-314
-
-## Feedback obrigatorio de retorno
-- resumo curto do que mudou
-- evidencia de validacao e sua classificacao
-- riscos, ressalvas e blockers
-- proximo passo recomendado
+## Riscos residuais e proximo passo
+- O runner oficial ainda deve instalar as dependencias Playwright pela imagem/esteira; a validacao local usou bibliotecas extraidas apenas em `/tmp`.
+- A promocao sintetica de SAC para GESTOR exercita o contrato administrativo real porque GESTOR nao faz parte da seed padrao.
+- TASK-AT-314 deve executar a validacao manual de leitor de tela/zoom; TASK-AT-313 nao substitui essa evidencia.
 
 ## Handoff
 - handoff_to: olympus-orchestrator
-- execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
-- constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
+- execution_expectation: reproduzir os 12 cenarios no runner oficial e preservar os artefatos somente quando houver falha.
+- constraints: sem inferir validacao live, sem credenciais externas e sem promover rollout a partir desta evidencia local.

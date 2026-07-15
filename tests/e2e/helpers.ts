@@ -1,6 +1,11 @@
 import { expect, type APIRequestContext, type APIResponse, type Page } from "@playwright/test";
 
 export const seedPassword = "AlwaysTrackE2E123!";
+const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:3334";
+
+export function e2eApiUrl(path: string) {
+  return new URL(path, apiBaseUrl).toString();
+}
 
 export type ApiEnvelope<T> = {
   ok: boolean;
@@ -32,7 +37,7 @@ export async function loginApi(request: APIRequestContext, email: string, passwo
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       await expectOk<{ user: ManagedUser }>(
-        await request.post("/v1/auth/login", {
+        await request.post(e2eApiUrl("/v1/auth/login"), {
           data: {
             email,
             password
@@ -58,7 +63,8 @@ export async function loginPage(page: Page, email: string, password = seedPasswo
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Senha").fill(password);
   await page.getByRole("button", { name: "Entrar com senha" }).click();
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação principal" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sair/ })).toBeVisible();
 }
 
 export async function loginAsAdminPage(page: Page) {

@@ -17,7 +17,10 @@ export default defineConfig({
     command: "node scripts/start-e2e.js",
     url: "http://localhost:5174",
     timeout: 120_000,
-    reuseExistingServer: false
+    reuseExistingServer: false,
+    env: {
+      RATE_LIMIT_LOGIN_MAX: "100"
+    }
   },
   projects: [
     {
@@ -30,7 +33,7 @@ export default defineConfig({
         video: "off"
       }
     },
-    { name: "desktop", testIgnore: /.*\.api\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", testIgnore: /.*\.api\.spec\.ts/, use: { ...devices["Pixel 5"] } }
+    { name: "desktop", testIgnore: [/.*\.api\.spec\.ts/, /.*\.mobile\.spec\.ts/], use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile", testIgnore: [/.*\.api\.spec\.ts/, /.*\.desktop\.spec\.ts/], use: { ...devices["Pixel 5"] } }
   ]
 });
