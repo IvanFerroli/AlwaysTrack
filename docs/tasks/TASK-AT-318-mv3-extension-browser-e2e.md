@@ -1,7 +1,7 @@
 # TASK-AT-318 - Extensao MV3: E2E em Chromium com Host controlado
 
 ## Metadata
-- status: planned
+- status: implementation-complete-runtime-wiring-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-318-mv3-extension-browser-e2e.md
@@ -84,8 +84,51 @@ TASK-AT-319
 - riscos, ressalvas e blockers
 - proximo passo recomendado
 
+## Evidencia de implementacao
+
+- ambiente: Ubuntu 24.04, Node 24, Chromium Playwright 1228, extensao unpacked.
+- execucao: `2026-07-15T12:25:48Z`, base Git `e7d5537862cbe80daac6131db964bebd2c45920e`;
+  sem commit por restricao explicita do handoff.
+- classificacao: `local/fake`; nenhum sistema externo, credencial ou dado real foi usado.
+- Host: servidor WebSocket controlado em `127.0.0.1:38472`, com tokens e identidades sinteticos.
+- superficies exercitadas: manifest e permissoes, service worker MV3, side panel em origem
+  `chrome-extension://`, intent do fluxo guiado, pairing, rotacao de token, queda do Host,
+  backoff/reconnect, rejeicao terminal, suspend/resume e reparo manual.
+- privacidade: o runner nao persiste trace, video, screenshot, HTML, cookie ou token; a saida
+  do protocolo reduz tokens a classe `pairing` ou `reconnect`.
+
+Comandos locais:
+
+```bash
+npm run build --workspace @alwaystrack/companion-extension
+LD_LIBRARY_PATH=/tmp/alwaystrack-playwright-libs/root/usr/lib/x86_64-linux-gnu \
+  node scripts/mv3-extension-e2e.mjs
+npm run typecheck --workspace @alwaystrack/companion-extension
+npm run test --workspace @alwaystrack/companion-extension
+npm run repo:hygiene
+git diff --check
+```
+
+Resultados: build, typecheck, higiene, integridade documental e `git diff --check` com
+exit code 0; 108 testes Vitest passaram; runner Chromium repetido 3 vezes, com 11 checks
+em cada execucao e nenhuma flake observada.
+
+## Lacunas objetivas encontradas
+
+1. `content-scripts/index.js` e produzido pelo build, mas `manifest.json` nao declara
+   `content_scripts`; por isso intake real em uma pagina nao e alcancavel nesta versao.
+2. O token de reconexao existe apenas na memoria do service worker. Reiniciar o worker
+   exige novo pairing e impede afirmar reconexao transparente apos suspend/resume.
+3. `TabRegistry` nao esta conectado ao service worker atual; sua cobertura permanece
+   unitaria, nao E2E em navegador.
+4. Side panel foi aberto diretamente pela URL da extensao. O clique real no action icon
+   e o comportamento visual acoplado ao perfil Chrome exigem gate manual/production-like.
+
+Essas lacunas nao foram contornadas alterando manifest ou Host de producao, em respeito ao
+ownership desta rodada. A task fica implementada no maior escopo local viavel, mas nao deve
+ser promovida a validacao `live` nem considerada integralmente concluida ate o wiring acima.
+
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
