@@ -20,12 +20,12 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 | Extension | 91.17 / 65 | 79.29 / 76 | 89.70 / 81 | companion/extension |
 | SmartScript | 80.59 / 80 | 72.44 / 70 | 91.48 / 90 | companion/smartscript |
 | Web | 6.59 / 6 | 56.77 / 50 | 29.77 / 25 | web/product |
-| API | 68.82 / 60 | 67.03 / 60 | 64.88 / 64 | api/core |
+| API | 71.52 / 60 | 67.58 / 60 | 70.34 / 68 | api/core |
 | Host | 97.80 / 92 | 89.60 / 84 | 98.30 / 95 | companion/host |
 
 Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript agora combina testes diretos atribuiveis com E2E de subprocesso separado; Web mede toda a SPA e conserva divida explicita. O proximo marco global e 10% de linhas no Web sem reduzir os demais pisos.
 
-Excecao temporaria API: o inventario completo de 2026-07-15 encontrou 64.88% de funcoes, enquanto o piso inicial de 75% nunca havia sido exercitado pelo comando agregado. O owner `api/core` aceita piso executavel de 64% ate 2026-08-15; elevar de volta exige testes dos modulos adicionados depois do baseline original. Os thresholds criticos por arquivo permanecem inalterados.
+Excecao temporaria API: o harness HTTP da TASK-AT-345 elevou funcoes de 64.88% para 70.34% e o piso executavel de 64% para 68%. O owner `api/core` mantem a excecao ate 2026-08-15; a TASK-AT-346 deve cobrir workflows e jobs antes de restaurar o piso de 75%. Os thresholds criticos por arquivo permanecem inalterados.
 
 ## Superficies criticas
 - Shared: protocolo Companion, parser generico de conectores e action firewall canonico em 100%.
