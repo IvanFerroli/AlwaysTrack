@@ -3,13 +3,21 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-06-11
+- last-updated: 2026-07-15
 - source-of-truth: docs/operations/orchestrator-state.md
 
 ## Ciclo ativo
 Buildout do produto AlwaysTrack como ferramenta comercial para empresa de suplementos: upload de DANFE por vendedor, extracao, ranking, campanhas, dashboard e extratos.
 
 Fronteira definida em: `docs/adr/ADR-002-fronteira-template-alwaystrack.md`
+
+## Snapshot transversal de prontidao - 2026-07-15
+- `TASK-AT-308`: ledger canonico criado em `docs/operations/project-readiness-ledger.md`; componentes, perifericos, owners, riscos, dependencias, gates e classes de evidencia reconciliados.
+- `TASK-AT-333`: schema e pacote de apresentacao materializados; evidencias de demo, rollout e exposicao externa agora possuem fronteiras separadas.
+- Demo controlada local/offline: `GO-WITH-RISK`, restrita a dados ficticios e revalidacao no commit apresentado.
+- Rollout interno/CaseFlow: `NO-GO`; auditorias AT-302 a AT-306 e gates live permanecem inalterados.
+- Exposicao externa: `NO-GO`; infraestrutura final, Postgres/storage, backup/restore, release e validacoes production-like/live continuam pendentes.
+- Proximo gate recomendado: `TASK-AT-309`; `TASK-AT-330` permanece aberta para automatizar integridade documental.
 
 ## Trilha concluida de transicao (ROADMAP item ordem)
 | Item | Descricao | Status |

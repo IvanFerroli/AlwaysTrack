@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alwaystrack.local/schemas/evidence-manifest.schema.json",
+  "title": "AlwaysTrack Evidence Manifest",
+  "description": "Manifesto reproduzivel de evidencia. A classificacao do ambiente limita o que a evidencia pode aprovar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifestVersion",
+    "evidenceId",
+    "taskId",
+    "commit",
+    "capturedAt",
+    "environment",
+    "operator",
+    "evidenceType",
+    "toolVersions",
+    "commands",
+    "artifacts",
+    "result",
+    "redaction",
+    "approval"
+  ],
+  "properties": {
+    "manifestVersion": { "const": "1.0.0" },
+    "evidenceId": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$" },
+    "taskId": { "type": "string", "pattern": "^TASK-AT-[0-9]+$" },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha", "dirty"],
+      "properties": {
+        "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "capturedAt": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "name", "target"],
+      "properties": {
+        "classification": { "enum": ["fake", "local", "production-like", "live"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    },
+    "evidenceType": { "enum": ["automated", "manual", "hybrid"] },
+    "procedure": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "toolVersions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 200 }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commandResult" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary"],
+      "properties": {
+        "status": { "enum": ["passed", "failed", "blocked", "partial"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "risks": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 500 }, "uniqueItems": true }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary"],
+      "properties": {
+        "status": { "enum": ["not-needed", "applied", "pending"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "status", "approver", "decidedAt"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "status": { "enum": ["not-required", "pending", "approved", "rejected"] },
+        "approver": { "type": ["string", "null"], "minLength": 1, "maxLength": 120 },
+        "decidedAt": { "type": ["string", "null"], "format": "date-time" },
+        "notes": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "gateClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "decision", "requiredClassification", "corroboratingEvidenceIds", "rationale"],
+      "properties": {
+        "gate": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "decision": { "enum": ["go", "go-with-risk", "no-go"] },
+        "requiredClassification": { "enum": ["fake", "local", "production-like", "live"] },
+        "corroboratingEvidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$" }
+        },
+        "rationale": { "type": "string", "minLength": 1, "maxLength": 2000 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "evidenceType": { "enum": ["automated", "hybrid"] } }, "required": ["evidenceType"] },
+      "then": { "properties": { "commands": { "type": "array", "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "evidenceType": { "enum": ["manual", "hybrid"] } }, "required": ["evidenceType"] },
+      "then": { "required": ["procedure"] }
+    },
+    {
+      "if": { "properties": { "approval": { "type": "object", "properties": { "required": { "const": true } }, "required": ["required"] } }, "required": ["approval"] },
+      "then": { "properties": { "approval": { "type": "object", "properties": { "status": { "enum": ["pending", "approved", "rejected"] } } } } }
+    },
+    {
+      "if": { "properties": { "approval": { "type": "object", "properties": { "status": { "enum": ["approved", "rejected"] } }, "required": ["status"] } }, "required": ["approval"] },
+      "then": { "properties": { "approval": { "type": "object", "properties": { "approver": { "type": "string" }, "decidedAt": { "type": "string", "format": "date-time" } } } } }
+    },
+    {
+      "if": { "required": ["gateClosure"] },
+      "then": {
+        "properties": {
+          "approval": {
+            "type": "object",
+            "properties": { "required": { "const": true }, "status": { "enum": ["approved", "rejected"] } }
+          },
+          "redaction": { "type": "object", "properties": { "status": { "enum": ["not-needed", "applied"] } } }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "commandResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "startedAt", "finishedAt", "exitCode", "status"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "finishedAt": { "type": "string", "format": "date-time" },
+        "exitCode": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "status": { "enum": ["passed", "failed", "blocked"] },
+        "summary": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mediaType", "sha256", "sensitivity", "role"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "mediaType": { "type": "string", "pattern": "^[a-z0-9.+-]+/[a-z0-9.+-]+$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sensitivity": { "enum": ["public", "internal", "confidential", "restricted"] },
+        "role": { "enum": ["log", "report", "screenshot", "video", "dataset", "other"] },
+        "redacted": { "type": "boolean" }
+      }
+    }
+  }
+}

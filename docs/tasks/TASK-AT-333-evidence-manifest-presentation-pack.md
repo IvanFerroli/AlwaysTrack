@@ -1,7 +1,7 @@
 # TASK-AT-333 - Evidencias: manifesto padrao e pacote reproduzivel de apresentacao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-333-evidence-manifest-presentation-pack.md
@@ -30,8 +30,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-308, TASK-AT-330.
+- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307`, auditoria transversal e TASK-AT-308 concluidos.
+- em aberto nao bloqueante: TASK-AT-330 permanece planned para automatizar integridade documental; o schema e o pack possuem validacao propria.
 
 ## Alvos explicitos
 1. docs/operations/evidence-manifest.schema.json
@@ -44,14 +44,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Refatoracao ampla sem relacao direta com os criterios desta task.
 
 ## Checklist de execucao
-1. Definir schema e exemplos para evidencia automatica, manual, fake e live.
-2. Gerar pacote da demo com roteiro, fallback offline e riscos aceitos.
-3. Impedir que screenshot ou relato sem contexto feche gate tecnico.
+1. [x] Definir schema e formato para evidencia automatica, manual, fake, local, production-like e live.
+2. [x] Gerar pacote da demo com roteiro, fallback offline e riscos aceitos.
+3. [x] Impedir que screenshot ou relato sem contexto feche gate tecnico.
 
 ## Acceptance Criteria
-1. Toda evidencia identifica commit, UTC, ambiente, operador e resultado.
-2. Artefatos possuem checksum e classificacao de sensibilidade.
-3. Pacote separa prontidao de demo, rollout e exposicao externa.
+1. [x] Toda evidencia identifica commit, UTC, ambiente, operador e resultado.
+2. [x] Artefatos possuem checksum SHA-256 e classificacao de sensibilidade.
+3. [x] Pacote separa prontidao de demo, rollout e exposicao externa.
 
 ## Definition of Done
 1. Alvos previstos foram criados ou atualizados com mudanca revisavel.
@@ -61,6 +61,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Validacao
 - comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
 - revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
+
+## Validacoes executadas
+- Ambiente: `local`; data: 2026-07-15 UTC; commit-base: `f03f2c949907b7a9f3f92f8fde30f70cb906c0ba`.
+- Operador: `olympus_taskyfier` / task executor; checkout `dirty`, inadequado para aprovar release.
+- Revisao manual: schema exige contexto, comandos/manuais, SHA-256, sensibilidade, redaction e aprovacao; pack mantem tres decisoes independentes.
+- Comandos e exit codes: parse JSON do schema/exemplo (0), `ajv compile --spec=draft2020` com `ajv-formats` (0), `ajv validate --spec=draft2020` do exemplo (0), `npm run typecheck --workspaces --if-present` (0), `npm run repo:hygiene` (0), `git diff --check` (0).
+- Artefatos: schema SHA-256 `41e4574e61564401134b0fddf0174bb402309041b3ae3ccf8cde66f588d30196` (`public`); pack SHA-256 `9bf2f132c85b00a9f0495ede631473010fb8d4df762a7a8df5d6b5cdb0b9ed56` (`internal`, exemplo redigido); PR template SHA-256 `396654de1b5aea5b14221c10c8dc7e93e49390d65fb9bb940eaf2a7e8091c467` (`public`).
+- Risco residual: validacao de formato nao prova ambiente alvo; TASK-AT-330 ainda deve incorporar checks documentais automatizados.
 
 ## Evidencia esperada
 - Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
@@ -88,4 +96,3 @@ TASK-AT-334
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

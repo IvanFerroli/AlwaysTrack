@@ -1,7 +1,7 @@
 # TASK-AT-308 - Prontidao: ledger canonico de cobertura, ownership e gates
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-308-canonical-project-readiness-ledger.md
@@ -44,14 +44,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Refatoracao ampla sem relacao direta com os criterios desta task.
 
 ## Checklist de execucao
-1. Inventariar API, Web, Shared, Extension, Host, SmartScript, infraestrutura, dados e integracoes.
-2. Reconciliar status dos manifests, ROADMAP, rollout e estados operacionais.
-3. Distinguir evidencia fake, local, production-like e live, com owner e validade.
+1. [x] Inventariar API, Web, Shared, Extension, Host, SmartScript, infraestrutura, dados e integracoes.
+2. [x] Reconciliar status dos manifests, ROADMAP, rollout e estados operacionais.
+3. [x] Distinguir evidencia fake, local, production-like e live, com owner e validade.
 
 ## Acceptance Criteria
-1. Todo componente executavel e periferico aparece no ledger.
-2. Dependencias concluidas nao permanecem marcadas como abertas.
-3. O caminho critico para demo, rollout e exposicao externa pode ser calculado sem fontes contraditorias.
+1. [x] Todo componente executavel e periferico aparece no ledger.
+2. [x] Dependencias concluidas nao permanecem marcadas como abertas.
+3. [x] O caminho critico para demo, rollout e exposicao externa pode ser calculado sem fontes contraditorias.
 
 ## Definition of Done
 1. Alvos previstos foram criados ou atualizados com mudanca revisavel.
@@ -61,6 +61,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Validacao
 - comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
 - revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
+
+## Validacoes executadas
+- Ambiente: `local`; data: 2026-07-15 UTC; commit-base: `f03f2c949907b7a9f3f92f8fde30f70cb906c0ba`.
+- Operador: `olympus_taskyfier` / task executor; checkout `dirty`, inadequado para aprovar release.
+- Revisao manual: seis workspaces, infraestrutura, dados, integracoes, perifericos e auditorias AT-302 a AT-307 reconciliados; nenhum gate live promovido.
+- Comandos e exit codes: `npm run typecheck --workspaces --if-present` (0), `npm run repo:hygiene` (0), `git diff --check` (0).
+- Artefatos: ledger SHA-256 `7ab92e2cc9f0ea4303c62dfbdf06df3d42937ec434c2bc889fa46ea384a212a2`; orchestrator state SHA-256 `2973e114bd976b5567b1f7a713af34ef73711b2065f480a5cf336bb0278c384b`; sensibilidade `internal`; redaction nao necessaria.
+- Risco residual: AT-309 e AT-330 ainda devem automatizar baseline e integridade documental; evidencia production-like/live continua ausente.
 
 ## Evidencia esperada
 - Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
@@ -88,4 +96,3 @@ TASK-AT-309
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
