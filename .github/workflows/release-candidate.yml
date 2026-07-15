@@ -43,8 +43,9 @@ jobs:
         run: |
           docker run -d --name alwaystrack-api -e DATABASE_URL=file:/tmp/release.db -p 3333:3333 alwaystrack-api:${GITHUB_SHA}
           docker run -d --name alwaystrack-web -p 8080:8080 alwaystrack-web:${GITHUB_SHA}
-          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:3333/health && break; sleep 1; done
-          curl --fail http://127.0.0.1:3333/health
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:3333/health/ready && break; sleep 1; done
+          curl --fail http://127.0.0.1:3333/health/live
+          curl --fail http://127.0.0.1:3333/health/ready
           curl --fail http://127.0.0.1:8080/
 
       - name: Generate SBOMs

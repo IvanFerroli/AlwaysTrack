@@ -1,9 +1,16 @@
 import { loadEnv } from "./config/env.js";
 import { createApp } from "./app.js";
+import { prisma } from "./core/db/prisma.js";
+import { logEvent } from "./core/diagnostics/logger.js";
+import { createApiRuntime } from "./runtime/api-lifecycle.js";
 
 const env = loadEnv();
-const app = createApp();
+const runtime = createApiRuntime({
+  application: createApp(),
+  prisma,
+  env
+});
 
-app.listen(env.port, () => {
-  console.log(`API listening on http://localhost:${env.port}`);
+runtime.listen(env.port, () => {
+  logEvent("info", "api.listening", { port: env.port });
 });

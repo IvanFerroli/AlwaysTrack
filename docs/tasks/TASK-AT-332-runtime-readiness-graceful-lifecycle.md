@@ -1,7 +1,7 @@
 # TASK-AT-332 - Runtime: readiness, shutdown gracioso e lifecycle de dependencias
 
 ## Metadata
-- status: planned
+- status: completed-local
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-332-runtime-readiness-graceful-lifecycle.md
@@ -90,3 +90,11 @@ TASK-AT-333
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- O processo HTTP passou a expor liveness independente em `/health/live` e readiness de Prisma/Redis em `/health/ready`, com timeout e respostas sanitizadas.
+- Readiness degradada retorna `503` sem encerrar o processo; durante drain, novas requisicoes tambem recebem `503` e conexoes keep-alive sao fechadas.
+- `SIGTERM` e `SIGINT` compartilham shutdown idempotente e limitado por prazo para HTTP e Prisma, com suporte tipado para closers residentes de jobs, WebSocket e Redis.
+- A arquitetura atual foi preservada: Worker BullMQ roda em entrypoint separado, nao ha WebSocket na API e as conexoes Redis da API sao transitorias. Nenhuma dependencia ficticia foi criada.
+- Testes cobrem probes, timeout de dependencia, drain, deadline forcado, idempotencia, sinais, ordem de recursos e reinicio local.
+- Smoke local do binario compilado validou `/health`, `/health/live` e `/health/ready` em porta isolada; `SIGINT` concluiu drain e desconexao com exit code 0. Docker, Compose e o candidato de release usam readiness no healthcheck.
+- Evidencia classificada como `local`, sem Redis real, orquestrador, credenciais ou sistemas externos. A verificacao production-like permanece pendente das TASK-AT-320 e TASK-AT-324.
