@@ -25,12 +25,12 @@ export type CompanionEventType = (typeof companionEventTypes)[number];
 
 export type CompanionHelloEvent = PrePairingEnvelope & {
   type: "COMPANION_HELLO";
-  payload: { supportedProtocolVersions: string[]; pairingChallengeId?: string };
+  payload: { token: string; supportedProtocolVersions: string[]; pairingChallengeId?: string };
 };
 
 export type CompanionPairedEvent = CompanionEnvelopeBase & {
   type: "COMPANION_PAIRED";
-  payload: { sessionId: string; expiresAt: string };
+  payload: { sessionId: string; expiresAt: string; reconnectToken: string };
 };
 
 export type BrowserReadyEvent = CompanionEnvelopeBase & {

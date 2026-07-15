@@ -1,6 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
+import { companionProtocolErrorSchema, companionProtocolVersion, type CompanionHelloEvent } from "@alwaystrack/shared";
 import { loadCompanionHostConfig } from "../config.js";
 import { InMemoryPairingAuthority } from "../security/index.js";
 import { closeCompanionServer, startCompanionServer, type RunningCompanionServer } from "./health-server.js";
@@ -26,11 +27,23 @@ function wsUrl(query = ""): string {
   return `ws://127.0.0.1:${address.port}/companion${query}`;
 }
 
-function connect(token: string, requestOrigin = origin): Promise<WebSocket> {
+function hello(token: string, overrides: Partial<CompanionHelloEvent> = {}): CompanionHelloEvent {
+  return {
+    type: "COMPANION_HELLO",
+    protocolVersion: companionProtocolVersion,
+    messageId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    extensionInstanceId: "extension-1",
+    payload: { token, supportedProtocolVersions: [companionProtocolVersion] },
+    ...overrides
+  };
+}
+
+function connect(token: string, requestOrigin = origin, helloMessage: unknown = hello(token)): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const websocket = new WebSocket(wsUrl(), { origin: requestOrigin });
     websocket.once("open", () => {
-      websocket.send(JSON.stringify({ type: "COMPANION_HELLO", token, protocolVersion: "1" }));
+      websocket.send(JSON.stringify(helloMessage));
       resolve(websocket);
     });
     websocket.once("error", reject);
@@ -81,6 +94,36 @@ describe("Companion WebSocket gateway", () => {
     expect(await close).toEqual({ code: 1008, reason: "PAIRING_REJECTED" });
   });
 
+  it("rejects an expired token without reviving it", async () => {
+    let currentTime = Date.parse("2026-07-15T12:00:00.000Z");
+    const authority = new InMemoryPairingAuthority(60_000, () => currentTime);
+    const grant = authority.issue();
+    currentTime += 60_001;
+    running = await startCompanionServer(config(), { pairingAuthority: authority });
+
+    const expired = await connect(grant.token);
+    expect(await closed(expired)).toEqual({ code: 1008, reason: "PAIRING_REJECTED" });
+    expect(authority.consume(grant.token)).toBeUndefined();
+  });
+
+  it("does not consume a token from an incomplete HELLO payload", async () => {
+    const authority = new InMemoryPairingAuthority(60_000);
+    const grant = authority.issue();
+    running = await startCompanionServer(config(), { pairingAuthority: authority });
+    const incomplete = await connect(grant.token, origin, {
+      type: "COMPANION_HELLO",
+      protocolVersion: "1",
+      payload: { token: grant.token, supportedProtocolVersions: ["1"] }
+    });
+    const incompleteClose = closed(incomplete);
+    expect(companionProtocolErrorSchema.safeParse(await nextJson(incomplete)).success).toBe(true);
+    expect(await incompleteClose).toEqual({ code: 1008, reason: "INVALID_MESSAGE" });
+
+    const valid = await connect(grant.token);
+    expect(await nextJson(valid)).toMatchObject({ type: "COMPANION_PAIRED" });
+    valid.close();
+  });
+
   it("requires the exact configured Origin on pairing and upgrade", async () => {
     const authority = new InMemoryPairingAuthority(60_000);
     running = await startCompanionServer(config(), { pairingAuthority: authority });
@@ -92,6 +135,11 @@ describe("Companion WebSocket gateway", () => {
     expect(issued.status).toBe(201);
     const grant = await issued.json() as { token: string };
     await expect(connect(grant.token, "chrome-extension://different")).rejects.toThrow("Unexpected server response: 403");
+    const withoutOrigin = new WebSocket(wsUrl());
+    await expect(new Promise<void>((resolve, reject) => {
+      withoutOrigin.once("open", resolve);
+      withoutOrigin.once("error", reject);
+    })).rejects.toThrow("Unexpected server response: 403");
   });
 
   it("does not authenticate from a query token and times out without HELLO", async () => {
@@ -143,12 +191,12 @@ describe("Companion WebSocket gateway", () => {
 
   it("enforces connection rate and maximum payload", async () => {
     const authority = new InMemoryPairingAuthority(60_000);
-    running = await startCompanionServer(config({ COMPANION_HOST_RATE_LIMIT: "1", COMPANION_HOST_MAX_PAYLOAD_BYTES: "128" }), { pairingAuthority: authority });
+    running = await startCompanionServer(config({ COMPANION_HOST_RATE_LIMIT: "1", COMPANION_HOST_MAX_PAYLOAD_BYTES: "512" }), { pairingAuthority: authority });
     const first = await connect(authority.issue().token);
     await nextJson(first);
     await expect(connect(authority.issue().token)).rejects.toThrow("Unexpected server response: 429");
     const close = closed(first);
-    first.send(JSON.stringify({ ...message(), padding: "x".repeat(256) }));
+    first.send(JSON.stringify({ ...message(), padding: "x".repeat(1_024) }));
     expect((await close).code).toBe(1009);
   });
 

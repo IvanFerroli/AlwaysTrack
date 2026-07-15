@@ -1,7 +1,7 @@
 # TASK-AT-317 - Companion: contrato de handshake, rotacao e reconexao
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-317-companion-protocol-reconnect-contract.md
@@ -84,8 +84,32 @@ TASK-AT-318
 - riscos, ressalvas e blockers
 - proximo passo recomendado
 
+## Evidencia de implementacao
+- concluido-em: 2026-07-15T11:24:10Z
+- ambiente: local, sem credenciais ou sistemas externos
+- classificacao: local
+- base-HEAD: `f03f2c949907b7a9f3f92f8fde30f70cb906c0ba` (nenhum commit criado nesta execucao)
+- contrato: schemas runtime compartilhados e versionados para `COMPANION_HELLO`, `COMPANION_PAIRED`, erro de protocolo e grant de reconnect.
+- reconnect: cliente substitui o token consumido pelo token rotacionado antes de reconectar; Host valida o HELLO completo antes do consumo.
+- negativos: payload incompleto, consumo unico, replay de token/messageId, Origin arbitraria e Origin ausente cobertos localmente.
+- preservado: bind `127.0.0.1`, URL `ws://127.0.0.1`, Origin exata e comportamento fail-closed.
+
+## Validacao executada
+- `npm run typecheck --workspace @alwaystrack/shared` - exit 0
+- `npm run typecheck --workspace @alwaystrack/companion-extension` - exit 0
+- `npm run typecheck --workspace @alwaystrack/companion-host` - exit 0
+- `npm run test --workspace @alwaystrack/shared` - exit 0, 24 testes
+- `npm run test --workspace @alwaystrack/companion-extension` - exit 0, 104 testes
+- `npm run test --workspace @alwaystrack/companion-host` - exit 0, 59 testes
+- `npm run repo:hygiene` - exit 0
+- `git diff --check` - exit 0
+- validacao live: nao executada, por restricao explicita de escopo
+
+## Risco residual
+- A persistencia do token rotacionado entre reinicios completos do service worker permanece fora deste contrato; a reconexao dentro da instancia ativa esta coberta.
+- Nenhum blocker identificado para os criterios locais desta task.
+
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
