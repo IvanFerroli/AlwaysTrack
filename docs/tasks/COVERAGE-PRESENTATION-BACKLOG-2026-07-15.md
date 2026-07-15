@@ -32,7 +32,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 9. TASK-AT-345: harness HTTP e funcoes de handlers API. Concluida localmente.
 10. TASK-AT-346: workflows API e encerramento da excecao de 75%. Concluida localmente.
 11. TASK-AT-347: branches residuais do Companion Host. Concluida localmente.
-12. TASK-AT-348: gate final e ensaio da apresentacao de coverage.
+12. TASK-AT-348: gate final e ensaio da apresentacao de coverage. Concluida localmente com `GO-WITH-RISK`.
 
 ## Guardrails
 - Nenhum fonte pode ser excluido apenas para elevar percentual.
