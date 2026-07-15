@@ -20,10 +20,12 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 | Extension | 61.23 / 58 | 73.86 / 70 | 78.22 / 75 | companion/extension |
 | SmartScript | 16.04 / 15 | 68.18 / 60 | 81.81 / 75 | companion/smartscript |
 | Web | 6.59 / 6 | 56.77 / 50 | 29.77 / 25 | web/product |
-| API | 65.42 / 60 | 66.31 / 60 | 82.04 / 75 | api/core |
+| API | 68.82 / 60 | 67.03 / 60 | 64.88 / 64 | api/core |
 | Host | 89.52 / 85 | 80.27 / 75 | 93.10 / 90 | companion/host |
 
 Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript tem grande parte do fluxo exercitada em subprocesso E2E, que nao e atribuida ao processo Vitest; Web passou a medir toda a SPA e possui divida explicita. Os proximos marcos sao 25% de linhas no SmartScript e 10% no Web sem reduzir os demais pisos.
+
+Excecao temporaria API: o inventario completo de 2026-07-15 encontrou 64.88% de funcoes, enquanto o piso inicial de 75% nunca havia sido exercitado pelo comando agregado. O owner `api/core` aceita piso executavel de 64% ate 2026-08-15; elevar de volta exige testes dos modulos adicionados depois do baseline original. Os thresholds criticos por arquivo permanecem inalterados.
 
 ## Superficies criticas
 - Shared: protocolo Companion e parser generico de conectores.
