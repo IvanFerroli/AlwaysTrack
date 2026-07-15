@@ -512,3 +512,20 @@ Fonte canonica: `docs/tasks/PROJECT-WIDE-READINESS-BACKLOG-2026-07-15.md`.
 ## Runtime local e apresentacao
 
 1. `TASK-AT-336`: Runtime local: setup inteligente e hub completo de apresentacao. Status: completed-local-validation.
+
+## Coverage para apresentacao
+
+Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
+
+1. `TASK-AT-337`: Coverage: inventario executavel e mapa de risco por superficie. Status: planned.
+2. `TASK-AT-338`: Presentation Hub: painel comparativo de coverage. Status: planned.
+3. `TASK-AT-339`: Web coverage: primeiro marco real de 10%. Status: planned.
+4. `TASK-AT-340`: Web coverage: Scriptoteca, Wiki e Notas em 20%. Status: planned.
+5. `TASK-AT-341`: Web coverage: operacao, Fluxos e CaseFlow em 30%. Status: planned.
+6. `TASK-AT-342`: SmartScript coverage: CLI e storage atribuiveis. Status: planned.
+7. `TASK-AT-343`: Extension coverage: bootstrap e fronteiras MV3. Status: planned.
+8. `TASK-AT-344`: Shared coverage: action firewall e contratos executaveis. Status: planned.
+9. `TASK-AT-345`: API coverage: harness HTTP e funcoes de handlers. Status: planned.
+10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: planned.
+11. `TASK-AT-347`: Companion Host coverage: bootstrap e branches residuais. Status: planned.
+12. `TASK-AT-348`: Coverage: gate final e ensaio da apresentacao. Status: planned.
