@@ -1,0 +1,26 @@
+[
+  {
+    "id": "e2e-allowed-001",
+    "timestamp": "2026-07-15T12:00:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Ola, cliente Fulano Silva, o pedido 123456 sera reenviado para Rua Exemplo, 123. Confirme pelo email fulano@example.com ou telefone 1198765-4321."
+  },
+  {
+    "id": "e2e-allowed-002",
+    "timestamp": "2026-07-15T12:05:00.000Z",
+    "type": "alwayschat-sent",
+    "source": "AlwaysChat",
+    "destination": "AlwaysChat",
+    "text": "Ola, cliente Fulano Silva, o pedido 123456 sera reenviado para Rua Exemplo, 123. Confirme pelo email fulano@example.com ou telefone 1198765-4321."
+  },
+  {
+    "id": "e2e-denied-001",
+    "timestamp": "2026-07-15T12:10:00.000Z",
+    "type": "clipboard",
+    "source": "Aplicativo privado sintetico",
+    "destination": "Arquivo local sintetico",
+    "text": "Este evento sintetico fora da allowlist deve ser descartado integralmente."
+  }
+]

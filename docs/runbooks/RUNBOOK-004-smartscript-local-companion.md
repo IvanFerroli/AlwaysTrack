@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_taskyfier
-- last-updated: 2026-07-07
+- last-updated: 2026-07-15
 - source-of-truth: docs/runbooks/RUNBOOK-004-smartscript-local-companion.md
 
 ## Objetivo
@@ -50,7 +50,10 @@ npm run smartscript:stop
 ```bash
 npm run smoke --workspace @alwaystrack/smartscript-companion
 npm run test --workspace @alwaystrack/smartscript-companion
+npm run test --workspace @alwaystrack/smartscript-companion -- cli.e2e.test.ts
 ```
+
+O E2E da CLI e uma evidencia `local` e controlada: cria `SMARTSCRIPT_DATA_DIR`, `HOME` e o match file do Espanso em uma arvore temporaria, usa API HTTP fake em porta efemera e remove a arvore ao final. Ele nao acessa `~/.alwaystrack`, credenciais, API live nem a instalacao real do Espanso. A fixture `cli-e2e-synthetic.json` contem somente PII sintetica para regressao de redaction.
 
 ```bash
 npx tsx apps/smartscript-companion/src/cli.ts start
@@ -124,6 +127,7 @@ Esse comando carrega `apps/smartscript-companion/fixtures/alwayschat-sample.json
 9. Export Espanso contem somente snippets `Em uso`.
 10. Trigger `/` segue bloqueado.
 11. Sugestao canonica cai na fila existente da Scriptoteca.
+12. E2E controlado da CLI passa sem deixar o diretorio temporario ou alterar o match file real do Espanso.
 
 ## Troubleshooting
 - `Nenhum pacote processado hoje`: rode `process --today` antes de importar.
@@ -140,3 +144,4 @@ Esse comando carrega `apps/smartscript-companion/fixtures/alwayschat-sample.json
 - YAML Espanso sem dados reais.
 - Print ou nota da aba SmartScript com os tres estados.
 - Confirmacao de que raw logs ficaram no storage local.
+- Para o E2E controlado, resultado do teste classificado como `local`/fake; nao promover essa evidencia a production-like ou live.

@@ -1,7 +1,7 @@
 # TASK-AT-319 - SmartScript Companion: E2E de CLI, filesystem e Espanso
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-319-smartscript-cli-filesystem-e2e.md
@@ -89,3 +89,17 @@ TASK-AT-320
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Implementacao
+- E2E de subprocesso real da CLI adicionado em `apps/smartscript-companion/src/cli.e2e.test.ts`.
+- API, storage, `HOME`, PATH e match file do Espanso sao controlados em arvore temporaria removida ao fim de cada teste.
+- Cobertos start/status/stop, captura/processamento, import/export, repeticao idempotente, retention cleanup, JSON corrompido, filesystem invalido e API indisponivel.
+- Regressao confirma redaction no pacote/import e ausencia de cookie, PII e raw payload em stdout/stderr.
+
+## Evidencia
+- classificacao: `local` com API e dados fake; nao e production-like nem live.
+- fixture: `apps/smartscript-companion/fixtures/cli-e2e-synthetic.json`, sem dados ou credenciais reais.
+- ambiente/data: workspace local Linux, `2026-07-15T11:41:09Z`; commit SHA fica para o handoff de integracao.
+- companion: teste (7 testes), typecheck e build concluidos com exit code 0.
+- workspaces: testes concluidos com exit code 0 (607 executados, 1 Redis opt-in ignorado).
+- gates deste escopo: teste, typecheck e build do workspace e `git diff --check` concluidos com exit code 0.
+- `git diff --check`: exit code 0.
