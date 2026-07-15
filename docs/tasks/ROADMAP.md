@@ -475,3 +475,36 @@ Fonte: `docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md`. S
 10. `TASK-AT-305`: Rollout: Fase 4 rascunhos e rollback gate. Status: audit-complete-no-go.
 11. `TASK-AT-306`: Rollout: Fase 5 hardening gate. Status: audit-complete-no-go.
 12. `TASK-AT-307`: CaseFlow: prontidao para agente futuro sem implementa-lo. Status: documentation-complete-rollout-blocked.
+
+## Frente transversal de prontidao e padronizacao (TASK-AT-308 a TASK-AT-335)
+
+Fonte canonica: `docs/tasks/PROJECT-WIDE-READINESS-BACKLOG-2026-07-15.md`.
+
+1. `TASK-AT-308`: Prontidao: ledger canonico de cobertura, ownership e gates. Status: planned.
+2. `TASK-AT-309`: Qualidade: baseline deterministico e gate verde real. Status: planned.
+3. `TASK-AT-310`: Qualidade: contrato uniforme de lint, typecheck, test e build. Status: planned.
+4. `TASK-AT-311`: Web: fundacao de testes unitarios e de componentes. Status: planned.
+5. `TASK-AT-312`: Web e Companion: regressao de acessibilidade e teclado. Status: planned.
+6. `TASK-AT-313`: E2E: matriz critica por role, viewport e jornada. Status: planned.
+7. `TASK-AT-314`: UI: regressao visual e responsiva das superficies criticas. Status: planned.
+8. `TASK-AT-315`: Coverage: thresholds incrementais por workspace e risco. Status: planned.
+9. `TASK-AT-316`: API: OpenAPI versionado e testes de contrato HTTP. Status: planned.
+10. `TASK-AT-317`: Companion: contrato de handshake, rotacao e reconexao. Status: planned.
+11. `TASK-AT-318`: Extensao MV3: E2E em Chromium com Host controlado. Status: planned.
+12. `TASK-AT-319`: SmartScript Companion: E2E de CLI, filesystem e Espanso. Status: planned.
+13. `TASK-AT-320`: Dados: integracao production-like de Postgres, Redis e storage. Status: planned.
+14. `TASK-AT-321`: Integracoes externas: matriz de contratos, sandboxes e degradacao. Status: planned.
+15. `TASK-AT-322`: Robustez: property testing e fuzzing de parsers e protocolos. Status: planned.
+16. `TASK-AT-323`: Performance: carga mista, stress, spike, soak e backpressure. Status: planned.
+17. `TASK-AT-324`: Observabilidade: SLOs, telemetria correlacionada e alertas exercitados. Status: planned.
+18. `TASK-AT-325`: Seguranca: enforcement de SAST, SCA, secrets e licencas no CI. Status: planned.
+19. `TASK-AT-326`: Release: containers, artefatos e proveniencia de supply chain. Status: planned.
+20. `TASK-AT-327`: Privacidade: inventario LGPD, bases legais e RIPD. Status: planned.
+21. `TASK-AT-328`: Privacidade: enforcement de retencao, purge e direitos do titular. Status: planned.
+22. `TASK-AT-329`: Operacao: ensaio de restore, recuperacao e rollback coordenado. Status: planned.
+23. `TASK-AT-330`: Documentacao: integridade executavel de links, comandos e status. Status: planned.
+24. `TASK-AT-331`: Documentacao: catalogo unico e padrao de runbooks operacionais. Status: planned.
+25. `TASK-AT-332`: Runtime: readiness, shutdown gracioso e lifecycle de dependencias. Status: planned.
+26. `TASK-AT-333`: Evidencias: manifesto padrao e pacote reproduzivel de apresentacao. Status: planned.
+27. `TASK-AT-334`: Compatibilidade: browsers, Windows/WSL e perifericos de uso. Status: planned.
+28. `TASK-AT-335`: Gate final: prontidao transversal para demo, rollout e exposicao. Status: planned.
