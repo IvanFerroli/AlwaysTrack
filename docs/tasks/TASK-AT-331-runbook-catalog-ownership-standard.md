@@ -1,7 +1,7 @@
 # TASK-AT-331 - Documentacao: catalogo unico e padrao de runbooks operacionais
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-331-runbook-catalog-ownership-standard.md
@@ -31,7 +31,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 
 ## Dependencias
 - satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-330.
+- satisfeitas nesta execucao: catalogo atual e padrao documental existentes.
+- em aberto: n/a; exercicios periodicos permanecem responsabilidade operacional dos owners.
 
 ## Alvos explicitos
 1. docs/runbooks/README.md
@@ -89,3 +90,8 @@ TASK-AT-332
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- Indice passou a cobrir deploy, jobs, backup, migration, incidentes, segredos, monitoramento, Companion e conectores.
+- Template agora exige owners, ambiente, preflight, sensibilidade, rollback, evidencia e revisao pos-execucao.
+- Frequencias de revisao/exercicio foram registradas sem alegar que ensaios externos ja ocorreram.
+- Validacao local documental: `git diff --check` e `npm run repo:hygiene`.

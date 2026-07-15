@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: security-maintainers
-- last-updated: 2026-06-17
+- last-updated: 2026-07-15
 - related-task: TASK-AT-114
 - source-of-truth: docs/security/external-integrations-security-review.md
 
@@ -11,6 +11,8 @@
 As fronteiras externas revisadas estao em bom estado para uso controlado: Google login e Google OAuth usam state e PKCE, o webhook Meta valida assinatura HMAC quando `META_APP_SECRET` existe, tokens Google legados sao criptografados em repouso e BullMQ so liga quando explicitamente configurado.
 
 O principal criterio operacional e manter integracoes reais desligadas por padrao. Para producao, habilitar apenas Google login com dominio permitido. Google Sheets legado, Meta WhatsApp, provedores reais de IA e BullMQ devem ficar off ate existir uma decisao explicita de produto/operacao, segredos fortes e smoke externo controlado.
+
+Esta aprovacao e somente tecnica. O registro de tratamento e o RIPD em `docs/security/lgpd-processing-register.md` e `docs/security/lgpd-impact-assessment.md` mantem providers externos reais bloqueados ate identificar controlador/operador, base legal, DPA, regioes, retencao, treinamento/reuso e mecanismo de transferencia aplicavel.
 
 ## Escopo e evidencias
 | Integracao | Evidencia revisada | Resultado |
@@ -139,3 +141,4 @@ Status: inline e aceitavel; BullMQ pode ser habilitado com Redis privado, creden
 - AI: dados enviados, timeout, redacao e politica de fornecedor documentados.
 - BullMQ/Redis: driver, Redis e riscos de payload documentados.
 - Toggles prod/off explicitados.
+- Governanca LGPD referencia dados enviados, suboperadores, transferencia e aprovadores pendentes.

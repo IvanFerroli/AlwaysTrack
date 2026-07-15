@@ -1,7 +1,7 @@
 # TASK-AT-327 - Privacidade: inventario LGPD, bases legais e RIPD
 
 ## Metadata
-- status: planned
+- status: documentation-complete-legal-approval-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-327-lgpd-processing-register-ripd.md
@@ -31,7 +31,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 
 ## Dependencias
 - satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-308, TASK-AT-221.
+- satisfeitas nesta execucao: TASK-AT-221 e inventario tecnico atual.
+- em aberto: aprovacao formal do controlador/juridico; TASK-AT-328 para enforcement operacional.
 
 ## Alvos explicitos
 1. docs/security/lgpd-processing-register.md
@@ -89,3 +90,8 @@ TASK-AT-328
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- Registro de tratamento e RIPD materializados com dados, finalidades, retencao, owners, direitos e transferencias.
+- Bases legais foram marcadas como propostas; nenhuma aprovacao juridica foi inferida.
+- Integracoes externas reais continuam bloqueadas ate DPA, regioes, retencao e aprovadores serem definidos.
+- Validacao local documental: `git diff --check` e `npm run repo:hygiene`.
