@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     profiles:
       - jobs
     volumes:
@@ -31,7 +31,12 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:?Set VITE_API_BASE_URL for the public API URL}
         VITE_APP_NAME: ${VITE_APP_NAME:-AlwaysTrack}
     ports:
-      - "8080:80"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       - api
 
@@ -41,9 +46,10 @@ services:
       dockerfile: Dockerfile.api
     env_file:
       - ../.env.production
-    command: ["npm", "run", "job:notifications", "--workspace", "@alwaystrack/api"]
+    command: ["node", "services/api/dist/src/jobs/notifications.js"]
     profiles:
       - jobs
+    user: node
     volumes:
       - api-data:/app/services/api/prisma
       - api-storage:/app/services/api/.storage
@@ -57,12 +63,13 @@ services:
     environment:
       JOB_QUEUE_DRIVER: bullmq
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-    command: ["npm", "run", "job:ranking-snapshots", "--workspace", "@alwaystrack/api"]
+    command: ["node", "services/api/dist/src/jobs/ranking-snapshots.js"]
     depends_on:
       - redis
       - api
     profiles:
       - jobs
+    user: node
     volumes:
       - api-data:/app/services/api/prisma
       - api-storage:/app/services/api/.storage

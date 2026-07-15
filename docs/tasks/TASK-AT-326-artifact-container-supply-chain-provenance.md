@@ -1,7 +1,7 @@
 # TASK-AT-326 - Release: containers, artefatos e proveniencia de supply chain
 
 ## Metadata
-- status: planned
+- status: implementation-complete-ci-container-gate-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-326-artifact-container-supply-chain-provenance.md
@@ -31,7 +31,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 
 ## Dependencias
 - satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-310, TASK-AT-315, TASK-AT-325.
+- satisfeitas: TASK-AT-310 e TASK-AT-325; builds locais e manifesto rastreavel implementados.
+- em aberto: build/smoke/SBOM/scan de containers no CI; TASK-AT-315 para thresholds de coverage.
 
 ## Alvos explicitos
 1. Dockerfile.api
@@ -90,3 +91,9 @@ TASK-AT-327
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- API e Web receberam runtime nao-root, healthcheck e separacao build/runtime.
+- Shared agora possui entrypoint runtime compilado; API inicia de `dist/src/main.js`.
+- Workflow de candidato esta preparado para produzir pacotes Companion, imagens OCI, SBOM, scans e manifesto com commit/checksums/compatibilidade.
+- Imagens base Node, Nginx e Redis estao fixadas por digest; Dependabot passou a acompanhar Docker para atualizacoes controladas. Promocao e publicacao externa permanecem fora do workflow.
+- Evidencia local: build agregado, import runtime do Shared, inicio da API por `dist` com `/health` em porta isolada, validacao YAML e geracao do manifesto passaram. Docker nao esta disponivel neste host, portanto build/smoke/scan de imagem continuam pendentes de CI.

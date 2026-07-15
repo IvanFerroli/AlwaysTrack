@@ -35,7 +35,7 @@
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace @alwaystrack/shared && npm run build --workspace @alwaystrack/companion-extension && npm run build --workspace @alwaystrack/smartscript-companion && npm run build --workspace @alwaystrack/web && npm run build --workspace @alwaystrack/api && npm run build --workspace @alwaystrack/companion-host",
     "test:unit": "npm run test --workspace @alwaystrack/api -- --exclude \"src/core/quality/**\"",
     "test:integration": "npm run test --workspace @alwaystrack/api -- main-flow.e2e.test.ts",
     "test:regression": "npm run test --workspace @alwaystrack/api -- sales-documents.service.test.ts wiki.service.test.ts faq.service.test.ts notifications.service.test.ts",

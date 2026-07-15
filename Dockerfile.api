@@ -1,15 +1,39 @@
-FROM node:22-slim
+FROM node:22-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS build
 
 WORKDIR /app
 
 COPY package*.json ./
+COPY apps/companion-extension/package.json apps/companion-extension/package.json
+COPY apps/smartscript-companion/package.json apps/smartscript-companion/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY services/api/package.json services/api/package.json
+COPY services/companion-host/package.json services/companion-host/package.json
 COPY packages/shared/package.json packages/shared/package.json
 RUN npm ci
 
 COPY . .
-RUN npm run prisma:generate && npm run build --workspaces --if-present
+RUN npm run prisma:generate \
+  && npm run build --workspace @alwaystrack/shared \
+  && npm run build --workspace @alwaystrack/api \
+  && npm prune --omit=dev
+
+FROM node:22-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build --chown=node:node /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build --chown=node:node /app/services/api/package.json ./services/api/package.json
+COPY --from=build --chown=node:node /app/services/api/dist ./services/api/dist
+COPY --from=build --chown=node:node /app/services/api/prisma ./services/api/prisma
+
+RUN mkdir -p /app/services/api/.storage \
+  && chown -R node:node /app/services/api/.storage /app/services/api/prisma
 
 EXPOSE 3333
-CMD ["npm", "run", "start", "--workspace", "@alwaystrack/api"]
+USER node
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:3333/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "services/api/dist/src/main.js"]

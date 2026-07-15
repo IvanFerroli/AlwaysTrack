@@ -1,0 +1,84 @@
+name: Release Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install and validate source
+        run: npm ci && npm run check && npm run security:ci
+
+      - name: Package Companion artifacts
+        run: |
+          mkdir -p release
+          tar -C apps/companion-extension -czf release/companion-extension.tgz dist
+          tar -C services/companion-host -czf release/companion-host.tgz dist
+
+      - name: Build OCI images
+        run: |
+          docker build --pull -f Dockerfile.api -t alwaystrack-api:${GITHUB_SHA} .
+          docker build --pull -f Dockerfile.web -t alwaystrack-web:${GITHUB_SHA} .
+          docker save alwaystrack-api:${GITHUB_SHA} | gzip > release/alwaystrack-api.oci.tar.gz
+          docker save alwaystrack-web:${GITHUB_SHA} | gzip > release/alwaystrack-web.oci.tar.gz
+
+      - name: Smoke containers
+        run: |
+          docker run -d --name alwaystrack-api -e DATABASE_URL=file:/tmp/release.db -p 3333:3333 alwaystrack-api:${GITHUB_SHA}
+          docker run -d --name alwaystrack-web -p 8080:8080 alwaystrack-web:${GITHUB_SHA}
+          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:3333/health && break; sleep 1; done
+          curl --fail http://127.0.0.1:3333/health
+          curl --fail http://127.0.0.1:8080/
+
+      - name: Generate SBOMs
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: release/source.spdx.json
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: alwaystrack-api:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+
+      - name: Scan Web image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: alwaystrack-web:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+
+      - name: Create immutable manifest
+        env:
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: node scripts/create-release-manifest.js release/release-manifest.json release/*.tgz release/*.gz release/*.json
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: release
+          if-no-files-found: error
+          retention-days: 30
