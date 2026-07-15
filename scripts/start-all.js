@@ -196,6 +196,7 @@ async function preparePresentationArtifacts() {
     } else {
       console.log("\n[AlwaysTrack Setup] Coverage dos seis workspaces ja esta atualizado.");
     }
+    await runOptional("npm run coverage:manifest", "Atualizando manifesto comparativo de coverage");
   }
 
   if (!noE2e) {
@@ -463,7 +464,7 @@ async function main() {
   await ensureService({
     name: "Web",
     url: `http://127.0.0.1:${webPort}`,
-    start: () => spawnService("web", "npm", ["run", "dev:web", "--", "--port", String(webPort), "--strictPort"], "32"),
+    start: () => spawnService("web", "npm", ["run", "dev", "--workspace", "@alwaystrack/web", "--", "--port", String(webPort), "--strictPort"], "32"),
     processes
   });
   if (!noStudio) {

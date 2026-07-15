@@ -21,9 +21,11 @@ afterEach(async () => {
 function fixtureRoot() {
   const root = mkdtempSync(join(tmpdir(), "alwaystrack-workbench-"));
   mkdirSync(join(root, "docs/generated/typedoc"), { recursive: true });
+  mkdirSync(join(root, "docs/generated/coverage"), { recursive: true });
   mkdirSync(join(root, "docs/testing"), { recursive: true });
   mkdirSync(join(root, "services/api/coverage"), { recursive: true });
   writeFileSync(join(root, "docs/generated/typedoc/index.html"), "<h1>TypeDoc</h1>");
+  writeFileSync(join(root, "docs/generated/coverage/index.html"), "<h1>Coverage scorecard</h1>");
   writeFileSync(join(root, "docs/testing/strategy.md"), "# Strategy");
   writeFileSync(join(root, "services/api/coverage/index.html"), "<h1>Coverage</h1>");
   writeFileSync(
@@ -42,6 +44,7 @@ test("renders a presentation hub with services, reports and coverage percentages
   assert.match(html, /http:\/\/localhost:9002/);
   assert.match(html, /http:\/\/localhost:9001\/health\/ready/);
   assert.match(html, /91\.25% linhas/);
+  assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.doesNotMatch(html, /Prisma Studio/);
 });
 
@@ -53,12 +56,14 @@ test("serves only allowlisted artifact directories and blocks repository secrets
   const port = server.address().port;
 
   const artifact = await fetch(`http://127.0.0.1:${port}/files/docs/generated/typedoc/index.html`);
+  const scorecard = await fetch(`http://127.0.0.1:${port}/files/docs/generated/coverage/index.html`);
   const traversal = await fetch(`http://127.0.0.1:${port}/files/%2e%2e/.env`);
   const secret = await fetch(`http://127.0.0.1:${port}/files/.env`);
   const marker = await fetch(`http://127.0.0.1:${port}/__alwaystrack_workbench`);
 
   assert.equal(artifact.status, 200);
   assert.equal(await artifact.text(), "<h1>TypeDoc</h1>");
+  assert.equal(scorecard.status, 200);
   assert.equal(traversal.status, 404);
   assert.equal(secret.status, 404);
   assert.deepEqual(await marker.json(), { service: "alwaystrack-workbench", status: "ready" });
@@ -84,6 +89,7 @@ test("builds a complete, deduplicated list of browser tabs from available artifa
   assert.ok(urls.includes("http://localhost:3333/health/live"));
   assert.ok(urls.includes("http://localhost:4444/files/docs/generated/typedoc/index.html"));
   assert.ok(urls.includes("http://localhost:4444/files/services/api/coverage/index.html"));
+  assert.ok(urls.includes("http://localhost:4444/files/docs/generated/coverage/index.html"));
   assert.equal(new Set(urls).size, urls.length);
 });
 

@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { extname, normalize, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
+import { buildCoverageManifest, coverageManifestHtml } from "./coverage-manifest.mjs";
 
 const DEFAULT_PORT = 4173;
 
@@ -35,6 +36,7 @@ export const reportPaths = [
 
 const allowedDirectoryPrefixes = [
   "docs/generated/typedoc",
+  "docs/generated/coverage",
   "docs/performance/reports",
   "packages/shared/coverage",
   "apps/companion-extension/coverage",
@@ -173,12 +175,20 @@ export function buildWorkbenchHtml(rootDir, options = {}) {
   const docsSection = options.includeDocs === false
     ? ""
     : `<section><h2>Documentacao essencial</h2><div class="docs">${documentationLinks(rootDir)}</div></section>`;
+  let coverageSection = "";
+  if (options.includeCoverage !== false) {
+    try {
+      const manifest = buildCoverageManifest(rootDir);
+      coverageSection = `<section><div class="section-heading"><div><h2>Coverage comparativo</h2><p>Quatro metricas, pisos reais, margem e arquivos zerados. Sem media composta.</p></div><a href="/files/docs/generated/coverage/index.html">Abrir scorecard</a></div>${coverageManifestHtml(manifest, { compact: true })}</section>`;
+    } catch (error) {
+      coverageSection = `<section><h2>Coverage comparativo</h2><p class="coverage-error">Manifesto indisponivel: ${htmlEscape(error.message)}</p></section>`;
+    }
+  }
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="refresh" content="60" />
   <title>AlwaysTrack Presentation Hub</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17252a; background: #edf3f4; }
@@ -194,7 +204,7 @@ export function buildWorkbenchHtml(rootDir, options = {}) {
     .actions, .docs { display: flex; flex-wrap: wrap; gap: 9px; }
     a { color: #075b6b; font-weight: 750; text-decoration: none; }
     .actions a, .docs a { border: 1px solid #afc8cd; border-radius: 7px; background: #fff; padding: 10px 13px; }
-    .actions a:first-child { background: #d94f3d; border-color: #d94f3d; color: #fff; }
+    .actions a:first-child { background: #c43e2f; border-color: #c43e2f; color: #fff; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
     .report { min-height: 150px; border: 1px solid #c8d7da; border-radius: 8px; background: #fff; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
     .report > div { min-height: 50px; }
@@ -203,6 +213,15 @@ export function buildWorkbenchHtml(rootDir, options = {}) {
     .report.missing strong, .report.stale strong { color: #9a5a00; }
     .report small { color: #60767b; overflow-wrap: anywhere; }
     .report a { margin-top: auto; }
+    .section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: end; }
+    .section-heading p { margin: 4px 0 0; color: #52696e; }
+    .coverage-table-wrap { overflow-x: auto; border: 1px solid #c8d7da; background: #fff; }
+    .coverage-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .coverage-table th, .coverage-table td { padding: 10px; text-align: left; border-bottom: 1px solid #dbe5e7; white-space: nowrap; }
+    .coverage-table th small, .coverage-table td span { display: block; color: #60767b; font-weight: 500; }
+    .coverage-table tr[data-status="passed"] strong { color: #167052; }
+    .coverage-table tr[data-status="at-risk"] strong, .coverage-table tr[data-status="stale"] strong { color: #9a5a00; }
+    .coverage-table tr[data-status="failed"] strong, .coverage-table tr[data-status="invalid"] strong, .coverage-error { color: #b33424; }
     .notice { border-left: 4px solid #d94f3d; background: #fff; padding: 14px 16px; }
     @media (max-width: 600px) { header { padding: 22px 16px; } main { width: min(100% - 24px, 1180px); } .grid { grid-template-columns: 1fr; } }
   </style>
@@ -211,6 +230,7 @@ export function buildWorkbenchHtml(rootDir, options = {}) {
   <header><h1>AlwaysTrack Presentation Hub</h1><p>Aplicacao, qualidade, documentacao, carga e operacao em uma unica bancada local.</p></header>
   <main>
     <section><h2>Servicos</h2><div class="actions"><a href="http://localhost:${webPort}">AlwaysTrack</a><a href="http://localhost:${apiPort}/health/live">API live</a><a href="http://localhost:${apiPort}/health/ready">API ready</a>${studioLink}</div></section>
+    ${coverageSection}
     <section><h2>Evidencias navegaveis</h2><div class="grid">${reportCards}</div></section>
     ${docsSection}
     <section class="notice"><strong>Escopo da evidencia:</strong> artefatos locais e sinteticos nao promovem rollout nem exposicao externa.</section>
@@ -301,6 +321,9 @@ export function presentationUrls(rootDir, options = {}) {
   for (const [, filePath, category] of reportPaths) {
     if (!reportEnabled(category, options)) continue;
     if (existsSync(resolve(rootDir, filePath))) urls.push(`http://localhost:${workbenchPort}${pathUrl(filePath)}`);
+  }
+  if (options.includeCoverage !== false && existsSync(resolve(rootDir, "docs/generated/coverage/index.html"))) {
+    urls.push(`http://localhost:${workbenchPort}/files/docs/generated/coverage/index.html`);
   }
   const latestPerf = options.includePerformance === false
     ? null

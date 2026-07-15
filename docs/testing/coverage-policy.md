@@ -16,21 +16,21 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 
 | Workspace | Linhas baseline / piso | Branches baseline / piso | Funcoes baseline / piso | Owner |
 | --- | ---: | ---: | ---: | --- |
-| Shared | 61.21 / 55 | 81.25 / 70 | 87.01 / 80 | platform/contracts |
+| Shared | 71.20 / 65 | 85.44 / 80 | 88.60 / 85 | platform/contracts |
 | Extension | 61.23 / 58 | 73.86 / 70 | 78.22 / 75 | companion/extension |
-| SmartScript | 16.04 / 15 | 68.18 / 60 | 81.81 / 75 | companion/smartscript |
+| SmartScript | 80.59 / 80 | 72.44 / 70 | 91.48 / 90 | companion/smartscript |
 | Web | 6.59 / 6 | 56.77 / 50 | 29.77 / 25 | web/product |
 | API | 68.82 / 60 | 67.03 / 60 | 64.88 / 64 | api/core |
 | Host | 89.52 / 85 | 80.27 / 75 | 93.10 / 90 | companion/host |
 
-Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript tem grande parte do fluxo exercitada em subprocesso E2E, que nao e atribuida ao processo Vitest; Web passou a medir toda a SPA e possui divida explicita. Os proximos marcos sao 25% de linhas no SmartScript e 10% no Web sem reduzir os demais pisos.
+Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript agora combina testes diretos atribuiveis com E2E de subprocesso separado; Web mede toda a SPA e conserva divida explicita. O proximo marco global e 10% de linhas no Web sem reduzir os demais pisos.
 
 Excecao temporaria API: o inventario completo de 2026-07-15 encontrou 64.88% de funcoes, enquanto o piso inicial de 75% nunca havia sido exercitado pelo comando agregado. O owner `api/core` aceita piso executavel de 64% ate 2026-08-15; elevar de volta exige testes dos modulos adicionados depois do baseline original. Os thresholds criticos por arquivo permanecem inalterados.
 
 ## Superficies criticas
-- Shared: protocolo Companion e parser generico de conectores.
+- Shared: protocolo Companion, parser generico de conectores e action firewall canonico em 100%.
 - Extension: cliente de protocolo e action firewall, com firewall em 100%.
-- SmartScript: processor e geracao Espanso, esta em 100%.
+- SmartScript: CLI, storage, processor e geracao Espanso; storage esta em 100% de linhas.
 - Web: cliente API, navegacao acessivel de tabs e administracao CaseFlow.
 - API: access policy, sessao, action firewall e validacao de entrada; firewall em 100%.
 - Host: action firewall e seguranca do protocolo; firewall em 100%.
@@ -40,6 +40,7 @@ Os thresholds exatos vivem nos `vitest.config.ts` de cada workspace para que o p
 ## Operacao
 ```bash
 npm run coverage:check
+npm run coverage:manifest
 ```
 
-Relatorios HTML ficam em `<workspace>/coverage/index.html`. Eles nao sao versionados. Em CI, baixar o artefato `workspace-coverage` do mesmo commit. Percentual nao substitui cenarios por risco, fuzzing, E2E de browser ou validacao live.
+Relatorios HTML ficam em `<workspace>/coverage/index.html` e o scorecard consolidado em `docs/generated/coverage/index.html`. Eles nao sao versionados. Em CI, baixar o artefato `workspace-coverage` do mesmo commit. Percentual nao substitui cenarios por risco, fuzzing, E2E de browser ou validacao live.

@@ -1,8 +1,8 @@
 # TASK-AT-338 - Presentation Hub: painel comparativo de coverage
 
 ## Metadata
-- status: planned
-- owner: quality-maintainers
+- status: completed-local-validation
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-338-presentation-hub-coverage-panel.md
 
@@ -30,6 +30,13 @@ Apresentar coverage dos seis workspaces com contexto de risco, piso e frescor, s
 
 ## Validacao
 - testes do workbench, Playwright desktop/mobile, axe, links HTTP e `npm run check`.
+
+## Resultado
+- O Hub apresenta as quatro metricas brutas dos seis workspaces, pisos, arquivos zerados, gates e arquivos criticos aprovados, com link para scorecard independente.
+- Estados `passed`, `at-risk`, `stale`, `missing` e `invalid` sao derivados do manifesto fresco; Web permanece visivelmente em 6.82%, sem equivalencia visual ou numerica com o Host em 89.84%.
+- A allowlist inclui somente o artefato gerado de coverage e conserva as protecoes de traversal e arquivos sensiveis.
+- Smoke HTTP aprovou os 29 destinos da apresentacao; Playwright desktop/mobile e axe WCAG A/AA passaram sem violacoes depois de tornar a regiao rolavel focavel e remover refresh temporizado.
+- O smoke encontrou e corrigiu o repasse de `--port` ao Vite no `npm run up`, que antes podia iniciar a Web com raiz incorreta e falhar readiness.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

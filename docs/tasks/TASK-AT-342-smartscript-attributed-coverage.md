@@ -1,7 +1,7 @@
 # TASK-AT-342 - SmartScript coverage: CLI e storage atribuiveis
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: companion/smartscript
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-342-smartscript-attributed-coverage.md
@@ -29,6 +29,12 @@ Fazer CLI e filesystem contribuirem corretamente ao V8 sem contabilizar artifici
 
 ## Validacao
 - coverage SmartScript repetido, CLI E2E, filesystem temporario e build.
+
+## Resultado
+- `storage.ts` possui seis testes diretos e atingiu 100% de linhas/funcoes e 94.11% de branches em diretorios temporarios.
+- O runner `runCli` e testavel in-process sem alterar a execucao ESM real; tres testes diretos complementam os tres E2E de subprocesso sem duplicar counters V8.
+- SmartScript passou 16 testes e elevou o baseline global para 80.59% de linhas, 72.44% de branches e 91.48% de funcoes.
+- Pisos globais subiram para 80/70/90 e os thresholds criticos de CLI, storage, processor e Espanso foram aprovados em execucao repetida.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

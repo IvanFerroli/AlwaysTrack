@@ -1,7 +1,7 @@
 # TASK-AT-344 - Shared coverage: action firewall e contratos executaveis
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: platform/contracts
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-344-shared-firewall-contract-coverage.md
@@ -29,6 +29,12 @@ Cobrir diretamente o firewall canonico e os contratos que cruzam Core, Extension
 
 ## Validacao
 - coverage Shared, fuzz/protocol tests, consumidores API/Extension/Host e build.
+
+## Resultado
+- A matriz direta do firewall canonico cobre 68 casos de allow/deny, contexto, capability, confirmacao e todos os estados de autorizacao.
+- Datas de expiracao invalidas passaram a falhar fechadas como `AUTHORIZATION_EXPIRED`, eliminando uma permissao acidental identificada pela matriz.
+- O firewall atingiu 100% em linhas, statements, branches e funcoes; Shared passou 97 testes e fechou em 71.20% de linhas, 85.44% de branches e 88.60% de funcoes.
+- Pisos globais foram elevados para 65% de linhas/statements, 80% de branches e 85% de funcoes, com threshold critico de 100% no firewall.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

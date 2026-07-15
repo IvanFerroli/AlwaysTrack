@@ -1,8 +1,8 @@
 # TASK-AT-337 - Coverage: inventario executavel e mapa de risco por superficie
 
 ## Metadata
-- status: planned
-- owner: quality-maintainers
+- status: completed-local-validation
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-337-executable-coverage-risk-inventory.md
 
@@ -31,6 +31,12 @@ Gerar um inventario reproduzivel que relacione coverage por arquivo, risco de ne
 
 ## Validacao
 - testes unitarios do agregador, `npm run coverage:check`, `npm run check:docs` e `git diff --check`.
+
+## Resultado
+- `npm run coverage:manifest` gera JSON e HTML locais para os seis workspaces, preservando numeradores, denominadores, pisos, margens, SHA, runtime e frescor.
+- Os 18 arquivos criticos configurados possuem owner, risco, task e avaliacao individual; summaries ausentes, invalidos ou abaixo do piso encerram o comando com falha.
+- Arquivos com 0% permanecem explicitos e contadores vazios sao exibidos como `N/A`, sem media ou score composto.
+- O gerador e seus cenarios de ausencia, corrupcao, caminhos criticos e counters vazios integram `npm run test:startup`.
 
 ## Riscos
 - Transformar inventario em ranking cosmetico sem priorizacao de jornada.
