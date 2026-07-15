@@ -1,8 +1,11 @@
 # Testing and Docs Maintenance
 
 ## Comandos principais
-- `npm run up`: bancada local completa; instala, prepara banco/seed/docs, sobe API/Web/Studio e abre uma pagina central com app/docs/reports no navegador.
-- `npm run up -- --skip-install --no-open --no-perf-smoke`: variante rapida para subir sem abas e sem carga local.
+- `npm run up`: bancada local completa; verifica dependencias e frescor dos artefatos, prepara SQLite/seed, reutiliza servicos saudaveis, sobe o que estiver ausente e abre todas as superficies disponiveis no navegador.
+- `npm run up -- --hub-only`: prepara tudo, mas abre somente o Presentation Hub.
+- `npm run up -- --skip-install --no-open --no-perf-smoke`: variante sem instalacao, abas ou carga local.
+- `npm run up -- --refresh-artifacts`: forca regeneracao de TypeDoc, coverage, Playwright e carga.
+- `--no-coverage`, `--no-e2e`, `--no-docs`, `--no-studio` e `--no-smartscript` permitem reduzir superficies conscientemente.
 - `npm run setup`: prepara ambiente e banco sem subir servicos.
 - `npm run check`: gate rapido atual.
 - `npm run test:unit`: unit/service tests sem quality e2e.
@@ -15,20 +18,26 @@
 - `npm run repo:hygiene`: higiene de repo e segredos obvios.
 - `npm run security:deps`: auditoria de dependencias de producao alta/critica.
 - `npm run perf:smoke:report -- --target=http://localhost:3333`: smoke Artillery com JSON/HTML/diagnostico.
+- `npm run test:startup`: freshness, seguranca e catalogo navegavel do startup local.
 
 ## Artefatos abertos pelo `npm run up`
 - App: `http://localhost:5173`
 - API health: `http://localhost:3333/health`
 - Prisma Studio: `http://localhost:5555`
-- Bancada local: `docs/generated/local-workbench/index.html`
-- TypeDoc: `docs/generated/typedoc/index.html`
+- Presentation Hub: `http://localhost:4173`
+- Snapshot da bancada: `docs/generated/local-workbench/index.html`
+- TypeDoc: `http://localhost:4173/files/docs/generated/typedoc/index.html`
 - Testes: `docs/testing/strategy.md` e `docs/testing/playwright-ci.md`
 - Performance: `docs/performance/README.md`, `docs/performance/report-template.md` e ultimo HTML/MD em `docs/performance/reports/`
 - Seguranca/operacao: gate de exposicao, backup/restore e incidente
-- Reports existentes: Playwright, coverage e performance quando ja estiverem no disco
+- Reports existentes: Playwright, coverage dos seis workspaces e performance servidos por HTTP quando estiverem no disco
+
+O modo padrao abre hub, app, health live/ready, Studio, TypeDoc, seis coverages, Playwright, ultimo Artillery e documentos essenciais. Use `--hub-only` quando a apresentacao pedir uma unica aba. `--no-open` e um opt-out total e tambem impede o Artillery de abrir janela propria.
+
+O servidor de artefatos escuta apenas em `127.0.0.1` e usa allowlist. Ele nao serve `.env`, banco, storage ou caminhos arbitrarios do checkout. Uma `DATABASE_URL` nao baseada em `file:` tambem e recusada pelo startup, salvo opt-in operacional explicito por `--allow-remote-database`.
 
 ## Coverage
-`npm run coverage:html` roda a suite Vitest da API com `@vitest/coverage-v8`, imprime resumo no terminal e gera HTML em `services/api/coverage/index.html`.
+`npm run coverage:html` roda as suites Vitest dos seis workspaces com `@vitest/coverage-v8`, imprime os resumos no terminal e gera um `coverage/index.html` por workspace.
 
 Use coverage como mapa de risco, nao como numero absoluto cego:
 - arquivos de parser/service recentes devem ter cobertura direta quando forem mudados;

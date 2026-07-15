@@ -71,8 +71,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/v1": "http://localhost:3333",
-      "/health": "http://localhost:3333"
+      "/v1": process.env.ALWAYSTRACK_API_URL ?? `http://localhost:${process.env.API_PORT ?? "3333"}`,
+      "/health": process.env.ALWAYSTRACK_API_URL ?? `http://localhost:${process.env.API_PORT ?? "3333"}`
     }
   }
 });

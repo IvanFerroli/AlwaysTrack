@@ -508,3 +508,7 @@ Fonte canonica: `docs/tasks/PROJECT-WIDE-READINESS-BACKLOG-2026-07-15.md`.
 26. `TASK-AT-333`: Evidencias: manifesto padrao e pacote reproduzivel de apresentacao. Status: planned.
 27. `TASK-AT-334`: Compatibilidade: browsers, Windows/WSL e perifericos de uso. Status: planned.
 28. `TASK-AT-335`: Gate final: prontidao transversal para demo, rollout e exposicao. Status: planned.
+
+## Runtime local e apresentacao
+
+1. `TASK-AT-336`: Runtime local: setup inteligente e hub completo de apresentacao. Status: completed-local-validation.
