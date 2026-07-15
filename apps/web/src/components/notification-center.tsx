@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { api } from "../api";
 
@@ -33,6 +33,18 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
   const [loading, setLoading] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [selectedType, setSelectedType] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    popoverRef.current?.querySelector<HTMLElement>("button:not(:disabled)")?.focus();
+  }, [open]);
+
+  function closeAndRestoreFocus() {
+    setOpen(false);
+    queueMicrotask(() => triggerRef.current?.focus());
+  }
 
   async function loadNotifications() {
     setLoading(true);
@@ -77,6 +89,7 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
   return (
     <div className="notification-center">
       <button
+        ref={triggerRef}
         className="notification-trigger secondary"
         type="button"
         onClick={() => {
@@ -84,15 +97,31 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
           void loadNotifications();
         }}
         title="Notificações"
+        aria-label={unread > 0 ? `Notificações, ${unread} não lida(s)` : "Notificações"}
+        aria-controls="notification-popover"
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <Bell className="icon" aria-hidden="true" strokeWidth={2.25} />
         {unread > 0 ? <span>{unread > 9 ? "9+" : unread}</span> : null}
       </button>
       {open ? (
-        <div className="notification-popover">
+        <div
+          ref={popoverRef}
+          id="notification-popover"
+          className="notification-popover"
+          role="dialog"
+          aria-labelledby="notification-popover-title"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              closeAndRestoreFocus();
+            }
+          }}
+        >
           <div className="notification-popover-header">
             <span>
-              <strong>Notificações</strong>
+              <strong id="notification-popover-title">Notificações</strong>
               <small>{unread} não lida(s)</small>
             </span>
             <button className="link-button" disabled={unread === 0} type="button" onClick={() => void markAllRead()}>

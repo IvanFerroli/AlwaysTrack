@@ -8,8 +8,12 @@ export function renderIntervention(
   const presentation = getInterventionPresentation(state.state);
   container.replaceChildren();
   container.hidden = false;
+  container.setAttribute("role", "alert");
+  container.setAttribute("aria-labelledby", "intervention-title");
 
   const heading = document.createElement("h2");
+  heading.id = "intervention-title";
+  heading.tabIndex = -1;
   heading.textContent = `${state.connectorLabel}: ${presentation.title}`;
   const message = document.createElement("p");
   message.textContent = presentation.message;
@@ -26,4 +30,5 @@ export function renderIntervention(
   }
 
   container.append(heading, message, actions);
+  heading.focus();
 }

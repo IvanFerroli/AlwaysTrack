@@ -4,7 +4,9 @@ export function renderCopyActions(container: HTMLElement, actions: CopyAction[],
   container.replaceChildren();
   const status = document.createElement("p");
   status.className = "copy-status";
+  status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
+  status.setAttribute("aria-atomic", "true");
 
   const actionList = document.createElement("div");
   actionList.className = "copy-actions";

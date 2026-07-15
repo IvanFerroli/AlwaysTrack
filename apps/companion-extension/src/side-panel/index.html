@@ -12,16 +12,16 @@
         <div class="brand-line"><span class="product">AlwaysTrack</span><span id="host-status" class="connection-status">Companion indisponivel</span></div>
         <h1>Copiloto SAC</h1>
         <div id="case-head" class="case-head" aria-label="Contexto do caso"></div>
-        <div class="completion" role="progressbar" aria-label="Completude do caso" aria-valuemin="0" aria-valuemax="100"><span id="completion-bar"></span></div>
+        <div class="completion" role="progressbar" aria-label="Completude do caso" aria-valuemin="0" aria-valuemax="100"><span id="completion-bar" aria-hidden="true"></span></div>
         <div class="header-actions">
           <button id="refresh-case" type="button" class="icon-button" title="Atualizar caso" aria-label="Atualizar caso">&#8635;</button>
           <button id="cancel-case" type="button" class="icon-button danger-button" title="Cancelar sessao" aria-label="Cancelar sessao">&#215;</button>
         </div>
       </header>
 
-      <p id="browser-diagnostics" class="diagnostics" aria-live="polite"></p>
-      <section id="intervention" class="intervention" aria-live="polite" hidden></section>
-      <aside id="plan-update" class="plan-update" role="status" aria-live="polite" hidden></aside>
+      <p id="browser-diagnostics" class="diagnostics" role="status" aria-live="polite" aria-atomic="true"></p>
+      <section id="intervention" class="intervention" aria-live="assertive" aria-atomic="true" hidden></section>
+      <aside id="plan-update" class="plan-update" role="status" aria-live="polite" aria-atomic="true" hidden></aside>
 
       <section class="workspace-section current-step-section">
         <div id="stepper"></div>

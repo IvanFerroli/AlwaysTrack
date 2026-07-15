@@ -9,7 +9,7 @@
 body { margin: 0; }
 button, select { color: inherit; font: inherit; }
 button, summary, select { cursor: pointer; }
-button:focus-visible, summary:focus-visible, select:focus-visible { outline: 3px solid #0b6bcb; outline-offset: 2px; }
+button:focus-visible, summary:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #0b6bcb; outline-offset: 2px; }
 .shell { margin: 0 auto; max-width: 600px; min-height: 100vh; padding: 0 14px 24px; }
 
 .panel-header { background: #fff; border-bottom: 1px solid #cfd6de; margin: 0 -14px; padding: 12px 58px 10px 14px; position: sticky; top: 0; z-index: 2; }
@@ -101,5 +101,5 @@ p, li, dd, dt { font-size: 13px; line-height: 1.45; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .completion span { transition: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }

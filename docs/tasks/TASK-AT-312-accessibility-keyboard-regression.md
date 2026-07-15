@@ -1,8 +1,8 @@
 # TASK-AT-312 - Web e Companion: regressao de acessibilidade e teclado
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: implementation-complete-manual-validation-pending
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-312-accessibility-keyboard-regression.md
 
@@ -30,8 +30,8 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - Evidencias anteriores devem ser classificadas como fake, local, production-like ou live.
 
 ## Dependencias
-- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307` e auditoria transversal concluida.
-- em aberto: TASK-AT-311.
+- satisfeitas: backlog CaseFlow materializado ate `TASK-AT-307`, auditoria transversal e `TASK-AT-311` concluidas.
+- em aberto: validacoes manuais coordenadas por `TASK-AT-314` e `TASK-AT-334`.
 
 ## Alvos explicitos
 1. apps/web/src/**
@@ -89,3 +89,24 @@ TASK-AT-313
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da implementacao
+
+- Gate Web deterministico cobre nomes acessiveis, formularios, IDs, referencias ARIA, tabs, tabelas e contraste critico.
+- Notificacoes suportam abertura por teclado, Escape e retorno de foco.
+- Tabs do editor e do CaseFlow suportam setas, Home e End com roving `tabIndex` e paineis associados.
+- Web e side panel possuem foco visivel e contrato de movimento reduzido.
+- Side panel anuncia diagnosticos, atualizacoes, copia e intervencoes com semantica e atomicidade explicitas.
+- Nenhuma dependencia, script npm, threshold de coverage ou configuracao Vitest foi adicionada; a TASK-AT-315 mantem ownership desses gates.
+- Evidencia local: `docs/testing/TASK-AT-312-accessibility-evidence.md`.
+
+## Estado dos criterios
+
+1. Scanner local das jornadas P0 sem violacao critica: atendido em ambiente local/JSDOM.
+2. Acoes essenciais cobertas por operacao de teclado: atendido pelos testes determinísticos Web e pelos contratos/testes do side panel.
+3. Excecoes com owner, justificativa e prazo: registradas na evidencia.
+
+## Pendencias nao promoviveis
+
+- Leitor de tela real e arvore de acessibilidade de browser dependem da matriz da `TASK-AT-334`.
+- Reflow em zoom 200%/400% depende da regressao visual da `TASK-AT-314`.
+- A task nao pode receber status `completed` antes dessas evidencias manuais; esta execucao proibiu browser/live/credenciais.

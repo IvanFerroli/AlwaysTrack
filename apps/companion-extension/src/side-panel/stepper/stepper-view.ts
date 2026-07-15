@@ -30,6 +30,7 @@ export function renderStepper(container: HTMLElement, step: GuidedStep, emit: (i
 
   const options = document.createElement("div");
   options.className = "step-options";
+  options.setAttribute("role", "group");
   options.setAttribute("aria-label", "Opcoes do passo atual");
   step.options.forEach((option, index) => {
     const button = document.createElement("button");

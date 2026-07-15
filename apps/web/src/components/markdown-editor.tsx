@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 const emojiOptions = ["✅", "⚠️", "📌", "📎", "💬", "📦", "🚚", "🔁", "💰", "🧾", "🔍", "⭐", "👍", "🙏", "🙂"];
 
@@ -194,9 +194,30 @@ export function MarkdownEditor({
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const writeTabRef = useRef<HTMLButtonElement | null>(null);
+  const previewTabRef = useRef<HTMLButtonElement | null>(null);
+  const editorId = useId().replace(/:/g, "");
   const [preview, setPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+
+  function changeMode(nextPreview: boolean, focusTarget?: HTMLButtonElement | null) {
+    setPreview(nextPreview);
+    focusTarget?.focus();
+  }
+
+  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, current: "write" | "preview") {
+    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      changeMode(current === "write", current === "write" ? previewTabRef.current : writeTabRef.current);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      changeMode(false, writeTabRef.current);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      changeMode(true, previewTabRef.current);
+    }
+  }
 
   function format(type: string) {
     const textarea = ref.current;
@@ -252,11 +273,11 @@ export function MarkdownEditor({
     <div className="wiki-editor">
       <div className="wiki-editor-header">
         <span>{label}</span>
-        <div className="wiki-editor-tabs">
-          <button className={!preview ? "active" : ""} type="button" onClick={() => setPreview(false)}>
+        <div className="wiki-editor-tabs" role="tablist" aria-label={`Modo de ${label}`}>
+          <button ref={writeTabRef} className={!preview ? "active" : ""} type="button" role="tab" id={`${editorId}-write-tab`} aria-controls={`${editorId}-write-panel`} aria-selected={!preview} tabIndex={!preview ? 0 : -1} onClick={() => setPreview(false)} onKeyDown={(event) => handleModeKeyDown(event, "write")}>
             Escrever
           </button>
-          <button className={preview ? "active" : ""} type="button" onClick={() => setPreview(true)}>
+          <button ref={previewTabRef} className={preview ? "active" : ""} type="button" role="tab" id={`${editorId}-preview-tab`} aria-controls={`${editorId}-preview-panel`} aria-selected={preview} tabIndex={preview ? 0 : -1} onClick={() => setPreview(true)} onKeyDown={(event) => handleModeKeyDown(event, "preview")}>
             Preview
           </button>
         </div>
@@ -281,11 +302,11 @@ export function MarkdownEditor({
           </button>
         ))}
         <div className="emoji-picker-wrap">
-          <button className="ghost-button small" type="button" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((current) => !current)}>
+          <button className="ghost-button small" type="button" aria-controls={`${editorId}-emoji-menu`} aria-expanded={emojiOpen} onClick={() => setEmojiOpen((current) => !current)}>
             Emoji
           </button>
           {emojiOpen ? (
-            <div className="emoji-picker-panel" role="menu" aria-label="Escolher emoji">
+            <div id={`${editorId}-emoji-menu`} className="emoji-picker-panel" role="menu" aria-label="Escolher emoji">
               {emojiOptions.map((emoji) => (
                 <button key={emoji} type="button" role="menuitem" onClick={() => insertText(emoji)}>
                   {emoji}
@@ -309,7 +330,7 @@ export function MarkdownEditor({
           </>
         ) : null}
       </div>
-      {preview ? <MarkdownContent content={value} /> : <textarea ref={ref} rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />}
+      {preview ? <div id={`${editorId}-preview-panel`} role="tabpanel" aria-labelledby={`${editorId}-preview-tab`}><MarkdownContent content={value} /></div> : <div id={`${editorId}-write-panel`} role="tabpanel" aria-labelledby={`${editorId}-write-tab`}><textarea aria-label={label} ref={ref} rows={rows} value={value} onChange={(event) => onChange(event.target.value)} /></div>}
     </div>
   );
 }
