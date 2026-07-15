@@ -1,7 +1,7 @@
 # TASK-AT-328 - Privacidade: enforcement de retencao, purge e direitos do titular
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-328-privacy-retention-lifecycle-enforcement.md
@@ -89,3 +89,24 @@ TASK-AT-329
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Evidencia de implementacao
+- concluido-em: 2026-07-15T11:40:03Z
+- ambiente: local, sem credenciais, Redis ou banco externo
+- classificacao: local
+- base-commit: `564fe34510091d937490ae2271b586709696854c`
+- controles: dry-run default; execucao tenant-scoped; conversa minima anonimizada; diagnosticos removidos; cache persistido inexistente documentado; exclusao com dois admins do tenant; auditoria redigida; retry idempotente.
+- seguranca: anti-IDOR retorna `not_found` sem consultar fora do tenant; falha parcial preserva marcador inicial e eventos sanitizados por alvo.
+- purge real: nao executado.
+
+## Validacao executada
+- `npm run test --workspace @alwaystrack/api -- --run src/core/case-flow/audit.test.ts src/core/jobs/privacy-lifecycle.jobs.test.ts` - exit 0, 15 testes.
+- `npm run typecheck --workspace @alwaystrack/api` - exit 0.
+- `npm run typecheck --workspaces --if-present` - exit 0, 6 workspaces.
+- `npm run repo:hygiene` - exit 0.
+- `git diff --check` - exit 0.
+- validacao production-like/live: nao executada por restricao explicita.
+
+## Risco residual e blocker
+- Aprovacao formal do controlador/juridico da TASK-AT-327 continua pendente e bloqueia execute com dados reais.
+- Agendamento depende do scheduler da plataforma/deploy; o entrypoint executavel e o contrato de dedupe foram entregues sem editar manifests ou workflows.
+- Conversa e persistida como `EvidenceFact conversation.*`, nao em tabela propria; cache de conteudo CaseFlow nao possui persistencia no schema atual.
