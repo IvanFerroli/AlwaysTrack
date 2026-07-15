@@ -49,6 +49,7 @@ Transformar `npm run up` em uma entrada local inteligente que prepare apenas o n
 - Proxy Vite passou a derivar o alvo da mesma configuracao da API.
 - Testes focados incluidos no gate raiz por `npm run test:startup`.
 - Smoke real abriu 28 abas HTTP e retornou 200 para todos os destinos; `.env` e traversal retornaram 404.
+- O comportamento de abertura em massa foi posteriormente substituido pela central integrada da `TASK-AT-349`; `--open-all` preserva o diagnostico legado.
 - Segunda execucao pulou TypeDoc, coverage e Playwright atuais e reutilizou API, Web, Studio e Hub.
 - `setup-only` preservou os mesmos PIDs nas quatro portas e o guard de banco remoto falhou antes do Prisma.
 - Coverage agregado dos seis workspaces concluiu depois de reconciliar o baseline incremental da API e adicionar regressao dos uploads Web.

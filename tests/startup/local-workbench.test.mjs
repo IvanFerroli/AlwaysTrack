@@ -6,11 +6,13 @@ import { afterEach, test } from "node:test";
 import {
   artifactsAreFresh,
   browserCommand,
+  browserUrlsToOpen,
   buildWorkbenchHtml,
   createWorkbenchServer,
   presentationUrls,
   resolveAllowedFile
 } from "../../scripts/local-workbench.mjs";
+import { capabilityCatalog, statusLabels } from "../../scripts/workbench-catalog.mjs";
 
 const servers = [];
 
@@ -44,13 +46,32 @@ test("renders a presentation hub with services, reports and coverage percentages
   assert.match(html, /http:\/\/localhost:9002/);
   assert.match(html, /http:\/\/localhost:9001\/health\/ready/);
   assert.match(html, /91\.25% linhas/);
+  assert.match(html, /Buscar capacidade, relatorio, conector ou documento/);
+  assert.match(html, /Modulos, capacidades e maturidade/);
+  assert.match(html, /CaseFlow Engine/);
+  assert.match(html, /Decisao intencional/);
+  assert.match(html, /O que falta e por que ficou assim/);
+  assert.match(html, /<dialog id="viewer">/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.doesNotMatch(html, /Prisma Studio/);
 });
 
+test("keeps the product catalog complete, unique and explicit about intentional gaps", () => {
+  assert.equal(capabilityCatalog.length, 25);
+  assert.equal(new Set(capabilityCatalog.map((item) => item.id)).size, capabilityCatalog.length);
+  for (const capability of capabilityCatalog) {
+    assert.ok(statusLabels[capability.status]);
+    assert.ok(capability.delivered.length > 0, `${capability.id} must list delivered scope`);
+    assert.ok(capability.todos.length > 0, `${capability.id} must list remaining work`);
+    assert.ok(capability.finalVision.length > 20, `${capability.id} must explain the final vision`);
+    assert.ok(capability.intentionalReason.length > 20, `${capability.id} must explain the intentional decision`);
+    assert.ok(capability.href, `${capability.id} must link to evidence`);
+  }
+});
+
 test("serves only allowlisted artifact directories and blocks repository secrets", async () => {
   const root = fixtureRoot();
-  const { server } = createWorkbenchServer(root, { port: 0 });
+  const { server } = createWorkbenchServer(root, { port: 0, apiPort: 65431, webPort: 65432, includeStudio: false });
   servers.push(server);
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const port = server.address().port;
@@ -60,6 +81,7 @@ test("serves only allowlisted artifact directories and blocks repository secrets
   const traversal = await fetch(`http://127.0.0.1:${port}/files/%2e%2e/.env`);
   const secret = await fetch(`http://127.0.0.1:${port}/files/.env`);
   const marker = await fetch(`http://127.0.0.1:${port}/__alwaystrack_workbench`);
+  const status = await fetch(`http://127.0.0.1:${port}/__alwaystrack_status`);
 
   assert.equal(artifact.status, 200);
   assert.equal(await artifact.text(), "<h1>TypeDoc</h1>");
@@ -67,6 +89,7 @@ test("serves only allowlisted artifact directories and blocks repository secrets
   assert.equal(traversal.status, 404);
   assert.equal(secret.status, 404);
   assert.deepEqual(await marker.json(), { service: "alwaystrack-workbench", status: "ready" });
+  assert.deepEqual((await status.json()).services, { api: false, web: false, studio: false, hub: true });
 });
 
 test("resolves allowlisted paths without accepting traversal", () => {
@@ -134,6 +157,14 @@ test("selects browser launchers without interpolating URLs into a shell command"
     command: "xdg-open",
     args: ["http://localhost:4173"]
   });
+});
+
+test("opens only the integrated Hub by default and keeps open-all explicit", () => {
+  const urls = ["http://localhost:4173", "http://localhost:5173", "http://localhost:5555"];
+
+  assert.deepEqual(browserUrlsToOpen(urls), ["http://localhost:4173"]);
+  assert.deepEqual(browserUrlsToOpen(urls, { openAll: true }), urls);
+  assert.deepEqual(browserUrlsToOpen(urls, { openAll: true, hubOnly: true }), ["http://localhost:4173"]);
 });
 
 test("detects missing and stale artifact sets", async () => {

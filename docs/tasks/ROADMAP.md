@@ -529,3 +529,7 @@ Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
 10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: completed-local-validation.
 11. `TASK-AT-347`: Companion Host coverage: bootstrap e branches residuais. Status: completed-local-validation.
 12. `TASK-AT-348`: Coverage: gate final e ensaio da apresentacao. Status: completed-local-validation (`GO-WITH-RISK`).
+
+## Hub integrado para apresentacao
+
+1. `TASK-AT-349`: Presentation Hub integrado, catalogo pesquisavel de capacidades e visao intencional de evolucao. Status: completed-local-validation.

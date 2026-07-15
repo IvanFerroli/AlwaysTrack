@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { resolve } from "node:path";
 import {
   artifactsAreFresh,
+  browserUrlsToOpen,
   buildWorkbenchHtml,
   createWorkbenchServer,
   latestFile,
@@ -28,6 +29,7 @@ const noSmartScript = process.argv.includes("--no-smartscript");
 const noSmartScriptDemo = process.argv.includes("--no-smartscript-demo");
 const refreshArtifacts = process.argv.includes("--refresh-artifacts");
 const hubOnly = process.argv.includes("--hub-only");
+const openAll = process.argv.includes("--open-all");
 const allowRemoteDatabase = process.argv.includes("--allow-remote-database");
 const defaultDatabaseUrl = "file:./dev.db";
 const devSeedPassword = "AlwaysTrackDev123!";
@@ -397,8 +399,8 @@ function printAndOpenPresentation() {
     console.log("[AlwaysTrack Setup] Abertura automatica desativada por --no-open.");
     return;
   }
-  const selected = hubOnly ? urls.slice(0, 1) : urls;
-  console.log(`[AlwaysTrack Setup] Abrindo ${selected.length} aba(s) no navegador${hubOnly ? " (modo hub)" : ""}.`);
+  const selected = browserUrlsToOpen(urls, { openAll, hubOnly });
+  console.log(`[AlwaysTrack Setup] Abrindo ${selected.length} aba(s) no navegador${selected.length === 1 ? " (Hub integrado)" : " (--open-all)"}.`);
   openBrowserUrls(selected);
 }
 
@@ -493,7 +495,7 @@ async function main() {
       if (code === 0) {
         console.log("\n[AlwaysTrack Setup] Smoke de carga local concluido; o hub ja reflete o novo relatorio.");
         writeLocalWorkbenchPage();
-        if (!noOpen && !hubOnly) {
+        if (!noOpen && openAll && !hubOnly) {
           const latestPerfHtml = latestFile(rootDir, "docs/performance/reports", (name) => name.endsWith(".html"));
           if (latestPerfHtml) {
             const relative = latestPerfHtml.slice(rootDir.length + 1).split("\\").join("/");

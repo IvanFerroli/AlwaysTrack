@@ -1,8 +1,9 @@
 # Testing and Docs Maintenance
 
 ## Comandos principais
-- `npm run up`: bancada local completa; verifica dependencias e frescor dos artefatos, prepara SQLite/seed, reutiliza servicos saudaveis, sobe o que estiver ausente e abre todas as superficies disponiveis no navegador.
-- `npm run up -- --hub-only`: prepara tudo, mas abre somente o Presentation Hub.
+- `npm run up`: bancada local completa; verifica dependencias e frescor dos artefatos, prepara SQLite/seed, reutiliza servicos saudaveis, sobe o que estiver ausente e abre somente o Presentation Hub integrado.
+- `npm run up -- --open-all`: preserva o modo diagnostico que abre todas as superficies em abas separadas.
+- `npm run up -- --hub-only`: alias explicito para manter somente o Presentation Hub.
 - `npm run up -- --skip-install --no-open --no-perf-smoke`: variante sem instalacao, abas ou carga local.
 - `npm run up -- --refresh-artifacts`: forca regeneracao de TypeDoc, coverage, Playwright e carga.
 - `--no-coverage`, `--no-e2e`, `--no-docs`, `--no-studio` e `--no-smartscript` permitem reduzir superficies conscientemente.
@@ -32,7 +33,7 @@
 - Seguranca/operacao: gate de exposicao, backup/restore e incidente
 - Reports existentes: Playwright, coverage dos seis workspaces e performance servidos por HTTP quando estiverem no disco
 
-O modo padrao abre hub, app, health live/ready, Studio, TypeDoc, seis coverages, Playwright, ultimo Artillery e documentos essenciais. Use `--hub-only` quando a apresentacao pedir uma unica aba. `--no-open` e um opt-out total e tambem impede o Artillery de abrir janela propria.
+O modo padrao abre uma unica aba do Hub. App, health live/ready, Studio, TypeDoc, seis coverages, Playwright, ultimo Artillery e documentos essenciais ficam integrados na navegacao e no visualizador interno. Use `--open-all` apenas para diagnostico com abas separadas. `--no-open` e um opt-out total e tambem impede o Artillery de abrir janela propria.
 
 O servidor de artefatos escuta apenas em `127.0.0.1` e usa allowlist. Ele nao serve `.env`, banco, storage ou caminhos arbitrarios do checkout. Uma `DATABASE_URL` nao baseada em `file:` tambem e recusada pelo startup, salvo opt-in operacional explicito por `--allow-remote-database`.
 
