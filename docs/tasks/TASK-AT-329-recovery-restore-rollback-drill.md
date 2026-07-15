@@ -1,7 +1,7 @@
 # TASK-AT-329 - Operacao: ensaio de restore, recuperacao e rollback coordenado
 
 ## Metadata
-- status: planned
+- status: implementation-complete-production-like-validation-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-329-recovery-restore-rollback-drill.md
@@ -62,6 +62,19 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 - comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
 - revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
 
+## Implementacao local
+- `scripts/recovery/restore-drill.mjs` executa o drill e emite evidencia JSON sanitizada.
+- `scripts/recovery/restore-drill-core.mjs` isola snapshot, checksums, restore, reconciliacao, rollback e gates RPO/RTO em recursos temporarios.
+- `tests/recovery/restore-drill.test.mjs` cobre caminho GO e falha fechada para adulteracao, incompatibilidade, objetivo perdido e raiz insegura.
+- `docs/operations/recovery-drills/local-coordinated-restore-drill.md` define operacao e fronteira local/production-like.
+- `docs/operations/recovery-drills/TASK-AT-329-local-evidence.md` registra a evidencia reproduzivel sem persistir dados do drill.
+
+## Estado de aceite
+1. RPO e RTO sao medidos automaticamente com timestamps UTC, ambiente e operador sintetico identificados no relatorio.
+2. SQLite, relacionamentos CaseFlow, storage, configuracao e protocolo Companion sao reconciliados antes da promocao.
+3. Checksum, protocolo, banco ou objetivo invalido encerram o ensaio com prontidao `BLOCKED` e sem promocao.
+4. A evidencia e estritamente `local/fake`; restore production-like/live permanece pendente e nao pode ser inferido.
+
 ## Evidencia esperada
 - Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
 - Relatorio ou artefato sanitizado classificado como fake, local, production-like ou live.
@@ -88,4 +101,3 @@ TASK-AT-330
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
