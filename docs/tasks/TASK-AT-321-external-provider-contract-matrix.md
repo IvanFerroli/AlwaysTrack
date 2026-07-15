@@ -1,7 +1,7 @@
 # TASK-AT-321 - Integracoes externas: matriz de contratos, sandboxes e degradacao
 
 ## Metadata
-- status: planned
+- status: implementation-complete-sandbox-live-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-321-external-provider-contract-matrix.md
@@ -36,7 +36,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Alvos explicitos
 1. services/api/src/core/integrations/**
 2. tests/contracts/providers/**
-3. docs/operations/external-provider-validation.md
+3. Runbook operacional de validacao externa, pendente para a rodada autorizada de sandbox/live.
+
+## Recorte autorizado nesta execucao
+- Implementacao local em `services/api/src/core/integrations/**` e testes dos providers existentes.
+- `tests/contracts/providers/**` foi materializado junto ao ownership da API como
+  `services/api/src/core/integrations/provider-contract-matrix.test.ts`, onde o runner Vitest vigente o executa.
+- O runbook operacional de validacao externa, contratos OpenAPI, manifests de pacote, lockfile,
+  workflows, `ROADMAP.md`, rede e credenciais ficaram explicitamente fora desta execucao.
 
 ## Fora de escopo
 - Declarar validacao live a partir de mocks, fixtures ou execucao local.
@@ -61,6 +68,37 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Validacao
 - comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
 - revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
+
+## Implementacao local
+- Matriz executavel e tipada em `services/api/src/core/integrations/provider-contract-matrix.ts`.
+- Providers cobertos: Google OAuth/Sheets, Meta WhatsApp, OpenAI, Gemini, fake de notificacao e fake de Document AI.
+- Cenarios remotos obrigatorios: sucesso, credencial ausente, timeout, rate limit, resposta invalida,
+  indisponibilidade e redaction.
+- Mocks reproduzem status HTTP, envelopes de sucesso/erro, respostas truncadas e falhas de transporte
+  sem abrir conexoes de rede.
+- A matriz referencia as suites locais existentes por provider, incluindo OAuth e Google Sheets/Drive,
+  para manter contrato, owner e estrategia de teste executavel no runner atual.
+- Sanitizacao comum cobre campos aninhados e segredos em texto, bearer headers, cookies e query strings.
+- Timeouts declarados e observados: 15 segundos para Google/Meta e 30 segundos para OpenAI/Gemini.
+
+## Estado por ambiente
+- fake/local: implementado e automatizado; evidencia exclusivamente `local/fake`.
+- sandbox Google: pendente por projeto e credenciais de teste autorizados indisponiveis.
+- sandbox Meta/WhatsApp: pendente por numero de teste e credenciais autorizados indisponiveis.
+- sandbox OpenAI/Gemini: pendente por projeto, quota/orcamento e credenciais autorizados indisponiveis.
+- live: pendente para todos os providers; exige autorizacao, ambiente identificado e evidencia redigida.
+- Nenhum resultado local promove rollout, sandbox ou live automaticamente.
+
+## Riscos residuais locais
+- Mocks podem divergir de mudancas futuras dos providers; sandbox continua obrigatorio antes de rollout.
+- OpenAI/Gemini atualmente propagam erro interno ao receber HTTP 200 com JSON invalido. A matriz comprova
+  falha fechada e sanitizada, mas a normalizacao do erro de producao ficou fora do ownership desta execucao.
+- Fakes comprovam determinismo/degradacao somente e nunca constituem evidencia live.
+
+## Evidencia local 2026-07-15
+- Sete suites focadas passaram com 53 testes, cobrindo a matriz, HTTP externo, Google OAuth/Sheets, Meta/WhatsApp, OpenAI, Gemini e fakes.
+- Integridade documental e higiene do repositorio passaram; nenhum segredo, dado real ou chamada de rede foi usado.
+- Classificacao: `local/fake`. Typecheck/build agregado e commit SHA pertencem ao handoff do orchestrator por haver implementacao OpenAPI concorrente no mesmo workspace.
 
 ## Evidencia esperada
 - Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
@@ -88,4 +126,3 @@ TASK-AT-322
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

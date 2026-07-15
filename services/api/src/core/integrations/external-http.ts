@@ -9,7 +9,16 @@ export class ExternalHttpError extends Error {
 
 const sensitiveKeyPattern = /token|secret|password|authorization|cookie|credential|api[_-]?key|private[_-]?key/i;
 
+function redactExternalText(value: string) {
+  return value
+    .replace(/(authorization["'\s:=]+bearer\s+)[^\s"',}]+/gi, "$1[redacted]")
+    .replace(/(bearer\s+)[0-9A-Za-z._~-]+/gi, "$1[redacted]")
+    .replace(/([?&](?:key|api_key|access_token)=)[^&#\s]+/gi, "$1[redacted]")
+    .replace(/((?:client_secret|refresh_token|access_token|api[_-]?key|cookie)["'\s:=]+)[^\s"',}]+/gi, "$1[redacted]");
+}
+
 export function redactExternalData(value: unknown): unknown {
+  if (typeof value === "string") return redactExternalText(value);
   if (Array.isArray(value)) return value.map(redactExternalData);
   if (!value || typeof value !== "object") return value;
   const output: Record<string, unknown> = {};
