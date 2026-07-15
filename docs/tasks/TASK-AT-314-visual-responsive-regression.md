@@ -1,8 +1,8 @@
 # TASK-AT-314 - UI: regressao visual e responsiva das superficies criticas
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed
+- owner: olympus_runtime_builder
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-314-visual-responsive-regression.md
 
@@ -78,6 +78,34 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Proximo passo provavel
 TASK-AT-315
 
+## Implementacao local de 2026-07-15
+- oito baselines light versionados para login Web, CaseFlow Admin, Fluxos SAC, navegacao recolhida e Companion side panel;
+- fixture visual deterministica com animacao, transicao, caret, fonte e scroll estabilizados;
+- assercoes bloqueantes de overflow horizontal, controles fora do viewport e sobreposicao de regioes criticas;
+- bundle local da extensao servido ao Chromium com `chrome.runtime` sintetico, sem instalar a extensao nem acessar host externo;
+- processo de revisao consciente, triagem e atualizacao seletiva documentado em `docs/testing/visual-regression.md`.
+
+## Evidencia local de 2026-07-15
+- ambiente: Linux, Chromium Playwright, NSS/NSPR em `/tmp/alwaystrack-playwright-libs`, SQLite temporario e seed sintetico;
+- classificacao: `local/fake`; nenhuma credencial, PII, provider ou sistema live foi usado;
+- commit SHA: registrado pelo orchestrator no fechamento desta entrega;
+- `npm run typecheck --workspaces --if-present`: passou nos seis workspaces;
+- `npm run repo:hygiene`: passou, incluindo licencas, contratos de qualidade e busca de artefatos sensiveis;
+- matriz final: oito testes passaram para login, Web autenticado desktop/mobile e Companion `320px`/`600px`;
+- revisao manual: oito PNGs inspecionados; atalhos desktop quebram linha sem corte, a navegacao mobile e rolavel e o conteudo critico aparece na primeira tela.
+
+## Regressao encontrada e corrigida
+O primeiro ciclo encontrou overflow horizontal preexistente:
+
+| Viewport | Largura do documento | Resultado |
+| --- | --- | --- |
+| 1440px desktop | 2187px | topbar e workspace excedem o viewport |
+| 1024px desktop recolhido | 1993px | recolher a sidebar nao contem a topbar |
+| 390px mobile SAC | 608px | sidebar e workspace excedem o viewport |
+| 360px mobile CaseFlow | 629px | sidebar encobre o workspace e intercepta o clique em Backup |
+
+O CSS passou a permitir quebra dos atalhos desktop, reflow das acoes e busca, coluna unica dos Fluxos e navegacao mobile horizontal alcancavel. Nenhuma tolerancia, skip ou excecao escondeu a regressao. As assercoes geometricas rodam antes do pixel diff e os quatro baselines afetados foram atualizados somente depois de revisao visual.
+
 ## Feedback obrigatorio de retorno
 - resumo curto do que mudou
 - evidencia de validacao e sua classificacao
@@ -88,4 +116,3 @@ TASK-AT-315
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

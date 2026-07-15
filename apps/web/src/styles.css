@@ -891,7 +891,7 @@ button .icon {
 
 .top-nav {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 7px;
   justify-content: flex-start;
   min-width: 0;
@@ -908,7 +908,7 @@ button .icon {
   color: #344054;
   display: inline-flex;
   gap: 6px;
-  flex: 1 1 0;
+  flex: 1 1 140px;
   height: 34px;
   min-height: 34px;
   padding: 0 10px;
@@ -4291,6 +4291,7 @@ legend {
   }
 
   .dashboard-grid,
+  .service-flow-layout,
   .today-work-grid,
   .action-center-grid,
   .settings-grid,
@@ -4326,19 +4327,46 @@ legend {
 
   .sidebar {
     gap: 14px;
+    height: auto;
     padding: 18px;
+    position: static;
   }
 
   .nav-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .nav-item {
+    flex: 0 0 auto;
+    min-height: 44px;
+    width: auto;
+  }
+
+  .nav-item small {
+    display: none;
   }
 
   .workspace {
+    min-width: 0;
     padding: 16px;
   }
 
   .topbar {
+    min-width: 0;
     position: static;
+  }
+
+  .topbar-account {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .global-search {
+    flex: 1 1 220px;
+    min-width: 0;
   }
 
   .demo-mode-banner,
@@ -4410,10 +4438,6 @@ legend {
   .login-panel,
   .public-faq-panel {
     padding: 20px;
-  }
-
-  .nav-list {
-    grid-template-columns: 1fr;
   }
 
   .topbar {
