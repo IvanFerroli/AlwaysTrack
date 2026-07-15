@@ -25,36 +25,37 @@ Classificacoes de evidencia permitidas:
 
 | Superficie | Estado reconciliado | Risco/gap principal | Owner | Tasks/dependencias abertas | Gate e evidencia atual |
 | --- | --- | --- | --- | --- | --- |
-| API (`@alwaystrack/api`) | Implementada, com testes amplos locais. | Baseline raiz reportado como instavel por fixture temporal; contrato HTTP nao versionado. | api/core | AT-309, AT-310, AT-316, AT-322 | `npm run check`; evidencia `local`; nao promove producao. |
-| Web (`@alwaystrack/web`) | Implementada, typecheck/build e smoke Playwright existentes; contrato uniforme esta no worktree. | Sem suite unitaria/de componentes; excecao auditavel aponta AT-311 e expira em 2026-08-15. Acessibilidade e regressao visual formais tambem faltam. | web/product | AT-309, AT-310, AT-311 a AT-315 | CI smoke `local`; validacao visual real segue pendente. |
-| Shared (`@alwaystrack/shared`) | Contratos compilam; testes de protocolo/reconexao da AT-317 estao concluidos localmente. | Contrato precisa permanecer alinhado a Extension/Host e ainda nao prova topologia real. | platform/contracts | AT-309, AT-310; AT-317 `completed` | Typecheck/teste `local`; sem promocao de gate live. |
-| Companion Extension MV3 (`@alwaystrack/companion-extension`) | Build e testes Vitest locais; contrato de reconexao AT-317 concluido; demo CaseFlow offline disponivel. | Falta E2E com extensao carregada, service worker e perfil Chrome reais. | companion/extension | AT-318, AT-334 | Fixtures `fake` e testes `local`; gates Windows/Chrome continuam `PENDENTE_LIVE`. |
+| API (`@alwaystrack/api`) | Baseline deterministico, lifecycle/readiness, coverage, fuzz e OpenAPI P0 versionado. | Rotas legadas P1/P2 ainda nao estao no OpenAPI; Postgres production-like segue aberto. | api/core | AT-320 | Testes/contrato `local`; nao promove producao. |
+| Web (`@alwaystrack/web`) | Suite unitaria/componentes, acessibilidade automatica, E2E por role e 8 baselines visuais. | Leitor de tela/zoom e compatibilidade fisica seguem manuais. | web/product | AT-312 manual, AT-334 | Browser Chromium `local/fake`; layout desktop/mobile sem overflow nos cenarios P0. |
+| Shared (`@alwaystrack/shared`) | Contratos, enums, protocolo, coverage e reconexao alinhados a Extension/Host. | Topologia e restart reais ainda exigem host autorizado. | platform/contracts | AT-334 | Typecheck/testes `local`; sem promocao live. |
+| Companion Extension MV3 (`@alwaystrack/companion-extension`) | Build, 108 testes e E2E unpacked Chromium com service worker/side panel/pairing/reconnect. | Content script nao declarado, token memory-only e TabRegistry sem wiring E2E. | companion/extension | AT-318 wiring, AT-334 | 11 checks Chromium `local/fake`; Windows/Chrome live pendente. |
 | Companion Host (`@alwaystrack/companion-host`) | Host, pairing, protocolo e reconexao implementados/testados localmente; AT-317 concluida. | Falta prova Windows/WSL, firewall, suspend/resume e recuperacao no host alvo. | companion/host | AT-329, AT-334; gate operacional AT-293 | Testes `local`; rollout CaseFlow nao aprovado. |
-| SmartScript Companion (`@alwaystrack/smartscript-companion`) | CLI e pipeline local existem. | Cobertura rasa de CLI, filesystem, Espanso e lifecycle real. | companion/smartscript | AT-319, AT-322, AT-334 | Testes/smoke `local`; captura real nao deve ser inferida. |
+| SmartScript Companion (`@alwaystrack/smartscript-companion`) | CLI/filesystem/Espanso cobertos em diretorio temporario e coverage ativo. | Clipboard/janela/Espanso Windows reais continuam manuais. | companion/smartscript | AT-334 | E2E `local/fake`; captura real nao inferida. |
 | Dados, filas e storage | SQLite/storage local sao o contrato dev/demo; Redis roda em CI; adapter S3 existe. | Postgres, storage externo, concorrencia, backup/restore coordenado e Redis alvo nao foram provados em staging. | ops/platform | AT-320, AT-328, AT-329, AT-332; AT-149 bloqueada por infra | Migration/Redis `local`; Postgres/storage `production-like` e restore seguem abertos. |
-| Integracoes e conectores externos | Contratos, hardening e fixtures cobrem caminhos conhecidos. | Google, Meta, OpenAI e conectores CaseFlow exigem sandbox/live por provider; nenhum smoke live CaseFlow foi registrado. | integrations + security | AT-321, AT-324, AT-334; gates live preexistentes | Mocks/fixtures `fake` e checks locais; cada conector mantem gate `PENDENTE_LIVE`. |
-| Infra, CI e release | CI valida setup, check, docs, migrations, hygiene, Playwright smoke e Redis. Dockerfiles e compose de exemplo existem. | CI nao garante todos os builds, SAST/SCA/secrets/licencas completos, proveniencia ou deploy final. | ops/platform + security | AT-310, AT-313, AT-325, AT-326, AT-332 | CI `local`; sem artefato candidato `production-like`. |
-| Performance e observabilidade | Metricas HTTP/Prisma, Artillery e relatorios locais existem. | Sem carga mista/1000 usuarios production-like, SLO exercitado, alertas E2E ou soak. | ops/observability | AT-323, AT-324 | Smoke `local`; prova de capacidade continua aberta. |
-| Documentacao, runbooks e evidencias | Arquitetura, catalogo de runbooks (AT-331), demo e auditorias CaseFlow existem. | Integridade automatica de links/status continua aberta. | docs/operations | AT-330; AT-331 `completed`; AT-333 nesta entrega | Revisao documental `local`; schema de evidencia definido pela AT-333. |
-| Perifericos de uso | Desktop/mobile aparecem no Playwright; checklists cobrem OS, navegador, rede, clipboard e intervencoes. | Matriz real de browser, Windows/WSL, VPN/firewall, teclado, clipboard, suspend/resume e acessibilidade nao executada. | qa + companion/ops | AT-312 a AT-314, AT-318, AT-334 | Checklist documental; validacao `live` ausente. |
-| Privacidade e governanca de dados | Redaction, inventario LGPD e RIPD documental da AT-327 existem. | Aprovacao juridica/controlador e enforcement de retencao, purge e direitos do titular continuam pendentes. | privacy + security | AT-327 `documentation-complete-legal-approval-pending`; AT-328 | Evidencia documental/local parcial; nao libera dado real. |
+| Integracoes e conectores externos | Matriz local cobre Google, Meta/WhatsApp, OpenAI, Gemini e providers fake com degradacao/redaction. | Sandbox/live continua pendente por provider e conector CaseFlow. | integrations + security | AT-321 sandbox/live, AT-334 | 53 testes `local/fake`; gates `PENDENTE_LIVE`. |
+| Infra, CI e release | Contrato de seis workspaces, SAST/SCA/secrets/licencas, builds, artefatos nao-root e provenance local implementados. | Gate container CI/Docker e deploy final ainda nao foram observados neste host. | ops/platform + security | AT-326 CI/container, AT-320 | Evidencia `local`; sem candidato production-like. |
+| Performance e observabilidade | SLO/alertas exercitados e matriz mixed/stress/spike/soak versionada. | Perfis pesados, recursos, Redis e soak production-like nao executados. | ops/observability | AT-323 production-like, AT-320 | Um VU/13 requests `local`; nao prova capacidade. |
+| Documentacao, runbooks e evidencias | Integridade executavel, catalogo de runbooks e schema/pacote de evidencia ativos. | Revisao humana da apresentacao e aprovacoes externas continuam necessarias. | docs/operations | AT-335 auditada | 607 documentos e hygiene `local`. |
+| Perifericos de uso | Chromium desktop/mobile, teclado/semantica automatica e visual P0 foram exercitados localmente. | Leitor de tela/zoom, Edge, Windows/WSL, VPN/firewall, clipboard, suspend/resume e monitores reais nao executados. | qa + companion/ops | AT-312 manual, AT-318 wiring, AT-334 | Browser `local/fake`; validacao fisica/live ausente. |
+| Privacidade e governanca de dados | Inventario/RIPD documental e enforcement tenant-scoped de retencao/purge/direitos implementados localmente. | Aprovacao juridica/controlador e exercicio production-like continuam pendentes. | privacy + security | AT-327 legal; AT-328 production-like | Evidencia documental/local; nao libera dado real. |
 
 ## Decisoes separadas
 
 | Fronteira | Snapshot atual | Caminho critico calculavel | Evidencia minima para mudar |
 | --- | --- | --- | --- |
-| Demo controlada local/offline | `GO-WITH-RISK`, somente com dados ficticios e sem integracao live. | Revalidar reset/seed, API/Web, roteiro e audit offline no commit apresentado; AT-309 remove a instabilidade conhecida do gate raiz. | Manifesto `local`/`fake`, comandos verdes, operador, UTC e fallback offline. |
+| Demo controlada local/offline | `GO-WITH-RISK`, somente com dados ficticios e sem integracao live. | Revalidar reset/seed, API/Web, roteiro e audit offline no commit apresentado. | Manifesto `local`/`fake`, comandos verdes, operador, UTC e fallback offline. |
 | Rollout interno / CaseFlow | `NO-GO`. Auditorias AT-302 a AT-306 permanecem `audit-complete-no-go`; AT-307 e documental e bloqueada. | Fechar sequencialmente os gates live ja existentes, incluindo AT-293 e conectores; depois reauditar fases 1 a 5. | Evidencia `live` por host/conector/fase e aprovacao humana; fixtures nao contam. |
 | Exposicao externa | `NO-GO`. Gate de seguranca vigente nao aprovou internet publica. | Infra alvo, AT-320, AT-325, AT-326, AT-329, AT-332 e AT-334; repetir gate de beta/exposicao no release candidato. | HTTPS/dominio, secrets, Postgres/storage, backup/restore, rollback, CI e smokes `production-like`/`live` aprovados. |
 
-Estas decisoes sao um snapshot reconciliado, nao substituem a decisao final da AT-335 nem a aprovacao dos owners dos gates.
+Estas decisoes foram formalizadas pela AT-335 e nao substituem a aprovacao dos owners dos gates.
 
 ## Dependencias reconciliadas
 - AT-300 e AT-301 estao `completed`; nao sao dependencias abertas.
 - AT-302 a AT-306 concluiram auditoria, mas o resultado operacional e `NO-GO`.
 - AT-307 concluiu documentacao limitada; rollout e autonomia permanecem bloqueados.
-- AT-308 e a base deste ledger. Entre AT-309 e AT-335, prevalece cada manifest: AT-317 e AT-331 estao `completed`; AT-327 esta documentalmente concluida com aprovacao legal pendente; AT-309/310 continuam `planned` mesmo com implementacao concorrente observada no worktree; AT-333 pode concluir quando pacote/schema e validacoes estiverem registrados.
-- AT-330 continua `planned`; portanto integridade automatica de links, comandos e status e risco residual, nao pre-condicao para usar o formato de evidencia da AT-333.
+- AT-308 a AT-311, AT-313 a AT-317, AT-319, AT-322, AT-325, AT-330, AT-331 e AT-333 estao concluidas conforme seus manifests.
+- AT-312, AT-318, AT-321, AT-323, AT-324, AT-326, AT-327, AT-328, AT-329 e AT-332 possuem implementacao local/documental, mas preservam validacao manual, legal, sandbox, CI, production-like ou live pendente.
+- AT-320 e AT-334 continuam planejadas e bloqueiam alegacoes production-like/live. AT-335 concluiu a auditoria com decisoes separadas, sem liberar rollout ou exposicao.
 
 ## Atualizacao
 1. Atualizar uma linha apenas com fonte objetiva e manter a classe da evidencia.
@@ -63,6 +64,6 @@ Estas decisoes sao um snapshot reconciliado, nao substituem a decisao final da A
 4. Em conflito, prevalecem runtime/CI observados e o gate especializado; abrir correcao documental em vez de promover status.
 
 ## Riscos residuais e proximo passo
-- Risco imediato: o gate raiz pode continuar vermelho ate AT-309, e Web/Shared nao possuem cobertura uniforme.
-- Blockers externos: infraestrutura production-like, credenciais autorizadas, host Windows/WSL/Chrome e execucoes live.
-- Proximo passo recomendado: AT-309 para baseline deterministico; em paralelo, AT-330 para tornar a reconciliacao documental executavel.
+- Risco imediato: wiring MV3 incompleto e ausencia de dados/compatibilidade production-like impedem promocao alem da demo local.
+- Blockers externos: Postgres/storage/Redis alvo, Docker/CI observado, credenciais sandbox autorizadas, host Windows/WSL/Chrome/Edge e execucoes live.
+- Proximo passo recomendado: executar checklist da demo no commit final; depois AT-320 e AT-334 antes de reabrir rollout/exposicao.

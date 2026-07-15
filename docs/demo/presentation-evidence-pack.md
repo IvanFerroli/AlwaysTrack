@@ -26,7 +26,7 @@ Screenshot, video ou relato demonstram estado visual. So fecham gate tecnico qua
 ### Evidencia e aceite
 - Classe: `fake` para fixtures/CaseFlow offline; `local` para app e comandos no checkout.
 - Aceite: responsavel pela apresentacao confirma escopo ficticio e riscos conhecidos.
-- Riscos aceitos: seed artificial, ausencia de integracoes live e instabilidade conhecida do baseline ate AT-309.
+- Riscos aceitos: seed artificial, ausencia de integracoes live e validacoes production-like/manuais ainda pendentes.
 - Proibido alegar: readiness operacional, capacidade production-like, conectores live ou seguranca de exposicao externa.
 
 ### Fallback offline

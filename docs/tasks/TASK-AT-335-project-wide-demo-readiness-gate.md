@@ -1,8 +1,8 @@
 # TASK-AT-335 - Gate final: prontidao transversal para demo, rollout e exposicao
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: audit-complete
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-335-project-wide-demo-readiness-gate.md
 
@@ -89,3 +89,9 @@ Executar somente o plano aprovado pelo gate.
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da auditoria 2026-07-15
+- Decisao formal publicada em `docs/operations/project-readiness-decision.md` com escopo, owner, riscos, validade e criterios de revogacao.
+- Demo controlada local/offline: `GO-WITH-RISK` ate o fim de 2026-07-16, condicionada a checkout limpo, gates verdes, dados sinteticos e aceite do apresentador.
+- Rollout interno CaseFlow: `NO-GO`; gates live AT-302 a AT-306, wiring MV3, host/perfil/firewall/suspend e conectores continuam bloqueantes.
+- Exposicao externa: `NO-GO`; Postgres/storage, restore/PITR, containers/CI, dominio/HTTPS, secrets e compatibilidade production-like/live continuam bloqueantes.
+- A auditoria conclui a emissao das tres decisoes; nao converte tasks parcialmente validadas em prontidao produtiva.
