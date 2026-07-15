@@ -526,6 +526,6 @@ Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
 7. `TASK-AT-343`: Extension coverage: bootstrap e fronteiras MV3. Status: completed-local-validation.
 8. `TASK-AT-344`: Shared coverage: action firewall e contratos executaveis. Status: completed-local-validation.
 9. `TASK-AT-345`: API coverage: harness HTTP e funcoes de handlers. Status: completed-local-validation.
-10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: planned.
+10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: completed-local-validation.
 11. `TASK-AT-347`: Companion Host coverage: bootstrap e branches residuais. Status: completed-local-validation.
 12. `TASK-AT-348`: Coverage: gate final e ensaio da apresentacao. Status: planned.

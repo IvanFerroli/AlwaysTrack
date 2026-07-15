@@ -1,7 +1,7 @@
 # TASK-AT-346 - API coverage: workflows e encerramento da excecao de funcoes
 
 ## Metadata
-- status: planned
+- status: completed-local-validation
 - owner: api/core
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-346-api-workflow-coverage-exception-close.md
@@ -30,6 +30,13 @@ Restaurar o piso de 75% de funcoes da API antes do vencimento da excecao em 2026
 
 ## Validacao
 - coverage API repetido, handlers HTTP, jobs, lifecycle, OpenAPI e build.
+
+## Resultado
+- Lifecycle de Fluxos cobre listagem por tenant/role, sessao, atualizacao, conclusao e restauracao versionada; `service-flows.service.ts` atingiu 88.37% de funcoes.
+- Handlers de Fluxos, documentos comerciais, Scriptoteca e Wiki atingiram 100% de funcoes com HTTP fake e fixtures sanitizadas.
+- Suite API: 633 testes aprovados e 1 Redis opt-in ignorado; build e typecheck aprovados.
+- Coverage API: 77.64% de linhas/statements, 66.40% de branches e 79.23% de funcoes.
+- Piso global de funcoes restaurado para 75% e excecao temporaria encerrada antes do prazo.
 
 ## Handoff
 - handoff_to: olympus_orchestrator

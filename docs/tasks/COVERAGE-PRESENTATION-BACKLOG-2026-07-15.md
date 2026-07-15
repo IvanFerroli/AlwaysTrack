@@ -17,7 +17,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 | SmartScript | 80.59% | 72.44% | 91.48% | CLI/storage atribuidos; quatro arquivos criticos aprovados |
 | Shared | 71.20% | 85.44% | 88.60% | firewall canonico em 100%; piso global elevado |
 | Extension | 91.17% | 79.29% | 89.70% | bootstrap, side panel e fronteiras MV3 cobertos |
-| API | 71.52% | 67.58% | 70.34% | handlers HTTP cobertos; ampliar workflows e jobs |
+| API | 77.64% | 66.40% | 79.23% | handlers e workflows cobertos; excecao funcional encerrada |
 | Companion Host | 97.80% | 89.60% | 98.30% | bootstrap, protocolo e lifecycle cobertos sem recursos reais |
 
 ## Ordem de execucao
@@ -30,7 +30,7 @@ Elevar a cobertura onde o risco e o impacto visual sao maiores e apresentar as e
 7. TASK-AT-343: bootstrap e fronteiras MV3 da Extension. Concluida localmente.
 8. TASK-AT-344: action firewall e contratos Shared. Concluida localmente.
 9. TASK-AT-345: harness HTTP e funcoes de handlers API. Concluida localmente.
-10. TASK-AT-346: workflows API e encerramento da excecao de 75%.
+10. TASK-AT-346: workflows API e encerramento da excecao de 75%. Concluida localmente.
 11. TASK-AT-347: branches residuais do Companion Host. Concluida localmente.
 12. TASK-AT-348: gate final e ensaio da apresentacao de coverage.
 

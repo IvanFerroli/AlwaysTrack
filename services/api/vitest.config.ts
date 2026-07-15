@@ -10,7 +10,7 @@ export default defineConfig({
         statements: 60,
         lines: 60,
         branches: 60,
-        functions: 68,
+        functions: 75,
         "src/core/auth/access-policy.ts": { statements: 65, lines: 65, branches: 80, functions: 95 },
         "src/core/auth/session.ts": { statements: 80, lines: 80, branches: 75, functions: 95 },
         "src/core/case-flow/action-firewall.ts": { 100: true },
