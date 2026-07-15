@@ -19,11 +19,11 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 | Shared | 71.20 / 65 | 85.44 / 80 | 88.60 / 85 | platform/contracts |
 | Extension | 91.17 / 65 | 79.29 / 76 | 89.70 / 81 | companion/extension |
 | SmartScript | 80.59 / 80 | 72.44 / 70 | 91.48 / 90 | companion/smartscript |
-| Web | 33.08 / 30 | 68.52 / 65 | 41.71 / 40 | web/product |
+| Web | 36.74 / 35 | 72.05 / 70 | 49.34 / 45 | web/product |
 | API | 71.52 / 60 | 67.58 / 60 | 70.34 / 68 | api/core |
 | Host | 97.80 / 92 | 89.60 / 84 | 98.30 / 95 | companion/host |
 
-Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript combina testes diretos atribuiveis com E2E de subprocesso separado; Web mede toda a SPA e conserva divida explicita. Bootstrap, Scriptoteca, Wiki, Notas e Fluxos possuem pisos por arquivo; o proximo marco Web e 45% de funcoes com CaseFlow operacional.
+Baseline obtido localmente em 2026-07-15 com Node 24 e dados sinteticos. A evidencia e `local`, nao production-like ou live. SmartScript combina testes diretos atribuiveis com E2E de subprocesso separado; Web mede toda a SPA e conserva divida explicita. Bootstrap, Scriptoteca, Wiki, Notas, Fluxos, Dashboard e CaseFlow operacional possuem pisos incrementais por arquivo.
 
 Excecao temporaria API: o harness HTTP da TASK-AT-345 elevou funcoes de 64.88% para 70.34% e o piso executavel de 64% para 68%. O owner `api/core` mantem a excecao ate 2026-08-15; a TASK-AT-346 deve cobrir workflows e jobs antes de restaurar o piso de 75%. Os thresholds criticos por arquivo permanecem inalterados.
 
@@ -31,7 +31,7 @@ Excecao temporaria API: o harness HTTP da TASK-AT-345 elevou funcoes de 64.88% p
 - Shared: protocolo Companion, parser generico de conectores e action firewall canonico em 100%.
 - Extension: cliente de protocolo e action firewall, com firewall em 100%.
 - SmartScript: CLI, storage, processor e geracao Espanso; storage esta em 100% de linhas.
-- Web: cliente API, navegacao acessivel de tabs e administracao CaseFlow.
+- Web: cliente API, navegacao acessivel de tabs, Dashboard e administracao/health CaseFlow.
 - API: access policy, sessao, action firewall e validacao de entrada; firewall em 100%.
 - Host: action firewall e seguranca do protocolo; firewall em 100%.
 
