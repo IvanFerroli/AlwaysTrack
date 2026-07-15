@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { createLicense } from "../licenses/licenses.service.js";
 import { processNotificationJobs, scanNotificationJobs } from "../notifications/notifications.service.js";
@@ -90,6 +90,8 @@ const sellerUser: CurrentUser = {
   unitScopeIds: [],
   sectorScopeIds: []
 };
+
+const TEST_NOW = new Date("2026-06-01T12:00:00.000Z");
 
 const nfeXml = `<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
@@ -246,6 +248,15 @@ function createCommercialFlowPrisma() {
 }
 
 describe("main operational flow", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(TEST_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("covers license status, notification job, public upload and RT validation", async () => {
     const expiresAt = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
     const prisma = {

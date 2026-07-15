@@ -1,7 +1,7 @@
 # TASK-AT-309 - Qualidade: baseline deterministico e gate verde real
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-309-deterministic-green-test-baseline.md
@@ -84,8 +84,13 @@ TASK-AT-310
 - riscos, ressalvas e blockers
 - proximo passo recomendado
 
+## Resultado de implementacao
+- Relogio do fluxo principal congelado em uma referencia controlada e restaurado apos cada teste; prazos continuam relativos ao relogio do cenario.
+- Shared possui suite Vitest obrigatoria e aparece no gate agregado.
+- O gate raiz nao usa `--if-present`; workspaces sem suite exigem excecao versionada, com owner e expiracao.
+- Evidencia: local/fake em 2026-07-15; `npm run test:integration`, testes de Shared, `npm run repo:hygiene` e `git diff --check` passaram.
+
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

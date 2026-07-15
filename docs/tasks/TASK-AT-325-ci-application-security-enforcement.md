@@ -1,7 +1,7 @@
 # TASK-AT-325 - Seguranca: enforcement de SAST, SCA, secrets e licencas no CI
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-325-ci-application-security-enforcement.md
@@ -85,8 +85,13 @@ TASK-AT-326
 - riscos, ressalvas e blockers
 - proximo passo recomendado
 
+## Resultado de implementacao
+- CI bloqueia SCA de producao e desenvolvimento no limiar alto, CodeQL SAST com `security-severity >= 7.0` ou nivel `error`, segredos no snapshot/historico e licencas proibidas ou sem excecao vigente.
+- Dependabot cobre npm e GitHub Actions semanalmente; jobs possuem permissoes minimas e timeouts.
+- Excecoes de qualidade e licenca exigem justificativa, owner e expiracao, validados por `repo:hygiene`.
+- Evidencia: local em 2026-07-15; `npm run security:deps` e `npm run repo:hygiene` passaram. CodeQL permanece como evidencia de CI, nao live.
+
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

@@ -88,7 +88,7 @@ TASK-AT-318
 - concluido-em: 2026-07-15T11:24:10Z
 - ambiente: local, sem credenciais ou sistemas externos
 - classificacao: local
-- base-HEAD: `f03f2c949907b7a9f3f92f8fde30f70cb906c0ba` (nenhum commit criado nesta execucao)
+- commit: `c0eeb9d87be02e8386596824f04cffef3adcb6c0`
 - contrato: schemas runtime compartilhados e versionados para `COMPANION_HELLO`, `COMPANION_PAIRED`, erro de protocolo e grant de reconnect.
 - reconnect: cliente substitui o token consumido pelo token rotacionado antes de reconectar; Host valida o HELLO completo antes do consumo.
 - negativos: payload incompleto, consumo unico, replay de token/messageId, Origin arbitraria e Origin ausente cobertos localmente.

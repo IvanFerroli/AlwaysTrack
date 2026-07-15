@@ -1,7 +1,7 @@
 # TASK-AT-310 - Qualidade: contrato uniforme de lint, typecheck, test e build
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-310-unified-workspace-quality-contract.md
@@ -86,8 +86,13 @@ TASK-AT-311
 - riscos, ressalvas e blockers
 - proximo passo recomendado
 
+## Resultado de implementacao
+- Os seis workspaces expoem `lint`, `typecheck`, `test` e `build`; o verificador rejeita scripts ausentes e `--passWithNoTests` quando existem testes.
+- `npm run check` agrega validacao de fonte e build; o CI apresenta o build como gate separado para diagnostico claro.
+- A excecao temporaria do Web e verificavel, vinculada a `TASK-AT-311`, com owner e expiracao em 2026-08-15.
+- Evidencia: local/fake em 2026-07-15; testes focados e higiene passaram. Validacao agregada registrada no retorno da execucao.
+
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-
