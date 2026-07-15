@@ -107,7 +107,10 @@ export function enforceActionFirewall(attempt: ActionFirewallAttempt, scope: Act
   }
   if (authorization.consumedAt) return blocked(attempt, scope, "AUTHORIZATION_USED");
   const now = Date.parse(scope.now ?? new Date().toISOString());
-  if (!Number.isFinite(now) || Date.parse(authorization.expiresAt) <= now) return blocked(attempt, scope, "AUTHORIZATION_EXPIRED");
+  const expiresAt = Date.parse(authorization.expiresAt);
+  if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) {
+    return blocked(attempt, scope, "AUTHORIZATION_EXPIRED");
+  }
   if (
     authorization.authorizationRef !== attempt.confirmation.authorizationRef || authorization.actionId !== attempt.actionId ||
     authorization.userId !== attempt.userId || authorization.caseId !== attempt.caseId ||

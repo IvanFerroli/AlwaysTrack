@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { isAllowedEvent, redactEventForStatus } from "./allowlist.js";
@@ -11,12 +11,11 @@ import { espansoYamlFor } from "./espanso.js";
 import { processEvents } from "./processor.js";
 import { appendRawEvent, dataDir, ensureStorage, purgeOldRawLogs, readJsonFile, readTodayCandidates, readTodayRawEvents, writeTodayCandidates, type CaptureEvent } from "./storage.js";
 
-const [, , command, ...args] = process.argv;
 const execFileAsync = promisify(execFile);
 const defaultSessionCookieName = "alwaystrack_session";
 const defaultFixturePath = fileURLToPath(new URL("../fixtures/alwayschat-sample.json", import.meta.url));
 
-function argValue(name: string) {
+function argValue(args: string[], name: string) {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : undefined;
 }
@@ -69,9 +68,9 @@ async function postJson<T>(path: string, payload?: unknown): Promise<T> {
   return result.data as T;
 }
 
-async function login() {
-  const email = argValue("--email") || process.env.ALWAYSTRACK_EMAIL;
-  const password = argValue("--password") || process.env.ALWAYSTRACK_PASSWORD;
+async function login(args: string[]) {
+  const email = argValue(args, "--email") || process.env.ALWAYSTRACK_EMAIL;
+  const password = argValue(args, "--password") || process.env.ALWAYSTRACK_PASSWORD;
   if (!email || !password) {
     throw new Error("Informe --email/--password ou ALWAYSTRACK_EMAIL/ALWAYSTRACK_PASSWORD para autenticar o companion.");
   }
@@ -132,8 +131,8 @@ async function status() {
   }, null, 2));
 }
 
-async function captureFixture() {
-  const file = argValue("--fixture");
+async function captureFixture(args: string[]) {
+  const file = argValue(args, "--fixture");
   return captureFixtureFile(file, { rewriteAsToday: args.includes("--today") });
 }
 
@@ -176,8 +175,8 @@ async function importToday() {
   return summary;
 }
 
-async function exportEspanso() {
-  const out = argValue("--out") || await defaultEspansoMatchPath();
+async function exportEspanso(args: string[]) {
+  const out = argValue(args, "--out") || await defaultEspansoMatchPath();
   const result = await postJson<{ yaml: string; items: Array<{ title: string; trigger: string }> }>("/v1/script-library/smartscript/export/espanso");
   await mkdir(dirname(out), { recursive: true });
   await writeFile(out, result.yaml || espansoYamlFor([]), "utf8");
@@ -229,8 +228,8 @@ async function startOrReloadEspanso() {
   }
 }
 
-async function prepareEspanso() {
-  const out = argValue("--out") || await defaultEspansoMatchPath();
+async function prepareEspanso(args: string[]) {
+  const out = argValue(args, "--out") || await defaultEspansoMatchPath();
   const initialYaml = espansoYamlFor([{ title: "AlwaysTrack SmartScript Test", trigger: ":at-test", body: "AlwaysTrack SmartScript ok" }]);
   await mkdir(dirname(out), { recursive: true });
   if (!existsSync(out)) {
@@ -249,22 +248,22 @@ async function smartScriptCounts() {
   };
 }
 
-async function bootstrapLocal() {
+async function bootstrapLocal(args: string[]) {
   await start();
-  await prepareEspanso();
-  await login();
+  await prepareEspanso(args);
+  await login(args);
   const before = await smartScriptCounts();
   const shouldImportDemo = !args.includes("--no-demo") && before.inUse + before.generatedToday + before.inReview === 0;
   let demo: Awaited<ReturnType<typeof captureFixtureFile>> | null = null;
   let processResult: Awaited<ReturnType<typeof processToday>> | null = null;
   let importResult: Awaited<ReturnType<typeof importToday>> | null = null;
   if (shouldImportDemo) {
-    demo = await captureFixtureFile(argValue("--fixture") || defaultFixturePath, { rewriteAsToday: true });
+    demo = await captureFixtureFile(argValue(args, "--fixture") || defaultFixturePath, { rewriteAsToday: true });
     processResult = await processToday();
     importResult = await importToday();
   }
   const after = await smartScriptCounts();
-  const exportResult = after.inUse > 0 ? await exportEspanso() : null;
+  const exportResult = after.inUse > 0 ? await exportEspanso(args) : null;
   console.log(JSON.stringify({
     ready: true,
     sourceOfTruth: "AlwaysTrack",
@@ -280,22 +279,26 @@ async function bootstrapLocal() {
   }, null, 2));
 }
 
-async function main() {
-  if (command === "bootstrap-local") return bootstrapLocal();
-  if (command === "login") return login();
+export async function runCli(argv = process.argv.slice(2)) {
+  const [command, ...commandArgs] = argv;
+  if (command === "bootstrap-local") return bootstrapLocal(commandArgs);
+  if (command === "login") return login(commandArgs);
   if (command === "logout") return logout();
   if (command === "start") return start();
   if (command === "stop") return stop();
   if (command === "status" || !command) return status();
-  if (command === "prepare-espanso") return prepareEspanso();
-  if (command === "capture-fixture") return captureFixture();
-  if (command === "process" && args.includes("--today")) return processToday();
-  if (command === "import" && args.includes("--today")) return importToday();
-  if (command === "export-espanso") return exportEspanso();
+  if (command === "prepare-espanso") return prepareEspanso(commandArgs);
+  if (command === "capture-fixture") return captureFixture(commandArgs);
+  if (command === "process" && commandArgs.includes("--today")) return processToday();
+  if (command === "import" && commandArgs.includes("--today")) return importToday();
+  if (command === "export-espanso") return exportEspanso(commandArgs);
   throw new Error("Comando SmartScript desconhecido. Use bootstrap-local, login, logout, start, stop, status, prepare-espanso, process --today, import --today, export-espanso.");
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+const entrypoint = process.argv[1] ? resolve(process.argv[1]) : "";
+if (entrypoint && existsSync(entrypoint) && realpathSync(entrypoint) === fileURLToPath(import.meta.url)) {
+  runCli().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
