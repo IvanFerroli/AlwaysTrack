@@ -55,7 +55,7 @@ const forbiddenTrackedPatterns = [
   /^\.env\.(?!example$)/
 ];
 
-const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+const tracked = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { encoding: "utf8" })
   .split("\n")
   .filter(Boolean);
 

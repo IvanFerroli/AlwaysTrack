@@ -1,7 +1,7 @@
 # TASK-AT-311 - Web: fundacao de testes unitarios e de componentes
 
 ## Metadata
-- status: planned
+- status: completed
 - owner: olympus_taskyfier
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-311-web-component-unit-test-foundation.md
@@ -78,6 +78,15 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 ## Proximo passo provavel
 TASK-AT-312
 
+## Resultado de implementacao
+- A excecao temporaria do workspace Web foi removida e substituida por uma suite Vitest com Testing Library e JSDOM.
+- O cliente API possui regressao para sessao/JSON, retorno de dados e propagacao de erro da API.
+- A navegacao valida destinos por role em uma transicao SAC para ADMIN, incluindo acesso ao CaseFlow Admin apenas depois da autenticacao administrativa.
+- Estados acessiveis de erro e vazio e o fluxo de historico/health do CaseFlow Admin possuem cobertura isolada sem servidor externo.
+- Evidencia local/fake em 2026-07-15T11:40:29Z, Node v24.15.0: `npm test --workspace @alwaystrack/web` (exit 0, 4 arquivos/7 testes), `npm run typecheck --workspace @alwaystrack/web` (exit 0), `npm run build --workspace @alwaystrack/web` (exit 0), `npm run repo:hygiene` (exit 0) e `git diff --check` (exit 0). Nenhuma credencial, dado pessoal ou integracao live foi usada.
+- O gate de higiene passou a considerar tambem arquivos novos ainda nao rastreados, evitando falso bloqueio durante a preparacao do commit. Commit SHA permanece pendente do fluxo de commit/handoff.
+- Risco residual: componentes operacionais mais extensos, como formularios, tabelas e editores de Fluxos/Scriptoteca, continuam candidatos a ampliacao incremental; o build mantem o aviso nao bloqueante de chunk principal acima de 500 kB.
+
 ## Feedback obrigatorio de retorno
 - resumo curto do que mudou
 - evidencia de validacao e sua classificacao
@@ -88,4 +97,3 @@ TASK-AT-312
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

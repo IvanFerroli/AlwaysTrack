@@ -8,16 +8,7 @@
     "build": "tsc -p tsconfig.json && vite build",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('Test exception: @alwaystrack/web has no test runner; tracked by TASK-AT-311 until 2026-08-15')\""
-  },
-  "alwaystrackQuality": {
-    "test": {
-      "status": "exempt",
-      "reason": "The web workspace has no test runner yet; lint, typecheck and production build remain mandatory.",
-      "tracking": "TASK-AT-311",
-      "owner": "web",
-      "expires": "2026-08-15"
-    }
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@alwaystrack/shared": "file:../../packages/shared",
@@ -29,7 +20,12 @@
     "vite": "^7.1.12"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2"
+    "@types/react-dom": "^19.2.2",
+    "jsdom": "^29.1.1",
+    "vitest": "^3.2.7"
   }
 }
