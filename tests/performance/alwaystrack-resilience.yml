@@ -1,0 +1,121 @@
+config:
+  target: "http://127.0.0.1:3333"
+  http:
+    cookieJar: true
+    timeout: 10
+  defaults:
+    headers:
+      content-type: application/json
+  ensure:
+    maxErrorRate: 1
+    thresholds:
+      - http.response_time.p95: 1000
+      - http.response_time.p99: 2000
+  environments:
+    mixed:
+      phases:
+        - duration: 60
+          arrivalRate: 2
+          rampTo: 10
+          name: mixed warm-up and ramp
+        - duration: 120
+          arrivalRate: 10
+          name: mixed steady state
+    stress:
+      phases:
+        - duration: 120
+          arrivalRate: 10
+          rampTo: 100
+          name: stress ramp to saturation
+        - duration: 60
+          arrivalRate: 100
+          name: stress saturation hold
+    spike:
+      phases:
+        - duration: 30
+          arrivalRate: 5
+          name: spike baseline
+        - duration: 30
+          arrivalRate: 150
+          name: sudden spike
+        - duration: 60
+          arrivalRate: 5
+          name: post-spike recovery
+    soak:
+      phases:
+        - duration: 1800
+          arrivalRate: 15
+          name: sustained soak
+scenarios:
+  - name: hot authenticated reads and cache stampede
+    weight: 45
+    flow:
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - loop:
+          - get:
+              url: "/v1/service-flows"
+          - get:
+              url: "/v1/script-library"
+          - get:
+              url: "/v1/sales/ranking"
+          - get:
+              url: "/v1/in-app-notifications"
+        count: 3
+  - name: CaseFlow write and read-after-write
+    weight: 30
+    flow:
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - post:
+          url: "/v1/case-flow/cases"
+          json:
+            summary: "Synthetic performance case {{ $uuid }}"
+          capture:
+            - json: "$.data.id"
+              as: "caseId"
+      - get:
+          url: "/v1/case-flow/cases/{{ caseId }}"
+      - get:
+          url: "/v1/case-flow/cases/{{ caseId }}/facts"
+      - get:
+          url: "/v1/case-flow/cases/{{ caseId }}/conflicts"
+  - name: queue enqueue and backpressure observation
+    weight: 15
+    flow:
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - get:
+          url: "/v1/sales/campaigns"
+          capture:
+            - json: "$.data.items[0].id"
+              as: "campaignId"
+      - post:
+          url: "/v1/sales/campaigns/{{ campaignId }}/snapshots"
+      - get:
+          url: "/v1/sales/campaigns/{{ campaignId }}/snapshots/job"
+  - name: operational health under contention
+    weight: 10
+    flow:
+      - get:
+          url: "/health/live"
+      - get:
+          url: "/health/ready"
+      - post:
+          url: "/v1/auth/login"
+          json:
+            email: "admin@example.com"
+            password: "{{ $processEnvironment.SEED_ADMIN_PASSWORD }}"
+      - get:
+          url: "/v1/diagnostics/http-metrics"
+      - get:
+          url: "/v1/case-flow/connectors/health"

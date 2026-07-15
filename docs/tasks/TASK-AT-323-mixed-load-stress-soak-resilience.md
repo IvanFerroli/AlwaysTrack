@@ -1,8 +1,8 @@
 # TASK-AT-323 - Performance: carga mista, stress, spike, soak e backpressure
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: implementation-complete-production-like-execution-pending
+- owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-323-mixed-load-stress-soak-resilience.md
 
@@ -89,3 +89,11 @@ TASK-AT-324
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
 
+## Resultado da execucao 2026-07-15
+- `tests/performance/alwaystrack-resilience.yml` define perfis `mixed`, `stress`, `spike` e `soak` com volume, duracao e fases nomeadas.
+- A mistura ponderada cobre leituras quentes/cache stampede, escrita e leitura CaseFlow, enqueue/status de snapshot para backpressure e health/readiness/diagnosticos sob contencao.
+- O gate falha com erro Artillery acima de 1%, p95 acima de 1 s ou p99 acima de 2 s; readiness, memoria, event loop, fila e reconnect possuem criterios operacionais adicionais no plano.
+- `scripts/validate-performance-plan.mjs` falha fechado se perfil, fase, peso, jornada ou threshold obrigatorio desaparecer.
+- Um VU `mixed` foi executado contra a bancada SQLite isolada em `127.0.0.1:3334`: 13 requests, 13 respostas 200, zero VU falho, p95/p99 de 47,9 ms. O resultado prova apenas parsing, autenticacao e o caminho de leitura sorteado.
+- Nenhuma carga pesada foi disparada contra o ambiente de desenvolvimento compartilhado. A evidencia desta rodada e `local` para estrutura/validacao do plano; execucoes production-like dos quatro perfis continuam obrigatorias.
+- Dependencias AT-284/285 fornecem os gates CaseFlow existentes; AT-320 continua aberta para Postgres/Redis/storage equivalentes ao alvo e impede declarar capacidade ou concluir integralmente esta task.

@@ -13,6 +13,8 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 - `npm run perf:1000 -- --target=<url>`: benchmark de leitura autenticada contra ambiente alvo.
 - `npm run perf:smoke:report -- --target=<url>`: gera JSON/HTML proprio/snapshot diagnostico para smoke local ou stage leve e abre o HTML no navegador.
 - `npm run perf:1000:report -- --target=<url>`: gera JSON/HTML proprio/snapshot para ambiente stage/producao-like, abre o HTML no navegador e falha se o alvo for localhost.
+- `node scripts/validate-performance-plan.mjs`: valida perfis, fases, pesos e thresholds da matriz de resiliencia.
+- `npx artillery run --environment <mixed|stress|spike|soak> tests/performance/alwaystrack-resilience.yml --target=<url>`: executa o perfil transversal descrito em `resilience-load-plan.md`.
 - `npm run up`: dispara automaticamente um smoke local de carga depois que a API responde, salvo `--no-perf-smoke`.
 
 ## Preparacao
@@ -31,6 +33,9 @@ Artillery e a ferramenta padrao de carga HTTP do AlwaysTrack.
 - Fluxos de atendimento.
 - Scriptoteca, incluindo captura de um script e copia auditavel.
 - Notificacoes in-app.
+
+## Matriz de resiliencia
+O plano versionado de carga mista, stress, spike, soak, cache stampede e backpressure esta em `docs/performance/resilience-load-plan.md`. Resultados locais continuam diagnosticos; capacidade requer Postgres, Redis/BullMQ, storage e recursos production-like.
 
 ## SLO inicial
 - p95 read API <= 500 ms no ambiente alvo.

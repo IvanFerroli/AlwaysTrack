@@ -1,7 +1,7 @@
 # AlwaysTrack Performance Report Template
 
 ## Metadata
-- mode: smoke | 1000
+- mode: smoke | mixed | stress | spike | soak | 1000
 - commit:
 - target:
 - captured-at:
@@ -33,6 +33,10 @@
 - HTTP error rate:
 - throughput:
 - CPU/memory notes:
+- readiness failures/recovery time:
+- queue depth/oldest job/failed jobs:
+- reconnect attempts/failures:
+- event-loop or open-handle trend:
 
 ## Decision
 - PASS | FAIL | INCONCLUSIVE
