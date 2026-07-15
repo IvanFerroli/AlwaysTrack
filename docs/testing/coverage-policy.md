@@ -17,7 +17,7 @@ Os pisos sao baselines incrementais, nao metas finais. Arquivos sem import por t
 | Workspace | Linhas baseline / piso | Branches baseline / piso | Funcoes baseline / piso | Owner |
 | --- | ---: | ---: | ---: | --- |
 | Shared | 71.20 / 65 | 85.44 / 80 | 88.60 / 85 | platform/contracts |
-| Extension | 61.23 / 58 | 73.86 / 70 | 78.22 / 75 | companion/extension |
+| Extension | 91.17 / 65 | 79.29 / 76 | 89.70 / 81 | companion/extension |
 | SmartScript | 80.59 / 80 | 72.44 / 70 | 91.48 / 90 | companion/smartscript |
 | Web | 6.59 / 6 | 56.77 / 50 | 29.77 / 25 | web/product |
 | API | 68.82 / 60 | 67.03 / 60 | 64.88 / 64 | api/core |

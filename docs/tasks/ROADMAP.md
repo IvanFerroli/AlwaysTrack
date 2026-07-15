@@ -523,7 +523,7 @@ Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
 4. `TASK-AT-340`: Web coverage: Scriptoteca, Wiki e Notas em 20%. Status: planned.
 5. `TASK-AT-341`: Web coverage: operacao, Fluxos e CaseFlow em 30%. Status: planned.
 6. `TASK-AT-342`: SmartScript coverage: CLI e storage atribuiveis. Status: completed-local-validation.
-7. `TASK-AT-343`: Extension coverage: bootstrap e fronteiras MV3. Status: planned.
+7. `TASK-AT-343`: Extension coverage: bootstrap e fronteiras MV3. Status: completed-local-validation.
 8. `TASK-AT-344`: Shared coverage: action firewall e contratos executaveis. Status: completed-local-validation.
 9. `TASK-AT-345`: API coverage: harness HTTP e funcoes de handlers. Status: planned.
 10. `TASK-AT-346`: API coverage: workflows e encerramento da excecao de funcoes. Status: planned.
