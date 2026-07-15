@@ -74,6 +74,7 @@ describe("Web bootstrap, session and role matrix", () => {
 
   it("covers loading, expired session, retry, every operational role and guarded navigation", async () => {
     const session = deferred<{ user: ReturnType<typeof userFor> }>();
+    void session.promise.catch(() => undefined);
     apiMock.mockImplementation((path: string) => {
       if (path === "/v1/auth/me") return session.promise;
       if (path === "/v1/auth/google/status") return Promise.reject(new Error("Google indisponível"));
@@ -88,7 +89,10 @@ describe("Web bootstrap, session and role matrix", () => {
     await import("../src/main");
     expect(await screen.findByText("Carregando...")).toBeInTheDocument();
 
-    await act(async () => session.reject(new Error("Sessão expirada")));
+    await act(async () => {
+      session.reject(new Error("Sessão expirada"));
+      await Promise.resolve();
+    });
     expect(await screen.findByRole("heading", { name: "Entrar" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeDisabled();
 
