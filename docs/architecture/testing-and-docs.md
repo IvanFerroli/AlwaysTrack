@@ -10,7 +10,8 @@
 - `npm run test:regression`: notas, Wiki, FAQ e notificacoes.
 - `npm run coverage:html`: coverage HTML da API em `services/api/coverage/index.html`.
 - `npm run docs:api`: TypeDoc.
-- `npm run test:all`: check + TypeDoc.
+- `npm run check:docs`: valida a integridade da documentacao ativa, preserva os invariantes de rollout e gera TypeDoc.
+- `npm run test:all`: check + integridade documental + TypeDoc.
 - `npm run repo:hygiene`: higiene de repo e segredos obvios.
 - `npm run security:deps`: auditoria de dependencias de producao alta/critica.
 - `npm run perf:smoke:report -- --target=http://localhost:3333`: smoke Artillery com JSON/HTML/diagnostico.
@@ -48,6 +49,11 @@ Use esse documento quando precisar entender rapidamente:
 - Task planejada: `docs/tasks/TASK-AT-*.md`.
 - Execucao concluida: `docs/tasks/EXEC-AT-*.md`.
 - Runbook operacional: `docs/runbooks`.
+
+## Contrato executavel da documentacao
+`scripts/check-doc-integrity.js` valida todos os arquivos Markdown ativos em `docs/`. O gate cobre links e anchors internos, paths de repositorio em code spans, referencias `TASK-AT-NNN`, comandos `npm run` no pacote raiz ou no workspace indicado e os quatro campos de metadata dos artefatos canonicos ADR, SPEC, TASK e RUNBOOK.
+
+O escopo exclui explicitamente `docs/archive/` (historico congelado), `docs/generated/` (saida do TypeDoc e da bancada local) e `docs/performance/reports/` (evidencia gerada imutavel). Excecoes de metadata preexistentes ficam em allowlist no checker com `owner` e justificativa; novas excecoes nao devem ser adicionadas sem responsavel e divida rastreavel.
 
 ## Padrao de comentario no codigo
 Use doc comments em exports quando houver:

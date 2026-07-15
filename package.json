@@ -31,7 +31,7 @@
     "smartscript:export": "tsx apps/smartscript-companion/src/cli.ts export-espanso",
     "check": "npm run check:source && npm run build",
     "check:source": "npm run lint && npm run typecheck && npm run test",
-    "check:docs": "npm run docs:api",
+    "check:docs": "node scripts/check-doc-integrity.js && node --test tests/documentation/doc-integrity.test.mjs && node tests/documentation/rollout-audit-check.mjs && npm run docs:api",
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",

@@ -1,8 +1,8 @@
 # TASK-AT-330 - Documentacao: integridade executavel de links, comandos e status
 
 ## Metadata
-- status: planned
-- owner: olympus_taskyfier
+- status: completed
+- owner: quality
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-330-executable-documentation-integrity.md
 
@@ -59,8 +59,14 @@ O AlwaysTrack cresceu para seis workspaces, infraestrutura local/deploy, integra
 3. Riscos residuais, blockers e classificacao da evidencia constam no retorno.
 
 ## Validacao
-- comandos/checks: gate focado da superficie alterada, `npm run typecheck --workspaces --if-present`, `npm run repo:hygiene` e `git diff --check`.
+- comandos/checks: `npm run check:docs`, `npm run repo:hygiene` e `git diff --check`.
 - revisao manual: comparar resultado com o backlog transversal, o ledger e os gates existentes relacionados.
+
+## Execucao 2026-07-15
+- Checker executavel criado em `scripts/check-doc-integrity.js`, sem dependencia nova.
+- Testes focados criados em `tests/documentation/doc-integrity.test.mjs`.
+- Escopos historicos/gerados e divida preexistente de metadata possuem allowlist explicita com justificativa e owner.
+- Status obsoletos das auditorias de rollout foram reconciliados com os manifests atuais sem promover nenhum gate: todas as decisoes `NO-GO` permanecem vigentes.
 
 ## Evidencia esperada
 - Commit SHA, ambiente, data UTC, comandos, exit codes e arquivos alterados.
@@ -88,4 +94,3 @@ TASK-AT-331
 - handoff_to: olympus-orchestrator
 - execution_expectation: executar apenas esta task ou retornar bloqueio com evidencia objetiva.
 - constraints: sem escopo novo, sem credenciais ou sistemas live sem autorizacao, sem promover rollout por inferencia.
-

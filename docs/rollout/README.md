@@ -10,21 +10,21 @@ Fixtures, paginas fake, seeds, testes offline, mocks e health fake nunca contam 
 
 | Task/fase | Requisito auditado | Evidencia atual | Resultado | Blocker |
 | --- | --- | --- | --- | --- |
-| AT-302 / Fase 1 | intake, Rastreio, evidencias, resumo, protocolo seguro, anti dado cruzado, SLO, recuperacao e comparacao manual; sem escrita | demo e fixtures offline; AT-284/291 concluidas; AT-236 aguarda live; AT-237, AT-283 e AT-293 `planned` | **NO-GO** | comparacao manual, seguranca do protocolo, recuperacao e validacao live ausentes |
+| AT-302 / Fase 1 | intake, Rastreio, evidencias, resumo, protocolo seguro, anti dado cruzado, SLO, recuperacao e comparacao manual; sem escrita | demo e fixtures offline; implementacoes AT-236/237/283/293 e AT-284/291 concluidas; gates live/manuais pendentes | **NO-GO** | comparacao manual, seguranca do protocolo, recuperacao e validacao live ausentes |
 | AT-303 / Fase 2 | heuristica, fluxo versionado, stepper, Scriptoteca, copy-only e estabilidade incremental; sem draft/escrita | implementacao e testes documentados nas AT-243/246/248/252/253/259/262; gate anterior nao aprovado | **NO-GO** | AT-302 `NO-GO`; fluxo guiado live e estabilidade operacional nao demonstrados |
-| AT-304 / Fase 3 | Yampi, OMIE Filial/Pharma, Loggi, J&T e Correios/Reversa com isolamento, health, drift e retry | fixtures/harness e checklist existem; AT-265/267/268 aguardam live; AT-270/272/274 `planned`; nenhum smoke live executado | **NO-GO** | runtimes incompletos e todos os smokes autenticados `PENDENTE_LIVE` |
-| AT-305 / Fase 4 | firewall, testes negativos, auditoria, rollback, recuperacao e drafts explicitos sem confirmar | firewall/testes e runbooks versionados; AT-280/281/282/293 `planned`; rollback nao validado live | **NO-GO** | drafts e deteccao manual ausentes; recuperacao e rollback live pendentes; AT-304 `NO-GO` |
-| AT-306 / Fase 5 | metricas, drift, cache, retries, performance, docs, backup e DoD macro operacional | artefatos e testes locais existem; AT-293 pendente; fases 1-4 nao aprovadas | **NO-GO** | cadeia de gates bloqueada, recuperacao pendente e DoD macro sem evidencia live completa |
+| AT-304 / Fase 3 | Yampi, OMIE Filial/Pharma, Loggi, J&T e Correios/Reversa com isolamento, health, drift e retry | runtimes, fixtures/harness e checklist existem; AT-265/267/268/270/272/274 aguardam live; nenhum smoke live executado | **NO-GO** | todos os smokes autenticados permanecem `PENDENTE_LIVE` |
+| AT-305 / Fase 4 | firewall, testes negativos, auditoria, rollback, recuperacao e drafts explicitos sem confirmar | firewall/testes, drafts, deteccao manual, recuperacao e runbooks versionados; gates live pendentes | **NO-GO** | recuperacao, drafts e rollback live pendentes; AT-304 `NO-GO` |
+| AT-306 / Fase 5 | metricas, drift, cache, retries, performance, docs, backup e DoD macro operacional | artefatos, testes locais e recuperacao implementados; gate live da AT-293 e fases 1-4 pendentes | **NO-GO** | cadeia de gates bloqueada, recuperacao live pendente e DoD macro sem evidencia live completa |
 | AT-307 / futura | core extensivel a executor futuro limitado, preservando firewall e ferramentas permitidas | contratos de caso, fluxo, scripts, capabilities, gates e conectores estao documentados | **READINESS DOCUMENTAL LIMITADA / ROLLOUT BLOQUEADO** | AT-306 `NO-GO`; validacao apenas estrutural; nenhum agente ou executor implementado |
 
 ## GO/NO-GO por fase
 
 | Fase | Decisao em 2026-07-12 | Condicao para reauditoria |
 | --- | --- | --- |
-| 1 - Shadow mode | **NO-GO** | concluir AT-237/283/293 e anexar comparacao manual e evidencias live autorizadas |
+| 1 - Shadow mode | **NO-GO** | concluir validacoes live/manuais de AT-236/237/283/293 e anexar comparacao manual autorizada |
 | 2 - Fluxo guiado | **NO-GO** | obter GO da Fase 1 e demonstrar fluxo guiado incremental no ambiente autorizado |
-| 3 - Cobertura consultiva | **NO-GO** | implementar AT-270/272/274 e executar checklist live de cada conector |
-| 4 - Rascunhos | **NO-GO** | concluir AT-280/281/282/293 e validar firewall, recuperacao e rollback live |
+| 3 - Cobertura consultiva | **NO-GO** | executar checklist live de cada conector implementado |
+| 4 - Rascunhos | **NO-GO** | validar AT-280/281/282/293, firewall, recuperacao e rollback em ambiente autorizado |
 | 5 - Hardening | **NO-GO** | obter GO de todas as fases anteriores e fechar DoD macro com evidencia operacional |
 | Futura - executor limitado | **BLOQUEADA** | nova decisao formal apos hardening; readiness atual nao autoriza implementacao nem rollout |
 
