@@ -94,7 +94,11 @@ describe("Web bootstrap, session and role matrix", () => {
       await Promise.resolve();
     });
     expect(await screen.findByRole("heading", { name: "Entrar" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeDisabled();
+    expect(screen.queryByText("Acesso operacional para notas, ranking, campanhas e extratos comerciais.")).not.toBeInTheDocument();
+    const passwordLogin = screen.getByRole("button", { name: "Entrar com senha" });
+    const googleLogin = screen.getByRole("button", { name: "Entrar com Google" });
+    expect(passwordLogin.compareDocumentPosition(googleLogin) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(googleLogin).toBeDisabled();
 
     await loginAs("ADMIN", true);
     expect(await screen.findByText("Credenciais sintéticas inválidas")).toBeInTheDocument();

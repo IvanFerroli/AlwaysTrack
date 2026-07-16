@@ -793,15 +793,6 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
             <h1>Entrar</h1>
           </div>
         </div>
-        <div>
-          <p className="muted">Acesso operacional para notas, ranking, campanhas e extratos comerciais.</p>
-        </div>
-        <button type="button" disabled={!googleConfigured || googleLoading || loading} onClick={() => void startGoogleLogin()}>
-          {googleLoading ? "Conectando..." : "Entrar com Google"}
-        </button>
-        <div className="login-divider">
-          <span>Email e senha</span>
-        </div>
         <label>
           Email
           <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" />
@@ -816,7 +807,13 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
           />
         </label>
         {error ? <p className="error">{error}</p> : null}
-        <button className="secondary" disabled={loading || googleLoading}>{loading ? "Entrando..." : "Entrar com senha"}</button>
+        <button disabled={loading || googleLoading}>{loading ? "Entrando..." : "Entrar com senha"}</button>
+        <div className="login-divider">
+          <span>Ou</span>
+        </div>
+        <button className="secondary" type="button" disabled={!googleConfigured || googleLoading || loading} onClick={() => void startGoogleLogin()}>
+          {googleLoading ? "Conectando..." : "Entrar com Google"}
+        </button>
       </form>
     </main>
   );
