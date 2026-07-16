@@ -80,6 +80,7 @@ Transformar a ficha lateral do primeiro fluxo Always Fit em um cockpit persisten
 
 ## Follow-up 2026-07-16 - Classificacao por lacrados
 - status: completed
+- historico: abordagem substituida no follow-up "Ficha minima e continuidade" pela decisao binaria, sem seletor na ficha;
 - substituir a dupla selecao de itens abertos e lacrados por um unico seletor de itens lacrados;
 - oferecer `Todos` e `Nenhum` sobre os produtos do pedido;
 - considerar implicitamente abertas as unidades nao marcadas como lacradas;
@@ -92,6 +93,24 @@ Transformar a ficha lateral do primeiro fluxo Always Fit em um cockpit persisten
 - 19 testes focados da Web aprovados;
 - typecheck de API e Web e build Web aprovados;
 - seed local reaplicado com nova versao publicada do fluxo.
+
+## Follow-up 2026-07-16 - Ficha minima e continuidade
+- status: completed
+- limitar a ficha fixa a nome, CPF e produtos do pedido;
+- registrar prazo de recebimento, lacres e demais estados pelas decisoes do fluxo;
+- reduzir lacres a uma decisao binaria de rota, sem seletor ou classificacao detalhada de produtos;
+- remover o botao generico de conclusao em nos versionados com alternativas;
+- garantir que ETAPA-013 materialize ETAPA-015 a ETAPA-018 quando houver reversa e ETAPA-019 no bypass;
+- manter sessoes pinadas anteriores navegaveis sem reintroduzir campos aposentados.
+
+### Validacao do follow-up
+- ficha fixa limitada a nome, CPF e produtos do pedido, com obrigatoriedade progressiva nas etapas correspondentes;
+- ETAPA-013 reduzida a decisao binaria e MSG-009 alinhada, sem nova classificacao de produtos;
+- caminhos de reversa e bypass cobertos por testes, inclusive materializacao e foco da ETAPA-015;
+- 64 testes focados da API e 14 testes focados da Web aprovados;
+- `npm run check` aprovado: 1.063 testes, 1 Redis opcional ignorado, lint, typecheck, startup e builds;
+- seed local aplicado com a versao 7 publicada e versoes anteriores preservadas;
+- `git diff --check` aprovado.
 
 ## Evidencia de conclusao
 - `npm run check`: aprovado, com 1 teste Redis opcional ignorado por configuracao;

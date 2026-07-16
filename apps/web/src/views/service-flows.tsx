@@ -198,6 +198,7 @@ function sessionStepKey(step: ServiceFlowSession["steps"][number]) {
 
 function placeholdersFor(script: Pick<FlowScript, "placeholders">, values: Record<string, string>) {
   const aliases: Record<string, string> = {
+    cliente: "customer.name",
     nome_cliente: "customer.name",
     codigo_reversa: "treatment.reverseCode",
     previsao_entrega: "logistics.forecast",
@@ -236,8 +237,10 @@ const decisionCapturedCaseFields = new Set([
   "custom.alwaysfit.financial.retained.sealed.value"
 ]);
 
+const essentialCaseFieldKeys = new Set(["customer.name", "customer.cpf", "order.products"]);
+
 function caseFieldIsVisible(key: string) {
-  return !decisionCapturedCaseFields.has(key) && !/^produto_[1-9]\d*$/.test(key);
+  return essentialCaseFieldKeys.has(key) && !decisionCapturedCaseFields.has(key) && !/^produto_[1-9]\d*$/.test(key);
 }
 
 function caseValuePresent(key: string, value: string | undefined) {
@@ -404,6 +407,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     const required = new Set(activeSession?.steps.flatMap((step) => factsFromSnapshot(step.nodeSnapshotJson).required) ?? []);
     const optional = new Set(activeSession?.steps.flatMap((step) => factsFromSnapshot(step.nodeSnapshotJson).optional) ?? []);
     const aliases: Record<string, string> = {
+      cliente: "customer.name",
       nome_cliente: "customer.name",
       codigo_reversa: "treatment.reverseCode",
       previsao_entrega: "logistics.forecast",
@@ -414,12 +418,12 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       ...(selected?.steps.flatMap((step) => step.scripts.flatMap(({ script }) => script.placeholders ?? [])) ?? []),
       ...visiblePersonalScripts.flatMap((script) => script.placeholders ?? [])
     ].map((key) => aliases[key] ?? key);
-    return [...new Set([...required, ...optional, ...placeholders])]
+    return [...new Set([...essentialCaseFieldKeys, ...required, ...optional, ...placeholders])]
       .filter(caseFieldIsVisible)
       .map((key) => ({
         key,
         label: humanizeCaseField(key),
-        required: required.has(key),
+        required: essentialCaseFieldKeys.has(key),
         kind: productFieldConfiguration[key] ? "products" as const : key === "customer.cpf" ? "cpf" as const : "text" as const
       }))
       .sort((left, right) => Number(right.required) - Number(left.required) || left.label.localeCompare(right.label, "pt-BR"));
@@ -970,12 +974,14 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   />
                 ) : (
                   <label key={field.key}>
-                    <span>{field.label}{field.required ? <strong aria-label="obrigatório"> *</strong> : null}</span>
+                    <span>{field.label}{field.required ? <strong aria-hidden="true"> *</strong> : null}</span>
                     <input
                       value={field.kind === "cpf" ? formatCpf(caseData[field.key] ?? "") : caseData[field.key] ?? ""}
                       inputMode={field.kind === "cpf" ? "numeric" : undefined}
                       maxLength={field.kind === "cpf" ? 14 : undefined}
                       disabled={activeSession.status === "COMPLETED"}
+                      aria-required={field.required}
+                      required={field.required}
                       onChange={(event) => updateCaseDataValue(field.key, field.kind === "cpf" ? cpfDigits(event.target.value) : event.target.value)}
                     />
                   </label>
@@ -1127,10 +1133,12 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                           ) : <p className="muted">Sem script relacionado nesta etapa.</p>}
                           {activeSession ? (
                             <div className="service-flow-session-box">
-                              <label>
-                                Decisão tomada
-                                <input value={stepDecisions[step.id] ?? ""} onChange={(event) => setStepDecisions((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Ex.: reversa, troca, estorno, escalado" />
-                              </label>
+                              {!activeSession.version || decisionOptions.length === 0 ? (
+                                <label>
+                                  Decisão tomada
+                                  <input value={stepDecisions[step.id] ?? ""} onChange={(event) => setStepDecisions((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Ex.: reversa, troca, estorno, escalado" />
+                                </label>
+                              ) : null}
                               <label>
                                 Nota interna
                                 <textarea rows={3} value={stepNotes[step.id] ?? ""} onChange={(event) => setStepNotes((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Registre o contexto para auditoria do atendimento." />
@@ -1142,7 +1150,9 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                   </button>
                                 ) : null}
                                 {canSkipStep ? <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "SKIPPED")}>Pular</button> : null}
-                                <button type="button" disabled={saving || activeSession.status === "COMPLETED" || missingRequiredFacts.length > 0} onClick={() => void saveSessionStep(step, "DONE")}>Concluir etapa</button>
+                                {!activeSession.version || decisionOptions.length === 0 ? (
+                                  <button type="button" disabled={saving || activeSession.status === "COMPLETED" || missingRequiredFacts.length > 0} onClick={() => void saveSessionStep(step, "DONE")}>Concluir etapa</button>
+                                ) : null}
                               </div>
                             </div>
                           ) : null}

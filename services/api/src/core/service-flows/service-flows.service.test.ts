@@ -595,13 +595,13 @@ describe("service flow tenant workflows", () => {
   it("allows DONE after all required snapshot facts have non-empty case data", async () => {
     const session = {
       id: "session-ready", versionId: "version-1", organizationId: "org-1", userId: seller.id, status: "OPEN",
-      caseDataJson: '{"customer.name":"Ana"}', flow: { title: "Saude" }, steps: []
+      caseDataJson: '{"customer.name":"Ana"}', flow: { title: "Saude", slug: "saude-dev-troca-estorno" }, steps: []
     };
     const update = vi.fn().mockResolvedValue({ id: "visit-ready", status: "DONE", decision: null, note: null });
     const prisma = {
       serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(session) },
       serviceFlowSessionStep: {
-        findFirst: vi.fn().mockResolvedValue({ id: "visit-ready", nodeKey: "check", visitOrder: 1, status: "RECONFIRMATION_REQUIRED", nodeSnapshotJson: '{"requiredFacts":["customer.name","custom.alwaysfit.health.usage","custom.alwaysfit.health.symptom.persistent","custom.alwaysfit.treatment.unusable.scope","custom.alwaysfit.return.open.items","custom.alwaysfit.return.returned.sealed.items","custom.alwaysfit.return.retained.sealed.items","custom.alwaysfit.financial.retained.sealed.value"]}', choiceHistoryJson: null, step: null }),
+        findFirst: vi.fn().mockResolvedValue({ id: "visit-ready", nodeKey: "check", visitOrder: 1, status: "RECONFIRMATION_REQUIRED", nodeSnapshotJson: '{"requiredFacts":["customer.name","logistics.deliveredAt","custom.alwaysfit.return.sealed.items","custom.alwaysfit.return.declared.value","treatment.reverseCode","logistics.returnState","custom.alwaysfit.financial.available.balance","payment.method","order.manualId","logistics.forecast"]}', choiceHistoryJson: null, step: null }),
         update
       },
       serviceFlowTransition: { findMany: vi.fn().mockResolvedValue([]) },

@@ -410,6 +410,62 @@ describe("ServiceFlowsView", () => {
     expect(screen.queryByText("Fora do escopo")).not.toBeInTheDocument();
   });
 
+  it("advances from the health decision into the reverse-logistics subflow without a generic completion button", async () => {
+    const user = userEvent.setup();
+    const reverseFlow = {
+      ...pilotFlow,
+      steps: [
+        {
+          ...pilotFlow.steps[0],
+          id: "pilot-step-13",
+          title: "ETAPA-013 — Verificar necessidade de reversa",
+          decision: { nodeKey: "ETAPA-013", options: [
+            { label: "Há ao menos um item lacrado: iniciar reversa", target: "ETAPA-015" },
+            { label: "Tudo está aberto: dispensar reversa", target: "ETAPA-019" }
+          ] }
+        },
+        {
+          ...pilotFlow.steps[1],
+          id: "pilot-step-15",
+          title: "ETAPA-015 — Calcular valor e gerar logística reversa",
+          decision: { nodeKey: "ETAPA-015", options: [{ label: "Código válido gerado manualmente", target: "ETAPA-016" }] }
+        }
+      ]
+    };
+    const started = {
+      id: "reverse-session", status: "OPEN", startedAt: "2026-07-16T12:00:00.000Z", completedAt: null,
+      flow: { id: reverseFlow.id, slug: reverseFlow.slug, title: reverseFlow.title },
+      version: { id: "pilot-version", version: 7, title: reverseFlow.title, publishedAt: "2026-07-16T12:00:00.000Z" },
+      caseData: {},
+      steps: [{ id: "visit-13", stepId: null, nodeKey: "ETAPA-013", nodeSnapshotJson: '{"requiredFacts":[]}', status: "PENDING", decision: null, note: null, completedAt: null, step: null }]
+    };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [reverseFlow], canManage: false });
+      if (path === "/v1/script-library") return Promise.resolve({ scripts: [] });
+      if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [] });
+      if (path === `/v1/service-flows/${reverseFlow.id}/sessions`) return Promise.resolve({ session: started });
+      if (path === "/v1/service-flow-sessions/reverse-session/steps/ETAPA-013") return Promise.resolve({ session: {
+        ...started,
+        steps: [
+          { ...started.steps[0], status: "DONE", decision: "Há ao menos um item lacrado: iniciar reversa" },
+          { id: "visit-15", stepId: null, nodeKey: "ETAPA-015", nodeSnapshotJson: '{"requiredFacts":[]}', status: "PENDING", decision: null, note: null, completedAt: null, step: null }
+        ]
+      } });
+      return successfulApi(path, init);
+    });
+
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: reverseFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    expect(screen.queryByRole("button", { name: "Concluir etapa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Decisão tomada" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Há ao menos um item lacrado: iniciar reversa" }));
+
+    expect(await screen.findByText("ETAPA-015 — Calcular valor e gerar logística reversa")).toBeInTheDocument();
+    const reverseStep = screen.getByText("ETAPA-015 — Calcular valor e gerar logística reversa").closest("article");
+    await waitFor(() => expect(reverseStep).toHaveFocus());
+  });
+
   it("blocks a versioned health gate until its declared case facts are filled", async () => {
     const user = userEvent.setup();
     const started = {
@@ -468,11 +524,14 @@ describe("ServiceFlowsView", () => {
     expect(screen.queryByRole("textbox", { name: /Lacrados que serão devolvidos/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Lacrados que ficarão/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Valor dos lacrados retidos/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Itens lacrados" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Todos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Nenhum" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Itens lacrados" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Data de recebimento" })).not.toBeInTheDocument();
+    const caseSheet = screen.getByRole("region", { name: "Dados do caso" });
+    expect(within(caseSheet).getAllByRole("textbox")).toHaveLength(2);
+    expect(within(caseSheet).getByRole("textbox", { name: "CPF do cliente" })).toBeRequired();
+    expect(within(caseSheet).getByRole("combobox", { name: "Produtos do pedido" })).toBeRequired();
     const customerName = screen.getByRole("textbox", { name: /Nome do cliente/ });
-    expect(customerName).toBeInTheDocument();
+    expect(customerName).toBeRequired();
     await user.type(customerName, "Maria");
     expect(decision).toBeEnabled();
     await user.click(decision);
@@ -571,7 +630,7 @@ describe("ServiceFlowsView", () => {
     await screen.findByRole("heading", { name: baseFlow.title });
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
 
-    const customer = screen.getByRole("textbox", { name: "Cliente" });
+    const customer = screen.getByRole("textbox", { name: "Nome do cliente" });
     await user.type(customer, "Maria Silva");
     expect(screen.getByText("Ola, Maria Silva. A troca esta autorizada.")).toBeInTheDocument();
     expect(screen.getByText("Retorno para Maria Silva")).toBeInTheDocument();
@@ -579,10 +638,10 @@ describe("ServiceFlowsView", () => {
 
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
       "/v1/service-flow-sessions/session-1/case-data",
-      { method: "PATCH", body: JSON.stringify({ values: { cliente: "Maria Silva" } }) }
+      { method: "PATCH", body: JSON.stringify({ values: { "customer.name": "Maria Silva" } }) }
     ));
     expect(await screen.findByText("Dados salvos")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Cliente" })).toHaveValue("Maria Silva");
+    expect(screen.getByRole("textbox", { name: "Nome do cliente" })).toHaveValue("Maria Silva");
   });
 
   it("resumes a completed step while preserving following records for reconfirmation", async () => {
@@ -625,13 +684,13 @@ describe("ServiceFlowsView", () => {
     render(<ServiceFlowsView user={users.sac} />);
     await screen.findByRole("heading", { name: baseFlow.title });
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
-    await user.type(screen.getByRole("textbox", { name: "Cliente" }), "Maria");
+    await user.type(screen.getByRole("textbox", { name: "Nome do cliente" }), "Maria");
     await user.click(screen.getByRole("button", { name: "Reiniciar" }));
     expect(screen.getByRole("dialog", { name: "Começar este caso novamente?" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reiniciar com ficha vazia" }));
 
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/service-flow-sessions/session-1/restart", { method: "POST" }));
-    expect(screen.getByRole("textbox", { name: "Cliente" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Nome do cliente" })).toHaveValue("");
   });
 
   it("renders placeholders safely and audits canonical script copy in the active session", async () => {
@@ -642,7 +701,7 @@ describe("ServiceFlowsView", () => {
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     await screen.findByText("Atendimento em andamento");
 
-    await user.type(screen.getByRole("textbox", { name: "Cliente" }), "Maria <script>");
+    await user.type(screen.getByRole("textbox", { name: "Nome do cliente" }), "Maria <script>");
     await user.click(screen.getByRole("button", { name: "Copiar script" }));
     const rendered = "Ola, Maria <script>. A troca esta autorizada.";
     await waitFor(() => expect(clipboardWriteMock).toHaveBeenCalledWith(rendered));

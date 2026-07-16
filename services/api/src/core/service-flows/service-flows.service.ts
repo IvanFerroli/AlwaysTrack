@@ -106,6 +106,8 @@ const productSubsetKeys = [...structuredProductKeys].filter((key) =>
   && key !== "custom.alwaysfit.exchange.items"
 );
 const pilotProductFallbacks = ["Fit S36", "NAC", "Pro3"] as const;
+const alwaysFitHealthFlowSlug = "saude-dev-troca-estorno";
+const alwaysFitEssentialFactKeys = new Set(["customer.name", "customer.cpf", "order.products"]);
 const decisionCapturedFactKeys = new Set([
   "custom.alwaysfit.health.usage",
   "custom.alwaysfit.product.recommended.usage",
@@ -966,7 +968,10 @@ export async function updateServiceFlowSessionStep(
   stepId: string,
   input: ServiceFlowSessionStepInput
 ) {
-  const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
+  const session = await prisma.serviceFlowSession.findFirst({
+    where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id },
+    include: { flow: { select: { slug: true } } }
+  });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
   if (session.status !== "OPEN") throw new ServiceFlowError("INVALID_INPUT");
   const step = await prisma.serviceFlowSessionStep.findFirst({
@@ -981,7 +986,12 @@ export async function updateServiceFlowSessionStep(
   }
   if (session.versionId && nextStatus === "DONE") {
     const caseData = caseDataFromJson(session.caseDataJson);
-    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !decisionCapturedFactKeys.has(key) && !factIsPresent(key, caseData[key]));
+    const isAlwaysFitHealthFlow = session.flow?.slug === alwaysFitHealthFlowSlug;
+    const missingFieldKeys = snapshot.requiredFacts.filter((key) =>
+      !(isAlwaysFitHealthFlow && !alwaysFitEssentialFactKeys.has(key))
+      && !decisionCapturedFactKeys.has(key)
+      && !factIsPresent(key, caseData[key])
+    );
     if (missingFieldKeys.length) throw new ServiceFlowError("MISSING_REQUIRED_FACTS", missingFieldKeys);
   }
   const outgoing = session.versionId && step.nodeKey && (nextStatus === "DONE" || nextStatus === "SKIPPED")
@@ -1000,10 +1010,13 @@ export async function updateServiceFlowSessionStep(
   if (selectedTransition) {
     const condition = transitionConditionFromJson(selectedTransition.conditionJson);
     const caseData = caseDataFromJson(session.caseDataJson);
-    if (condition?.operator === "FACT_EXISTS" && !factIsPresent(condition.factKey, caseData[condition.factKey])) {
+    const conditionCapturedByPilotDecision = session.flow?.slug === alwaysFitHealthFlowSlug
+      && condition?.operator !== "ALWAYS"
+      && !alwaysFitEssentialFactKeys.has(condition?.factKey ?? "");
+    if (condition?.operator === "FACT_EXISTS" && !conditionCapturedByPilotDecision && !factIsPresent(condition.factKey, caseData[condition.factKey])) {
       throw new ServiceFlowError("MISSING_REQUIRED_FACTS", [condition.factKey]);
     }
-    if (condition?.operator === "FACT_EQUALS" && caseData[condition.factKey] !== String(condition.value)) {
+    if (condition?.operator === "FACT_EQUALS" && !conditionCapturedByPilotDecision && caseData[condition.factKey] !== String(condition.value)) {
       throw new ServiceFlowError("INVALID_INPUT");
     }
   }

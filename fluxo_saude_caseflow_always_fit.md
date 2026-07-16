@@ -125,7 +125,6 @@ O fluxo pode ser encerrado quando:
 | `medicamentos_suplementos` | Outros medicamentos ou suplementos utilizados | Texto | Sim | Cliente | “Remédio para pressão” | Aceitar “nenhum” | Saúde/sensível | Investigação |
 | `sintoma_persistente` | Cliente ainda está se sentindo mal | Booleano | Sim | Cliente | Sim | Sim/Não | Saúde/sensível | Orientação médica |
 | `escopo_sem_uso` | Tudo que o cliente não conseguirá mais utilizar | Lista | Sim | Cliente + pedido | Kit Anti-Inchaço completo | Itens precisam pertencer ao pedido | Operacional/saúde | Cálculo do saldo |
-| `itens_lacrados` | Itens com lacre interno intacto | Lista/quantidade | Condicional | Cliente | 3 potes | Subconjunto de `produtos_pedido`; `Todos` e `Nenhum` são respostas válidas | Operacional | Reversa |
 | `valor_pago_escopo` | Valor efetivamente pago pelos itens afetados | Número monetário | Sim | Pedido/NF | R$ 300,00 | Considerar descontos | Financeiro | Saldo |
 | `saldo_disponivel` | Valor para troca/estorno | Número monetário | Sim | Cálculo | R$ 250,00 | Nunca negativo | Financeiro | Troca/estorno |
 | `codigo_reversa` | Código de postagem dos Correios | Texto | Condicional | Correios | 0000000000 | Código válido | Operacional | Confirmação da postagem |
@@ -285,21 +284,21 @@ O fluxo pode ser encerrado quando:
 - **Condição para avançar:** Lista de itens afetados definida.
 - **Destino:** `ETAPA-013`.
 
-## ETAPA-013 — Identificar itens lacrados
+## ETAPA-013 — Verificar necessidade de reversa
 
 - **Objetivo:** Definir necessidade de logística reversa.
 - **Mensagem sugerida:** `MSG-009`.
 - **Definição de lacrado:** Lacre interno abaixo da tampa permanece intacto.
-- **Entrada única:** Selecionar entre os produtos do pedido somente os itens lacrados, com atalhos `Todos` e `Nenhum`.
-- **Regra:** Tudo que não for marcado como lacrado é tratado implicitamente como aberto, sem segundo preenchimento.
+- **Decisão única:** Confirmar apenas se existe ao menos um item lacrado; não selecionar ou classificar produtos novamente.
+- **Regra:** A decisão abre ou dispensa o subfluxo de reversa. A confirmação detalhada dos itens enviados acontece na conversa, sem campo adicional na ficha.
 - **Decisão:** `DECISAO-011`.
 - **Se nenhum item estiver lacrado:** Bypass da reversa → `ETAPA-019`.
 - **Se houver lacrados:** `ETAPA-015`.
-- **Decisão operacional de 16/07/2026:** A separação entre lacrados devolvidos e retidos foi removida para reduzir preenchimento; o atendente conduz essa confirmação durante a conversa.
+- **Decisão operacional de 16/07/2026:** Toda classificação detalhada de lacrados, devolvidos e retidos foi removida para reduzir preenchimento; o atendente conduz essa confirmação durante a conversa.
 
 ## ETAPA-015 — Calcular valor e gerar logística reversa
 
-- **Objetivo:** Gerar código dos Correios para os itens lacrados selecionados.
+- **Objetivo:** Gerar o código dos Correios quando houver item lacrado a devolver.
 - **Ação humana:**
   1. consultar pedido e nota fiscal;
   2. considerar descontos;
@@ -947,13 +946,13 @@ Escalar quando:
 
 - **Status:** Texto sugerido para padronização.
 
-## MSG-009 — Perguntar lacrados e abertos
+## MSG-009 — Confirmar se existe item lacrado
 
 - **Momento:** Escopo definido.
 - **Canal:** Cliente.
 - **Texto sugerido:**
 
-> Você pode me informar quais desses produtos permanecem lacrados, com o lacre interno intacto, e quais já foram abertos ou utilizados?
+> Algum produto desse pedido permanece lacrado, com o lacre interno abaixo da tampa intacto?
 
 - **Status:** Texto sugerido para padronização.
 

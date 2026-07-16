@@ -18,8 +18,8 @@ function transition(fromNodeKey: string, label: string) {
 }
 
 const acceptanceRoutes = [
-  ["TESTE-001", [["ETAPA-013", "Nenhum lacrado: dispensar reversa", "ETAPA-019"], ["ETAPA-019", "Estorno", "ETAPA-020"], ["ETAPA-021", "Pix: dados completos coletados", "ETAPA-022"], ["ETAPA-022", "Pix ou boleto solicitado e link registrado", "ETAPA-023"], ["ETAPA-023", "Prazo e encerramento enviados", "RESULTADO-002"]]],
-  ["TESTE-002", [["ETAPA-013", "Há ao menos um item lacrado", "ETAPA-015"], ["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"], ["ETAPA-021", "Cartão: sem dados Pix", "ETAPA-022"], ["ETAPA-022", "Cartão solicitado e link registrado", "ETAPA-030"], ["ETAPA-030", "Encerrar estorno em cartão", "RESULTADO-003"]]],
+  ["TESTE-001", [["ETAPA-013", "Tudo está aberto: dispensar reversa", "ETAPA-019"], ["ETAPA-019", "Estorno", "ETAPA-020"], ["ETAPA-021", "Pix: dados completos coletados", "ETAPA-022"], ["ETAPA-022", "Pix ou boleto solicitado e link registrado", "ETAPA-023"], ["ETAPA-023", "Prazo e encerramento enviados", "RESULTADO-002"]]],
+  ["TESTE-002", [["ETAPA-013", "Há ao menos um item lacrado: iniciar reversa", "ETAPA-015"], ["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"], ["ETAPA-021", "Cartão: sem dados Pix", "ETAPA-022"], ["ETAPA-022", "Cartão solicitado e link registrado", "ETAPA-030"], ["ETAPA-030", "Encerrar estorno em cartão", "RESULTADO-003"]]],
   ["TESTE-003", [["ETAPA-019", "Troca", "ETAPA-024"], ["ETAPA-025", "Valor igual ao saldo", "ETAPA-027"], ["ETAPA-027", "Novo pedido gerado sem frete", "ETAPA-029"], ["ETAPA-029", "Previsão e rastreio enviados", "ETAPA-030"], ["ETAPA-030", "Encerrar troca ou solução mista", "RESULTADO-004"]]],
   ["TESTE-004", [["ETAPA-025", "Valor maior que o saldo", "ETAPA-026"], ["ETAPA-026", "Pagamento ainda não confirmado", "ETAPA-026"], ["ETAPA-026", "Pagamento da diferença confirmado", "ETAPA-027"]]],
   ["TESTE-005", [["ETAPA-025", "Valor menor que o saldo", "ETAPA-028"], ["ETAPA-028", "Troca gerada e diferença solicitada", "ETAPA-029"]]],
@@ -30,7 +30,7 @@ const acceptanceRoutes = [
   ["TESTE-010", [["ETAPA-024", "Cliente insiste no mesmo produto", "DECISAO-020"], ["DECISAO-020", "Composição disponível", "ETAPA-025"]]],
   ["TESTE-011", [["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"]]],
   ["TESTE-012", [["ETAPA-017", "Código expirado", "ETAPA-018"], ["ETAPA-018", "Novo código gerado e enviado", "ETAPA-017"]]],
-  ["TESTE-013", [["ETAPA-013", "Há ao menos um item lacrado", "ETAPA-015"]]],
+  ["TESTE-013", [["ETAPA-013", "Há ao menos um item lacrado: iniciar reversa", "ETAPA-015"]]],
   ["TESTE-014", [["ETAPA-019", "Cliente mudou uma escolha já solicitada", "ETAPA-033"], ["ETAPA-033", "Ainda não processada: cancelada manualmente", "ETAPA-019"]]],
   ["TESTE-015", [["ETAPA-033", "Já processada: não alterar", "RESULTADO-005"]]],
   ["TESTE-016", [["DECISAO-020", "Item indisponível: refazer composição", "ETAPA-024"]]],
@@ -65,7 +65,7 @@ describe("Always Fit health flow pilot catalog", () => {
 
   it("preserves the closed decisions instead of guessing pending business rules", () => {
     expect(transition("ETAPA-006", "Exatamente 30 dias: bloquear e validar")).toMatchObject({ toNodeKey: "ETAPA-032", requiresUserChoice: true });
-    expect(transition("ETAPA-013", "Nenhum lacrado: dispensar reversa")).toMatchObject({ toNodeKey: "ETAPA-019" });
+    expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")).toMatchObject({ toNodeKey: "ETAPA-019" });
     expect(transition("ETAPA-017", "Postagem confirmada por foto ou Correios")).toMatchObject({ toNodeKey: "ETAPA-019" });
     expect(transition("ETAPA-026", "Pagamento ainda não confirmado")).toMatchObject({ toNodeKey: "ETAPA-026", allowLoop: true });
     expect(transition("ETAPA-032", "Aprovado com outro retorno: handoff manual")).toMatchObject({ toNodeKey: "RESULTADO-009" });
@@ -74,34 +74,35 @@ describe("Always Fit health flow pilot catalog", () => {
   it("gates only positive identification choices and exposes their required facts to the UI", () => {
     expect(transition("ETAPA-003", "CPF visível ou recuperado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "customer.cpf" });
     expect(transition("DECISAO-002", "CPF obtido pela Yampi ou pelo cliente")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "customer.cpf" });
-    expect(transition("ETAPA-005", "Pedido provável identificado e confirmado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "order.primaryId" });
+    expect(transition("ETAPA-005", "Pedido provável identificado e confirmado")?.condition).toBeUndefined();
     expect(transition("ETAPA-003", "CPF ausente após recarregar")?.condition).toBeUndefined();
     expect(flow.steps.find((step) => step.decision.nodeKey === "ETAPA-003")?.decision.options).toContainEqual({
       label: "CPF visível ou recuperado", target: "ETAPA-004", requiredFacts: ["customer.cpf"]
     });
     expect(flow.steps.find((step) => step.decision.nodeKey === "ETAPA-005")?.decision.options).toContainEqual({
-      label: "Pedido provável identificado e confirmado", target: "ETAPA-006", requiredFacts: ["order.primaryId"]
+      label: "Pedido provável identificado e confirmado", target: "ETAPA-006"
     });
   });
 
   it("keeps progressive intake optional while preserving downstream safety gates", () => {
     const node = (key: string) => flow.nodes.find((item) => item.key === key)!;
-    expect(node("ETAPA-002").requiredFacts).toEqual([]);
+    expect(node("ETAPA-002").requiredFacts).toEqual(["customer.name"]);
     expect(node("ETAPA-004").requiredFacts).toEqual([]);
     expect(node("ETAPA-005").requiredFacts).toEqual([]);
     expect(node("ETAPA-008").requiredFacts).toEqual([]);
     expect(node("ETAPA-009").requiredFacts).toEqual([]);
     expect(node("DECISAO-008").requiredFacts).toEqual([]);
     expect(node("ETAPA-012").requiredFacts).toEqual([]);
-    expect(node("ETAPA-006").requiredFacts).toEqual(["logistics.deliveredAt"]);
+    expect(node("ETAPA-006").requiredFacts).toEqual([]);
     expect(node("ETAPA-007").requiredFacts).toEqual(["order.products"]);
     expect(node("ETAPA-010").requiredFacts).toEqual([]);
     expect(node("ETAPA-013").requiredFacts).toEqual([]);
-    expect(transition("ETAPA-013", "Há ao menos um item lacrado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" });
-    expect(transition("ETAPA-013", "Nenhum lacrado: dispensar reversa")?.condition).toBeUndefined();
+    expect(transition("ETAPA-013", "Há ao menos um item lacrado: iniciar reversa")?.condition).toBeUndefined();
+    expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")?.condition).toBeUndefined();
     expect(node("ETAPA-014")).toBeUndefined();
-    expect(node("ETAPA-015").requiredFacts).toEqual(["custom.alwaysfit.return.sealed.items", "custom.alwaysfit.return.declared.value"]);
-    expect(node("ETAPA-020").requiredFacts).toEqual(["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.available.balance"]);
+    expect(node("ETAPA-015").requiredFacts).toEqual([]);
+    expect(node("ETAPA-020").requiredFacts).toEqual([]);
+    expect(new Set(flow.nodes.flatMap((item) => item.requiredFacts))).toEqual(new Set(["customer.name", "order.products"]));
   });
 
   it("uses one structured order-products placeholder in MSG-004", () => {

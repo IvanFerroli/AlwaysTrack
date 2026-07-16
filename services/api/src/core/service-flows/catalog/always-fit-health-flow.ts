@@ -92,9 +92,9 @@ export const alwaysFitHealthMessages: readonly AlwaysFitHealthMessage[] = [
   },
   {
     code: "MSG-009",
-    title: "Perguntar itens lacrados",
+    title: "Confirmar se existe item lacrado",
     channel: "WHATSAPP",
-    body: "Você pode me informar quais desses produtos permanecem lacrados, com o lacre interno intacto? Os demais serão considerados abertos ou utilizados.",
+    body: "Algum produto desse pedido permanece lacrado, com o lacre interno abaixo da tampa intacto?",
     status: "DRAFT",
     tags: ["saude", "reversa", "itens", "validacao-pendente"]
   },
@@ -204,8 +204,8 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     optionalFacts: ["conversation.intentText", "customer.name", "customer.cpf"], dependencies: ["AlwaysChat"],
     choices: [{ label: "Relato reconhecido como caso deste fluxo", target: "ETAPA-002" }, { label: "Fora do escopo: encaminhar ao fluxo correspondente", target: "RESULTADO-009" }]
   }),
-  stage("ETAPA-002", "Apresentação com nome", "MESSAGE", "Se o nome estiver disponível, preencha-o; copie MSG-001 da Scriptoteca e envie manualmente no AlwaysChat.", {
-    messageCodes: ["MSG-001"], optionalFacts: ["customer.name"], dependencies: ["AlwaysChat"], choices: [{ label: "Apresentação enviada", target: "ETAPA-003" }]
+  stage("ETAPA-002", "Apresentação com nome", "MESSAGE", "Preencha o nome, copie MSG-001 da Scriptoteca e envie manualmente no AlwaysChat.", {
+    messageCodes: ["MSG-001"], requiredFacts: ["customer.name"], dependencies: ["AlwaysChat"], choices: [{ label: "Apresentação enviada", target: "ETAPA-003" }]
   }),
   stage("ETAPA-003", "Localizar CPF e cadastro", "DECISION", "DECISAO-001. Verifique o CPF no canto superior direito do AlwaysChat e recarregue a página uma vez se estiver ausente. Não registre credenciais no CaseFlow.", {
     messageCodes: ["MSG-002"], optionalFacts: ["customer.cpf", "customer.email", "customer.phone"], dependencies: ["AlwaysChat", "Yampi"],
@@ -221,10 +221,10 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
   }),
   stage("ETAPA-005", "Investigar início do mal-estar e confirmar o pedido", "DECISION", "DECISAO-004. Use MSG-003, registre o período e as datas disponíveis, cruze-os e peça confirmação. Nunca escolha automaticamente apenas o pedido mais recente; só confirme quando houver um pedido identificado.", {
     messageCodes: ["MSG-003"], optionalFacts: ["custom.alwaysfit.health.symptom.started", "order.primaryId", "logistics.deliveredAt"], dependencies: ["AlwaysChat", "Rastreio"],
-    choices: [{ label: "Pedido provável identificado e confirmado", target: "ETAPA-006", condition: { operator: "FACT_EXISTS", factKey: "order.primaryId" }, requiredFacts: ["order.primaryId"] }, { label: "Múltiplos pedidos sem associação segura", target: "ETAPA-034" }]
+    choices: [{ label: "Pedido provável identificado e confirmado", target: "ETAPA-006" }, { label: "Múltiplos pedidos sem associação segura", target: "ETAPA-034" }]
   }),
   stage("ETAPA-006", "Verificar data de recebimento", "DECISION", "DECISAO-005 e REGRAS REGRA-001/REGRA-002. Conte o prazo exclusivamente desde a data de recebimento no Rastreio, nunca desde compra, aprovação ou faturamento. Menos de 30 dias dá acesso ao valor integral do escopo afetado mesmo com uso divergente. O tratamento do 30º dia exato continua pendente e exige decisão humana.", {
-    requiredFacts: ["logistics.deliveredAt"], dependencies: ["Rastreio", "PENDENCIA-001"],
+    dependencies: ["Rastreio", "PENDENCIA-001"],
     choices: [{ label: "Recebido há menos de 30 dias", target: "ETAPA-007" }, { label: "Recebido há mais de 30 dias", target: "ETAPA-031" }, { label: "Exatamente 30 dias: bloquear e validar", target: "ETAPA-032" }, { label: "Data ausente ou conflitante", target: "ETAPA-034" }]
   }),
   stage("ETAPA-007", "Confirmar produtos ou kits envolvidos", "DECISION", "DECISAO-006 e REGRA-005. Mostre os produtos do pedido com MSG-004. Aceite um produto, vários, kit usado em conjunto ou produto não identificado; nesse último caso o kit inteiro pode compor o escopo.", {
@@ -252,24 +252,24 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
   stage("ETAPA-012", "Definir o escopo sem usufruto", "MANUAL_INPUT", "DECISAO-010 e REGRA-004. Use MSG-008 e, quando disponível, confirme o escopo diretamente nos produtos estruturados do pedido, incluindo produto usado, unidades iguais, kit e outros itens envolvidos. A classificação obrigatória ocorre na próxima etapa; não limite automaticamente ao frasco aberto.", {
     messageCodes: ["MSG-008"], optionalFacts: ["order.products"], choices: [{ label: "Escopo afetado confirmado", target: "ETAPA-013" }]
   }),
-  stage("ETAPA-013", "Identificar itens lacrados", "DECISION", "DECISAO-011 e REGRAS REGRA-006/REGRA-007. Use MSG-009 e marque somente os itens com lacre interno abaixo da tampa intacto. Toda unidade não marcada é implicitamente aberta ou utilizada, não retorna e continua no saldo.", {
-    messageCodes: ["MSG-009"], optionalFacts: ["custom.alwaysfit.return.sealed.items"], dependencies: ["PENDENCIA-008"],
+  stage("ETAPA-013", "Verificar necessidade de reversa", "DECISION", "DECISAO-011 e REGRAS REGRA-006/REGRA-007. Use MSG-009 para confirmar se existe algum item com lacre interno intacto. A escolha do atendente define se o subfluxo de reversa será executado; nenhum preenchimento adicional é necessário.", {
+    messageCodes: ["MSG-009"], dependencies: ["PENDENCIA-008"],
     choices: [
-      { label: "Há ao menos um item lacrado", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" } },
-      { label: "Nenhum lacrado: dispensar reversa", target: "ETAPA-019" }
+      { label: "Há ao menos um item lacrado: iniciar reversa", target: "ETAPA-015" },
+      { label: "Tudo está aberto: dispensar reversa", target: "ETAPA-019" }
     ]
   }),
-  stage("ETAPA-015", "Calcular valor e gerar logística reversa", "RISK_GATE", "REGRA-022. Consulte pedido e nota fiscal, considere descontos e declare somente o valor dos itens lacrados enviados. A fonte definitiva da NF permanece pendente. A geração no Correios é obrigatoriamente humana.", {
-    requiredFacts: ["custom.alwaysfit.return.sealed.items", "custom.alwaysfit.return.declared.value"], dependencies: ["Correios - Logistica Reversa", "Fonte da nota fiscal", "PENDENCIA-004", "LOGISTICA-REVERSA"],
+  stage("ETAPA-015", "Calcular valor e gerar logística reversa", "RISK_GATE", "REGRA-022. Consulte pedido e nota fiscal, considere descontos e declare somente o valor dos itens que efetivamente serão enviados. A confirmação detalhada acontece na conversa, sem novo formulário. A fonte definitiva da NF permanece pendente. A geração no Correios é obrigatoriamente humana.", {
+    optionalFacts: ["custom.alwaysfit.return.declared.value"], dependencies: ["Correios - Logistica Reversa", "Fonte da nota fiscal", "PENDENCIA-004", "LOGISTICA-REVERSA"],
     forbiddenCapabilities: ["CREATE_REVERSE", "SUBMIT", "SEND_MESSAGE"], riskLevel: "HIGH",
     choices: [{ label: "Código válido gerado manualmente", target: "ETAPA-016" }, { label: "Valor ou fonte inconclusiva", target: "ETAPA-034" }]
   }),
   stage("ETAPA-016", "Enviar /reversa e registrar /devolução_reversa", "MESSAGE", "Envie MSG-010 ao cliente e registre MSG-011 somente como sussurro interno. Nunca exponha /devolução_reversa ao cliente. Enquanto a solução não estiver definida, o preenchimento sugerido continua pendente de validação.", {
-    messageCodes: ["MSG-010", "MSG-011"], requiredFacts: ["treatment.reverseCode"], dependencies: ["AlwaysChat", "PENDENCIA-005"],
+    messageCodes: ["MSG-010", "MSG-011"], optionalFacts: ["treatment.reverseCode"], dependencies: ["AlwaysChat", "PENDENCIA-005"],
     choices: [{ label: "Mensagem e sussurro registrados", target: "ETAPA-017" }]
   }),
   stage("ETAPA-017", "Aguardar postagem", "WAIT_EXTERNAL", "DECISAO-013 e REGRA-009. Libere a escolha final somente após foto do comprovante ou confirmação no site dos Correios. Sem confirmação, aguarde. Código expirado segue para reemissão.", {
-    requiredFacts: ["logistics.returnState"], dependencies: ["Correios - Logistica Reversa"],
+    dependencies: ["Correios - Logistica Reversa"],
     choices: [{ label: "Postagem confirmada por foto ou Correios", target: "ETAPA-019" }, { label: "Ainda não postado: continuar aguardando", target: "ETAPA-017", allowLoop: true }, { label: "Código expirado", target: "ETAPA-018" }, { label: "Encerrar contato aguardando postagem", target: "RESULTADO-001" }]
   }),
   stage("ETAPA-018", "Código de reversa expirado", "RISK_GATE", "Gere manualmente outro código de reversa e reenvie MSG-010. Esta reemissão não exige escalonamento.", {
@@ -277,18 +277,18 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     choices: [{ label: "Novo código gerado e enviado", target: "ETAPA-017", allowLoop: true }]
   }),
   stage("ETAPA-019", "Escolher solução final", "DECISION", "DECISAO-015. Esta escolha só pode ocorrer após postagem confirmada ou bypass porque tudo está aberto. O cliente pode escolher estorno, troca ou composição mista quando a troca ficar abaixo do saldo.", {
-    requiredFacts: ["custom.alwaysfit.treatment.solution"], choices: [{ label: "Estorno", target: "ETAPA-020" }, { label: "Troca", target: "ETAPA-024" }, { label: "Solução mista: iniciar pela troca", target: "ETAPA-024" }, { label: "Cliente mudou uma escolha já solicitada", target: "ETAPA-033" }]
+    choices: [{ label: "Estorno", target: "ETAPA-020" }, { label: "Troca", target: "ETAPA-024" }, { label: "Solução mista: iniciar pela troca", target: "ETAPA-024" }, { label: "Cliente mudou uma escolha já solicitada", target: "ETAPA-033" }]
   }),
   stage("ETAPA-020", "Preparar estorno", "CHECK", "REGRA-021. Calcule o valor efetivamente pago pelos itens afetados, considerando descontos e rateios, e registre o saldo disponível. Nunca use preço nominal quando cupom ou rateio alterou o valor real.", {
-    requiredFacts: ["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.available.balance"], dependencies: ["Pedido", "Fonte da nota fiscal"],
+    optionalFacts: ["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.available.balance"], dependencies: ["Pedido", "Fonte da nota fiscal"],
     choices: [{ label: "Valor final confirmado", target: "ETAPA-021" }]
   }),
   stage("ETAPA-021", "Verificar forma de pagamento original", "DECISION", "DECISAO-018 e REGRAS REGRA-011/REGRA-012. Cartão segue direto ao Slack e não pede Pix. Pix e boleto usam MSG-012 para coletar chave, banco e titular.", {
-    messageCodes: ["MSG-012"], requiredFacts: ["payment.method"], optionalFacts: ["payment.pix"],
+    messageCodes: ["MSG-012"], optionalFacts: ["payment.method", "payment.pix"],
     choices: [{ label: "Cartão: sem dados Pix", target: "ETAPA-022" }, { label: "Pix: dados completos coletados", target: "ETAPA-022" }, { label: "Boleto: chave Pix coletada", target: "ETAPA-022" }]
   }),
   stage("ETAPA-022", "Solicitar estorno no Slack", "RISK_GATE", "REGRA-013. Ação financeira sempre humana. Preencha a automação no Slack, envie, copie o link e registre no sussurro exatamente ESTORNO - [LINK]. Não prometa conclusão se o Slack estiver indisponível.", {
-    requiredFacts: ["custom.alwaysfit.financial.refund.amount", "custom.alwaysfit.treatment.slack.refund.link"], dependencies: ["Slack", "PENDENCIA-002"],
+    optionalFacts: ["custom.alwaysfit.financial.refund.amount", "custom.alwaysfit.treatment.slack.refund.link"], dependencies: ["Slack", "PENDENCIA-002"],
     forbiddenCapabilities: ["POST_SLACK", "ISSUE_REFUND", "CONFIRM_REIMBURSEMENT", "SUBMIT", "SEND_MESSAGE"], riskLevel: "CRITICAL",
     choices: [{ label: "Pix ou boleto solicitado e link registrado", target: "ETAPA-023" }, { label: "Cartão solicitado e link registrado", target: "ETAPA-030" }, { label: "Slack indisponível ou status incerto", target: "ETAPA-034" }]
   }),
@@ -296,33 +296,33 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     messageCodes: ["MSG-013", "MSG-014"], choices: [{ label: "Prazo e encerramento enviados", target: "RESULTADO-002" }]
   }),
   stage("ETAPA-024", "Montar troca no Lançador", "RISK_GATE", "DECISAO-019 e REGRAS REGRA-010/REGRA-017. Verifique disponibilidade, ajuste composição com o cliente e não cobre frete. Se ele escolher o produto associado ao mal-estar, use MSG-015 para recomendar outra opção; se insistir, a troca pelo mesmo produto é permitida.", {
-    messageCodes: ["MSG-015"], requiredFacts: ["custom.alwaysfit.exchange.items"], dependencies: ["Lancador"],
+    messageCodes: ["MSG-015"], optionalFacts: ["custom.alwaysfit.exchange.items"], dependencies: ["Lancador"],
     forbiddenCapabilities: ["CREATE_ORDER", "CONFIRM_ORDER", "SUBMIT", "SEND_MESSAGE"], riskLevel: "HIGH",
     choices: [{ label: "Cliente escolheu outro produto", target: "DECISAO-020" }, { label: "Cliente mudou após orientação", target: "DECISAO-020" }, { label: "Cliente insiste no mesmo produto", target: "DECISAO-020" }]
   }),
   stage("DECISAO-020", "Produtos escolhidos estão disponíveis?", "DECISION", "DECISAO-020 e REGRA-015. Consulte o estoque no Lançador antes de fechar a composição. Item indisponível exige voltar e refazer com o cliente.", {
-    requiredFacts: ["custom.alwaysfit.exchange.stock.available"], dependencies: ["Lancador"], choices: [{ label: "Composição disponível", target: "ETAPA-025" }, { label: "Item indisponível: refazer composição", target: "ETAPA-024", allowLoop: true }]
+    dependencies: ["Lancador"], choices: [{ label: "Composição disponível", target: "ETAPA-025" }, { label: "Item indisponível: refazer composição", target: "ETAPA-024", allowLoop: true }]
   }),
   stage("ETAPA-025", "Comparar valor da troca com o saldo", "DECISION", "DECISAO-021. Compare o valor total da composição ao saldo disponível calculado pelo valor efetivamente pago.", {
-    requiredFacts: ["custom.alwaysfit.exchange.value", "custom.alwaysfit.financial.available.balance"], choices: [{ label: "Valor igual ao saldo", target: "ETAPA-027" }, { label: "Valor maior que o saldo", target: "ETAPA-026" }, { label: "Valor menor que o saldo", target: "ETAPA-028" }]
+    optionalFacts: ["custom.alwaysfit.exchange.value", "custom.alwaysfit.financial.available.balance"], choices: [{ label: "Valor igual ao saldo", target: "ETAPA-027" }, { label: "Valor maior que o saldo", target: "ETAPA-026" }, { label: "Valor menor que o saldo", target: "ETAPA-028" }]
   }),
   stage("ETAPA-026", "Cobrar diferença antes do pedido", "RISK_GATE", "DECISAO-022 e REGRA-014. Gere o link exato no Slack e aguarde a confirmação do pagamento. Nunca gere o novo pedido antes dessa confirmação.", {
-    requiredFacts: ["custom.alwaysfit.exchange.difference", "custom.alwaysfit.payment.difference.status"], dependencies: ["Slack"],
+    optionalFacts: ["custom.alwaysfit.exchange.difference", "custom.alwaysfit.payment.difference.status"], dependencies: ["Slack"],
     forbiddenCapabilities: ["POST_SLACK", "CREATE_ORDER", "CONFIRM_ORDER", "SUBMIT", "SEND_MESSAGE"], riskLevel: "CRITICAL",
     choices: [{ label: "Pagamento da diferença confirmado", target: "ETAPA-027" }, { label: "Pagamento ainda não confirmado", target: "ETAPA-026", allowLoop: true }, { label: "Slack indisponível", target: "ETAPA-034" }]
   }),
   stage("ETAPA-027", "Gerar novo pedido da troca", "RISK_GATE", "REGRA-016. Siga o subfluxo NOVO-PEDIDO-TROCA manualmente no Lançador. Frete deve ser zero; não é necessário reconfirmar o endereço já utilizado no pedido original. Registre o novo código.", {
-    requiredFacts: ["order.manualId"], dependencies: ["Lancador", "NOVO-PEDIDO-TROCA"],
+    optionalFacts: ["order.manualId"], dependencies: ["Lancador", "NOVO-PEDIDO-TROCA"],
     forbiddenCapabilities: ["CREATE_ORDER", "CONFIRM_ORDER", "SUBMIT", "SEND_MESSAGE"], riskLevel: "CRITICAL",
     choices: [{ label: "Novo pedido gerado sem frete", target: "ETAPA-029" }]
   }),
   stage("ETAPA-028", "Executar solução mista", "RISK_GATE", "REGRA-018. Gere a troca manualmente e estorne a diferença pela forma original. Cartão vai direto ao Slack; Pix/boleto usam MSG-012, Slack e MSG-013. Confirme que 100% do saldo foi resolvido.", {
-    messageCodes: ["MSG-012", "MSG-013"], requiredFacts: ["order.manualId", "custom.alwaysfit.financial.remaining.refund", "payment.method"], dependencies: ["Lancador", "Slack"],
+    messageCodes: ["MSG-012", "MSG-013"], optionalFacts: ["order.manualId", "custom.alwaysfit.financial.remaining.refund", "payment.method"], dependencies: ["Lancador", "Slack"],
     forbiddenCapabilities: ["CREATE_ORDER", "CONFIRM_ORDER", "POST_SLACK", "ISSUE_REFUND", "SUBMIT", "SEND_MESSAGE"], riskLevel: "CRITICAL",
     choices: [{ label: "Troca gerada e diferença solicitada", target: "ETAPA-029" }]
   }),
   stage("ETAPA-029", "Enviar previsão e rastreio", "MESSAGE", "Preencha novo pedido e previsão, copie MSG-016 e envie manualmente. O gatilho ou barra definitiva desta mensagem permanece pendente.", {
-    messageCodes: ["MSG-016"], requiredFacts: ["order.manualId", "logistics.forecast"], dependencies: ["Rastreio", "PENDENCIA-009"],
+    messageCodes: ["MSG-016"], optionalFacts: ["order.manualId", "logistics.forecast"], dependencies: ["Rastreio", "PENDENCIA-009"],
     choices: [{ label: "Previsão e rastreio enviados", target: "ETAPA-030" }]
   }),
   stage("ETAPA-030", "Perguntar se pode ajudar em algo mais", "MESSAGE", "Copie MSG-014. Se houver outra demanda, encerre este fluxo e abra o fluxo correspondente; não reutilize este procedimento como fluxo genérico.", {
