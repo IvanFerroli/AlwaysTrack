@@ -4,6 +4,10 @@ import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState } from "../components/operational";
+import {
+  ProductQuantitySelector,
+  parseProductQuantityItems
+} from "../components/product-quantity-selector";
 import { formatDateBr } from "../sales";
 
 interface FlowScript {
@@ -78,6 +82,10 @@ interface ServiceFlowsResponse {
   canManage: boolean;
 }
 
+interface ProductCatalogResponse {
+  items: Array<{ name: string; sku?: string | null }>;
+}
+
 interface ServiceFlowMetrics {
   summary: { totalFlows: number; publishedFlows: number; reviewDue: number; openSessions: number };
   mostUsedFlows: Array<{ flowId: string; title: string; sessions: number }>;
@@ -113,6 +121,7 @@ type RewindStrategy = "DISCARD_FOLLOWING" | "RECONFIRM_FOLLOWING";
 interface FlowDecisionOption {
   label: string;
   target?: string;
+  requiredFacts?: string[];
 }
 
 const flowStatuses = [
@@ -157,7 +166,11 @@ function optionsFromDecision(decision: Record<string, unknown> | null | undefine
     if (!item || typeof item !== "object") return [];
     const option = item as Record<string, unknown>;
     return typeof option.label === "string"
-      ? [{ label: option.label, ...(typeof option.target === "string" ? { target: option.target } : {}) }]
+      ? [{
+          label: option.label,
+          ...(typeof option.target === "string" ? { target: option.target } : {}),
+          ...(Array.isArray(option.requiredFacts) ? { requiredFacts: option.requiredFacts.filter((item): item is string => typeof item === "string") } : {})
+        }]
       : [];
   });
   return Object.entries(decision)
@@ -191,7 +204,46 @@ function placeholdersFor(script: Pick<FlowScript, "placeholders">, values: Recor
     novo_pedido: "order.manualId",
     modo_de_uso: "custom.alwaysfit.product.recommended.usage"
   };
-  return Object.fromEntries((script.placeholders ?? []).map((placeholder) => [placeholder, values[placeholder] ?? values[aliases[placeholder]] ?? ""]));
+  const products = parseProductQuantityItems(values["order.products"] ?? "");
+  return Object.fromEntries((script.placeholders ?? []).map((placeholder) => {
+    if (placeholder === "produtos_pedido") {
+      return [placeholder, products.map((item) => `${item.quantity}x ${item.name}`).join("\n— ")];
+    }
+    if (/^produto_[1-9]\d*$/.test(placeholder)) {
+      const item = products[Number(placeholder.replace("produto_", "")) - 1];
+      return [placeholder, item ? `${item.quantity}x ${item.name}` : ""];
+    }
+    return [placeholder, values[placeholder] ?? values[aliases[placeholder]] ?? ""];
+  }));
+}
+
+const productFieldConfiguration: Record<string, { sourceKey?: string; allowCustom: boolean; allowAll?: boolean }> = {
+  "order.products": { allowCustom: true },
+  "custom.alwaysfit.health.related.products": { sourceKey: "order.products", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.health.concomitant.products": { sourceKey: "order.products", allowCustom: true, allowAll: true },
+  "custom.alwaysfit.return.open.items": { sourceKey: "order.products", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.return.sealed.items": { sourceKey: "order.products", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.return.returned.sealed.items": { sourceKey: "custom.alwaysfit.return.sealed.items", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.return.retained.sealed.items": { sourceKey: "custom.alwaysfit.return.sealed.items", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.exchange.items": { allowCustom: true }
+};
+
+function caseValuePresent(key: string, value: string | undefined) {
+  if (productFieldConfiguration[key]) return parseProductQuantityItems(value ?? "").length > 0;
+  if (key === "customer.cpf") return (value ?? "").replace(/\D/g, "").length === 11;
+  return Boolean(value?.trim());
+}
+
+function cpfDigits(value: string) {
+  return value.replace(/\D/g, "").slice(0, 11);
+}
+
+function formatCpf(value: string) {
+  const digits = cpfDigits(value);
+  return digits
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
 }
 
 function factsFromSnapshot(value: string | null | undefined) {
@@ -305,6 +357,7 @@ function wordsFor(value: string) {
 export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [flows, setFlows] = useState<ServiceFlowItem[]>([]);
   const [scripts, setScripts] = useState<FlowScript[]>([]);
+  const [productCatalog, setProductCatalog] = useState<Array<{ name: string; sku?: string | null }>>([]);
   const [personalScripts, setPersonalScripts] = useState<PersonalScriptItem[]>([]);
   const [metrics, setMetrics] = useState<ServiceFlowMetrics | null>(null);
   const [selectedId, setSelectedId] = useState("");
@@ -320,6 +373,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
   const [stepDecisions, setStepDecisions] = useState<Record<string, string>>({});
   const [rewindTarget, setRewindTarget] = useState<ServiceFlowStep | null>(null);
+  const [restartConfirm, setRestartConfirm] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
   const [governanceDraft, setGovernanceDraft] = useState({ comment: "", reviewDueAt: "" });
@@ -352,7 +406,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       ...visiblePersonalScripts.flatMap((script) => script.placeholders ?? [])
     ].map((key) => aliases[key] ?? key);
     return [...new Set([...required, ...optional, ...placeholders])]
-      .map((key) => ({ key, label: humanizeCaseField(key), required: required.has(key) }))
+      .filter((key) => key !== "custom.alwaysfit.treatment.unusable.scope")
+      .map((key) => ({
+        key,
+        label: humanizeCaseField(key),
+        required: required.has(key),
+        kind: productFieldConfiguration[key] ? "products" as const : key === "customer.cpf" ? "cpf" as const : "text" as const
+      }))
       .sort((left, right) => Number(right.required) - Number(left.required) || left.label.localeCompare(right.label, "pt-BR"));
   }, [activeSession, selected, visiblePersonalScripts]);
   const visibleSteps = useMemo(() => {
@@ -375,13 +435,15 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     if (tag) params.set("tag", tag);
     if (status) params.set("status", status);
     try {
-      const [flowResult, scriptResult] = await Promise.all([
+      const [flowResult, scriptResult, productResult] = await Promise.all([
         api<ServiceFlowsResponse>(`/v1/service-flows?${params.toString()}`),
-        api<ScriptLibraryResponse>("/v1/script-library")
+        api<ScriptLibraryResponse>("/v1/script-library"),
+        api<ProductCatalogResponse>("/v1/service-flows/product-catalog").catch(() => ({ items: [] }))
       ]);
       const personalResult = await api<PersonalScriptsResponse>("/v1/script-library/personal-scripts").catch(() => ({ items: [] }));
       setFlows(flowResult.items);
       setScripts(scriptResult.scripts.filter((script) => script.status !== "OBSOLETE"));
+      setProductCatalog(productResult.items ?? []);
       setPersonalScripts(personalResult.items);
       const next = nextSelectedId && flowResult.items.some((flow) => flow.id === nextSelectedId) ? nextSelectedId : flowResult.items[0]?.id ?? "";
       setSelectedId(next);
@@ -409,6 +471,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     setStepNotes({});
     setStepDecisions({});
     setRewindTarget(null);
+    setRestartConfirm(false);
     setPersonalDraft((current) => ({ ...current, flowIds: selectedId ? [selectedId] : [] }));
   }, [selectedId]);
 
@@ -440,33 +503,78 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     window.setTimeout(() => setCopyFeedback(""), 1600);
   }
 
+  function applySession(session: ServiceFlowSession) {
+    const selectedSteps = selected?.steps ?? [];
+    const stateKey = (sessionStep: ServiceFlowSession["steps"][number]) => sessionStep.stepId
+      ?? selectedSteps.find((step) => nodeKeyFromStep(step) === sessionStep.nodeKey)?.id
+      ?? sessionStep.nodeKey;
+    setActiveSession(session);
+    setCaseData(session.caseData ?? {});
+    setCaseDataDirty(false);
+    setCaseDataFeedback("");
+    setStepNotes(Object.fromEntries(session.steps.flatMap((step) => {
+      const key = stateKey(step);
+      return key ? [[key, step.note ?? ""]] : [];
+    })));
+    setStepDecisions(Object.fromEntries(session.steps.flatMap((step) => {
+      const key = stateKey(step);
+      return key ? [[key, step.decision ?? ""]] : [];
+    })));
+    const pending = session.steps.find((step) => step.status === "PENDING" || step.status === "RECONFIRMATION_REQUIRED");
+    const pendingStep = pending ? selectedSteps.find((step) => step.id === pending.stepId || nodeKeyFromStep(step) === pending.nodeKey) : null;
+    const currentStep = pendingStep ?? selectedSteps[0] ?? null;
+    setOpenSteps(Object.fromEntries(selectedSteps.map((step) => [step.id, step.id === currentStep?.id])));
+    if (pendingStep) focusServiceFlowStep(pending?.nodeKey ?? pendingStep.id);
+  }
+
   async function startSession() {
     if (!selected) return;
     setSaving(true);
     setError(null);
     try {
       const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flows/${selected.id}/sessions`, { method: "POST" });
-      setActiveSession(result.session);
-      setCaseData(result.session.caseData ?? {});
-      setCaseDataDirty(false);
-      setCaseDataFeedback("");
-      const selectedSteps = selected.steps;
-      const stateKey = (sessionStep: ServiceFlowSession["steps"][number]) => sessionStep.stepId
-        ?? selectedSteps.find((step) => nodeKeyFromStep(step) === sessionStep.nodeKey)?.id
-        ?? sessionStep.nodeKey;
-      setStepNotes(Object.fromEntries(result.session.steps.flatMap((step) => {
-        const key = stateKey(step);
-        return key ? [[key, step.note ?? ""]] : [];
-      })));
-      setStepDecisions(Object.fromEntries(result.session.steps.flatMap((step) => {
-        const key = stateKey(step);
-        return key ? [[key, step.decision ?? ""]] : [];
-      })));
+      applySession(result.session);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao iniciar atendimento.");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function restartSession() {
+    if (!activeSession || activeSession.status !== "OPEN") return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/restart`, { method: "POST" });
+      applySession(result.session);
+      setRestartConfirm(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao reiniciar atendimento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateCaseDataValue(key: string, value: string) {
+    setCaseData((current) => ({ ...current, [key]: value }));
+    setCaseDataDirty(true);
+    setCaseDataFeedback("");
+  }
+
+  function productSuggestionsFor(key: string): Array<{ name: string; quantity?: number }> {
+    const configuration = productFieldConfiguration[key];
+    if (configuration?.sourceKey) return parseProductQuantityItems(caseData[configuration.sourceKey] ?? "");
+    const catalog = productCatalog.map((item) => ({ name: item.name }));
+    if (key === "custom.alwaysfit.exchange.items") {
+      const suggestions = new Map<string, { name: string; quantity?: number }>();
+      for (const item of [...parseProductQuantityItems(caseData["order.products"] ?? ""), ...catalog]) {
+        const normalized = item.name.trim().toLocaleLowerCase("pt-BR");
+        if (!suggestions.has(normalized)) suggestions.set(normalized, item);
+      }
+      return [...suggestions.values()];
+    }
+    return catalog;
   }
 
   async function saveCaseData() {
@@ -565,6 +673,14 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     setSaving(true);
     setError(null);
     try {
+      if (caseDataDirty) {
+        const saved = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/case-data`, {
+          method: "PATCH",
+          body: JSON.stringify({ values: caseData })
+        });
+        setCaseData(saved.session.caseData ?? caseData);
+        setCaseDataDirty(false);
+      }
       const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/complete`, { method: "POST" });
       setActiveSession(result.session);
     } catch (caught) {
@@ -744,7 +860,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
         </section>
       ) : null}
       <div className="service-flow-layout">
-        <section className="panel table-panel">
+        <aside className="panel table-panel service-flow-sidebar">
           <div className="table-panel-toolbar">
             <div>
               <p className="eyebrow">Fluxos</p>
@@ -780,7 +896,89 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
             ) : null}
             {!loading && flows.length === 0 ? <OperationalState state="empty" title="Nenhum fluxo encontrado" detail="Cadastre um fluxo para guiar atendimentos recorrentes." /> : null}
           </div>
-        </section>
+          {selected ? (
+            <section className="service-flow-session-controls" aria-labelledby="service-flow-session-title">
+              <div>
+                <p className="eyebrow">Atendimento</p>
+                <h3 id="service-flow-session-title">
+                  {activeSession?.status === "COMPLETED" ? "Atendimento concluído" : activeSession ? "Atendimento em andamento" : "Pronto para iniciar"}
+                </h3>
+              </div>
+              <div className="service-flow-session-actions">
+                {activeSession?.status === "OPEN" ? (
+                  <>
+                    <button type="button" disabled={saving || !canCompleteSession} onClick={() => void completeSession()}>
+                      <Check size={17} aria-hidden="true" /> Concluir atendimento
+                    </button>
+                    <button className="secondary" type="button" disabled={saving} onClick={() => setRestartConfirm(true)}>
+                      <RotateCcw size={17} aria-hidden="true" /> Reiniciar
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" disabled={saving} onClick={() => void startSession()}>
+                    <Plus size={17} aria-hidden="true" /> {activeSession ? "Novo atendimento" : "Iniciar atendimento"}
+                  </button>
+                )}
+              </div>
+              {activeSession?.status === "OPEN" && !canCompleteSession ? <small className="muted">Conclua o caminho atual antes de encerrar.</small> : null}
+            </section>
+          ) : null}
+          {activeSession ? (
+            <section className="service-flow-case-data" aria-labelledby="service-flow-case-data-title">
+              <div className="service-flow-section-heading">
+                <div>
+                  <p className="eyebrow">Ficha do atendimento</p>
+                  <h3 id="service-flow-case-data-title">Dados do caso</h3>
+                </div>
+                <button type="button" disabled={saving || !caseDataDirty || activeSession.status === "COMPLETED"} onClick={() => void saveCaseData()}>Salvar</button>
+              </div>
+              {caseDataFeedback ? <span className="status-pill">{caseDataFeedback}</span> : null}
+              <div className="service-flow-case-grid">
+                {caseFields.map((field) => field.kind === "products" ? (
+                  <ProductQuantitySelector
+                    key={field.key}
+                    label={field.label}
+                    value={caseData[field.key] ?? ""}
+                    suggestions={productSuggestionsFor(field.key)}
+                    required={field.required}
+                    disabled={activeSession.status === "COMPLETED"}
+                    allowCustom={productFieldConfiguration[field.key]?.allowCustom}
+                    allowAll={productFieldConfiguration[field.key]?.allowAll}
+                    emptyHint="Nenhum item selecionado."
+                    onChange={(value) => updateCaseDataValue(field.key, value)}
+                  />
+                ) : (
+                  <label key={field.key}>
+                    <span>{field.label}{field.required ? <strong aria-label="obrigatório"> *</strong> : null}</span>
+                    <input
+                      value={field.kind === "cpf" ? formatCpf(caseData[field.key] ?? "") : caseData[field.key] ?? ""}
+                      inputMode={field.kind === "cpf" ? "numeric" : undefined}
+                      maxLength={field.kind === "cpf" ? 14 : undefined}
+                      disabled={activeSession.status === "COMPLETED"}
+                      onChange={(event) => updateCaseDataValue(field.key, field.kind === "cpf" ? cpfDigits(event.target.value) : event.target.value)}
+                    />
+                  </label>
+                ))}
+              </div>
+              {caseFields.length ? null : <p className="muted">Este trecho não precisa de dados adicionais.</p>}
+            </section>
+          ) : null}
+          {activeSession?.status === "COMPLETED" && activeSession.report ? (
+            <section className="service-flow-report" aria-labelledby="service-flow-report-title">
+              <div className="service-flow-section-heading">
+                <div>
+                  <p className="eyebrow">Encerramento</p>
+                  <h3 id="service-flow-report-title">Resumo para sussurro</h3>
+                </div>
+                <button className={copyFeedback === "session-report" ? "copied" : ""} type="button" title="Copiar resumo" onClick={() => void copySessionReport()}>
+                  {copyFeedback === "session-report" ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                  <span className="sr-only">{copyFeedback === "session-report" ? "Copiado" : "Copiar resumo"}</span>
+                </button>
+              </div>
+              <pre>{activeSession.report}</pre>
+            </section>
+          ) : null}
+        </aside>
         <section className="panel service-flow-runner">
           {selected ? (
             <>
@@ -796,9 +994,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   {selected.summary ? <p className="muted">{selected.summary}</p> : null}
                 </div>
                 <div className="row-actions">
-                  {activeSession ? <span className="status-pill">{activeSession.status === "COMPLETED" ? "Atendimento finalizado" : "Atendimento em andamento"}</span> : null}
                   {selected.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selected.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
-                  {activeSession?.status === "OPEN" ? <button type="button" disabled={saving || !canCompleteSession} onClick={() => void completeSession()}>Finalizar</button> : <button type="button" disabled={saving} onClick={() => void startSession()}>Iniciar atendimento</button>}
                 </div>
               </div>
               {selected.content ? <MarkdownContent content={selected.content} /> : null}
@@ -830,52 +1026,6 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   ) : null}
                 </div>
               ) : null}
-              {activeSession ? (
-                <section className="service-flow-case-data" aria-labelledby="service-flow-case-data-title">
-                  <div className="service-flow-section-heading">
-                    <div>
-                      <p className="eyebrow">Ficha do atendimento</p>
-                      <h3 id="service-flow-case-data-title">Dados compartilhados pelas macros</h3>
-                    </div>
-                    <div className="row-actions">
-                      {caseDataFeedback ? <span className="status-pill">{caseDataFeedback}</span> : null}
-                      <button type="button" disabled={saving || !caseDataDirty || activeSession.status === "COMPLETED"} onClick={() => void saveCaseData()}>Salvar dados</button>
-                    </div>
-                  </div>
-                  <div className="service-flow-case-grid">
-                    {caseFields.map((field) => (
-                      <label key={field.key}>
-                        <span>{field.label}{field.required ? <strong aria-label="obrigatório"> *</strong> : null}</span>
-                        <input
-                          value={caseData[field.key] ?? ""}
-                          disabled={activeSession.status === "COMPLETED"}
-                          onChange={(event) => {
-                            setCaseData((current) => ({ ...current, [field.key]: event.target.value }));
-                            setCaseDataDirty(true);
-                            setCaseDataFeedback("");
-                          }}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  {caseFields.length ? null : <p className="muted">Este trecho ainda não exige dados compartilhados.</p>}
-                </section>
-              ) : null}
-              {activeSession?.report ? (
-                <section className="service-flow-report" aria-labelledby="service-flow-report-title">
-                  <div className="service-flow-section-heading">
-                    <div>
-                      <p className="eyebrow">Encerramento</p>
-                      <h3 id="service-flow-report-title">Resumo para sussurro</h3>
-                    </div>
-                    <button className={copyFeedback === "session-report" ? "copied" : ""} type="button" onClick={() => void copySessionReport()}>
-                      {copyFeedback === "session-report" ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
-                      {copyFeedback === "session-report" ? "Copiado" : "Copiar resumo"}
-                    </button>
-                  </div>
-                  <pre>{activeSession.report}</pre>
-                </section>
-              ) : null}
               <div className="service-flow-steps">
                 {visibleSteps.map((step, index) => {
                   const expanded = openSteps[step.id] ?? index === 0;
@@ -883,7 +1033,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKey);
                   const decisionOptions = optionsFromDecision(step.decision);
                   const snapshot = factsFromSnapshot(sessionStep?.nodeSnapshotJson);
-                  const missingRequiredFacts = snapshot.required.filter((key) => !caseData[key]?.trim());
+                  const missingRequiredFacts = snapshot.required.filter((key) => !caseValuePresent(key, caseData[key]));
                   const canSkipStep = !activeSession?.version && !step.required && snapshot.type !== "RISK_GATE" && snapshot.required.length === 0;
                   return (
                     <article
@@ -909,15 +1059,19 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                           {decisionOptions.length ? (
                             <div className="service-flow-decision">
                               <GitBranch size={16} aria-hidden="true" />
-                              {decisionOptions.map((option) => activeSession ? (
-                                <button
-                                  key={`${option.label}:${option.target ?? "legacy"}`}
-                                  type="button"
-                                  aria-pressed={stepDecisions[step.id] === option.label}
-                                  disabled={saving || activeSession.status === "COMPLETED" || sessionStep?.status === "DONE" || missingRequiredFacts.length > 0}
-                                  onClick={() => void saveSessionStep(step, "DONE", option)}
-                                >{option.label}</button>
-                              ) : <span key={`${option.label}:${option.target ?? "legacy"}`}>{option.label}</span>)}
+                              {decisionOptions.map((option) => {
+                                const missingOptionFacts = (option.requiredFacts ?? []).filter((key) => !caseValuePresent(key, caseData[key]));
+                                return activeSession ? (
+                                  <button
+                                    key={`${option.label}:${option.target ?? "legacy"}`}
+                                    type="button"
+                                    aria-pressed={stepDecisions[step.id] === option.label}
+                                    title={missingOptionFacts.length ? `Preencha: ${missingOptionFacts.map(humanizeCaseField).join(", ")}` : undefined}
+                                    disabled={saving || activeSession.status === "COMPLETED" || sessionStep?.status === "DONE" || missingRequiredFacts.length > 0 || missingOptionFacts.length > 0}
+                                    onClick={() => void saveSessionStep(step, "DONE", option)}
+                                  >{option.label}</button>
+                                ) : <span key={`${option.label}:${option.target ?? "legacy"}`}>{option.label}</span>;
+                              })}
                             </div>
                           ) : null}
                           {step.scripts.length ? (
@@ -1055,6 +1209,26 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
               <small>Remove o caminho posterior desta execução e permite seguir por uma nova decisão.</small>
             </button>
             <button className="secondary" type="button" disabled={saving} onClick={() => setRewindTarget(null)}>Cancelar</button>
+          </section>
+        </div>
+      ) : null}
+      {restartConfirm ? (
+        <div
+          className="service-flow-dialog-backdrop"
+          role="presentation"
+          onClick={(event) => { if (event.target === event.currentTarget && !saving) setRestartConfirm(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape" && !saving) setRestartConfirm(false); }}
+        >
+          <section className="service-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="service-flow-restart-title" onClick={(event) => event.stopPropagation()}>
+            <div>
+              <p className="eyebrow">Reiniciar atendimento</p>
+              <h2 id="service-flow-restart-title">Começar este caso novamente?</h2>
+              <p className="muted">O histórico atual será preservado para auditoria. Uma nova execução começará com a ficha vazia.</p>
+            </div>
+            <button className="danger" autoFocus type="button" disabled={saving} onClick={() => void restartSession()}>
+              Reiniciar com ficha vazia
+            </button>
+            <button className="secondary" type="button" disabled={saving} onClick={() => setRestartConfirm(false)}>Cancelar</button>
           </section>
         </div>
       ) : null}

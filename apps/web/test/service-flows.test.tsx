@@ -350,8 +350,8 @@ describe("ServiceFlowsView", () => {
     ));
     expect(await screen.findByText("DONE · YES_NO · obrigatório")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Finalizar" }));
-    expect(await screen.findByText("Atendimento finalizado")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Concluir atendimento" }));
+    expect(await screen.findByText("Atendimento concluído")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Resumo para sussurro" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Copiar resumo" }));
     expect(clipboardWriteMock).toHaveBeenCalledWith("Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado");
@@ -392,7 +392,7 @@ describe("ServiceFlowsView", () => {
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     expect(await screen.findByText("ETAPA-001 — Receber relato")).toBeInTheDocument();
     expect(screen.queryByText("ETAPA-002 — Apresentação com nome")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Finalizar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Relato reconhecido como caso deste fluxo" }));
 
@@ -453,6 +453,52 @@ describe("ServiceFlowsView", () => {
     );
   });
 
+  it("masks CPF and requires it only for the decision that confirms collection", async () => {
+    const user = userEvent.setup();
+    const cpfFlow = {
+      ...pilotFlow,
+      steps: [{
+        ...pilotFlow.steps[0],
+        title: "ETAPA-003 — Conseguir CPF",
+        decision: { nodeKey: "ETAPA-003", options: [
+          { label: "CPF obtido", target: "ETAPA-004", requiredFacts: ["customer.cpf"] },
+          { label: "Cliente não informou", target: "RESULTADO-009" }
+        ] }
+      }]
+    };
+    const started = {
+      id: "cpf-session", status: "OPEN", startedAt: "2026-07-15T12:00:00.000Z", completedAt: null,
+      flow: { id: cpfFlow.id, slug: cpfFlow.slug, title: cpfFlow.title },
+      version: { id: "pilot-version", version: 1, title: cpfFlow.title, publishedAt: "2026-07-15T12:00:00.000Z" },
+      caseData: {},
+      steps: [{
+        id: "visit-cpf", stepId: null, nodeKey: "ETAPA-003",
+        nodeSnapshotJson: JSON.stringify({ optionalFacts: ["customer.cpf"], terminal: false }),
+        status: "PENDING", decision: null, note: null, completedAt: null, step: null
+      }]
+    };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [cpfFlow], canManage: false });
+      if (path === "/v1/script-library") return Promise.resolve({ scripts: [] });
+      if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [] });
+      if (path === `/v1/service-flows/${cpfFlow.id}/sessions`) return Promise.resolve({ session: started });
+      return successfulApi(path, init);
+    });
+
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: cpfFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    const positive = screen.getByRole("button", { name: "CPF obtido" });
+    const negative = screen.getByRole("button", { name: "Cliente não informou" });
+    expect(positive).toBeDisabled();
+    expect(negative).toBeEnabled();
+
+    const cpf = screen.getByRole("textbox", { name: "CPF do cliente" });
+    await user.type(cpf, "70048683469");
+    expect(cpf).toHaveValue("700.486.834-69");
+    expect(positive).toBeEnabled();
+  });
+
   it("keeps an allow-loop decision open and focused on the same step", async () => {
     const user = userEvent.setup();
     const loopFlow = {
@@ -500,7 +546,7 @@ describe("ServiceFlowsView", () => {
     await user.type(customer, "Maria Silva");
     expect(screen.getByText("Ola, Maria Silva. A troca esta autorizada.")).toBeInTheDocument();
     expect(screen.getByText("Retorno para Maria Silva")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Salvar dados" }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
       "/v1/service-flow-sessions/session-1/case-data",
@@ -537,7 +583,26 @@ describe("ServiceFlowsView", () => {
       { method: "POST", body: JSON.stringify({ strategy: "RECONFIRM_FOLLOWING" }) }
     ));
     expect(screen.getByText("RECONFIRMATION_REQUIRED · CHECKLIST")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Finalizar" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
+  });
+
+  it("confirms restart and replaces the active case with a fresh audited session", async () => {
+    const user = userEvent.setup();
+    const fresh = { ...session(), id: "session-2", caseData: {}, steps: session().steps.map((step) => ({ ...step, id: `${step.id}-new` })) };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/v1/service-flow-sessions/session-1/restart") return Promise.resolve({ session: fresh });
+      return successfulApi(path, init);
+    });
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    await user.type(screen.getByRole("textbox", { name: "Cliente" }), "Maria");
+    await user.click(screen.getByRole("button", { name: "Reiniciar" }));
+    expect(screen.getByRole("dialog", { name: "Começar este caso novamente?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reiniciar com ficha vazia" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/service-flow-sessions/session-1/restart", { method: "POST" }));
+    expect(screen.getByRole("textbox", { name: "Cliente" })).toHaveValue("");
   });
 
   it("renders placeholders safely and audits canonical script copy in the active session", async () => {

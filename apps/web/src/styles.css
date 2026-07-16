@@ -3262,6 +3262,16 @@ legend {
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.8fr);
 }
 
+.service-flow-sidebar {
+  align-self: start;
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  position: sticky;
+  top: 12px;
+}
+
 .service-flow-picker,
 .service-flow-personal-scripts,
 .service-flow-personal-form {
@@ -3345,6 +3355,36 @@ legend {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.service-flow-sidebar .service-flow-case-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.service-flow-session-controls {
+  border-top: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.service-flow-session-controls h3 {
+  margin: 0;
+}
+
+.service-flow-session-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.service-flow-session-actions button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.service-flow-session-actions button:only-child {
+  grid-column: 1 / -1;
+}
+
 .service-flow-case-grid label {
   display: grid;
   gap: 6px;
@@ -3359,6 +3399,111 @@ legend {
 
 .service-flow-case-grid label strong {
   color: var(--color-danger);
+}
+
+.service-flow-product-selector {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  position: relative;
+}
+
+.service-flow-product-label {
+  color: var(--color-heading);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.service-flow-product-combobox {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.service-flow-product-all {
+  padding-inline: 10px;
+}
+
+.service-flow-product-options {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  max-height: 210px;
+  overflow: auto;
+  padding: 5px;
+  position: absolute;
+  top: 66px;
+  width: 100%;
+  z-index: 8;
+}
+
+.service-flow-product-option,
+.service-flow-product-custom {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--color-heading);
+  justify-content: flex-start;
+  padding: 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.service-flow-product-option:hover,
+.service-flow-product-option:focus-visible,
+.service-flow-product-custom:hover,
+.service-flow-product-custom:focus-visible {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.service-flow-product-no-results,
+.service-flow-product-empty {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  margin: 0;
+  padding: 8px;
+}
+
+.service-flow-product-selected {
+  display: grid;
+  gap: 6px;
+}
+
+.service-flow-product-item {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 6px 7px 6px 9px;
+}
+
+.service-flow-product-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.service-flow-product-quantity {
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.service-flow-product-actions {
+  display: flex;
+  gap: 3px;
+}
+
+.service-flow-product-actions button {
+  min-height: 30px;
+  padding: 5px;
+  width: 30px;
 }
 
 .service-flow-report pre {
@@ -4610,6 +4755,12 @@ legend {
   .profile-header-panel,
   .profile-readonly-grid {
     grid-template-columns: 1fr;
+  }
+
+  .service-flow-sidebar {
+    max-height: none;
+    overflow: visible;
+    position: static;
   }
 
   .diagnostics-grid {
