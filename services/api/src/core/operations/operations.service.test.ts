@@ -77,9 +77,23 @@ function prismaMock() {
           priority: "HIGH",
           pinned: true,
           requiresAck: true,
+          targetRolesJson: '["SAC"]',
           publishedAt: new Date("2026-06-12T08:00:00.000Z"),
           expiresAt: null
         }
+      ])
+    },
+    announcementReadReceipt: {
+      findMany: vi.fn().mockResolvedValue([
+        { announcementId: "ann-1", userId: "sac-1", acknowledgedAt: new Date("2026-06-12T09:00:00.000Z") },
+        { announcementId: "ann-1", userId: "sac-2", acknowledgedAt: null }
+      ])
+    },
+    user: {
+      findMany: vi.fn().mockResolvedValue([
+        { id: "sac-1", name: "Ana SAC", email: "ana.sac@example.com", role: "SAC" },
+        { id: "sac-2", name: "Bruno SAC", email: "bruno.sac@example.com", role: "SAC" },
+        { id: "sac-3", name: "Carla SAC", email: "carla.sac@example.com", role: "SAC" }
       ])
     },
     salesItem: {
@@ -109,7 +123,21 @@ describe("operations service", () => {
     expect(result.metrics.wikiPendingReviews).toBe(1);
     expect(result.metrics.faqUnanswered).toBe(1);
     expect(result.metrics.activeAnnouncements).toBe(2);
-    expect(result.queues.activeAnnouncements[0]).toMatchObject({ slug: "aviso-do-dia", priority: "HIGH" });
+    expect(result.queues.activeAnnouncements[0]).toMatchObject({
+      slug: "aviso-do-dia",
+      priority: "HIGH",
+      acknowledgement: {
+        audienceCount: 3,
+        acknowledgedCount: 1,
+        openedCount: 2,
+        pendingCount: 2,
+        completed: false,
+        acknowledgedUsers: [{ id: "sac-1", name: "Ana SAC" }],
+        openedWithoutAckUsers: [{ id: "sac-2", name: "Bruno SAC" }],
+        notOpenedUsers: [{ id: "sac-3", name: "Carla SAC" }]
+      }
+    });
+    expect(prisma.announcement.findMany.mock.calls[0]?.[0]?.where.targetRolesJson).toBeUndefined();
     expect(result.queues.ranking[0]).toMatchObject({ sellerName: "Ana", totalAmountCents: 10000, documents: 1 });
     expect(result.queues.alerts.some((alert) => alert?.title === "Falhas de extracao hoje")).toBe(true);
   });
@@ -139,5 +167,10 @@ describe("operations service", () => {
     expect(prisma.salesDocument.findMany).not.toHaveBeenCalled();
     expect(prisma.salesCampaign.findMany).not.toHaveBeenCalled();
     expect(prisma.salesItem.findMany).not.toHaveBeenCalled();
+    expect(result.queues.activeAnnouncements[0]).not.toHaveProperty("acknowledgement");
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+    expect(prisma.announcement.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ organizationId: "org-1", targetRolesJson: { contains: '"SAC"' } })
+    }));
   });
 });

@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
+import { canUseCommercialPermission, commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
+import { getAnnouncementsAcknowledgementCompliance } from "../announcements/announcements.service.js";
 import { getSalesRanking } from "../sales-documents/sales-documents.service.js";
 
 function startOfUtcDay(date: Date) {
@@ -46,7 +47,7 @@ function announcementScopeWhere(actor: CurrentUser, today: Date): Prisma.Announc
     status: "PUBLISHED",
     OR: [{ startsAt: null }, { startsAt: { lte: today } }],
     AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gte: today } }] }],
-    targetRolesJson: { contains: `"${actor.role}"` }
+    targetRolesJson: (commercialManagerRoles as readonly string[]).includes(actor.role) ? undefined : { contains: `"${actor.role}"` }
   };
 }
 
@@ -158,6 +159,21 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
     canSeeRanking ? getSalesRanking(prisma, actor, { from: todayText, to: todayText }) : Promise.resolve({ items: [] })
   ]);
 
+  const canSeeAnnouncementCompliance = (commercialManagerRoles as readonly string[]).includes(actor.role);
+  const acknowledgementByAnnouncementId = canSeeAnnouncementCompliance
+    ? await getAnnouncementsAcknowledgementCompliance(
+        prisma,
+        actor.organizationId,
+        announcementQueue.filter((announcement) => announcement.requiresAck)
+      )
+    : new Map();
+  const activeAnnouncementQueue = canSeeAnnouncementCompliance
+    ? announcementQueue.map((announcement) => ({
+        ...announcement,
+        acknowledgement: announcement.requiresAck ? (acknowledgementByAnnouncementId.get(announcement.id) ?? null) : null
+      }))
+    : announcementQueue;
+
   const alerts = [
     extractionFailuresToday > 0
       ? { severity: "danger", title: "Falhas de extracao hoje", detail: `${extractionFailuresToday} evento(s) precisam de diagnostico.`, target: "notes" }
@@ -198,7 +214,7 @@ export async function getOperationalToday(prisma: PrismaClient, actor: CurrentUs
       wikiPendingReviews: wikiPendingQueue,
       faqUnanswered: faqUnansweredQueue,
       unreadNotifications: unreadNotificationQueue,
-      activeAnnouncements: announcementQueue,
+      activeAnnouncements: activeAnnouncementQueue,
       alerts
     }
   };

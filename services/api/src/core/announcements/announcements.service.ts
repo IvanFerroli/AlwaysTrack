@@ -41,6 +41,29 @@ export interface AnnouncementLink {
   href: string;
 }
 
+export interface AnnouncementAcknowledgementUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface AnnouncementAcknowledgementCompliance {
+  audienceCount: number;
+  acknowledgedCount: number;
+  openedCount: number;
+  pendingCount: number;
+  completed: boolean;
+  acknowledgedUsers: AnnouncementAcknowledgementUser[];
+  openedWithoutAckUsers: AnnouncementAcknowledgementUser[];
+  notOpenedUsers: AnnouncementAcknowledgementUser[];
+}
+
+export interface AnnouncementAcknowledgementSource {
+  id: string;
+  targetRolesJson: string | null;
+}
+
 const statuses = new Set(["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED", "EXPIRED"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "CRITICAL"]);
 const contentFormat = "MARKDOWN";
@@ -144,6 +167,74 @@ function cleanRoles(values: unknown[] = []) {
     if (typeof value === "string" && allowed.has(value)) roles.add(value as UserRole);
   }
   return [...roles];
+}
+
+/** Builds tenant-bound acknowledgement compliance for several announcements with one audience query. */
+export async function getAnnouncementsAcknowledgementCompliance(
+  prisma: PrismaClient,
+  organizationId: string,
+  announcements: AnnouncementAcknowledgementSource[]
+) {
+  const sources = [...new Map(announcements.map((announcement) => [announcement.id, announcement])).values()];
+  if (sources.length === 0) return new Map<string, AnnouncementAcknowledgementCompliance>();
+
+  const rolesByAnnouncementId = new Map(
+    sources.map((announcement) => [announcement.id, cleanRoles(parseJsonArray<unknown>(announcement.targetRolesJson))])
+  );
+  const targetRoles = [...new Set([...rolesByAnnouncementId.values()].flat())];
+  const [users, receipts] = await Promise.all([
+    targetRoles.length
+      ? prisma.user.findMany({
+          where: { organizationId, active: true, role: { in: targetRoles } },
+          select: { id: true, name: true, email: true, role: true },
+          orderBy: [{ name: "asc" }, { email: "asc" }, { id: "asc" }]
+        })
+      : Promise.resolve([]),
+    prisma.announcementReadReceipt.findMany({
+      where: { organizationId, announcementId: { in: sources.map((announcement) => announcement.id) } },
+      select: { announcementId: true, userId: true, acknowledgedAt: true }
+    })
+  ]);
+  const receiptsByAnnouncementId = new Map<string, Map<string, { acknowledgedAt: Date | null }>>();
+  for (const receipt of receipts) {
+    const announcementReceipts = receiptsByAnnouncementId.get(receipt.announcementId) ?? new Map();
+    announcementReceipts.set(receipt.userId, { acknowledgedAt: receipt.acknowledgedAt });
+    receiptsByAnnouncementId.set(receipt.announcementId, announcementReceipts);
+  }
+
+  return new Map(
+    sources.map((announcement) => {
+      const targetRoleSet = new Set(rolesByAnnouncementId.get(announcement.id) ?? []);
+      const audience = users.filter((user) => targetRoleSet.has(user.role as UserRole));
+      const announcementReceipts = receiptsByAnnouncementId.get(announcement.id) ?? new Map();
+      const acknowledgedUsers: AnnouncementAcknowledgementUser[] = [];
+      const openedWithoutAckUsers: AnnouncementAcknowledgementUser[] = [];
+      const notOpenedUsers: AnnouncementAcknowledgementUser[] = [];
+
+      for (const user of audience) {
+        const receipt = announcementReceipts.get(user.id);
+        if (receipt?.acknowledgedAt) acknowledgedUsers.push(user);
+        else if (receipt) openedWithoutAckUsers.push(user);
+        else notOpenedUsers.push(user);
+      }
+
+      const audienceCount = audience.length;
+      const acknowledgedCount = acknowledgedUsers.length;
+      return [
+        announcement.id,
+        {
+          audienceCount,
+          acknowledgedCount,
+          openedCount: acknowledgedCount + openedWithoutAckUsers.length,
+          pendingCount: audienceCount - acknowledgedCount,
+          completed: audienceCount > 0 && acknowledgedCount === audienceCount,
+          acknowledgedUsers,
+          openedWithoutAckUsers,
+          notOpenedUsers
+        }
+      ];
+    })
+  );
 }
 
 function cleanLinks(values: unknown[] = []) {
@@ -291,7 +382,11 @@ export async function getAnnouncementBySlug(prisma: PrismaClient, actor: Current
     include: {
       createdBy: { select: { id: true, name: true, email: true, role: true } },
       updatedBy: { select: { id: true, name: true, email: true, role: true } },
-      readReceipts: { include: { user: { select: { id: true, name: true, email: true, role: true } } }, orderBy: { updatedAt: "desc" } }
+      readReceipts: {
+        where: isManager(actor) ? undefined : { userId: actor.id },
+        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+        orderBy: { updatedAt: "desc" }
+      }
     }
   });
   if (!item) throw new AnnouncementError("NOT_FOUND");
@@ -426,11 +521,37 @@ export async function archiveAnnouncement(prisma: PrismaClient, actor: CurrentUs
 export async function acknowledgeAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string) {
   const item = await prisma.announcement.findFirst({ where: { ...visibleAnnouncementWhere(actor), id: announcementId } });
   if (!item) throw new AnnouncementError("NOT_FOUND");
+  const existingReceipt = await prisma.announcementReadReceipt.findUnique({
+    where: { announcementId_userId: { announcementId: item.id, userId: actor.id } },
+    select: { acknowledgedAt: true }
+  });
+  const acknowledgedAt = existingReceipt?.acknowledgedAt ?? new Date();
   const receipt = await prisma.announcementReadReceipt.upsert({
     where: { announcementId_userId: { announcementId: item.id, userId: actor.id } },
-    create: { organizationId: actor.organizationId, announcementId: item.id, userId: actor.id, acknowledgedAt: new Date() },
-    update: { acknowledgedAt: new Date() }
+    create: { organizationId: actor.organizationId, announcementId: item.id, userId: actor.id, acknowledgedAt },
+    update: existingReceipt?.acknowledgedAt ? {} : { acknowledgedAt }
   });
+
+  const targetRoles = cleanRoles(parseJsonArray<unknown>(item.targetRolesJson));
+  if (item.requiresAck && !existingReceipt?.acknowledgedAt && targetRoles.includes(actor.role)) {
+    const compliance = (
+      await getAnnouncementsAcknowledgementCompliance(prisma, actor.organizationId, [
+        { id: item.id, targetRolesJson: item.targetRolesJson }
+      ])
+    ).get(item.id);
+    if (compliance?.completed) {
+      await emitInAppNotifications(prisma, actor.organizationId, {
+        recipientRoles: [...commercialManagerRoles],
+        type: "announcement.acknowledgement.completed",
+        title: "Todos marcaram ciência",
+        body: `Todos os ${compliance.audienceCount} destinatários marcaram ciência no aviso \"${item.title}\".`,
+        entityType: "Announcement",
+        entityId: item.id,
+        href: `/avisos/${item.slug}`,
+        dedupeKey: `announcement:${item.id}:acknowledgement:completed`
+      });
+    }
+  }
   return { receipt };
 }
 
