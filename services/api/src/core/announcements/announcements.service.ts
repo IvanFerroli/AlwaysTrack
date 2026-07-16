@@ -522,7 +522,9 @@ export async function acknowledgeAnnouncement(prisma: PrismaClient, actor: Curre
   const item = await prisma.announcement.findFirst({ where: { ...visibleAnnouncementWhere(actor), id: announcementId } });
   if (!item) throw new AnnouncementError("NOT_FOUND");
   const targetRoles = cleanRoles(parseJsonArray<unknown>(item.targetRolesJson));
-  if (effectiveStatus(item) !== "PUBLISHED" || !targetRoles.includes(actor.role)) throw new AnnouncementError("FORBIDDEN");
+  if (!item.requiresAck || effectiveStatus(item) !== "PUBLISHED" || !targetRoles.includes(actor.role)) {
+    throw new AnnouncementError("FORBIDDEN");
+  }
   const existingReceipt = await prisma.announcementReadReceipt.findUnique({
     where: { announcementId_userId: { announcementId: item.id, userId: actor.id } },
     select: { acknowledgedAt: true }
