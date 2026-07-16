@@ -633,6 +633,7 @@ tr:hover td {
   position: absolute;
   right: 0;
   top: 0;
+  z-index: 2;
 }
 
 .sidebar-toggle svg {
@@ -659,6 +660,7 @@ tr:hover td {
   justify-content: center;
   min-width: 0;
   padding: 0;
+  pointer-events: none;
   position: relative;
   text-align: center;
   width: 100%;
@@ -744,10 +746,10 @@ tr:hover td {
     0 0 0 4px rgb(255 255 255 / 8%),
     0 14px 28px rgb(0 0 0 / 22%);
   filter: none;
-  height: 72px;
+  height: 144px;
   object-fit: contain;
   padding: 7px;
-  width: 72px;
+  width: 144px;
 }
 
 .brand strong {
