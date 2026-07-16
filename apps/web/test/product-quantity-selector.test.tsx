@@ -15,7 +15,8 @@ const suggestions = [
 ];
 
 function ControlledSelector(props: Partial<React.ComponentProps<typeof ProductQuantitySelector>> = {}) {
-  const [value, setValue] = useState(props.value ?? "");
+  const { value: initialValue, ...selectorProps } = props;
+  const [value, setValue] = useState(initialValue ?? "");
   return (
     <ProductQuantitySelector
       label="Produtos"
@@ -24,7 +25,7 @@ function ControlledSelector(props: Partial<React.ComponentProps<typeof ProductQu
       allowCustom
       allowAll
       onChange={setValue}
-      {...props}
+      {...selectorProps}
     />
   );
 }
@@ -96,6 +97,17 @@ describe("ProductQuantitySelector", () => {
 
     await user.click(screen.getByRole("button", { name: "Remover Colágeno" }));
     expect(screen.queryByText("Colágeno")).not.toBeInTheDocument();
+  });
+
+  it("clears the selection through the explicit None action", async () => {
+    const user = userEvent.setup();
+    render(<ControlledSelector allowNone value='[{"name":"Colágeno","quantity":2}]' />);
+
+    expect(screen.getByText("Colágeno")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nenhum" }));
+
+    expect(screen.queryByText("Colágeno")).not.toBeInTheDocument();
+    expect(screen.getByText("Nenhum produto selecionado.")).toBeInTheDocument();
   });
 
   it("closes the listbox with Escape", async () => {

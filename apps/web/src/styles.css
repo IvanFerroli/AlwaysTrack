@@ -3439,7 +3439,13 @@ legend {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.service-flow-product-all {
+.service-flow-product-bulk-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.service-flow-product-all,
+.service-flow-product-none {
   padding-inline: 10px;
 }
 

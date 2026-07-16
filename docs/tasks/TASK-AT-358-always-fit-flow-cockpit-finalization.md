@@ -79,12 +79,19 @@ Transformar a ficha lateral do primeiro fluxo Always Fit em um cockpit persisten
 - seed local aplicado com nova versao publicada e historico anterior preservado.
 
 ## Follow-up 2026-07-16 - Classificacao por lacrados
-- status: in-progress
+- status: completed
 - substituir a dupla selecao de itens abertos e lacrados por um unico seletor de itens lacrados;
 - oferecer `Todos` e `Nenhum` sobre os produtos do pedido;
 - considerar implicitamente abertas as unidades nao marcadas como lacradas;
 - eliminar a ETAPA-014 e os campos de lacrados devolvidos/retidos; havendo lacrados, seguir diretamente para a reversa;
 - manter apenas o saldo final calculado, sem exigir o valor separado de itens retidos.
+- compatibilidade de sessoes pinadas preservada por campos legados ocultos, sem reintroduzi-los na operacao.
+
+### Validacao do follow-up
+- 89 testes de Service Flows aprovados, incluindo 29 do catalogo Always Fit;
+- 19 testes focados da Web aprovados;
+- typecheck de API e Web e build Web aprovados;
+- seed local reaplicado com nova versao publicada do fluxo.
 
 ## Evidencia de conclusao
 - `npm run check`: aprovado, com 1 teste Redis opcional ignorado por configuracao;

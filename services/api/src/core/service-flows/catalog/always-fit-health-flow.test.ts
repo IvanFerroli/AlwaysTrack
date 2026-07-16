@@ -18,8 +18,8 @@ function transition(fromNodeKey: string, label: string) {
 }
 
 const acceptanceRoutes = [
-  ["TESTE-001", [["ETAPA-013", "Tudo está aberto: dispensar reversa", "ETAPA-019"], ["ETAPA-019", "Estorno", "ETAPA-020"], ["ETAPA-021", "Pix: dados completos coletados", "ETAPA-022"], ["ETAPA-022", "Pix ou boleto solicitado e link registrado", "ETAPA-023"], ["ETAPA-023", "Prazo e encerramento enviados", "RESULTADO-002"]]],
-  ["TESTE-002", [["ETAPA-013", "Há ao menos um item lacrado", "ETAPA-014"], ["ETAPA-014", "Devolverá todos os lacrados", "ETAPA-015"], ["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"], ["ETAPA-021", "Cartão: sem dados Pix", "ETAPA-022"], ["ETAPA-022", "Cartão solicitado e link registrado", "ETAPA-030"], ["ETAPA-030", "Encerrar estorno em cartão", "RESULTADO-003"]]],
+  ["TESTE-001", [["ETAPA-013", "Nenhum lacrado: dispensar reversa", "ETAPA-019"], ["ETAPA-019", "Estorno", "ETAPA-020"], ["ETAPA-021", "Pix: dados completos coletados", "ETAPA-022"], ["ETAPA-022", "Pix ou boleto solicitado e link registrado", "ETAPA-023"], ["ETAPA-023", "Prazo e encerramento enviados", "RESULTADO-002"]]],
+  ["TESTE-002", [["ETAPA-013", "Há ao menos um item lacrado", "ETAPA-015"], ["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"], ["ETAPA-021", "Cartão: sem dados Pix", "ETAPA-022"], ["ETAPA-022", "Cartão solicitado e link registrado", "ETAPA-030"], ["ETAPA-030", "Encerrar estorno em cartão", "RESULTADO-003"]]],
   ["TESTE-003", [["ETAPA-019", "Troca", "ETAPA-024"], ["ETAPA-025", "Valor igual ao saldo", "ETAPA-027"], ["ETAPA-027", "Novo pedido gerado sem frete", "ETAPA-029"], ["ETAPA-029", "Previsão e rastreio enviados", "ETAPA-030"], ["ETAPA-030", "Encerrar troca ou solução mista", "RESULTADO-004"]]],
   ["TESTE-004", [["ETAPA-025", "Valor maior que o saldo", "ETAPA-026"], ["ETAPA-026", "Pagamento ainda não confirmado", "ETAPA-026"], ["ETAPA-026", "Pagamento da diferença confirmado", "ETAPA-027"]]],
   ["TESTE-005", [["ETAPA-025", "Valor menor que o saldo", "ETAPA-028"], ["ETAPA-028", "Troca gerada e diferença solicitada", "ETAPA-029"]]],
@@ -30,7 +30,7 @@ const acceptanceRoutes = [
   ["TESTE-010", [["ETAPA-024", "Cliente insiste no mesmo produto", "DECISAO-020"], ["DECISAO-020", "Composição disponível", "ETAPA-025"]]],
   ["TESTE-011", [["ETAPA-017", "Postagem confirmada por foto ou Correios", "ETAPA-019"]]],
   ["TESTE-012", [["ETAPA-017", "Código expirado", "ETAPA-018"], ["ETAPA-018", "Novo código gerado e enviado", "ETAPA-017"]]],
-  ["TESTE-013", [["ETAPA-014", "Devolverá parte; descontar os retidos", "ETAPA-015"]]],
+  ["TESTE-013", [["ETAPA-013", "Há ao menos um item lacrado", "ETAPA-015"]]],
   ["TESTE-014", [["ETAPA-019", "Cliente mudou uma escolha já solicitada", "ETAPA-033"], ["ETAPA-033", "Ainda não processada: cancelada manualmente", "ETAPA-019"]]],
   ["TESTE-015", [["ETAPA-033", "Já processada: não alterar", "RESULTADO-005"]]],
   ["TESTE-016", [["DECISAO-020", "Item indisponível: refazer composição", "ETAPA-024"]]],
@@ -45,7 +45,7 @@ describe("Always Fit health flow pilot catalog", () => {
     expect(ALWAYS_FIT_HEALTH_FLOW_SLUG).toBe("saude-dev-troca-estorno");
     expect(alwaysFitHealthMessages).toHaveLength(17);
     expect(alwaysFitHealthMessages.filter((message) => message.status === "DRAFT")).toHaveLength(7);
-    expect(alwaysFitHealthCatalogNodes.filter((node) => /^ETAPA-\d{3}$/.test(node.key))).toHaveLength(34);
+    expect(alwaysFitHealthCatalogNodes.filter((node) => /^ETAPA-\d{3}$/.test(node.key))).toHaveLength(33);
     expect(alwaysFitHealthCatalogNodes.filter((node) => /^RESULTADO-\d{3}$/.test(node.key))).toHaveLength(9);
     expect(new Set(alwaysFitHealthCatalogNodes.map((node) => node.key)).size).toBe(alwaysFitHealthCatalogNodes.length);
   });
@@ -65,7 +65,7 @@ describe("Always Fit health flow pilot catalog", () => {
 
   it("preserves the closed decisions instead of guessing pending business rules", () => {
     expect(transition("ETAPA-006", "Exatamente 30 dias: bloquear e validar")).toMatchObject({ toNodeKey: "ETAPA-032", requiresUserChoice: true });
-    expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")).toMatchObject({ toNodeKey: "ETAPA-019" });
+    expect(transition("ETAPA-013", "Nenhum lacrado: dispensar reversa")).toMatchObject({ toNodeKey: "ETAPA-019" });
     expect(transition("ETAPA-017", "Postagem confirmada por foto ou Correios")).toMatchObject({ toNodeKey: "ETAPA-019" });
     expect(transition("ETAPA-026", "Pagamento ainda não confirmado")).toMatchObject({ toNodeKey: "ETAPA-026", allowLoop: true });
     expect(transition("ETAPA-032", "Aprovado com outro retorno: handoff manual")).toMatchObject({ toNodeKey: "RESULTADO-009" });
@@ -98,8 +98,10 @@ describe("Always Fit health flow pilot catalog", () => {
     expect(node("ETAPA-010").requiredFacts).toEqual([]);
     expect(node("ETAPA-013").requiredFacts).toEqual([]);
     expect(transition("ETAPA-013", "Há ao menos um item lacrado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" });
-    expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.open.items" });
-    expect(node("ETAPA-014").requiredFacts).toEqual(["custom.alwaysfit.return.sealed.items"]);
+    expect(transition("ETAPA-013", "Nenhum lacrado: dispensar reversa")?.condition).toBeUndefined();
+    expect(node("ETAPA-014")).toBeUndefined();
+    expect(node("ETAPA-015").requiredFacts).toEqual(["custom.alwaysfit.return.sealed.items", "custom.alwaysfit.return.declared.value"]);
+    expect(node("ETAPA-020").requiredFacts).toEqual(["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.available.balance"]);
   });
 
   it("uses one structured order-products placeholder in MSG-004", () => {
@@ -118,8 +120,8 @@ describe("Always Fit health flow pilot catalog", () => {
 
   it("keeps every numbered decision, rule and pending validation traceable", () => {
     const corpus = alwaysFitHealthCatalogNodes.map((node) => `${node.instruction} ${(node.dependencies ?? []).join(" ")}`).join(" ");
-    const decisions = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "015", "017", "018", "019", "020", "021", "022", "023"];
-    const rules = Array.from({ length: 23 }, (_, index) => String(index + 1).padStart(3, "0"));
+    const decisions = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "013", "015", "017", "018", "019", "020", "021", "022", "023"];
+    const rules = Array.from({ length: 23 }, (_, index) => String(index + 1).padStart(3, "0")).filter((id) => id !== "008");
     const pending = Array.from({ length: 10 }, (_, index) => String(index + 1).padStart(3, "0"));
     expect(decisions.filter((id) => !corpus.includes(`DECISAO-${id}`))).toEqual([]);
     expect(rules.filter((id) => !corpus.includes(`REGRA-${id}`))).toEqual([]);

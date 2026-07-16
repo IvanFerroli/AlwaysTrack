@@ -19,6 +19,7 @@ type ProductQuantitySelectorProps = {
   disabled?: boolean;
   allowCustom?: boolean;
   allowAll?: boolean;
+  allowNone?: boolean;
   emptyHint?: string;
   onChange: (serialized: string) => void;
 };
@@ -120,6 +121,7 @@ export function ProductQuantitySelector({
   disabled = false,
   allowCustom = false,
   allowAll = false,
+  allowNone = false,
   emptyHint = "Nenhum produto selecionado.",
   onChange
 }: ProductQuantitySelectorProps) {
@@ -166,6 +168,12 @@ export function ProductQuantitySelector({
       }
     }
     if (nextItems.length !== items.length) commit(nextItems);
+    setQuery("");
+    setOpen(false);
+  }
+
+  function removeAll() {
+    if (items.length > 0) commit([]);
     setQuery("");
     setOpen(false);
   }
@@ -230,8 +238,15 @@ export function ProductQuantitySelector({
           }}
           onKeyDown={handleKeyDown}
         />
-        {allowAll ? (
-          <button className="service-flow-product-all" type="button" disabled={disabled} onClick={addAll}>Todos</button>
+        {allowAll || allowNone ? (
+          <div className="service-flow-product-bulk-actions">
+            {allowAll ? (
+              <button className="service-flow-product-all" type="button" disabled={disabled} onClick={addAll}>Todos</button>
+            ) : null}
+            {allowNone ? (
+              <button className="service-flow-product-none secondary" type="button" disabled={disabled} onClick={removeAll}>Nenhum</button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

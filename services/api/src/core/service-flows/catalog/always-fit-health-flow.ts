@@ -92,9 +92,9 @@ export const alwaysFitHealthMessages: readonly AlwaysFitHealthMessage[] = [
   },
   {
     code: "MSG-009",
-    title: "Perguntar itens lacrados e abertos",
+    title: "Perguntar itens lacrados",
     channel: "WHATSAPP",
-    body: "Você pode me informar quais desses produtos permanecem lacrados, com o lacre interno intacto, e quais já foram abertos ou utilizados?",
+    body: "Você pode me informar quais desses produtos permanecem lacrados, com o lacre interno intacto? Os demais serão considerados abertos ou utilizados.",
     status: "DRAFT",
     tags: ["saude", "reversa", "itens", "validacao-pendente"]
   },
@@ -252,23 +252,15 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
   stage("ETAPA-012", "Definir o escopo sem usufruto", "MANUAL_INPUT", "DECISAO-010 e REGRA-004. Use MSG-008 e, quando disponível, confirme o escopo diretamente nos produtos estruturados do pedido, incluindo produto usado, unidades iguais, kit e outros itens envolvidos. A classificação obrigatória ocorre na próxima etapa; não limite automaticamente ao frasco aberto.", {
     messageCodes: ["MSG-008"], optionalFacts: ["order.products"], choices: [{ label: "Escopo afetado confirmado", target: "ETAPA-013" }]
   }),
-  stage("ETAPA-013", "Classificar itens lacrados e abertos", "DECISION", "DECISAO-011 e REGRAS REGRA-006/REGRA-007. Use MSG-009. Lacrado significa lacre interno abaixo da tampa intacto. Produto usado ou com lacre rompido é aberto, não retorna e continua no saldo.", {
-    messageCodes: ["MSG-009"], optionalFacts: ["custom.alwaysfit.return.open.items", "custom.alwaysfit.return.sealed.items"], dependencies: ["PENDENCIA-008"],
+  stage("ETAPA-013", "Identificar itens lacrados", "DECISION", "DECISAO-011 e REGRAS REGRA-006/REGRA-007. Use MSG-009 e marque somente os itens com lacre interno abaixo da tampa intacto. Toda unidade não marcada é implicitamente aberta ou utilizada, não retorna e continua no saldo.", {
+    messageCodes: ["MSG-009"], optionalFacts: ["custom.alwaysfit.return.sealed.items"], dependencies: ["PENDENCIA-008"],
     choices: [
-      { label: "Há ao menos um item lacrado", target: "ETAPA-014", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" } },
-      { label: "Tudo está aberto: dispensar reversa", target: "ETAPA-019", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.open.items" } }
-    ]
-  }),
-  stage("ETAPA-014", "Confirmar lacrados devolvidos e retidos", "DECISION", "DECISAO-012 e REGRA-008. Produtos abertos não retornam. Lacrados devolvidos permanecem no saldo; o valor efetivamente pago por lacrados retidos deve ser descontado.", {
-    requiredFacts: ["custom.alwaysfit.return.sealed.items"], optionalFacts: ["custom.alwaysfit.return.returned.sealed.items", "custom.alwaysfit.return.retained.sealed.items"], dependencies: ["PENDENCIA-008"],
-    choices: [
-      { label: "Devolverá todos os lacrados", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.returned.sealed.items" } },
-      { label: "Devolverá parte; descontar os retidos", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.returned.sealed.items" } },
-      { label: "Não devolverá lacrados; descontar todos", target: "ETAPA-019", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.retained.sealed.items" } }
+      { label: "Há ao menos um item lacrado", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" } },
+      { label: "Nenhum lacrado: dispensar reversa", target: "ETAPA-019" }
     ]
   }),
   stage("ETAPA-015", "Calcular valor e gerar logística reversa", "RISK_GATE", "REGRA-022. Consulte pedido e nota fiscal, considere descontos e declare somente o valor dos itens lacrados enviados. A fonte definitiva da NF permanece pendente. A geração no Correios é obrigatoriamente humana.", {
-    requiredFacts: ["custom.alwaysfit.return.returned.sealed.items", "custom.alwaysfit.return.declared.value"], dependencies: ["Correios - Logistica Reversa", "Fonte da nota fiscal", "PENDENCIA-004", "LOGISTICA-REVERSA"],
+    requiredFacts: ["custom.alwaysfit.return.sealed.items", "custom.alwaysfit.return.declared.value"], dependencies: ["Correios - Logistica Reversa", "Fonte da nota fiscal", "PENDENCIA-004", "LOGISTICA-REVERSA"],
     forbiddenCapabilities: ["CREATE_REVERSE", "SUBMIT", "SEND_MESSAGE"], riskLevel: "HIGH",
     choices: [{ label: "Código válido gerado manualmente", target: "ETAPA-016" }, { label: "Valor ou fonte inconclusiva", target: "ETAPA-034" }]
   }),
@@ -287,8 +279,8 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
   stage("ETAPA-019", "Escolher solução final", "DECISION", "DECISAO-015. Esta escolha só pode ocorrer após postagem confirmada ou bypass porque tudo está aberto. O cliente pode escolher estorno, troca ou composição mista quando a troca ficar abaixo do saldo.", {
     requiredFacts: ["custom.alwaysfit.treatment.solution"], choices: [{ label: "Estorno", target: "ETAPA-020" }, { label: "Troca", target: "ETAPA-024" }, { label: "Solução mista: iniciar pela troca", target: "ETAPA-024" }, { label: "Cliente mudou uma escolha já solicitada", target: "ETAPA-033" }]
   }),
-  stage("ETAPA-020", "Preparar estorno", "CHECK", "REGRA-021. Calcule o valor efetivamente pago pelos itens afetados, com descontos, menos lacrados retidos. Nunca use preço nominal quando cupom ou rateio alterou o valor real.", {
-    requiredFacts: ["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.retained.sealed.value", "custom.alwaysfit.financial.available.balance"], dependencies: ["Pedido", "Fonte da nota fiscal"],
+  stage("ETAPA-020", "Preparar estorno", "CHECK", "REGRA-021. Calcule o valor efetivamente pago pelos itens afetados, considerando descontos e rateios, e registre o saldo disponível. Nunca use preço nominal quando cupom ou rateio alterou o valor real.", {
+    requiredFacts: ["custom.alwaysfit.financial.paid.affected.value", "custom.alwaysfit.financial.available.balance"], dependencies: ["Pedido", "Fonte da nota fiscal"],
     choices: [{ label: "Valor final confirmado", target: "ETAPA-021" }]
   }),
   stage("ETAPA-021", "Verificar forma de pagamento original", "DECISION", "DECISAO-018 e REGRAS REGRA-011/REGRA-012. Cartão segue direto ao Slack e não pede Pix. Pix e boleto usam MSG-012 para coletar chave, banco e titular.", {

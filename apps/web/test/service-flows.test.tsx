@@ -425,9 +425,13 @@ describe("ServiceFlowsView", () => {
             "customer.name",
             "custom.alwaysfit.health.usage",
             "custom.alwaysfit.health.symptom.persistent",
-            "custom.alwaysfit.treatment.unusable.scope"
+            "custom.alwaysfit.treatment.unusable.scope",
+            "custom.alwaysfit.return.open.items",
+            "custom.alwaysfit.return.returned.sealed.items",
+            "custom.alwaysfit.return.retained.sealed.items",
+            "custom.alwaysfit.financial.retained.sealed.value"
           ],
-          optionalFacts: ["produto_1", "produto_2", "produto_3"],
+          optionalFacts: ["produto_1", "produto_2", "produto_3", "custom.alwaysfit.return.sealed.items"],
           terminal: false
         }),
         status: "PENDING", decision: null, note: null, completedAt: null, step: null
@@ -460,6 +464,13 @@ describe("ServiceFlowsView", () => {
     expect(screen.queryByRole("textbox", { name: "O mal-estar permanece?" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Escopo que não poderá/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Produto 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Itens abertos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Lacrados que serão devolvidos/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Lacrados que ficarão/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Valor dos lacrados retidos/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Itens lacrados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Todos" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nenhum" })).toBeInTheDocument();
     const customerName = screen.getByRole("textbox", { name: /Nome do cliente/ });
     expect(customerName).toBeInTheDocument();
     await user.type(customerName, "Maria");

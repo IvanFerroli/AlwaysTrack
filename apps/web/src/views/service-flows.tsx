@@ -217,14 +217,11 @@ function placeholdersFor(script: Pick<FlowScript, "placeholders">, values: Recor
   }));
 }
 
-const productFieldConfiguration: Record<string, { sourceKey?: string; allowCustom: boolean; allowAll?: boolean }> = {
+const productFieldConfiguration: Record<string, { sourceKey?: string; allowCustom: boolean; allowAll?: boolean; allowNone?: boolean }> = {
   "order.products": { allowCustom: true },
   "custom.alwaysfit.health.related.products": { sourceKey: "order.products", allowCustom: false, allowAll: true },
   "custom.alwaysfit.health.concomitant.products": { sourceKey: "order.products", allowCustom: true, allowAll: true },
-  "custom.alwaysfit.return.open.items": { sourceKey: "order.products", allowCustom: false, allowAll: true },
-  "custom.alwaysfit.return.sealed.items": { sourceKey: "order.products", allowCustom: false, allowAll: true },
-  "custom.alwaysfit.return.returned.sealed.items": { sourceKey: "custom.alwaysfit.return.sealed.items", allowCustom: false, allowAll: true },
-  "custom.alwaysfit.return.retained.sealed.items": { sourceKey: "custom.alwaysfit.return.sealed.items", allowCustom: false, allowAll: true },
+  "custom.alwaysfit.return.sealed.items": { sourceKey: "order.products", allowCustom: false, allowAll: true, allowNone: true },
   "custom.alwaysfit.exchange.items": { allowCustom: true }
 };
 
@@ -232,7 +229,11 @@ const decisionCapturedCaseFields = new Set([
   "custom.alwaysfit.health.usage",
   "custom.alwaysfit.product.recommended.usage",
   "custom.alwaysfit.health.symptom.persistent",
-  "custom.alwaysfit.treatment.unusable.scope"
+  "custom.alwaysfit.treatment.unusable.scope",
+  "custom.alwaysfit.return.open.items",
+  "custom.alwaysfit.return.returned.sealed.items",
+  "custom.alwaysfit.return.retained.sealed.items",
+  "custom.alwaysfit.financial.retained.sealed.value"
 ]);
 
 function caseFieldIsVisible(key: string) {
@@ -303,14 +304,10 @@ const caseFieldLabels: Record<string, string> = {
   "custom.alwaysfit.product.recommended.usage": "Forma de uso recomendada",
   "custom.alwaysfit.health.symptom.persistent": "O mal-estar permanece?",
   "custom.alwaysfit.treatment.unusable.scope": "Escopo que não poderá mais ser usado",
-  "custom.alwaysfit.return.open.items": "Itens abertos",
   "custom.alwaysfit.return.sealed.items": "Itens lacrados",
-  "custom.alwaysfit.return.returned.sealed.items": "Lacrados que serão devolvidos",
-  "custom.alwaysfit.return.retained.sealed.items": "Lacrados que ficarão com o cliente",
   "custom.alwaysfit.return.declared.value": "Valor declarado na reversa",
   "custom.alwaysfit.treatment.solution": "Solução escolhida",
   "custom.alwaysfit.financial.paid.affected.value": "Valor pago pelo escopo afetado",
-  "custom.alwaysfit.financial.retained.sealed.value": "Valor dos lacrados retidos",
   "custom.alwaysfit.financial.available.balance": "Saldo disponível",
   "custom.alwaysfit.financial.refund.amount": "Valor do estorno",
   "custom.alwaysfit.treatment.slack.refund.link": "Link do pedido de estorno no Slack",
@@ -569,7 +566,18 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   }
 
   function updateCaseDataValue(key: string, value: string) {
-    setCaseData((current) => ({ ...current, [key]: value }));
+    setCaseData((current) => {
+      if (key !== "custom.alwaysfit.return.sealed.items") return { ...current, [key]: value };
+      const hasSealedItems = parseProductQuantityItems(value).length > 0;
+      return {
+        ...current,
+        [key]: value,
+        // Compatibility for sessions pinned to the former open/returned split.
+        "custom.alwaysfit.return.open.items": hasSealedItems ? "" : current["order.products"] ?? "",
+        "custom.alwaysfit.return.returned.sealed.items": hasSealedItems ? value : "",
+        "custom.alwaysfit.return.retained.sealed.items": ""
+      };
+    });
     setCaseDataDirty(true);
     setCaseDataFeedback("");
   }
@@ -956,6 +964,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                     disabled={activeSession.status === "COMPLETED"}
                     allowCustom={productFieldConfiguration[field.key]?.allowCustom}
                     allowAll={productFieldConfiguration[field.key]?.allowAll}
+                    allowNone={productFieldConfiguration[field.key]?.allowNone}
                     emptyHint="Nenhum item selecionado."
                     onChange={(value) => updateCaseDataValue(field.key, value)}
                   />
@@ -1076,7 +1085,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                             <div className="service-flow-decision">
                               <GitBranch size={16} aria-hidden="true" />
                               {decisionOptions.map((option) => {
-                                const missingOptionFacts = (option.requiredFacts ?? []).filter((key) => !caseValuePresent(key, caseData[key]));
+                                const missingOptionFacts = (option.requiredFacts ?? []).filter((key) => caseFieldIsVisible(key) && !caseValuePresent(key, caseData[key]));
                                 return activeSession ? (
                                   <button
                                     key={`${option.label}:${option.target ?? "legacy"}`}
