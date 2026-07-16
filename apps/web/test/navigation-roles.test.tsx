@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.fn();
@@ -52,6 +52,12 @@ describe("role navigation guards", () => {
     await import("../src/main");
 
     const navigation = await screen.findByRole("navigation", { name: "Navegação principal" });
+    const primaryNav = within(navigation);
+    expect(navigation).toHaveTextContent("SAC");
+    expect(navigation).toHaveTextContent("Fluxos");
+    fireEvent.click(primaryNav.getByRole("button", { name: /^SAC/ }));
+    expect(navigation).not.toHaveTextContent("Fluxos");
+    fireEvent.click(primaryNav.getByRole("button", { name: /^SAC/ }));
     expect(navigation).toHaveTextContent("Fluxos");
     expect(navigation).not.toHaveTextContent("CaseFlow Admin");
     expect(navigation).not.toHaveTextContent("Auditoria");
@@ -61,8 +67,35 @@ describe("role navigation guards", () => {
     fireEvent.change(password, { target: { value: "senha-local" } });
     fireEvent.click(screen.getByRole("button", { name: "Entrar com senha" }));
 
-    await waitFor(() => expect(screen.getByRole("navigation", { name: "Navegação principal" })).toHaveTextContent("CaseFlow Admin"));
-    fireEvent.click(screen.getAllByRole("button", { name: /CaseFlow Admin/ })[0]);
+    await waitFor(() => expect(within(screen.getByRole("navigation", { name: "Navegação principal" })).getByRole("button", { name: /^Administração/ })).toBeInTheDocument());
+    const adminNavigation = screen.getByRole("navigation", { name: "Navegação principal" });
+    const adminPrimaryNav = within(adminNavigation);
+    const topLevel = Array.from(adminNavigation.children).map((element) => element.matches("button") ? element : element.querySelector(":scope > button"));
+    expect(topLevel).toHaveLength(6);
+    expect(topLevel.map((element) => element?.textContent)).toEqual([
+      expect.stringContaining("Dashboard"),
+      expect.stringContaining("Perfil"),
+      expect.stringContaining("Vendas"),
+      expect.stringContaining("SAC"),
+      expect.stringContaining("Administração"),
+      expect.stringContaining("Como usar")
+    ]);
+    fireEvent.click(adminPrimaryNav.getByRole("button", { name: /^SAC/ }));
+    expect(screen.getByRole("group", { name: "Opções de SAC" })).toHaveTextContent("Wiki");
+    expect(screen.getByRole("group", { name: "Opções de SAC" })).toHaveTextContent("FAQ");
+    fireEvent.click(adminPrimaryNav.getByRole("button", { name: /^Administração/ }));
+    expect(screen.queryByRole("group", { name: "Opções de SAC" })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Navegação principal" })).toHaveTextContent("Operação técnica");
+    expect(screen.getByRole("navigation", { name: "Navegação principal" })).toHaveTextContent("Status CaseFlow");
+    expect(screen.getByRole("navigation", { name: "Navegação principal" })).not.toHaveTextContent("Saúde CaseFlow");
+    expect(adminPrimaryNav.getByRole("button", { name: /^Como usar/ })).not.toHaveAttribute("aria-expanded");
+
+    const topNavigation = screen.getByRole("navigation", { name: "Atalhos principais" });
+    const topAdmin = within(topNavigation).getByRole("button", { name: /^Administração/ });
+    fireEvent.click(topAdmin);
+    expect(within(topNavigation).getByRole("group", { name: "Atalhos de Administração" })).toHaveTextContent("CaseFlow Admin");
+
+    fireEvent.click(adminPrimaryNav.getByRole("button", { name: /CaseFlow Admin/ }));
     expect(await screen.findByText("Administração CaseFlow carregada")).toBeInTheDocument();
   });
 });

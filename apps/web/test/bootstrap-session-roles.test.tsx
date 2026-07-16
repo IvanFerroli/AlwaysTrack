@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.fn();
@@ -100,23 +100,28 @@ describe("Web bootstrap, session and role matrix", () => {
     expect(await screen.findByText("Credenciais sintéticas inválidas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Entrar com senha" })).toBeEnabled();
 
-    const expectations: Array<{ role: Role; visible: string; forbidden?: string }> = [
-      { role: "ADMIN", visible: "CaseFlow Admin" },
-      { role: "SAC", visible: "Scriptoteca", forbidden: "Auditoria" },
-      { role: "FINANCEIRO", visible: "Extratos", forbidden: "CaseFlow Admin" },
-      { role: "VENDEDOR", visible: "Notas", forbidden: "Usuários/Times" },
-      { role: "SUPERVISOR", visible: "Ranking", forbidden: "Configurações" },
+    const expectations: Array<{ role: Role; visible: string; group?: string; forbidden?: string }> = [
+      { role: "ADMIN", visible: "CaseFlow Admin", group: "Administração" },
+      { role: "SAC", visible: "Scriptoteca", group: "SAC", forbidden: "Administração" },
+      { role: "FINANCEIRO", visible: "Extratos", group: "Vendas", forbidden: "Administração" },
+      { role: "VENDEDOR", visible: "Notas", group: "Vendas", forbidden: "Administração" },
+      { role: "SUPERVISOR", visible: "Ranking", group: "Vendas", forbidden: "Administração" },
       { role: "RT", visible: "Como usar", forbidden: "CaseFlow Admin" }
     ];
 
-    for (const { role, visible, forbidden } of expectations) {
+    for (const { role, visible, group, forbidden } of expectations) {
       await loginAs(role);
       const navigation = await screen.findByRole("navigation", { name: "Navegação principal" });
+      const primaryNav = within(navigation);
+      if (group) {
+        const groupButton = primaryNav.getByRole("button", { name: new RegExp(`^${group}`) });
+        if (groupButton.getAttribute("aria-expanded") !== "true") fireEvent.click(groupButton);
+      }
       expect(navigation).toHaveTextContent(visible);
       if (forbidden) expect(navigation).not.toHaveTextContent(forbidden);
       expect(screen.getByText(role, { selector: ".eyebrow" })).toBeInTheDocument();
 
-      const destination = screen.getAllByRole("button", { name: new RegExp(visible) })[0];
+      const destination = primaryNav.getByRole("button", { name: group ? new RegExp(`^${visible}$`) : new RegExp(`^${visible}`) });
       fireEvent.click(destination);
       expect(screen.getByRole("main")).not.toBeEmptyDOMElement();
 
@@ -151,11 +156,14 @@ describe("Web bootstrap, session and role matrix", () => {
     window.dispatchEvent(new CustomEvent("alwaystrack:open-help", { detail: { hash: "#visao-geral" } }));
     expect(await screen.findByText("Ajuda operacional")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Wiki/ })[0]);
+    const primaryNav = within(screen.getByRole("navigation", { name: "Navegação principal" }));
+    const supportGroup = primaryNav.getByRole("button", { name: /^SAC/ });
+    if (supportGroup.getAttribute("aria-expanded") !== "true") fireEvent.click(supportGroup);
+    fireEvent.click(primaryNav.getByRole("button", { name: /Wiki/ }));
     expect(await screen.findByText("Wiki operacional")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/wiki");
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Avisos/ })[0]);
+    fireEvent.click(primaryNav.getByRole("button", { name: /Avisos/ }));
     expect(await screen.findByText("Avisos operacionais")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/avisos");
   });

@@ -6,6 +6,7 @@ import {
   Bell,
   BookOpen,
   Check,
+  ChevronDown,
   CircleHelp,
   Download,
   FileText,
@@ -492,6 +493,16 @@ interface NavItem {
   roles: readonly CurrentUser["role"][];
 }
 
+type NavGroupKey = "sales" | "support" | "administration";
+
+interface NavGroup {
+  key: NavGroupKey;
+  label: string;
+  description: string;
+  icon: IconName;
+  children: Array<{ key: ViewKey; section?: "technical" }>;
+}
+
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialSalesAccessRoles },
   { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialSalesAccessRoles },
@@ -500,7 +511,7 @@ const navItems: NavItem[] = [
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialSalesAccessRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
   { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: commercialAllRoles },
-  { key: "caseFlowHealth", label: "Saúde CaseFlow", description: "Conectores e métricas", icon: "scan", roles: commercialManagerRoles },
+  { key: "caseFlowHealth", label: "Status CaseFlow", description: "Conectores e métricas", icon: "scan", roles: commercialManagerRoles },
   { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
   { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
   { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
@@ -511,6 +522,51 @@ const navItems: NavItem[] = [
   { key: "caseFlowAdmin", label: "CaseFlow Admin", description: "Casos, regras, conectores e backup", icon: "scan", roles: adminOnlyRoles },
   { key: "help", label: "Como usar", description: "Ajuda operacional", icon: "help", roles: userRoles }
 ];
+
+const navGroups: NavGroup[] = [
+  {
+    key: "sales",
+    label: "Vendas",
+    description: "Notas, ranking e campanhas",
+    icon: "chart",
+    children: [
+      { key: "notes" },
+      { key: "ranking" },
+      { key: "campaigns" },
+      { key: "statements" }
+    ]
+  },
+  {
+    key: "support",
+    label: "SAC",
+    description: "Atendimento e conhecimento",
+    icon: "workflow",
+    children: [
+      { key: "announcements" },
+      { key: "serviceFlows" },
+      { key: "scriptLibrary" },
+      { key: "wiki" },
+      { key: "faq" }
+    ]
+  },
+  {
+    key: "administration",
+    label: "Administração",
+    description: "Gestão e operação técnica",
+    icon: "settings",
+    children: [
+      { key: "users" },
+      { key: "settings" },
+      { key: "audit" },
+      { key: "caseFlowHealth", section: "technical" },
+      { key: "caseFlowAdmin", section: "technical" }
+    ]
+  }
+];
+
+function navGroupForView(key: ViewKey) {
+  return navGroups.find((group) => group.children.some((child) => child.key === key));
+}
 
 const helpAnchorIds = new Set([
   "visao-geral",
@@ -4189,6 +4245,14 @@ function announcementSlugFromPath(pathname = window.location.pathname) {
 
 function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogout: () => void; onUserChange: (user: CurrentUser) => void }) {
   const visibleNav = useMemo(() => navItems.filter((item) => item.roles.includes(user.role)), [user.role]);
+  const visibleNavByKey = useMemo(() => new Map(visibleNav.map((item) => [item.key, item])), [visibleNav]);
+  const visibleGroups = useMemo(() => navGroups.flatMap((group) => {
+    const children = group.children.flatMap((child) => {
+      const item = visibleNavByKey.get(child.key);
+      return item ? [{ ...child, item }] : [];
+    });
+    return children.length ? [{ ...group, children }] : [];
+  }), [visibleNavByKey]);
   const initialHelpId = window.location.hash.replace("#", "");
   const initialWikiSlug = wikiSlugFromPath();
   const initialAnnouncementSlug = announcementSlugFromPath();
@@ -4199,17 +4263,12 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
+  const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
   const [viewIntent, setViewIntent] = useState<ViewIntent>({});
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
-  const sidebarNav = [
-    ...visibleNav.filter((item) => item.key === "dashboard"),
-    ...visibleNav.filter((item) => item.key === "profile"),
-    ...visibleNav.filter((item) => item.key !== "profile" && item.key !== "dashboard")
-  ];
-  const primaryNav = [
-    ...visibleNav.filter((item) => item.key === "dashboard"),
-    ...visibleNav.filter((item) => item.key !== "audit" && item.key !== "settings" && item.key !== "profile" && item.key !== "dashboard")
-  ];
+  const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
+  const activeNavGroup = navGroupForView(activeView)?.key ?? null;
 
   function clearHelpHash() {
     if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {
@@ -4222,6 +4281,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     const id = normalizedHash.replace("#", "");
     if (!helpAnchorIds.has(id)) return;
     setPendingHelpHash(normalizedHash);
+    setExpandedNavGroup(null);
+    setOpenTopNavGroup(null);
     setActiveView("help");
   }
 
@@ -4232,6 +4293,8 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     }
     setViewIntent(intent ?? {});
     setPendingHelpHash(null);
+    setExpandedNavGroup(navGroupForView(key)?.key ?? null);
+    setOpenTopNavGroup(null);
     clearHelpHash();
     if (key === "wiki") {
       window.history.replaceState(null, "", "/wiki");
@@ -4246,6 +4309,15 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       window.history.replaceState(null, "", "/");
     }
     setActiveView(key);
+  }
+
+  function toggleNavGroup(groupKey: NavGroupKey) {
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      setExpandedNavGroup(groupKey);
+      return;
+    }
+    setExpandedNavGroup((current) => current === groupKey ? null : groupKey);
   }
 
   async function logout() {
@@ -4377,12 +4449,68 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           </button>
         </div>
         <nav className="nav-list" aria-label="Navegação principal">
-          {sidebarNav.map((item) => (
+          {directSidebarItems.filter((item) => item.key !== "help").map((item) => (
             <button
               className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
               key={item.key}
               onClick={() => openView(item.key)}
               title={sidebarCollapsed ? item.label : item.description}
+              aria-current={item.key === activeItem.key ? "page" : undefined}
+            >
+              <span><Icon name={item.icon} /> {item.label}</span>
+              <small>{item.description}</small>
+            </button>
+          ))}
+          {visibleGroups.map((group) => {
+            const expanded = expandedNavGroup === group.key && !sidebarCollapsed;
+            const active = activeNavGroup === group.key;
+            return (
+              <div className="nav-group" key={group.key}>
+                <button
+                  className={active ? "nav-item active nav-parent" : "nav-item nav-parent"}
+                  type="button"
+                  onClick={() => toggleNavGroup(group.key)}
+                  title={sidebarCollapsed ? group.label : group.description}
+                  aria-expanded={expanded}
+                  aria-controls={`nav-group-${group.key}`}
+                >
+                  <span className="nav-parent-label">
+                    <span><Icon name={group.icon} /> {group.label}</span>
+                    <ChevronDown className="nav-parent-chevron" aria-hidden="true" />
+                  </span>
+                  <small>{group.description}</small>
+                </button>
+                {expanded ? (
+                  <div className="nav-submenu" id={`nav-group-${group.key}`} role="group" aria-label={`Opções de ${group.label}`}>
+                    {group.children.map((child, index) => (
+                      <Fragment key={child.key}>
+                        {child.section === "technical" && group.children[index - 1]?.section !== "technical" ? (
+                          <span className="nav-submenu-label">Operação técnica</span>
+                        ) : null}
+                        <button
+                          className={child.item.key === activeItem.key ? "nav-child-item active" : "nav-child-item"}
+                          type="button"
+                          onClick={() => openView(child.item.key)}
+                          title={child.item.description}
+                          aria-current={child.item.key === activeItem.key ? "page" : undefined}
+                        >
+                          <Icon name={child.item.icon} />
+                          <span>{child.item.label}</span>
+                        </button>
+                      </Fragment>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+          {directSidebarItems.filter((item) => item.key === "help").map((item) => (
+            <button
+              className={item.key === activeItem.key ? "nav-item active" : "nav-item"}
+              key={item.key}
+              onClick={() => openView(item.key)}
+              title={sidebarCollapsed ? item.label : item.description}
+              aria-current={item.key === activeItem.key ? "page" : undefined}
             >
               <span><Icon name={item.icon} /> {item.label}</span>
               <small>{item.description}</small>
@@ -4405,13 +4533,74 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
           </div>
           <div className="topbar-nav-group">
             <nav className="top-nav" aria-label="Atalhos principais">
-              {primaryNav.map((item) => (
+              {directSidebarItems.filter((item) => item.key !== "help").map((item) => (
                 <button
                   className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
                   key={item.key}
                   type="button"
                   onClick={() => openView(item.key)}
                   title={item.description}
+                  aria-current={item.key === activeItem.key ? "page" : undefined}
+                >
+                  <Icon name={item.icon} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+              {visibleGroups.map((group) => {
+                const expanded = openTopNavGroup === group.key;
+                const active = activeNavGroup === group.key;
+                return (
+                  <div
+                    className="top-nav-domain"
+                    key={group.key}
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) setOpenTopNavGroup(null);
+                    }}
+                  >
+                    <button
+                      className={active ? "top-nav-item active top-nav-parent" : "top-nav-item top-nav-parent"}
+                      type="button"
+                      onClick={() => setOpenTopNavGroup((current) => current === group.key ? null : group.key)}
+                      title={group.description}
+                      aria-expanded={expanded}
+                      aria-controls={`top-nav-group-${group.key}`}
+                    >
+                      <Icon name={group.icon} />
+                      <span>{group.label}</span>
+                      <ChevronDown className="top-nav-chevron" aria-hidden="true" />
+                    </button>
+                    {expanded ? (
+                      <div className="top-nav-submenu" id={`top-nav-group-${group.key}`} role="group" aria-label={`Atalhos de ${group.label}`}>
+                        {group.children.map((child, index) => (
+                          <Fragment key={child.key}>
+                            {child.section === "technical" && group.children[index - 1]?.section !== "technical" ? (
+                              <span className="top-nav-submenu-label">Operação técnica</span>
+                            ) : null}
+                            <button
+                              className={child.item.key === activeItem.key ? "top-nav-child active" : "top-nav-child"}
+                              type="button"
+                              onClick={() => openView(child.item.key)}
+                              title={child.item.description}
+                              aria-current={child.item.key === activeItem.key ? "page" : undefined}
+                            >
+                              <Icon name={child.item.icon} />
+                              <span>{child.item.label}</span>
+                            </button>
+                          </Fragment>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {directSidebarItems.filter((item) => item.key === "help").map((item) => (
+                <button
+                  className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}
+                  key={item.key}
+                  type="button"
+                  onClick={() => openView(item.key)}
+                  title={item.description}
+                  aria-current={item.key === activeItem.key ? "page" : undefined}
                 >
                   <Icon name={item.icon} />
                   <span>{item.label}</span>

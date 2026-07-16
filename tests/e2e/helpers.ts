@@ -70,3 +70,18 @@ export async function loginPage(page: Page, email: string, password = seedPasswo
 export async function loginAsAdminPage(page: Page) {
   await loginPage(page, "admin@example.com");
 }
+
+export function primaryNavigation(page: Page) {
+  return page.getByRole("navigation", { name: "Navegação principal" });
+}
+
+export async function expandPrimaryNavigationGroup(page: Page, group: string | RegExp) {
+  const button = primaryNavigation(page).getByRole("button", { name: group });
+  if (await button.getAttribute("aria-expanded") !== "true") await button.click();
+  return button;
+}
+
+export async function openPrimaryNavigationItem(page: Page, group: string | RegExp, item: string | RegExp) {
+  await expandPrimaryNavigationGroup(page, group);
+  await primaryNavigation(page).getByRole("button", { name: item }).click();
+}

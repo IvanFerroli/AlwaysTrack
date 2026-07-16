@@ -695,6 +695,10 @@ tr:hover td {
   width: 100%;
 }
 
+.sidebar-collapsed .nav-group {
+  width: 100%;
+}
+
 .sidebar-collapsed .nav-item {
   align-items: center;
   justify-content: center;
@@ -715,6 +719,11 @@ tr:hover td {
 .sidebar-collapsed .nav-item .icon {
   margin: 0;
   min-width: 0;
+}
+
+.sidebar-collapsed .nav-parent-chevron,
+.sidebar-collapsed .nav-submenu {
+  display: none;
 }
 
 .brand .brand-mark {
@@ -815,6 +824,81 @@ button .icon {
 
 .nav-item.active small {
   color: #d8fbf3;
+}
+
+.nav-group {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.nav-parent-label {
+  justify-content: space-between !important;
+  width: 100%;
+}
+
+.nav-parent-chevron {
+  height: 16px;
+  min-width: 16px;
+  transition: transform 160ms ease;
+  width: 16px;
+}
+
+.nav-parent[aria-expanded="true"] .nav-parent-chevron {
+  transform: rotate(180deg);
+}
+
+.nav-submenu {
+  border-left: 1px solid rgb(184 220 227 / 32%);
+  display: grid;
+  gap: 3px;
+  margin: 1px 0 5px 21px;
+  padding: 3px 0 3px 10px;
+}
+
+.nav-child-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  color: #cce6eb;
+  display: flex;
+  font-size: 14px;
+  font-weight: 650;
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 38px;
+  padding: 7px 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.nav-child-item:hover:not(.active) {
+  background: rgb(255 255 255 / 7%);
+  box-shadow: none;
+  color: white;
+}
+
+.nav-child-item.active {
+  background: rgb(255 255 255 / 11%);
+  box-shadow: inset 3px 0 0 var(--color-success);
+  color: white;
+}
+
+.nav-child-item .icon {
+  height: 17px;
+  min-width: 19px;
+  width: 17px;
+}
+
+.nav-submenu-label {
+  color: #8fc0c9;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 10px 9px 3px;
+  text-transform: uppercase;
 }
 
 .workspace {
@@ -924,6 +1008,90 @@ button .icon {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: white;
+}
+
+.top-nav-domain {
+  flex: 1 1 140px;
+  min-width: 0;
+  position: relative;
+}
+
+.top-nav-domain > .top-nav-item {
+  width: 100%;
+}
+
+.top-nav-parent {
+  justify-content: flex-start;
+}
+
+.top-nav-chevron {
+  height: 15px;
+  margin-left: auto;
+  min-width: 15px;
+  transition: transform 160ms ease;
+  width: 15px;
+}
+
+.top-nav-parent[aria-expanded="true"] .top-nav-chevron {
+  transform: rotate(180deg);
+}
+
+.top-nav-submenu {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: 3px;
+  left: 0;
+  min-width: 230px;
+  padding: 6px;
+  position: absolute;
+  top: 100%;
+  z-index: 20;
+}
+
+.top-nav-child {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  color: #344054;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 36px;
+  padding: 7px 9px;
+  text-align: left;
+  width: 100%;
+}
+
+.top-nav-child:hover:not(.active) {
+  background: var(--color-primary-soft);
+  box-shadow: none;
+}
+
+.top-nav-child.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.top-nav-child .icon {
+  height: 16px;
+  min-width: 18px;
+  width: 16px;
+}
+
+.top-nav-submenu-label {
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 8px 9px 3px;
+  text-transform: uppercase;
 }
 
 .user-actions {
@@ -4345,6 +4513,15 @@ legend {
     width: auto;
   }
 
+  .nav-group {
+    align-self: flex-start;
+    flex: 0 0 230px;
+  }
+
+  .nav-group > .nav-item {
+    width: 100%;
+  }
+
   .nav-item small {
     display: none;
   }
@@ -4453,6 +4630,22 @@ legend {
   .top-nav-item {
     flex: 1 1 140px;
     justify-content: center;
+  }
+
+  .top-nav-domain {
+    flex: 1 1 140px;
+  }
+
+  .top-nav-domain > .top-nav-item {
+    justify-content: center;
+  }
+
+  .top-nav-submenu {
+    box-shadow: var(--shadow-sm);
+    margin-top: 0;
+    min-width: 0;
+    position: static;
+    width: 100%;
   }
 
   h1 {

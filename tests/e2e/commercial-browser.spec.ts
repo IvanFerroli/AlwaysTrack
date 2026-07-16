@@ -1,14 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
-import { e2eApiUrl, expectOk, loginAsAdminApi, loginAsAdminPage } from "./helpers";
-
-const navigation = (page: Page) => page.getByRole("navigation", { name: "Navegação principal" });
+import { expect, test } from "@playwright/test";
+import { e2eApiUrl, expectOk, loginAsAdminApi, loginAsAdminPage, openPrimaryNavigationItem } from "./helpers";
 
 test.describe("commercial browser regression flows", () => {
   test("admin uploads and approves a deterministic DANFE XML through the UI", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "Mutating DANFE fixture runs once against the shared E2E database.");
     await loginAsAdminPage(page);
 
-    await navigation(page).getByRole("button", { name: /Notas/ }).click();
+    await openPrimaryNavigationItem(page, /^Vendas/, /^Notas$/);
     await expect(page.getByRole("heading", { name: "Notas" })).toBeVisible();
 
     await page.locator('input[name="danfe"]').setInputFiles("tests/e2e/fixtures/nfe-e2e.xml");
@@ -22,11 +20,11 @@ test.describe("commercial browser regression flows", () => {
     await uploadedRow.getByRole("button", { name: "Aceitar", exact: true }).click();
     await expect(uploadedRow.getByText("APPROVED")).toBeVisible();
 
-    await navigation(page).getByRole("button", { name: /Ranking/ }).click();
+    await openPrimaryNavigationItem(page, /^Vendas/, /^Ranking$/);
     await expect(page.getByRole("heading", { name: "Ranking" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Vendedor Demo", exact: true }).first()).toBeVisible();
 
-    await navigation(page).getByRole("button", { name: /Extratos/ }).click();
+    await openPrimaryNavigationItem(page, /^Vendas/, /^Extratos$/);
     await expect(page.getByRole("heading", { name: "Extratos" })).toBeVisible();
     await expect(page.getByText("R$ 194,53").first()).toBeVisible();
   });
@@ -53,7 +51,7 @@ test.describe("commercial browser regression flows", () => {
     await page.getByRole("button", { name: "Entrar com senha" }).click();
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
-    await navigation(page).getByRole("button", { name: /Wiki/ }).click();
+    await openPrimaryNavigationItem(page, /^SAC/, /^Wiki$/);
     await expect(page.getByRole("heading", { name: "Wiki", exact: true })).toBeVisible();
     await page.locator(".wiki-page-button").filter({ hasText: title }).click();
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
@@ -66,7 +64,7 @@ test.describe("commercial browser regression flows", () => {
     const adminPage = await adminContext.newPage();
     try {
       await loginAsAdminPage(adminPage);
-      await navigation(adminPage).getByRole("button", { name: /Wiki/ }).click();
+      await openPrimaryNavigationItem(adminPage, /^SAC/, /^Wiki$/);
       await expect(adminPage.getByRole("heading", { name: "Wiki", exact: true })).toBeVisible();
       await adminPage.getByPlaceholder("Titulo, slug, conteudo ou tag").fill(title);
       await adminPage.getByRole("button", { name: "Filtrar" }).click();
@@ -102,7 +100,7 @@ test.describe("commercial browser regression flows", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAsAdminPage(page);
-    await navigation(page).getByRole("button", { name: /Wiki/ }).click();
+    await openPrimaryNavigationItem(page, /^SAC/, /^Wiki$/);
     await page.locator(".wiki-page-button").filter({ hasText: title }).click();
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
 

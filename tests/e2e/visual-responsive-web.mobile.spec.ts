@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdminPage, loginPage } from "./helpers";
+import { loginAsAdminPage, loginPage, openPrimaryNavigationItem } from "./helpers";
 import {
   expectControlsInsideViewport,
   expectNoUnexpectedOverflow,
@@ -28,7 +28,7 @@ test.describe("visual responsive web mobile", () => {
   test("SAC guided flow stacks without overflow on the field viewport", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await loginPage(page, "sac@example.com");
-    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("button", { name: /^Fluxos/ }).click();
+    await openPrimaryNavigationItem(page, /^SAC/, /^Fluxos$/);
     await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
@@ -38,7 +38,7 @@ test.describe("visual responsive web mobile", () => {
   test("CaseFlow backup controls stack at the narrow management viewport", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await loginAsAdminPage(page);
-    await page.getByRole("navigation", { name: "Navegação principal" }).getByRole("button", { name: /CaseFlow Admin/ }).click();
+    await openPrimaryNavigationItem(page, /^Administração/, /^CaseFlow Admin$/);
     // The geometry gate below still reports the sidebar overlap; DOM activation lets the visual baseline capture the blocked panel itself.
     await page.getByRole("tab", { name: "Backup" }).evaluate((tab: HTMLElement) => tab.click());
     await expect(page.getByLabel("Envelope de backup")).toBeVisible();
