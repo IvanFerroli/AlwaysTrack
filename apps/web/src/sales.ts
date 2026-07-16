@@ -341,6 +341,16 @@ export interface OperationalTodayData {
       requiresAck: boolean;
       publishedAt: string | null;
       expiresAt: string | null;
+      acknowledgement?: {
+        audienceCount: number;
+        acknowledgedCount: number;
+        openedCount: number;
+        pendingCount: number;
+        completed: boolean;
+        acknowledgedUsers: Array<{ id: string; name: string; email: string; role: string }>;
+        openedWithoutAckUsers: Array<{ id: string; name: string; email: string; role: string }>;
+        notOpenedUsers: Array<{ id: string; name: string; email: string; role: string }>;
+      } | null;
     }>;
     alerts: Array<{ severity: "danger" | "warning" | "info"; title: string; detail: string; target: string }>;
   };

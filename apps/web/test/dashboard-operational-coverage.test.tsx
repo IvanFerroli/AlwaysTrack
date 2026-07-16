@@ -97,7 +97,19 @@ const todayData = {
     }],
     unreadNotifications: [],
     activeAnnouncements: [
-      { id: "announcement-1", slug: "critical-update", title: "Atualização crítica", summary: "Leia antes de operar", priority: "CRITICAL", pinned: true, requiresAck: true, publishedAt: null, expiresAt: null },
+      {
+        id: "announcement-1", slug: "critical-update", title: "Atualização crítica", summary: "Leia antes de operar", priority: "CRITICAL", pinned: true, requiresAck: true, publishedAt: null, expiresAt: null,
+        acknowledgement: {
+          audienceCount: 3,
+          acknowledgedCount: 1,
+          openedCount: 2,
+          pendingCount: 2,
+          completed: false,
+          acknowledgedUsers: [{ id: "sac-1", name: "Ana SAC", email: "ana@example.test", role: "SAC" }],
+          openedWithoutAckUsers: [{ id: "sac-2", name: "Bruno SAC", email: "bruno@example.test", role: "SAC" }],
+          notOpenedUsers: [{ id: "sac-3", name: "Carla SAC", email: "carla@example.test", role: "SAC" }]
+        }
+      },
       { id: "announcement-2", slug: "high-update", title: "Atenção comercial", summary: null, priority: "HIGH", pinned: false, requiresAck: false, publishedAt: null, expiresAt: null },
       { id: "announcement-3", slug: "daily-update", title: "Resumo diário", summary: "Operação normal", priority: "NORMAL", pinned: false, requiresAck: false, publishedAt: null, expiresAt: null }
     ],
@@ -217,6 +229,16 @@ describe("DashboardView operational coverage", () => {
     expect(screen.queryByRole("heading", { name: "Vendas aprovadas" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Notas pendentes/ })).not.toBeInTheDocument();
     expect(screen.getByText("Política de troca")).toBeInTheDocument();
+    const complianceCard = screen.getByRole("button", { name: /Fixado · Atualização crítica/ });
+    expect(complianceCard).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("1 ciente(s) · faltam 2");
+    await user.click(complianceCard);
+    expect(complianceCard).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Ana SAC")).toBeInTheDocument();
+    expect(screen.getByText("Bruno SAC")).toBeInTheDocument();
+    expect(screen.getByText("Carla SAC")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abrir aviso" }));
+    expect(onOpen).toHaveBeenLastCalledWith("announcements", { announcements: { slug: "critical-update" } });
     await user.click(screen.getByRole("button", { name: /Como retomar um atendimento/ }));
     expect(onOpen).toHaveBeenLastCalledWith("faq", { faq: { status: "OPEN" } });
 

@@ -256,7 +256,7 @@ export const capabilityCatalog = [
     group: "Qualidade",
     title: "Testes, coverage e evidencias",
     status: "delivered",
-    summary: "Gates uniformes, 1.063 testes nos seis workspaces, 34 E2E aprovados, regressao visual e coverage por risco.",
+    summary: "Gates uniformes, 1.077 testes nos seis workspaces, 34 E2E aprovados, regressao visual e coverage por risco.",
     delivered: ["Lint, typecheck, testes e build", "Matriz de papeis e viewports", "Scorecard sem media enganosa", "Documentacao com integridade executavel"],
     finalVision: "Mesmos gates verdes no CI e no release candidate production-like.",
     todos: ["Observar gate Docker/CI final", "Ampliar coverage Web e SmartScript com risco", "Executar acessibilidade manual"],

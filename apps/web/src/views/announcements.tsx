@@ -205,9 +205,10 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
   const tags = useMemo(() => [...new Set([...defaultTags, ...items.flatMap((item) => item.tags ?? [])])].sort((a, b) => a.localeCompare(b)), [items]);
   const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
   const activeCount = items.filter((item) => item.status === "PUBLISHED").length;
-  const ackPending = items.filter((item) => item.requiresAck && !item.readReceipts.some(
+  const ackPending = items.filter((item) => item.status === "PUBLISHED" && item.requiresAck && item.targetRoles?.includes(user.role) && !item.readReceipts.some(
     (receipt) => receiptBelongsToUser(receipt, user.id) && receipt.acknowledgedAt
   )).length;
+  const currentUserIsTarget = selected?.targetRoles?.includes(user.role) ?? false;
   const currentUserAcknowledged = selected?.readReceipts.some(
     (receipt) => receiptBelongsToUser(receipt, user.id) && receipt.acknowledgedAt
   ) ?? false;
@@ -339,13 +340,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   className={selected?.id === item.id ? "wiki-page-button active" : "wiki-page-button"}
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    setSelected(item);
-                    if (canManage) {
-                      setEditingId(item.id);
-                      setDraft(draftFrom(item));
-                    }
-                  }}
+                  onClick={() => void openBySlug(item.slug).catch((caught) => setError(caught instanceof Error ? caught.message : "Falha ao abrir aviso."))}
                 >
                   <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
                   <span>{priorityLabel(item.priority)} / {statusLabel(item.status)}</span>
@@ -371,7 +366,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   </p>
                 </div>
                 <div className="row-actions">
-                  {selected.requiresAck && !currentUserAcknowledged ? (
+                  {selected.status === "PUBLISHED" && selected.requiresAck && currentUserIsTarget && !currentUserAcknowledged ? (
                     <button type="button" disabled={saving} onClick={() => void acknowledge()}>
                       Marcar ciência
                     </button>
@@ -428,7 +423,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   ) : null}
                   <div>
                     <strong>Status</strong>
-                    <p>{currentUserAcknowledged ? "Você já marcou ciência" : "Pendente para você"}</p>
+                    <p>{!currentUserIsTarget ? "Acompanhamento gerencial" : currentUserAcknowledged ? "Você já marcou ciência" : "Pendente para você"}</p>
                   </div>
                   <div>
                     <strong>Obrigatoriedade</strong>

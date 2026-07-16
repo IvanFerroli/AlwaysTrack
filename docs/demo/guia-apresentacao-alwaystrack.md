@@ -113,7 +113,7 @@ O primeiro fluxo real é específico para relatos de problema de saúde após su
 
 | Evidência | Como explicar | Onde mostrar |
 | --- | --- | --- |
-| Gate completo | `npm run check` reúne lint, tipos, testes, startup e builds. Na última rodada, os seis workspaces executaram 1.063 testes, com 1 integração Redis opcional ignorada, além dos testes de startup. | Hub > Qualidade e terminal, se solicitado. |
+| Gate completo | `npm run check` reúne lint, tipos, testes, startup e builds. Na última rodada, os seis workspaces executaram 1.077 testes, com 1 integração Redis opcional ignorada, além dos testes de startup. | Hub > Qualidade e terminal, se solicitado. |
 | Coverage por risco | Cada workspace tem piso próprio e arquivos críticos têm metas maiores; o scorecard não esconde risco em uma média geral. | Hub > Qualidade > Coverage comparativo. |
 | Testes de jornada | Há testes unitários, integração HTTP, contratos OpenAPI, E2E de navegador, acessibilidade, regressão visual, fuzzing e fixtures offline. | Relatórios Playwright e coverage dentro do Hub. |
 | Segurança | Sessão, RBAC, tenancy, validação de entrada, uploads privados, redaction, auditoria e firewall de ações são protegidos por testes. | Administração > Auditoria e Hub > Documentação > Segurança. |

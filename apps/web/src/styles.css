@@ -1766,6 +1766,129 @@ button .icon {
   font-size: 12px;
 }
 
+.announcement-compliance-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+  overflow: visible;
+}
+
+.announcement-compliance-card.warning {
+  border-left-color: #f79009;
+}
+
+.announcement-compliance-card.danger {
+  border-left-color: var(--color-danger);
+}
+
+.announcement-compliance-trigger {
+  align-items: start;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-text);
+  display: grid;
+  gap: 4px;
+  height: auto;
+  justify-items: start;
+  min-height: 62px;
+  padding: 10px;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.announcement-compliance-trigger > span:not(.announcement-compliance-tooltip) {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.announcement-compliance-tooltip {
+  background: var(--color-heading);
+  border-radius: 4px;
+  bottom: 8px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0;
+  padding: 5px 7px;
+  pointer-events: none;
+  position: absolute;
+  right: 8px;
+  transform: translateY(3px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  visibility: hidden;
+  z-index: 2;
+}
+
+.announcement-compliance-trigger:hover .announcement-compliance-tooltip,
+.announcement-compliance-trigger:focus-visible .announcement-compliance-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.announcement-compliance-detail {
+  border-top: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.announcement-compliance-detail > button {
+  justify-self: end;
+}
+
+.announcement-compliance-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.announcement-compliance-people {
+  min-width: 0;
+}
+
+.announcement-compliance-people > strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+
+.announcement-compliance-people ul {
+  display: grid;
+  gap: 5px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.announcement-compliance-people li {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.announcement-compliance-people li span {
+  overflow-wrap: anywhere;
+}
+
+.announcement-compliance-people li small {
+  color: var(--color-muted);
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
+@media (max-width: 860px) {
+  .announcement-compliance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ranking-explanation-panel {
   display: grid;
   gap: 16px;

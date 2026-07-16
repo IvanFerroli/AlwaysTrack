@@ -116,8 +116,25 @@ describe("AnnouncementsView acknowledgement", () => {
     expect(screen.queryByRole("button", { name: "Marcar ciência" })).not.toBeInTheDocument();
   });
 
+  it("records an opening when the user explicitly selects an announcement from the list", async () => {
+    const item = announcement();
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/announcements?")) return Promise.resolve({ items: [item], total: 1 });
+      if (path === `/v1/announcements/by-slug/${item.slug}`) return Promise.resolve({ announcement: item });
+      return Promise.reject(new Error(`Unexpected API call: ${path}`));
+    });
+
+    render(<AnnouncementsView user={users.sac} />);
+    await userEvent.click(await screen.findByRole("button", { name: /Fixado · Mudança operacional/ }));
+
+    expect(apiMock).toHaveBeenCalledWith(`/v1/announcements/by-slug/${item.slug}`);
+    expect(screen.getByRole("button", { name: "Marcar ciência" })).toBeInTheDocument();
+  });
+
   it("shows managers the overall count while keeping their own acknowledgement pending", async () => {
-    apiMock.mockResolvedValue({ items: [announcement()], total: 1 });
+    const item = announcement();
+    item.targetRoles = ["SAC", "GESTOR"];
+    apiMock.mockResolvedValue({ items: [item], total: 1 });
 
     render(<AnnouncementsView user={users.manager} />);
 

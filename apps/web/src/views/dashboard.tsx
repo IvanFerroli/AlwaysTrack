@@ -31,6 +31,23 @@ function MetricCard({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function AcknowledgementPeople({ label, users, emptyLabel }: {
+  label: string;
+  users: Array<{ id: string; name: string; email: string; role: string }>;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="announcement-compliance-people">
+      <strong>{label} ({users.length})</strong>
+      {users.length ? (
+        <ul>
+          {users.map((person) => <li key={person.id}><span>{person.name}</span><small>{person.role}</small></li>)}
+        </ul>
+      ) : <span className="muted">{emptyLabel}</span>}
+    </div>
+  );
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -114,6 +131,7 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
 }
 
 function OperationalTodayCenter({ today, mode, onOpen }: { today: OperationalTodayData; mode: DashboardMode; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
+  const [expandedAnnouncementId, setExpandedAnnouncementId] = useState<string | null>(null);
   const showSales = mode !== "support";
   const showSupport = mode !== "sales";
   const alertTargets = mode === "sales"
@@ -249,17 +267,53 @@ function OperationalTodayCenter({ today, mode, onOpen }: { today: OperationalTod
             <OperationalState state="empty" title="Sem avisos ativos" detail="Comunicados importantes aparecerão aqui." />
           ) : (
             <div className="today-alert-list">
-              {today.queues.activeAnnouncements.map((item) => (
-                <button
-                  className={`today-alert ${item.priority === "CRITICAL" ? "danger" : item.priority === "HIGH" ? "warning" : "info"}`}
-                  key={item.id}
-                  type="button"
-                  onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}
-                >
-                  <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
-                  <span>{item.summary ?? "Abrir comunicado interno"}</span>
-                </button>
-              ))}
+              {today.queues.activeAnnouncements.map((item) => {
+                const compliance = item.acknowledgement;
+                const expanded = expandedAnnouncementId === item.id;
+                const severity = item.priority === "CRITICAL" ? "danger" : item.priority === "HIGH" ? "warning" : "info";
+                const tooltip = compliance?.completed && compliance.audienceCount > 0
+                  ? `Todos os ${compliance.audienceCount} destinatários marcaram ciência`
+                  : `${compliance?.acknowledgedCount ?? 0} ciente(s) · faltam ${compliance?.pendingCount ?? 0}`;
+                if (mode === "support" && item.requiresAck && compliance) {
+                  const tooltipId = `announcement-compliance-${item.id}`;
+                  return (
+                    <article className={`announcement-compliance-card ${severity}`} key={item.id}>
+                      <button
+                        className="announcement-compliance-trigger"
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-describedby={tooltipId}
+                        onClick={() => setExpandedAnnouncementId((current) => current === item.id ? null : item.id)}
+                      >
+                        <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
+                        <span>{item.summary ?? "Comunicado com ciência obrigatória"}</span>
+                        <span className="announcement-compliance-tooltip" id={tooltipId} role="tooltip">{tooltip}</span>
+                      </button>
+                      {expanded ? (
+                        <div className="announcement-compliance-detail">
+                          <div className="announcement-compliance-grid">
+                            <AcknowledgementPeople label="Cientes" users={compliance.acknowledgedUsers} emptyLabel="Ninguém confirmou ainda." />
+                            <AcknowledgementPeople label="Abriu, falta ciência" users={compliance.openedWithoutAckUsers} emptyLabel="Nenhuma confirmação intermediária." />
+                            <AcknowledgementPeople label="Não abriu" users={compliance.notOpenedUsers} emptyLabel="Toda a audiência já abriu." />
+                          </div>
+                          <button className="secondary" type="button" onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}>Abrir aviso</button>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                }
+                return (
+                  <button
+                    className={`today-alert ${severity}`}
+                    key={item.id}
+                    type="button"
+                    onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}
+                  >
+                    <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
+                    <span>{item.summary ?? "Abrir comunicado interno"}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div> : null}
