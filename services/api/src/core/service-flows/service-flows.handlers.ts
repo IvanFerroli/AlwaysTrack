@@ -10,13 +10,17 @@ import {
   getServiceFlowSession,
   getServiceFlow,
   listServiceFlows,
+  parseServiceFlowSessionCaseDataInput,
   parseServiceFlowGovernanceInput,
   parseServiceFlowFilters,
   parseServiceFlowInput,
   parseServiceFlowSessionStepInput,
+  parseServiceFlowSessionRewindInput,
   publishServiceFlow,
   serviceFlowMetrics,
   ServiceFlowError,
+  rewindServiceFlowSessionStep,
+  updateServiceFlowSessionCaseData,
   updateServiceFlowSessionStep,
   updateServiceFlow
 } from "./service-flows.service.js";
@@ -36,6 +40,16 @@ function sendFlowError(response: Response, error: unknown) {
     if (error.code === "FORBIDDEN") return sendError(response, 403, "FORBIDDEN", "Access denied.");
     if (error.code === "NOT_FOUND") return sendError(response, 404, "NOT_FOUND", "Service flow not found.");
     if (error.code === "SLUG_TAKEN") return sendError(response, 409, "SLUG_TAKEN", "Service flow slug already exists.");
+    if (error.code === "MISSING_REQUIRED_FACTS") {
+      return response.status(400).json({
+        ok: false,
+        error: {
+          code: "MISSING_REQUIRED_FACTS",
+          message: "Required case data is missing.",
+          details: { missingFieldKeys: error.missingFieldKeys }
+        }
+      });
+    }
     return sendError(response, 400, "INVALID_INPUT", "Invalid service flow payload.");
   }
   throw error;
@@ -123,6 +137,39 @@ export async function updateServiceFlowSessionStepHandler(request: Request, resp
         param(request.params.sessionId),
         param(request.params.stepId),
         parseServiceFlowSessionStepInput(request.body)
+      )
+    );
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function updateServiceFlowSessionCaseDataHandler(request: Request, response: Response) {
+  try {
+    return sendOk(
+      response,
+      await updateServiceFlowSessionCaseData(
+        prisma,
+        actorFrom(request),
+        param(request.params.sessionId),
+        parseServiceFlowSessionCaseDataInput(request.body)
+      )
+    );
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function rewindServiceFlowSessionStepHandler(request: Request, response: Response) {
+  try {
+    return sendOk(
+      response,
+      await rewindServiceFlowSessionStep(
+        prisma,
+        actorFrom(request),
+        param(request.params.sessionId),
+        param(request.params.stepId),
+        parseServiceFlowSessionRewindInput(request.body)
       )
     );
   } catch (error) {

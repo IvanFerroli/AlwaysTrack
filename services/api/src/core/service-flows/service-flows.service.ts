@@ -4,8 +4,10 @@ import { validateFlowGraph } from "./flow-validation.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import {
+  InputValidationError,
   optionalArray,
   optionalBoolean,
+  optionalEnum,
   optionalInteger,
   optionalString,
   optionalStringArray,
@@ -13,7 +15,10 @@ import {
 } from "../validation/input-validation.js";
 
 export class ServiceFlowError extends Error {
-  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN") {
+  constructor(
+    public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN" | "MISSING_REQUIRED_FACTS",
+    public readonly missingFieldKeys: string[] = []
+  ) {
     super(code);
   }
 }
@@ -60,6 +65,15 @@ export interface ServiceFlowSessionStepInput {
   note?: string | null;
 }
 
+/** PATCH semantics: merge only the supplied keys into the session's existing case data. */
+export interface ServiceFlowSessionCaseDataInput {
+  values: Record<string, string>;
+}
+
+export interface ServiceFlowSessionRewindInput {
+  strategy: "DISCARD_FOLLOWING" | "RECONFIRM_FOLLOWING";
+}
+
 export interface ServiceFlowGovernanceInput {
   comment?: string | null;
   reviewDueAt?: Date | null;
@@ -68,6 +82,9 @@ export interface ServiceFlowGovernanceInput {
 const statuses = new Set(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 const stepKinds = new Set(["MANUAL", "YES_NO", "CHECKLIST", "DECISION"]);
 const sessionStepStatuses = new Set(["PENDING", "DONE", "SKIPPED"]);
+const rewindStrategies = ["DISCARD_FOLLOWING", "RECONFIRM_FOLLOWING"] as const;
+const safeCaseDataKey = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/;
+const unsafeCaseDataKeys = new Set(["__proto__", "prototype", "constructor"]);
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -151,6 +168,17 @@ function choiceHistoryFromJson(value: string | null | undefined) {
   }
 }
 
+function caseDataFromJson(value: string | null | undefined): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  } catch {
+    return {};
+  }
+}
+
 function dateValue(value: unknown) {
   if (value === null) return null;
   if (typeof value !== "string") return undefined;
@@ -162,14 +190,16 @@ function formatScript<T extends { tagsJson?: string | null; placeholdersJson?: s
   return { ...script, tags: tagsFromJson(script.tagsJson), placeholders: tagsFromJson(script.placeholdersJson) };
 }
 
-function formatFlow<T extends { tagsJson?: string | null; steps?: Array<{ decisionJson?: string | null; scripts?: Array<{ script: { tagsJson?: string | null; placeholdersJson?: string | null } }> }> }>(flow: T) {
+function formatFlow<T extends { tagsJson?: string | null; steps?: Array<{ decisionJson?: string | null; scripts?: Array<{ script: { tagsJson?: string | null; placeholdersJson?: string | null; status?: string } }> }> }>(flow: T, includeUnpublishedScripts = true) {
   return {
     ...flow,
     tags: tagsFromJson(flow.tagsJson),
     steps: flow.steps?.map((step) => ({
       ...step,
       decision: decisionFromJson(step.decisionJson),
-      scripts: step.scripts?.map((link) => ({ ...link, script: formatScript(link.script) })) ?? []
+      scripts: step.scripts
+        ?.filter((link) => includeUnpublishedScripts || link.script.status === "VALIDATED")
+        .map((link) => ({ ...link, script: formatScript(link.script) })) ?? []
     })) ?? []
   };
 }
@@ -262,6 +292,32 @@ export function parseServiceFlowSessionStepInput(payload: unknown): ServiceFlowS
   }));
 }
 
+export function parseServiceFlowSessionCaseDataInput(payload: unknown): ServiceFlowSessionCaseDataInput {
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const values = parseObjectPayload(input.values, (rawValues) => {
+      const entries = Object.entries(rawValues);
+      if (entries.length > 50) throw new InputValidationError([{ field: "values", code: "TOO_MANY_ITEMS" }]);
+      return Object.fromEntries(entries.map(([key, value]) => {
+        if (!safeCaseDataKey.test(key) || unsafeCaseDataKeys.has(key)) {
+          throw new InputValidationError([{ field: `values.${key}`, code: "INVALID_VALUE" }]);
+        }
+        if (typeof value !== "string") throw new InputValidationError([{ field: `values.${key}`, code: "INVALID_TYPE" }]);
+        if (value.length > 2_000) throw new InputValidationError([{ field: `values.${key}`, code: "TOO_LONG" }]);
+        return [key, value];
+      }));
+    });
+    return { values };
+  });
+}
+
+export function parseServiceFlowSessionRewindInput(payload: unknown): ServiceFlowSessionRewindInput {
+  return parseObjectPayload(payload ?? {}, (input) => {
+    const strategy = optionalEnum(input, "strategy", rewindStrategies);
+    if (!strategy) throw new InputValidationError([{ field: "strategy", code: "INVALID_VALUE" }]);
+    return { strategy };
+  });
+}
+
 export function parseServiceFlowGovernanceInput(payload: unknown): ServiceFlowGovernanceInput {
   return parseObjectPayload(payload ?? {}, (input) => ({
     comment: optionalString(input, "comment", { maxLength: 2_000, nullable: true }),
@@ -300,6 +356,7 @@ export async function listServiceFlows(prisma: PrismaClient, actor: CurrentUser,
         orderBy: { order: "asc" },
         include: {
           scripts: {
+            where: isManager(actor) ? undefined : { script: { status: "VALIDATED" } },
             orderBy: { order: "asc" },
             include: { script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, usageCount: true } } }
           }
@@ -319,7 +376,7 @@ export async function listServiceFlows(prisma: PrismaClient, actor: CurrentUser,
       }
     }).catch(() => null);
   }
-  return { items: flows.map(formatFlow), canManage: isManager(actor) };
+  return { items: flows.map((flow) => formatFlow(flow, isManager(actor))), canManage: isManager(actor) };
 }
 
 function snapshotForFlow(flow: Awaited<ReturnType<typeof getRawFlowForRevision>>) {
@@ -548,6 +605,7 @@ export async function getServiceFlow(prisma: PrismaClient, actor: CurrentUser, f
         orderBy: { order: "asc" },
         include: {
           scripts: {
+            where: isManager(actor) ? undefined : { script: { status: "VALIDATED" } },
             orderBy: { order: "asc" },
             include: { script: { select: { id: true, title: true, channel: true, body: true, tagsJson: true, placeholdersJson: true, status: true, usageCount: true } } }
           }
@@ -556,7 +614,7 @@ export async function getServiceFlow(prisma: PrismaClient, actor: CurrentUser, f
     }
   });
   if (!flow) throw new ServiceFlowError("NOT_FOUND");
-  return { flow: formatFlow(flow), canManage: isManager(actor) };
+  return { flow: formatFlow(flow, isManager(actor)), canManage: isManager(actor) };
 }
 
 export async function publishServiceFlow(prisma: PrismaClient, actor: CurrentUser, flowId: string, input: ServiceFlowGovernanceInput = {}) {
@@ -762,12 +820,22 @@ export async function updateServiceFlowSessionStep(
 ) {
   const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
+  if (session.status !== "OPEN") throw new ServiceFlowError("INVALID_INPUT");
   const step = await prisma.serviceFlowSessionStep.findFirst({
     where: { sessionId, organizationId: actor.organizationId, OR: [{ stepId }, { nodeKey: stepId }] },
     include: { step: { select: { title: true } } }
   });
   if (!step) throw new ServiceFlowError("NOT_FOUND");
   const nextStatus = input.status ?? step.status;
+  const snapshot = nodeSnapshotFromJson(step.nodeSnapshotJson);
+  if (session.versionId && nextStatus === "SKIPPED") {
+    throw new ServiceFlowError("INVALID_INPUT");
+  }
+  if (session.versionId && nextStatus === "DONE") {
+    const caseData = caseDataFromJson(session.caseDataJson);
+    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !caseData[key]?.trim());
+    if (missingFieldKeys.length) throw new ServiceFlowError("MISSING_REQUIRED_FACTS", missingFieldKeys);
+  }
   const outgoing = session.versionId && step.nodeKey && (nextStatus === "DONE" || nextStatus === "SKIPPED")
     ? await prisma.serviceFlowTransition.findMany({
       where: { versionId: session.versionId, fromNode: { key: step.nodeKey } },
@@ -781,6 +849,30 @@ export async function updateServiceFlowSessionStep(
     ? outgoing.find((transition) => transition.label.toLocaleLowerCase() === normalizedDecision)
     : outgoing[0];
   if (requiresChoice && !selectedTransition) throw new ServiceFlowError("INVALID_INPUT");
+  let followingStep: { id: string; nodeKey: string | null } | null = null;
+  let loopTarget: { id: string; nodeKey: string | null } | null = null;
+  if (selectedTransition) {
+    if (selectedTransition.allowLoop) {
+      loopTarget = await prisma.serviceFlowSessionStep.findFirst({
+        where: { sessionId: session.id, organizationId: actor.organizationId, nodeKey: selectedTransition.toNode.key },
+        select: { id: true, nodeKey: true }
+      });
+    } else {
+      followingStep = await prisma.serviceFlowSessionStep.findFirst({
+        where: { sessionId: session.id, organizationId: actor.organizationId, visitOrder: { gt: step.visitOrder } },
+        orderBy: { visitOrder: "asc" },
+        select: { id: true, nodeKey: true }
+      });
+      if (followingStep && followingStep.nodeKey !== selectedTransition.toNode.key) throw new ServiceFlowError("INVALID_INPUT");
+      if (!followingStep) {
+        const previouslyMaterialized = await prisma.serviceFlowSessionStep.findFirst({
+          where: { sessionId: session.id, organizationId: actor.organizationId, nodeKey: selectedTransition.toNode.key },
+          select: { id: true, nodeKey: true }
+        });
+        if (previouslyMaterialized) throw new ServiceFlowError("INVALID_INPUT");
+      }
+    }
+  }
   const completedAt = nextStatus === "DONE" || nextStatus === "SKIPPED" ? new Date() : null;
   const history = choiceHistoryFromJson(step.choiceHistoryJson);
   const updateData = {
@@ -798,19 +890,25 @@ export async function updateServiceFlowSessionStep(
   const updated = selectedTransition
     ? await prisma.$transaction(async (tx) => {
       const current = await tx.serviceFlowSessionStep.update({ where: { id: step.id }, data: updateData });
-      const visitOrder = await tx.serviceFlowSessionStep.count({ where: { sessionId: session.id } });
-      await tx.serviceFlowSessionStep.upsert({
-        where: { sessionId_nodeKey: { sessionId: session.id, nodeKey: selectedTransition.toNode.key } },
-        update: { status: "PENDING", decision: null, completedAt: null, visitOrder },
-        create: {
+      if (selectedTransition.allowLoop && loopTarget) {
+        const visitOrder = await tx.serviceFlowSessionStep.count({ where: { sessionId: session.id } });
+        await tx.serviceFlowSessionStep.update({
+          where: { id: loopTarget.id },
+          data: { status: "PENDING", decision: null, completedAt: null, visitOrder }
+        });
+      } else if (!followingStep) {
+        const visitOrder = await tx.serviceFlowSessionStep.count({ where: { sessionId: session.id } });
+        await tx.serviceFlowSessionStep.create({
+          data: {
           organizationId: actor.organizationId,
           sessionId: session.id,
           nodeKey: selectedTransition.toNode.key,
           nodeSnapshotJson: JSON.stringify(selectedTransition.toNode),
           visitOrder,
           status: "PENDING"
-        }
-      });
+          }
+        });
+      }
       return current;
     })
     : await prisma.serviceFlowSessionStep.update({ where: { id: step.id }, data: updateData });
@@ -832,14 +930,92 @@ export async function updateServiceFlowSessionStep(
   return getServiceFlowSession(prisma, actor, session.id);
 }
 
+export async function updateServiceFlowSessionCaseData(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  sessionId: string,
+  input: ServiceFlowSessionCaseDataInput
+) {
+  const session = await prisma.serviceFlowSession.findFirst({
+    where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id, status: "OPEN" }
+  });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+  const fieldNames = Object.keys(input.values).sort();
+  const mergedCaseData = { ...caseDataFromJson(session.caseDataJson), ...input.values };
+  if (Object.keys(mergedCaseData).length > 50) throw new ServiceFlowError("INVALID_INPUT");
+  await prisma.serviceFlowSession.update({
+    where: { id: session.id },
+    data: { caseDataJson: JSON.stringify(mergedCaseData) }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "service_flow_session.case_data",
+    entityType: "ServiceFlowSession",
+    entityId: session.id,
+    metadata: { operation: "MERGE", fieldNames }
+  });
+  return getServiceFlowSession(prisma, actor, session.id);
+}
+
+export async function rewindServiceFlowSessionStep(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  sessionId: string,
+  stepId: string,
+  input: ServiceFlowSessionRewindInput
+) {
+  const session = await prisma.serviceFlowSession.findFirst({
+    where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id, status: "OPEN" }
+  });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+  const target = await prisma.serviceFlowSessionStep.findFirst({
+    where: { sessionId: session.id, organizationId: actor.organizationId, OR: [{ stepId }, { nodeKey: stepId }] },
+    include: { step: { select: { title: true } } }
+  });
+  if (!target) throw new ServiceFlowError("NOT_FOUND");
+
+  const affectedCount = await prisma.$transaction(async (tx) => {
+    await tx.serviceFlowSessionStep.update({ where: { id: target.id }, data: { status: "PENDING", completedAt: null } });
+    if (input.strategy === "DISCARD_FOLLOWING") {
+      return (await tx.serviceFlowSessionStep.deleteMany({
+        where: { sessionId: session.id, organizationId: actor.organizationId, visitOrder: { gt: target.visitOrder } }
+      })).count;
+    }
+    return (await tx.serviceFlowSessionStep.updateMany({
+      where: { sessionId: session.id, organizationId: actor.organizationId, visitOrder: { gt: target.visitOrder } },
+      data: { status: "RECONFIRMATION_REQUIRED", completedAt: null }
+    })).count;
+  });
+
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "service_flow_session.rewind",
+    entityType: "ServiceFlowSession",
+    entityId: session.id,
+    metadata: { strategy: input.strategy, targetStepId: stepId, affectedCount }
+  });
+  return getServiceFlowSession(prisma, actor, session.id);
+}
+
 export async function completeServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, sessionId: string) {
   const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
+  if (session.status !== "OPEN") throw new ServiceFlowError("INVALID_INPUT");
+  const materializedSteps = await prisma.serviceFlowSessionStep.findMany({
+    where: { sessionId: session.id, organizationId: actor.organizationId },
+    select: { status: true, nodeKey: true, step: { select: { required: true } } }
+  });
+  const hasBlockingStep = materializedSteps.some((step) =>
+    step.status === "RECONFIRMATION_REQUIRED"
+    || (step.status === "PENDING" && (Boolean(session.versionId) || step.step?.required === true))
+  );
+  if (hasBlockingStep) {
+    throw new ServiceFlowError("INVALID_INPUT");
+  }
   if (session.versionId) {
-    const completedNodes = await prisma.serviceFlowSessionStep.findMany({
-      where: { sessionId: session.id, organizationId: actor.organizationId, status: "DONE", nodeKey: { not: null } },
-      select: { nodeKey: true }
-    });
+    const completedNodes = materializedSteps.filter((step) => step.status === "DONE" && step.nodeKey);
     const terminal = completedNodes.length ? await prisma.serviceFlowNode.findFirst({
       where: { versionId: session.versionId, terminal: true, key: { in: completedNodes.flatMap((step) => step.nodeKey ?? []) } },
       select: { id: true }
@@ -877,9 +1053,66 @@ function sessionInclude() {
   } satisfies Prisma.ServiceFlowSessionInclude;
 }
 
-function formatSession<T extends { steps?: Array<{ visitOrder?: number; step?: { order: number } | null }> }>(session: T) {
+function nodeSnapshotFromJson(value: string | null | undefined): {
+  title?: string;
+  type?: string;
+  required: boolean;
+  requiredFacts: string[];
+} {
+  if (!value) return { required: false, requiredFacts: [] };
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    let requiredFacts: string[] = [];
+    if (Array.isArray(parsed.requiredFacts)) {
+      requiredFacts = parsed.requiredFacts.filter((key): key is string => typeof key === "string");
+    } else if (typeof parsed.requiredFactsJson === "string") {
+      try {
+        const parsedFacts = JSON.parse(parsed.requiredFactsJson) as unknown;
+        if (Array.isArray(parsedFacts)) requiredFacts = parsedFacts.filter((key): key is string => typeof key === "string");
+      } catch {
+        requiredFacts = [];
+      }
+    }
+    return {
+      title: typeof parsed.title === "string" ? parsed.title : undefined,
+      type: typeof parsed.type === "string" ? parsed.type : undefined,
+      required: parsed.required === true,
+      requiredFacts
+    };
+  } catch {
+    return { required: false, requiredFacts: [] };
+  }
+}
+
+function formatSession<T extends {
+  caseDataJson?: string | null;
+  flow?: { title?: string };
+  steps?: Array<{
+    visitOrder?: number;
+    status?: string;
+    decision?: string | null;
+    note?: string | null;
+    nodeKey?: string | null;
+    nodeSnapshotJson?: string | null;
+    step?: { order: number; title?: string } | null;
+  }>;
+}>(session: T) {
+  const { caseDataJson, ...publicSession } = session;
+  const steps = [...(session.steps ?? [])].sort((left, right) => (left.visitOrder ?? left.step?.order ?? 0) - (right.visitOrder ?? right.step?.order ?? 0));
+  const lines = steps.flatMap((step) => {
+    if (step.status !== "DONE" && step.status !== "SKIPPED") return [];
+    const decision = step.decision?.trim();
+    const note = step.note?.trim();
+    if (!decision && !note) return [];
+    const title = step.step?.title ?? nodeSnapshotFromJson(step.nodeSnapshotJson).title ?? step.nodeKey ?? "Etapa";
+    const details = [decision ? `Decisao: ${decision}` : null, note ? `Nota: ${note}` : null].filter(Boolean);
+    return [`- ${title} — ${details.join(" · ")}`];
+  });
+  const reportTitle = session.flow?.title ? `Atendimento - ${session.flow.title}` : "Atendimento";
   return {
-    ...session,
-    steps: [...(session.steps ?? [])].sort((left, right) => (left.visitOrder ?? left.step?.order ?? 0) - (right.visitOrder ?? right.step?.order ?? 0))
+    ...publicSession,
+    caseData: caseDataFromJson(caseDataJson),
+    steps,
+    report: [reportTitle, ...lines].join("\n")
   };
 }

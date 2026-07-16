@@ -204,7 +204,9 @@ import {
   getServiceFlowSessionHandler,
   listServiceFlowsHandler,
   publishServiceFlowHandler,
+  rewindServiceFlowSessionStepHandler,
   serviceFlowMetricsHandler,
+  updateServiceFlowSessionCaseDataHandler,
   updateServiceFlowSessionStepHandler,
   updateServiceFlowHandler
 } from "./core/service-flows/service-flows.handlers.js";
@@ -358,7 +360,9 @@ export function createApp() {
   app.get("/v1/service-flows/metrics/summary", requireAuth, requireRole(commercialManagerRoles), serviceFlowMetricsHandler);
   app.post("/v1/service-flows/:flowIdOrSlug/sessions", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createServiceFlowSessionHandler);
   app.get("/v1/service-flow-sessions/:sessionId", requireAuth, requireRole(commercialAllRoles), getServiceFlowSessionHandler);
+  app.patch("/v1/service-flow-sessions/:sessionId/case-data", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, updateServiceFlowSessionCaseDataHandler);
   app.post("/v1/service-flow-sessions/:sessionId/steps/:stepId", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, updateServiceFlowSessionStepHandler);
+  app.post("/v1/service-flow-sessions/:sessionId/steps/:stepId/rewind", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, rewindServiceFlowSessionStepHandler);
   app.post("/v1/service-flow-sessions/:sessionId/complete", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, completeServiceFlowSessionHandler);
   app.get("/v1/service-flows/:flowIdOrSlug", requireAuth, requireRole(commercialAllRoles), getServiceFlowHandler);
   app.post("/v1/service-flows", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createServiceFlowHandler);
