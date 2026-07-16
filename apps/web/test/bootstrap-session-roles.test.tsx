@@ -123,6 +123,9 @@ describe("Web bootstrap, session and role matrix", () => {
       }
       expect(navigation).toHaveTextContent(visible);
       for (const hiddenLabel of forbidden ?? []) expect(navigation).not.toHaveTextContent(hiddenLabel);
+      expect(screen.getByText("AlwaysTrack", { selector: ".brand strong" })).toBeInTheDocument();
+      expect(screen.queryByText("AlwaysTrack QA")).not.toBeInTheDocument();
+      expect(document.querySelector(".brand small")).not.toBeInTheDocument();
       expect(screen.getByText(role, { selector: ".eyebrow" })).toBeInTheDocument();
 
       const destination = primaryNav.getByRole("button", { name: group ? new RegExp(`^${visible}$`) : new RegExp(`^${visible}`) });

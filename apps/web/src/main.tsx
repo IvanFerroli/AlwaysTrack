@@ -4431,10 +4431,9 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="brand">
-            <BrandMark alt={organizationSettings?.organization.name ?? appName} src={organizationSettings?.organization.logoUrl} />
+            <BrandMark alt={appName} src={organizationSettings?.organization.logoUrl} />
             <div>
-              <strong>{organizationSettings?.organization.name ?? appName}</strong>
-              <small>Notas, ranking e campanhas</small>
+              <strong>{appName}</strong>
             </div>
           </div>
           <button

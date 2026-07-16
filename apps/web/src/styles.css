@@ -620,9 +620,6 @@ tr:hover td {
 
 .sidebar-header {
   align-items: center;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) 38px;
   position: relative;
   z-index: 1;
 }
@@ -633,6 +630,9 @@ tr:hover td {
   min-height: 38px;
   min-width: 38px;
   padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .sidebar-toggle svg {
@@ -654,11 +654,14 @@ tr:hover td {
 .brand {
   align-items: center;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
   min-width: 0;
   padding: 0;
   position: relative;
-  text-align: left;
+  text-align: center;
+  width: 100%;
   z-index: 1;
 }
 
@@ -674,7 +677,12 @@ tr:hover td {
 
 .sidebar-collapsed .sidebar-header {
   display: grid;
+  gap: 8px;
   justify-items: center;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  position: static;
 }
 
 .sidebar-collapsed .brand {
@@ -736,16 +744,16 @@ tr:hover td {
     0 0 0 4px rgb(255 255 255 / 8%),
     0 14px 28px rgb(0 0 0 / 22%);
   filter: none;
-  height: 64px;
+  height: 72px;
   object-fit: contain;
   padding: 7px;
-  width: 64px;
+  width: 72px;
 }
 
 .brand strong {
   color: white;
   display: block;
-  font-size: 18px;
+  font-size: 16px;
   letter-spacing: 0;
   line-height: 1.05;
   text-transform: uppercase;
