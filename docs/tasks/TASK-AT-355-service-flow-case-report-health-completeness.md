@@ -1,7 +1,7 @@
 # TASK-AT-355 - Relatorio final do atendimento e completude do piloto Saude
 
 ## Metadata
-- status: in-progress
+- status: completed-local-validation
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-355-service-flow-case-report-health-completeness.md
@@ -27,3 +27,12 @@ Encerrar uma sessao com um relato curto, copiavel e deterministico das decisoes 
 ## Dependencias
 - TASK-AT-350
 - TASK-AT-354
+
+## Validacao
+- 25 testes do catalogo Always Fit, incluindo 19 rotas de aceite.
+- Teste Web de finalizacao, exibicao e copia do resumo.
+
+## Resultado
+- Relatorio deterministico lista somente decisoes e notas nao vazias do caminho concluido.
+- O grafo de Saude permanece completo com 34 etapas, nove resultados e dez pendencias de negocio explicitas.
+- Sete mensagens continuam `DRAFT` por decisao de governanca e nao ficam copiaveis pelo SAC.

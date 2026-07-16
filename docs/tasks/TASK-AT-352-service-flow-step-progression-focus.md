@@ -1,7 +1,7 @@
 # TASK-AT-352 - Progressao e foco deterministico no executor de Fluxos
 
 ## Metadata
-- status: in-progress
+- status: completed-local-validation
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-352-service-flow-step-progression-focus.md
@@ -25,3 +25,11 @@ Fazer cada conclusao de etapa fechar o bloco atual, abrir o proximo passo materi
 ## Dependencias
 - TASK-AT-133
 - TASK-AT-350
+
+## Validacao
+- `npm run test --workspace @alwaystrack/web -- service-flows.test.tsx`: 11 testes aprovados.
+- `npm run typecheck --workspace @alwaystrack/web`.
+
+## Resultado
+- Conclusao fecha o passo atual e posiciona foco/scroll no proximo passo materializado pela API.
+- Erros preservam decisao, nota, ficha e posicao atuais.

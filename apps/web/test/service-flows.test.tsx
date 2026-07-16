@@ -152,6 +152,8 @@ function session(status = "OPEN", stepStatus = "PENDING") {
     startedAt: "2026-07-15T12:00:00.000Z",
     completedAt: status === "COMPLETED" ? "2026-07-15T12:10:00.000Z" : null,
     flow: { id: baseFlow.id, slug: baseFlow.slug, title: baseFlow.title },
+    caseData: {},
+    report: status === "COMPLETED" ? "Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado" : undefined,
     steps: baseFlow.steps.map((step, index) => ({
       id: `session-step-${index + 1}`,
       stepId: step.id,
@@ -178,6 +180,10 @@ function successfulApi(path: string, init?: RequestInit) {
   if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [personalScript] });
   if (path === "/v1/service-flows/metrics/summary") return Promise.resolve(metrics);
   if (path === `/v1/service-flows/${baseFlow.id}/sessions`) return Promise.resolve({ session: session() });
+  if (path === "/v1/service-flow-sessions/session-1/case-data") {
+    const body = JSON.parse(String(init?.body));
+    return Promise.resolve({ session: { ...session(), caseData: body.values } });
+  }
   if (path.startsWith("/v1/service-flow-sessions/session-1/steps/")) {
     const body = JSON.parse(String(init?.body));
     return Promise.resolve({ session: session("OPEN", body.status) });
@@ -316,6 +322,7 @@ describe("ServiceFlowsView", () => {
 
   it("runs the guided session with audited decision, rollback-safe error and completion", async () => {
     const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockImplementation(clipboardWriteMock);
     let stepAttempts = 0;
     apiMock.mockImplementation((path: string, init?: RequestInit) => {
       if (path === "/v1/service-flow-sessions/session-1/steps/step-1") {
@@ -345,6 +352,9 @@ describe("ServiceFlowsView", () => {
 
     await user.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(await screen.findByText("Atendimento finalizado")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Resumo para sussurro" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Copiar resumo" }));
+    expect(clipboardWriteMock).toHaveBeenCalledWith("Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado");
     expect(screen.getAllByRole("button", { name: "Concluir etapa" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
   });
 
@@ -391,6 +401,143 @@ describe("ServiceFlowsView", () => {
       { method: "POST", body: JSON.stringify({ status: "DONE", decision: "Relato reconhecido como caso deste fluxo", note: null }) }
     ));
     expect(await screen.findByText("ETAPA-002 — Apresentação com nome")).toBeInTheDocument();
+    const nextStep = screen.getByText("ETAPA-002 — Apresentação com nome").closest("article");
+    await waitFor(() => expect(nextStep).toHaveFocus());
+    expect(screen.queryByText("Fora do escopo")).not.toBeInTheDocument();
+  });
+
+  it("blocks a versioned health gate until its declared case facts are filled", async () => {
+    const user = userEvent.setup();
+    const started = {
+      id: "required-session", status: "OPEN", startedAt: "2026-07-15T12:00:00.000Z", completedAt: null,
+      flow: { id: pilotFlow.id, slug: pilotFlow.slug, title: pilotFlow.title },
+      version: { id: "pilot-version", version: 1, title: pilotFlow.title, publishedAt: "2026-07-15T12:00:00.000Z" },
+      caseData: {},
+      steps: [{
+        id: "visit-1", stepId: null, nodeKey: "ETAPA-001",
+        nodeSnapshotJson: JSON.stringify({ type: "CONTEXT", requiredFacts: ["customer.name"], terminal: false }),
+        status: "PENDING", decision: null, note: null, completedAt: null, step: null
+      }]
+    };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [pilotFlow], canManage: false });
+      if (path === "/v1/script-library") return Promise.resolve({ scripts: [] });
+      if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [] });
+      if (path === `/v1/service-flows/${pilotFlow.id}/sessions`) return Promise.resolve({ session: started });
+      if (path === "/v1/service-flow-sessions/required-session/case-data") {
+        const values = JSON.parse(String(init?.body)).values;
+        return Promise.resolve({ session: { ...started, caseData: values } });
+      }
+      if (path === "/v1/service-flow-sessions/required-session/steps/ETAPA-001") return Promise.resolve({ session: {
+        ...started,
+        caseData: { "customer.name": "Maria" },
+        steps: [{ ...started.steps[0], status: "DONE", decision: "Relato reconhecido como caso deste fluxo" }]
+      } });
+      return successfulApi(path, init);
+    });
+
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: pilotFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    const decision = screen.getByRole("button", { name: "Relato reconhecido como caso deste fluxo" });
+    expect(decision).toBeDisabled();
+    expect(screen.getByText("Complete a ficha antes de avançar")).toBeInTheDocument();
+    const customerName = screen.getByRole("textbox", { name: /Nome do cliente/ });
+    expect(customerName).toBeInTheDocument();
+    await user.type(customerName, "Maria");
+    expect(decision).toBeEnabled();
+    await user.click(decision);
+    expect(apiMock).toHaveBeenCalledWith(
+      "/v1/service-flow-sessions/required-session/case-data",
+      { method: "PATCH", body: JSON.stringify({ values: { "customer.name": "Maria" } }) }
+    );
+  });
+
+  it("keeps an allow-loop decision open and focused on the same step", async () => {
+    const user = userEvent.setup();
+    const loopFlow = {
+      ...pilotFlow,
+      steps: [{
+        ...pilotFlow.steps[0],
+        decision: { nodeKey: "ETAPA-001", options: [{ label: "Resposta incompleta", target: "ETAPA-001" }] }
+      }]
+    };
+    const started = {
+      id: "loop-session", status: "OPEN", startedAt: "2026-07-15T12:00:00.000Z", completedAt: null,
+      flow: { id: loopFlow.id, slug: loopFlow.slug, title: loopFlow.title },
+      version: { id: "pilot-version", version: 1, title: loopFlow.title, publishedAt: "2026-07-15T12:00:00.000Z" },
+      caseData: {},
+      steps: [{ id: "visit-loop", stepId: null, nodeKey: "ETAPA-001", nodeSnapshotJson: '{"requiredFacts":[]}', status: "PENDING", decision: null, note: null, completedAt: null, step: null }]
+    };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [loopFlow], canManage: false });
+      if (path === "/v1/script-library") return Promise.resolve({ scripts: [] });
+      if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [] });
+      if (path === `/v1/service-flows/${loopFlow.id}/sessions`) return Promise.resolve({ session: started });
+      if (path === "/v1/service-flow-sessions/loop-session/steps/ETAPA-001") return Promise.resolve({ session: {
+        ...started,
+        steps: [{ ...started.steps[0], status: "PENDING", decision: "Resposta incompleta" }]
+      } });
+      return successfulApi(path, init);
+    });
+
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: loopFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    await user.click(screen.getByRole("button", { name: "Resposta incompleta" }));
+    const loopStep = screen.getByText("ETAPA-001 — Receber relato").closest("article");
+    await waitFor(() => expect(loopStep).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Resposta incompleta" })).toBeInTheDocument();
+  });
+
+  it("persists one case form for every macro and restores it in the session", async () => {
+    const user = userEvent.setup();
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+
+    const customer = screen.getByRole("textbox", { name: "Cliente" });
+    await user.type(customer, "Maria Silva");
+    expect(screen.getByText("Ola, Maria Silva. A troca esta autorizada.")).toBeInTheDocument();
+    expect(screen.getByText("Retorno para Maria Silva")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Salvar dados" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
+      "/v1/service-flow-sessions/session-1/case-data",
+      { method: "PATCH", body: JSON.stringify({ values: { cliente: "Maria Silva" } }) }
+    ));
+    expect(await screen.findByText("Dados salvos")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Cliente" })).toHaveValue("Maria Silva");
+  });
+
+  it("resumes a completed step while preserving following records for reconfirmation", async () => {
+    const user = userEvent.setup();
+    const completed = session("OPEN", "DONE");
+    completed.steps[1] = { ...completed.steps[1], status: "DONE", decision: "Troca", note: "Pedido preparado", completedAt: "2026-07-15T12:06:00.000Z" };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === `/v1/service-flows/${baseFlow.id}/sessions`) return Promise.resolve({ session: completed });
+      if (path === "/v1/service-flow-sessions/session-1/steps/step-1/rewind") return Promise.resolve({ session: {
+        ...completed,
+        steps: [
+          { ...completed.steps[0], status: "PENDING", completedAt: null },
+          { ...completed.steps[1], status: "RECONFIRMATION_REQUIRED", completedAt: null }
+        ]
+      } });
+      return successfulApi(path, init);
+    });
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    await user.click(screen.getByRole("button", { name: "Retomar daqui" }));
+    expect(screen.getByRole("dialog", { name: "Validar pedido" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Editar e reconfirmar caminho/ }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
+      "/v1/service-flow-sessions/session-1/steps/step-1/rewind",
+      { method: "POST", body: JSON.stringify({ strategy: "RECONFIRM_FOLLOWING" }) }
+    ));
+    expect(screen.getByText("RECONFIRMATION_REQUIRED · CHECKLIST")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finalizar" })).toBeDisabled();
   });
 
   it("renders placeholders safely and audits canonical script copy in the active session", async () => {
@@ -401,7 +548,7 @@ describe("ServiceFlowsView", () => {
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     await screen.findByText("Atendimento em andamento");
 
-    await user.type(screen.getAllByRole("textbox", { name: "cliente" })[0], "Maria <script>");
+    await user.type(screen.getByRole("textbox", { name: "Cliente" }), "Maria <script>");
     await user.click(screen.getByRole("button", { name: "Copiar script" }));
     const rendered = "Ola, Maria <script>. A troca esta autorizada.";
     await waitFor(() => expect(clipboardWriteMock).toHaveBeenCalledWith(rendered));

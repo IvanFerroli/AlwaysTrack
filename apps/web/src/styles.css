@@ -3318,6 +3318,61 @@ legend {
   margin: 0;
 }
 
+.service-flow-case-data,
+.service-flow-report {
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.service-flow-section-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.service-flow-section-heading h3 {
+  margin: 0;
+}
+
+.service-flow-case-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.service-flow-case-grid label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.service-flow-case-grid label > span {
+  color: var(--color-heading);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.service-flow-case-grid label strong {
+  color: var(--color-danger);
+}
+
+.service-flow-report pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
 .service-flow-steps,
 .service-flow-step-editor {
   display: grid;
@@ -3333,6 +3388,15 @@ legend {
 
 .service-flow-step.completed {
   border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border-soft));
+}
+
+.service-flow-step.reconfirmation-required {
+  border-color: color-mix(in srgb, var(--color-warning) 55%, var(--color-border-soft));
+}
+
+.service-flow-step:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 42%, transparent);
+  outline-offset: 3px;
 }
 
 .service-flow-step-header {
@@ -3395,6 +3459,22 @@ legend {
 .service-flow-session-box label {
   display: grid;
   gap: 6px;
+}
+
+.service-flow-missing-facts {
+  background: var(--color-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
+  border-radius: var(--radius-sm);
+  color: var(--color-warning-dark);
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+}
+
+.service-flow-missing-facts span {
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .status-pill {
@@ -3463,6 +3543,56 @@ legend {
 
 .service-flow-script-card .script-copy-button {
   justify-self: end;
+}
+
+.service-flow-script-ready {
+  color: var(--color-muted);
+}
+
+.service-flow-dialog-backdrop {
+  align-items: center;
+  background: rgb(0 0 0 / 48%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 100;
+}
+
+.service-flow-dialog {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  gap: 12px;
+  max-height: calc(100vh - 40px);
+  max-width: 560px;
+  overflow: auto;
+  padding: 20px;
+  width: 100%;
+}
+
+.service-flow-dialog h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.service-flow-dialog > button:not(:last-child) {
+  align-items: flex-start;
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  min-height: 58px;
+  text-align: left;
+  white-space: normal;
+}
+
+.service-flow-dialog button small {
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0.86;
 }
 
 .service-flow-step-draft {

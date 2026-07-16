@@ -1,7 +1,7 @@
 # TASK-AT-354 - Retomada de etapa com descarte ou reconfirmacao
 
 ## Metadata
-- status: in-progress
+- status: completed-local-validation
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-354-service-flow-rewind-reconfirmation.md
@@ -27,3 +27,12 @@ Permitir retomar qualquer etapa visitada com uma escolha explicita entre abandon
 ## Dependencias
 - TASK-AT-352
 - TASK-AT-353
+
+## Validacao
+- Testes API para descarte, reconfirmacao, isolamento e sessao encerrada.
+- Teste Web para escolha explicita e bloqueio da finalizacao durante reconfirmacao.
+
+## Resultado
+- `DISCARD_FOLLOWING` remove o caminho posterior operacional.
+- `RECONFIRM_FOLLOWING` preserva decisoes/notas e marca os passos posteriores para nova confirmacao.
+- Loops declarados por `allowLoop` reabrem somente o destino previsto; mudanca de ramo continua exigindo descarte explicito.

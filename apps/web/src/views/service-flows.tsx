@@ -1,4 +1,4 @@
-import { Check, Clipboard, GitBranch, Plus } from "lucide-react";
+import { Check, Clipboard, GitBranch, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadOperationalImage } from "../api";
@@ -93,6 +93,8 @@ interface ServiceFlowSession {
   completedAt: string | null;
   flow: { id: string; slug: string; title: string };
   version?: { id: string; version: number; title: string; publishedAt: string } | null;
+  caseData?: Record<string, string>;
+  report?: string;
   steps: Array<{
     id: string;
     stepId: string | null;
@@ -105,6 +107,8 @@ interface ServiceFlowSession {
     step: { id: string; title: string; order: number; required: boolean } | null;
   }>;
 }
+
+type RewindStrategy = "DISCARD_FOLLOWING" | "RECONFIRM_FOLLOWING";
 
 interface FlowDecisionOption {
   label: string;
@@ -175,6 +179,104 @@ function isCompletedTerminalStep(step: ServiceFlowSession["steps"][number]) {
   }
 }
 
+function sessionStepKey(step: ServiceFlowSession["steps"][number]) {
+  return step.stepId ?? step.nodeKey;
+}
+
+function placeholdersFor(script: Pick<FlowScript, "placeholders">, values: Record<string, string>) {
+  const aliases: Record<string, string> = {
+    nome_cliente: "customer.name",
+    codigo_reversa: "treatment.reverseCode",
+    previsao_entrega: "logistics.forecast",
+    novo_pedido: "order.manualId",
+    modo_de_uso: "custom.alwaysfit.product.recommended.usage"
+  };
+  return Object.fromEntries((script.placeholders ?? []).map((placeholder) => [placeholder, values[placeholder] ?? values[aliases[placeholder]] ?? ""]));
+}
+
+function factsFromSnapshot(value: string | null | undefined) {
+  if (!value) return { required: [] as string[], optional: [] as string[], type: null as string | null };
+  try {
+    const snapshot = JSON.parse(value) as { requiredFacts?: unknown; requiredFactsJson?: unknown; optionalFacts?: unknown; optionalFactsJson?: unknown; type?: unknown };
+    const parseFacts = (direct: unknown, serialized: unknown) => {
+      if (Array.isArray(direct)) return direct.filter((item): item is string => typeof item === "string");
+      if (typeof serialized !== "string") return [];
+      try {
+        const parsed = JSON.parse(serialized) as unknown;
+        return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+      } catch {
+        return [];
+      }
+    };
+    return {
+      required: parseFacts(snapshot.requiredFacts, snapshot.requiredFactsJson),
+      optional: parseFacts(snapshot.optionalFacts, snapshot.optionalFactsJson),
+      type: typeof snapshot.type === "string" ? snapshot.type : null
+    };
+  } catch {
+    return { required: [], optional: [], type: null };
+  }
+}
+
+const caseFieldLabels: Record<string, string> = {
+  "conversation.intentText": "Relato inicial",
+  "customer.name": "Nome do cliente",
+  "customer.cpf": "CPF do cliente",
+  "customer.email": "E-mail do cliente",
+  "customer.phone": "Telefone do cliente",
+  "order.primaryId": "Pedido relacionado",
+  "order.manualId": "Novo pedido da troca",
+  "order.products": "Produtos do pedido",
+  "logistics.deliveredAt": "Data de recebimento",
+  "logistics.returnState": "Situação da postagem",
+  "logistics.forecast": "Previsão de entrega",
+  "payment.method": "Forma de pagamento original",
+  "payment.pix": "Dados Pix",
+  "treatment.reverseCode": "Código da logística reversa",
+  "custom.alwaysfit.health.symptom.started": "Início do mal-estar",
+  "custom.alwaysfit.health.related.products": "Produtos relacionados ao mal-estar",
+  "custom.alwaysfit.health.usage": "Forma e período de uso",
+  "custom.alwaysfit.health.concomitant.products": "Medicamentos ou suplementos simultâneos",
+  "custom.alwaysfit.product.recommended.usage": "Forma de uso recomendada",
+  "custom.alwaysfit.health.symptom.persistent": "O mal-estar permanece?",
+  "custom.alwaysfit.treatment.unusable.scope": "Escopo que não poderá mais ser usado",
+  "custom.alwaysfit.return.open.items": "Itens abertos",
+  "custom.alwaysfit.return.sealed.items": "Itens lacrados",
+  "custom.alwaysfit.return.returned.sealed.items": "Lacrados que serão devolvidos",
+  "custom.alwaysfit.return.retained.sealed.items": "Lacrados que ficarão com o cliente",
+  "custom.alwaysfit.return.declared.value": "Valor declarado na reversa",
+  "custom.alwaysfit.treatment.solution": "Solução escolhida",
+  "custom.alwaysfit.financial.paid.affected.value": "Valor pago pelo escopo afetado",
+  "custom.alwaysfit.financial.retained.sealed.value": "Valor dos lacrados retidos",
+  "custom.alwaysfit.financial.available.balance": "Saldo disponível",
+  "custom.alwaysfit.financial.refund.amount": "Valor do estorno",
+  "custom.alwaysfit.treatment.slack.refund.link": "Link do pedido de estorno no Slack",
+  "custom.alwaysfit.exchange.items": "Itens da troca",
+  "custom.alwaysfit.exchange.stock.available": "Disponibilidade da composição",
+  "custom.alwaysfit.exchange.value": "Valor da troca",
+  "custom.alwaysfit.exchange.difference": "Diferença da troca",
+  "custom.alwaysfit.payment.difference.status": "Situação do pagamento da diferença",
+  "custom.alwaysfit.financial.remaining.refund": "Diferença restante para estorno"
+};
+
+function humanizeCaseField(key: string) {
+  return caseFieldLabels[key] ?? key.replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function focusServiceFlowStep(nodeKey: string | null | undefined) {
+  if (!nodeKey) return;
+  window.setTimeout(() => {
+    const element = document.getElementById(`service-flow-${nodeKey}`);
+    element?.focus({ preventScroll: true });
+    if (element && typeof element.scrollIntoView === "function") {
+      element.scrollIntoView({
+        behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "center"
+      });
+    }
+  }, 0);
+}
+
 function decisionPayload(step: StepDraft) {
   if (step.kind === "YES_NO") {
     return {
@@ -211,10 +313,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [tag, setTag] = useState("");
   const [status, setStatus] = useState("");
   const [openSteps, setOpenSteps] = useState<Record<string, boolean>>({});
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, Record<string, string>>>({});
   const [activeSession, setActiveSession] = useState<ServiceFlowSession | null>(null);
+  const [caseData, setCaseData] = useState<Record<string, string>>({});
+  const [caseDataDirty, setCaseDataDirty] = useState(false);
+  const [caseDataFeedback, setCaseDataFeedback] = useState("");
   const [stepNotes, setStepNotes] = useState<Record<string, string>>({});
   const [stepDecisions, setStepDecisions] = useState<Record<string, string>>({});
+  const [rewindTarget, setRewindTarget] = useState<ServiceFlowStep | null>(null);
   const [copyFeedback, setCopyFeedback] = useState("");
   const [flowDraft, setFlowDraft] = useState({ title: "", summary: "", content: "", tags: "", status: "PUBLISHED" });
   const [governanceDraft, setGovernanceDraft] = useState({ comment: "", reviewDueAt: "" });
@@ -232,13 +337,35 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     return flows.filter((flow) => `${flow.title} ${flow.summary ?? ""} ${flow.tags?.join(" ") ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(needle));
   }, [flowPickerQuery, flows]);
   const visiblePersonalScripts = useMemo(() => personalScripts.filter((script) => !selected || script.flows.length === 0 || script.flows.some((flow) => flow.id === selected.id)), [personalScripts, selected]);
+  const caseFields = useMemo(() => {
+    const required = new Set(activeSession?.steps.flatMap((step) => factsFromSnapshot(step.nodeSnapshotJson).required) ?? []);
+    const optional = new Set(activeSession?.steps.flatMap((step) => factsFromSnapshot(step.nodeSnapshotJson).optional) ?? []);
+    const aliases: Record<string, string> = {
+      nome_cliente: "customer.name",
+      codigo_reversa: "treatment.reverseCode",
+      previsao_entrega: "logistics.forecast",
+      novo_pedido: "order.manualId",
+      modo_de_uso: "custom.alwaysfit.product.recommended.usage"
+    };
+    const placeholders = [
+      ...(selected?.steps.flatMap((step) => step.scripts.flatMap(({ script }) => script.placeholders ?? [])) ?? []),
+      ...visiblePersonalScripts.flatMap((script) => script.placeholders ?? [])
+    ].map((key) => aliases[key] ?? key);
+    return [...new Set([...required, ...optional, ...placeholders])]
+      .map((key) => ({ key, label: humanizeCaseField(key), required: required.has(key) }))
+      .sort((left, right) => Number(right.required) - Number(left.required) || left.label.localeCompare(right.label, "pt-BR"));
+  }, [activeSession, selected, visiblePersonalScripts]);
   const visibleSteps = useMemo(() => {
     if (!selected || !activeSession) return selected?.steps ?? [];
     return selected.steps.filter((step) => activeSession.steps.some((sessionStep) =>
       sessionStep.stepId === step.id || sessionStep.nodeKey === nodeKeyFromStep(step)
     ));
   }, [activeSession, selected]);
-  const canCompleteSession = !activeSession?.version || activeSession.steps.some(isCompletedTerminalStep);
+  const canCompleteSession = activeSession ? activeSession.version
+    ? activeSession.steps.some(isCompletedTerminalStep)
+      && !activeSession.steps.some((step) => step.status === "PENDING" || step.status === "RECONFIRMATION_REQUIRED")
+    : !activeSession.steps.some((step) => step.status === "RECONFIRMATION_REQUIRED" || (step.status === "PENDING" && step.step?.required))
+    : false;
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);
@@ -276,13 +403,18 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
 
   useEffect(() => {
     setActiveSession(null);
+    setCaseData({});
+    setCaseDataDirty(false);
+    setCaseDataFeedback("");
     setStepNotes({});
     setStepDecisions({});
+    setRewindTarget(null);
     setPersonalDraft((current) => ({ ...current, flowIds: selectedId ? [selectedId] : [] }));
   }, [selectedId]);
 
   async function copyScript(script: FlowScript) {
-    const rendered = renderScript(script.body, placeholderValues[script.id] ?? {});
+    const scriptValues = placeholdersFor(script, caseData);
+    const rendered = renderScript(script.body, scriptValues);
     try {
       await navigator.clipboard.writeText(rendered);
       setCopyFeedback(script.id);
@@ -291,14 +423,14 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     }
     await api(`/v1/script-library/scripts/${script.id}/copy`, {
       method: "POST",
-      body: JSON.stringify({ renderedText: rendered, placeholders: placeholderValues[script.id] ?? {}, serviceFlowSessionId: activeSession?.id ?? null })
+      body: JSON.stringify({ renderedText: rendered, placeholders: scriptValues, serviceFlowSessionId: activeSession?.id ?? null })
     }).catch(() => null);
     window.setTimeout(() => setCopyFeedback(""), 1600);
   }
 
   async function copyPersonalScript(script: PersonalScriptItem) {
     const key = `personal:${script.id}`;
-    const rendered = renderScript(script.body, placeholderValues[key] ?? {});
+    const rendered = renderScript(script.body, placeholdersFor(script, caseData));
     try {
       await navigator.clipboard.writeText(rendered);
       setCopyFeedback(key);
@@ -315,6 +447,9 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flows/${selected.id}/sessions`, { method: "POST" });
       setActiveSession(result.session);
+      setCaseData(result.session.caseData ?? {});
+      setCaseDataDirty(false);
+      setCaseDataFeedback("");
       const selectedSteps = selected.steps;
       const stateKey = (sessionStep: ServiceFlowSession["steps"][number]) => sessionStep.stepId
         ?? selectedSteps.find((step) => nodeKeyFromStep(step) === sessionStep.nodeKey)?.id
@@ -334,6 +469,52 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     }
   }
 
+  async function saveCaseData() {
+    if (!activeSession) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/case-data`, {
+        method: "PATCH",
+        body: JSON.stringify({ values: caseData })
+      });
+      setActiveSession(result.session);
+      setCaseData(result.session.caseData ?? {});
+      setCaseDataDirty(false);
+      setCaseDataFeedback("Dados salvos");
+      window.setTimeout(() => setCaseDataFeedback(""), 1800);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar dados do atendimento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function rewindSessionStep(strategy: RewindStrategy) {
+    if (!activeSession || !rewindTarget) return;
+    const sessionStep = activeSession.steps.find((item) => item.stepId === rewindTarget.id || item.nodeKey === nodeKeyFromStep(rewindTarget));
+    const routeKey = sessionStep ? sessionStepKey(sessionStep) : null;
+    if (!routeKey) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/steps/${routeKey}/rewind`, {
+        method: "POST",
+        body: JSON.stringify({ strategy })
+      });
+      setActiveSession(result.session);
+      setStepNotes((current) => ({ ...current, [rewindTarget.id]: sessionStep?.note ?? "" }));
+      setStepDecisions((current) => ({ ...current, [rewindTarget.id]: sessionStep?.decision ?? "" }));
+      setOpenSteps((current) => ({ ...current, [rewindTarget.id]: true }));
+      setRewindTarget(null);
+      focusServiceFlowStep(nodeKeyFromStep(rewindTarget) ?? rewindTarget.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Falha ao retomar etapa.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveSessionStep(step: ServiceFlowStep, statusValue: "DONE" | "SKIPPED" | "PENDING", selectedDecision?: FlowDecisionOption) {
     if (!activeSession) return;
     const sessionStep = activeSession.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKeyFromStep(step));
@@ -343,17 +524,34 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     setSaving(true);
     setError(null);
     try {
+      if (caseDataDirty) {
+        const saved = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/case-data`, {
+          method: "PATCH",
+          body: JSON.stringify({ values: caseData })
+        });
+        setActiveSession(saved.session);
+        setCaseData(saved.session.caseData ?? caseData);
+        setCaseDataDirty(false);
+      }
       const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/steps/${routeKey}`, {
         method: "POST",
         body: JSON.stringify({ status: statusValue, decision: decision || null, note: stepNotes[step.id] || null })
       });
       setActiveSession(result.session);
-      if (selectedDecision?.target) {
-        const target = selected.steps.find((item) => nodeKeyFromStep(item) === selectedDecision.target);
-        if (target) {
-          setOpenSteps((current) => ({ ...current, [target.id]: true }));
-          window.setTimeout(() => document.getElementById(`service-flow-${selectedDecision.target}`)?.scrollIntoView?.({ behavior: "smooth", block: "center" }), 0);
-        }
+      if (statusValue === "DONE" || statusValue === "SKIPPED") {
+        const currentIndex = result.session.steps.findIndex((item) => item.stepId === step.id || item.nodeKey === nodeKeyFromStep(step));
+        const currentSessionStep = currentIndex >= 0 ? result.session.steps[currentIndex] : null;
+        const loopsOnCurrentStep = currentSessionStep?.status === "PENDING" || currentSessionStep?.status === "RECONFIRMATION_REQUIRED";
+        const nextSessionStep = loopsOnCurrentStep
+          ? currentSessionStep
+          : result.session.steps.slice(Math.max(currentIndex + 1, 0)).find((item) => item.status === "PENDING" || item.status === "RECONFIRMATION_REQUIRED");
+        const target = nextSessionStep ? selected.steps.find((item) => item.id === nextSessionStep.stepId || nodeKeyFromStep(item) === nextSessionStep.nodeKey) : null;
+        setOpenSteps((current) => ({
+          ...current,
+          [step.id]: loopsOnCurrentStep,
+          ...(target ? { [target.id]: true } : {})
+        }));
+        focusServiceFlowStep(nextSessionStep?.nodeKey ?? target?.id);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao registrar etapa.");
@@ -373,6 +571,17 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       setError(caught instanceof Error ? caught.message : "Falha ao finalizar atendimento.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function copySessionReport() {
+    if (!activeSession?.report) return;
+    try {
+      await navigator.clipboard.writeText(activeSession.report);
+      setCopyFeedback("session-report");
+      window.setTimeout(() => setCopyFeedback(""), 1600);
+    } catch {
+      setCopyFeedback("");
     }
   }
 
@@ -621,14 +830,68 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   ) : null}
                 </div>
               ) : null}
+              {activeSession ? (
+                <section className="service-flow-case-data" aria-labelledby="service-flow-case-data-title">
+                  <div className="service-flow-section-heading">
+                    <div>
+                      <p className="eyebrow">Ficha do atendimento</p>
+                      <h3 id="service-flow-case-data-title">Dados compartilhados pelas macros</h3>
+                    </div>
+                    <div className="row-actions">
+                      {caseDataFeedback ? <span className="status-pill">{caseDataFeedback}</span> : null}
+                      <button type="button" disabled={saving || !caseDataDirty || activeSession.status === "COMPLETED"} onClick={() => void saveCaseData()}>Salvar dados</button>
+                    </div>
+                  </div>
+                  <div className="service-flow-case-grid">
+                    {caseFields.map((field) => (
+                      <label key={field.key}>
+                        <span>{field.label}{field.required ? <strong aria-label="obrigatório"> *</strong> : null}</span>
+                        <input
+                          value={caseData[field.key] ?? ""}
+                          disabled={activeSession.status === "COMPLETED"}
+                          onChange={(event) => {
+                            setCaseData((current) => ({ ...current, [field.key]: event.target.value }));
+                            setCaseDataDirty(true);
+                            setCaseDataFeedback("");
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {caseFields.length ? null : <p className="muted">Este trecho ainda não exige dados compartilhados.</p>}
+                </section>
+              ) : null}
+              {activeSession?.report ? (
+                <section className="service-flow-report" aria-labelledby="service-flow-report-title">
+                  <div className="service-flow-section-heading">
+                    <div>
+                      <p className="eyebrow">Encerramento</p>
+                      <h3 id="service-flow-report-title">Resumo para sussurro</h3>
+                    </div>
+                    <button className={copyFeedback === "session-report" ? "copied" : ""} type="button" onClick={() => void copySessionReport()}>
+                      {copyFeedback === "session-report" ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                      {copyFeedback === "session-report" ? "Copiado" : "Copiar resumo"}
+                    </button>
+                  </div>
+                  <pre>{activeSession.report}</pre>
+                </section>
+              ) : null}
               <div className="service-flow-steps">
                 {visibleSteps.map((step, index) => {
                   const expanded = openSteps[step.id] ?? index === 0;
                   const nodeKey = nodeKeyFromStep(step);
                   const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKey);
                   const decisionOptions = optionsFromDecision(step.decision);
+                  const snapshot = factsFromSnapshot(sessionStep?.nodeSnapshotJson);
+                  const missingRequiredFacts = snapshot.required.filter((key) => !caseData[key]?.trim());
+                  const canSkipStep = !activeSession?.version && !step.required && snapshot.type !== "RISK_GATE" && snapshot.required.length === 0;
                   return (
-                    <article id={nodeKey ? `service-flow-${nodeKey}` : undefined} className={sessionStep?.status === "DONE" ? "service-flow-step completed" : "service-flow-step"} key={step.id}>
+                    <article
+                      id={`service-flow-${nodeKey ?? step.id}`}
+                      tabIndex={-1}
+                      className={`service-flow-step${sessionStep?.status === "DONE" ? " completed" : ""}${sessionStep?.status === "RECONFIRMATION_REQUIRED" ? " reconfirmation-required" : ""}`}
+                      key={step.id}
+                    >
                       <button className="service-flow-step-header" type="button" onClick={() => setOpenSteps((current) => ({ ...current, [step.id]: !expanded }))}>
                         <span>{index + 1}</span>
                         <strong>{step.title}</strong>
@@ -637,6 +900,12 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                       {expanded ? (
                         <div className="service-flow-step-body">
                           {step.body ? <p>{step.body}</p> : null}
+                          {missingRequiredFacts.length ? (
+                            <div className="service-flow-missing-facts" role="status">
+                              <strong>Complete a ficha antes de avançar</strong>
+                              <span>{missingRequiredFacts.map(humanizeCaseField).join(" · ")}</span>
+                            </div>
+                          ) : null}
                           {decisionOptions.length ? (
                             <div className="service-flow-decision">
                               <GitBranch size={16} aria-hidden="true" />
@@ -645,7 +914,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                   key={`${option.label}:${option.target ?? "legacy"}`}
                                   type="button"
                                   aria-pressed={stepDecisions[step.id] === option.label}
-                                  disabled={saving || activeSession.status === "COMPLETED" || sessionStep?.status === "DONE"}
+                                  disabled={saving || activeSession.status === "COMPLETED" || sessionStep?.status === "DONE" || missingRequiredFacts.length > 0}
                                   onClick={() => void saveSessionStep(step, "DONE", option)}
                                 >{option.label}</button>
                               ) : <span key={`${option.label}:${option.target ?? "legacy"}`}>{option.label}</span>)}
@@ -660,17 +929,14 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                     <small>{script.channel} · {script.status} · {script.usageCount} copia(s)</small>
                                   </div>
                                   {script.placeholders?.length ? (
-                                    <div className="script-placeholder-grid">
-                                      {script.placeholders.map((placeholder) => (
-                                        <label key={placeholder}>
-                                          {placeholder}
-                                          <input value={placeholderValues[script.id]?.[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [script.id]: { ...(current[script.id] ?? {}), [placeholder]: event.target.value } }))} />
-                                        </label>
-                                      ))}
-                                    </div>
+                                    <small className="service-flow-script-ready">
+                                      {script.placeholders.every((placeholder) => placeholdersFor(script, caseData)[placeholder])
+                                        ? "Macro pronta com os dados da ficha"
+                                        : "Complete os campos da ficha para finalizar esta macro"}
+                                    </small>
                                   ) : null}
                                   <div className="script-preview">
-                                    <MarkdownContent content={renderScript(script.body, placeholderValues[script.id] ?? {})} />
+                                    <MarkdownContent content={renderScript(script.body, placeholdersFor(script, caseData))} />
                                   </div>
                                   <button className={copyFeedback === script.id ? "script-copy-button copied" : "script-copy-button"} type="button" onClick={() => void copyScript(script)} title="Copiar script">
                                     {copyFeedback === script.id ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
@@ -691,9 +957,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                 <textarea rows={3} value={stepNotes[step.id] ?? ""} onChange={(event) => setStepNotes((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Registre o contexto para auditoria do atendimento." />
                               </label>
                               <div className="row-actions">
-                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "PENDING")}>Reabrir</button>
-                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "SKIPPED")}>Pular</button>
-                                <button type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "DONE")}>Concluir etapa</button>
+                                {sessionStep && sessionStep.status !== "PENDING" ? (
+                                  <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => setRewindTarget(step)}>
+                                    <RotateCcw size={16} aria-hidden="true" /> Retomar daqui
+                                  </button>
+                                ) : null}
+                                {canSkipStep ? <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "SKIPPED")}>Pular</button> : null}
+                                <button type="button" disabled={saving || activeSession.status === "COMPLETED" || missingRequiredFacts.length > 0} onClick={() => void saveSessionStep(step, "DONE")}>Concluir etapa</button>
                               </div>
                             </div>
                           ) : null}
@@ -719,17 +989,14 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                           <small>{script.channel} · {script.flows.length ? script.flows.map((flow) => flow.title).join(", ") : "sem fluxo fixo"}</small>
                         </div>
                         {script.placeholders?.length ? (
-                          <div className="script-placeholder-grid">
-                            {script.placeholders.map((placeholder) => (
-                              <label key={placeholder}>
-                                {placeholder}
-                                <input value={placeholderValues[key]?.[placeholder] ?? ""} onChange={(event) => setPlaceholderValues((current) => ({ ...current, [key]: { ...(current[key] ?? {}), [placeholder]: event.target.value } }))} />
-                              </label>
-                            ))}
-                          </div>
+                          <small className="service-flow-script-ready">
+                            {script.placeholders.every((placeholder) => placeholdersFor(script, caseData)[placeholder])
+                              ? "Macro pronta com os dados da ficha"
+                              : "Complete os campos da ficha para finalizar esta macro"}
+                          </small>
                         ) : null}
                         <div className="script-preview">
-                          <MarkdownContent content={renderScript(script.body, placeholderValues[key] ?? {})} />
+                          <MarkdownContent content={renderScript(script.body, placeholdersFor(script, caseData))} />
                         </div>
                         <div className="row-actions">
                           <button className={copyFeedback === key ? "script-copy-button copied" : "script-copy-button"} type="button" onClick={() => void copyPersonalScript(script)} title="Copiar script pessoal">
@@ -766,6 +1033,31 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
           ) : <OperationalState state="empty" title="Selecione um fluxo" />}
         </section>
       </div>
+      {rewindTarget ? (
+        <div
+          className="service-flow-dialog-backdrop"
+          role="presentation"
+          onClick={(event) => { if (event.target === event.currentTarget && !saving) setRewindTarget(null); }}
+          onKeyDown={(event) => { if (event.key === "Escape" && !saving) setRewindTarget(null); }}
+        >
+          <section className="service-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="service-flow-rewind-title" onClick={(event) => event.stopPropagation()}>
+            <div>
+              <p className="eyebrow">Retomar atendimento</p>
+              <h2 id="service-flow-rewind-title">{rewindTarget.title}</h2>
+              <p className="muted">Escolha como tratar o caminho registrado depois desta etapa.</p>
+            </div>
+            <button autoFocus type="button" disabled={saving} onClick={() => void rewindSessionStep("RECONFIRM_FOLLOWING")}>
+              Editar e reconfirmar caminho
+              <small>Preserva decisões e notas posteriores, mas exige uma nova confirmação de cada etapa.</small>
+            </button>
+            <button className="danger" type="button" disabled={saving} onClick={() => void rewindSessionStep("DISCARD_FOLLOWING")}>
+              Descartar etapas seguintes
+              <small>Remove o caminho posterior desta execução e permite seguir por uma nova decisão.</small>
+            </button>
+            <button className="secondary" type="button" disabled={saving} onClick={() => setRewindTarget(null)}>Cancelar</button>
+          </section>
+        </div>
+      ) : null}
       {canManage ? (
         <section className="panel">
           <div>

@@ -1,7 +1,7 @@
 # TASK-AT-353 - Dados persistentes do caso para Fluxos e macros
 
 ## Metadata
-- status: in-progress
+- status: completed-local-validation
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-353-service-flow-session-case-data.md
@@ -27,3 +27,11 @@ Manter uma ficha editavel durante todo o atendimento e reutilizar seus valores e
 ## Dependencias
 - TASK-AT-133
 - TASK-AT-352
+
+## Validacao
+- Testes de parser, merge, tenant, sessao finalizada e auditoria sem valores no modulo `service-flows`.
+- `npx prisma validate --schema services/api/prisma/schema.prisma`.
+
+## Resultado
+- `ServiceFlowSession.caseDataJson` persiste ate 50 campos validados e a API publica somente o objeto `caseData`.
+- A ficha unica alimenta scripts canonicos e pessoais pelo mesmo placeholder.

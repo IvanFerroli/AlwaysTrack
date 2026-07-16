@@ -1,7 +1,7 @@
 # TASK-AT-356 - Gates efetivos de seguranca no runtime de Fluxos
 
 ## Metadata
-- status: in-progress
+- status: completed-local-validation
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-356-service-flow-runtime-safety-gates.md
@@ -27,3 +27,13 @@ Transformar fatos obrigatorios, risco e estado editorial de scripts em restricoe
 ## Dependencias
 - TASK-AT-350
 - TASK-AT-353
+
+## Validacao
+- 71 testes focados de catalogo, service e handlers HTTP aprovados.
+- Teste Web confirma bloqueio e identificacao dos fatos ausentes.
+- Typecheck API/Web e validacao Prisma aprovados.
+
+## Resultado
+- `requiredFacts` bloqueiam conclusao ate a ficha persistida estar completa.
+- Sessoes versionadas nao aceitam `Pular`: desvios exigem uma transicao declarada; no legado, etapas obrigatorias continuam protegidas.
+- Sessao finalizada e imutavel e scripts nao validados nao sao expostos a perfis operacionais.
