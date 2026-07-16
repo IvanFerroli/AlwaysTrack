@@ -32,7 +32,12 @@ interface AnnouncementItem {
   updatedAt: string;
   createdBy: { id: string; name: string; email: string; role: string };
   updatedBy: { id: string; name: string; email: string; role: string };
-  readReceipts: Array<{ id: string; acknowledgedAt: string | null; user?: { id: string; name: string; email: string; role: string } }>;
+  readReceipts: Array<{
+    id: string;
+    userId?: string;
+    acknowledgedAt: string | null;
+    user?: { id: string; name: string; email: string; role: string };
+  }>;
 }
 
 interface AnnouncementDraft {
@@ -112,6 +117,10 @@ function statusLabel(value: string) {
 
 function priorityLabel(value: string) {
   return priorityOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+function receiptBelongsToUser(receipt: AnnouncementItem["readReceipts"][number], userId: string) {
+  return receipt.userId === userId || receipt.user?.id === userId;
 }
 
 function draftFrom(item: AnnouncementItem): AnnouncementDraft {
@@ -196,7 +205,12 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
   const tags = useMemo(() => [...new Set([...defaultTags, ...items.flatMap((item) => item.tags ?? [])])].sort((a, b) => a.localeCompare(b)), [items]);
   const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
   const activeCount = items.filter((item) => item.status === "PUBLISHED").length;
-  const ackPending = items.filter((item) => item.requiresAck && !item.readReceipts.some((receipt) => receipt.acknowledgedAt)).length;
+  const ackPending = items.filter((item) => item.requiresAck && !item.readReceipts.some(
+    (receipt) => receiptBelongsToUser(receipt, user.id) && receipt.acknowledgedAt
+  )).length;
+  const currentUserAcknowledged = selected?.readReceipts.some(
+    (receipt) => receiptBelongsToUser(receipt, user.id) && receipt.acknowledgedAt
+  ) ?? false;
 
   async function run(action: () => Promise<void>) {
     setSaving(true);
@@ -357,7 +371,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                   </p>
                 </div>
                 <div className="row-actions">
-                  {selected.requiresAck && !selected.readReceipts.some((receipt) => receipt.acknowledgedAt) ? (
+                  {selected.requiresAck && !currentUserAcknowledged ? (
                     <button type="button" disabled={saving} onClick={() => void acknowledge()}>
                       Marcar ciência
                     </button>
@@ -406,13 +420,15 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
               ) : null}
               {selected.requiresAck ? (
                 <div className="wiki-meta-grid">
-                  <div>
-                    <strong>Ciência</strong>
-                    <p>{selected.readReceipts.filter((receipt) => receipt.acknowledgedAt).length} registro(s)</p>
-                  </div>
+                  {canManage ? (
+                    <div>
+                      <strong>Ciência</strong>
+                      <p>{selected.readReceipts.filter((receipt) => receipt.acknowledgedAt).length} registro(s)</p>
+                    </div>
+                  ) : null}
                   <div>
                     <strong>Status</strong>
-                    <p>{selected.readReceipts.some((receipt) => receipt.acknowledgedAt) ? "Você já marcou ciência" : "Pendente para você"}</p>
+                    <p>{currentUserAcknowledged ? "Você já marcou ciência" : "Pendente para você"}</p>
                   </div>
                   <div>
                     <strong>Obrigatoriedade</strong>
