@@ -153,7 +153,9 @@ function session(status = "OPEN", stepStatus = "PENDING") {
     completedAt: status === "COMPLETED" ? "2026-07-15T12:10:00.000Z" : null,
     flow: { id: baseFlow.id, slug: baseFlow.slug, title: baseFlow.title },
     caseData: {},
-    report: status === "COMPLETED" ? "Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado" : undefined,
+    report: stepStatus === "PENDING"
+      ? "Atendimento - Troca segura"
+      : "Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado",
     steps: baseFlow.steps.map((step, index) => ({
       id: `session-step-${index + 1}`,
       stepId: step.id,
@@ -336,6 +338,11 @@ describe("ServiceFlowsView", () => {
 
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     expect(await screen.findByText("Atendimento em andamento")).toBeInTheDocument();
+    const partialReport = screen.getByRole("heading", { name: "Resumo para sussurro" }).closest("section");
+    expect(partialReport).not.toBeNull();
+    expect(within(partialReport!).getByText("Parcial")).toBeInTheDocument();
+    await user.click(within(partialReport!).getByRole("button", { name: "Copiar resumo" }));
+    expect(clipboardWriteMock).toHaveBeenLastCalledWith("Atendimento - Troca segura");
     await user.type(screen.getByRole("textbox", { name: "Decisão tomada" }), "Troca");
     await user.type(screen.getByRole("textbox", { name: "Nota interna" }), "Cliente validado");
     await user.click(screen.getByRole("button", { name: "Concluir etapa" }));
@@ -349,11 +356,14 @@ describe("ServiceFlowsView", () => {
       { method: "POST", body: JSON.stringify({ status: "DONE", decision: "Troca", note: "Cliente validado" }) }
     ));
     expect(await screen.findByText("DONE · YES_NO · obrigatório")).toBeInTheDocument();
+    expect(partialReport).toHaveTextContent("Validar pedido — Decisão: Troca · Nota: Cliente validado");
 
     await user.click(screen.getByRole("button", { name: "Concluir atendimento" }));
     expect(await screen.findByText("Atendimento concluído")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Resumo para sussurro" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Copiar resumo" }));
+    const finalReport = screen.getByRole("heading", { name: "Resumo para sussurro" }).closest("section");
+    expect(finalReport).not.toBeNull();
+    expect(within(finalReport!).getByText("Final")).toBeInTheDocument();
+    await user.click(screen.getByTitle("Copiar resumo"));
     expect(clipboardWriteMock).toHaveBeenCalledWith("Troca segura · v2\n- Validar pedido — Decisão: Troca · Nota: Cliente validado");
     expect(screen.getAllByRole("button", { name: "Concluir etapa" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
   });

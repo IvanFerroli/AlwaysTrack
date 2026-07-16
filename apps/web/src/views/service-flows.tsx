@@ -439,6 +439,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       && !activeSession.steps.some((step) => step.status === "PENDING" || step.status === "RECONFIRMATION_REQUIRED")
     : !activeSession.steps.some((step) => step.status === "RECONFIRMATION_REQUIRED" || (step.status === "PENDING" && step.step?.required))
     : false;
+  const sessionReport = activeSession?.report?.trim() || (activeSession ? `Atendimento - ${activeSession.flow.title}` : "");
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);
@@ -715,9 +716,9 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   }
 
   async function copySessionReport() {
-    if (!activeSession?.report) return;
+    if (!sessionReport) return;
     try {
-      await navigator.clipboard.writeText(activeSession.report);
+      await navigator.clipboard.writeText(sessionReport);
       setCopyFeedback("session-report");
       window.setTimeout(() => setCopyFeedback(""), 1600);
     } catch {
@@ -990,19 +991,22 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
               {caseFields.length ? null : <p className="muted">Este trecho não precisa de dados adicionais.</p>}
             </section>
           ) : null}
-          {activeSession?.status === "COMPLETED" && activeSession.report ? (
+          {activeSession ? (
             <section className="service-flow-report" aria-labelledby="service-flow-report-title">
               <div className="service-flow-section-heading">
                 <div>
-                  <p className="eyebrow">Encerramento</p>
+                  <p className="eyebrow">{activeSession.status === "COMPLETED" ? "Encerramento" : "Handoff em andamento"}</p>
                   <h3 id="service-flow-report-title">Resumo para sussurro</h3>
                 </div>
-                <button className={copyFeedback === "session-report" ? "copied" : ""} type="button" title="Copiar resumo" onClick={() => void copySessionReport()}>
-                  {copyFeedback === "session-report" ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
-                  <span className="sr-only">{copyFeedback === "session-report" ? "Copiado" : "Copiar resumo"}</span>
-                </button>
+                <div className="row-actions">
+                  <span className="status-pill">{activeSession.status === "COMPLETED" ? "Final" : "Parcial"}</span>
+                  <button className={copyFeedback === "session-report" ? "copied" : ""} type="button" title="Copiar resumo" onClick={() => void copySessionReport()}>
+                    {copyFeedback === "session-report" ? <Check size={18} aria-hidden="true" /> : <Clipboard size={18} aria-hidden="true" />}
+                    <span className="sr-only">{copyFeedback === "session-report" ? "Copiado" : "Copiar resumo"}</span>
+                  </button>
+                </div>
               </div>
-              <pre>{activeSession.report}</pre>
+              <pre aria-live="polite">{sessionReport}</pre>
             </section>
           ) : null}
         </aside>
