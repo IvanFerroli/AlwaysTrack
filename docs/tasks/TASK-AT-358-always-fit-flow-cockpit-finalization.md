@@ -1,7 +1,7 @@
 # TASK-AT-358 - Finalizacao do cockpit do fluxo Always Fit
 
 ## Metadata
-- status: in-progress
+- status: completed
 - owner: olympus_orchestrator
 - last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-358-always-fit-flow-cockpit-finalization.md
@@ -68,6 +68,24 @@ Transformar a ficha lateral do primeiro fluxo Always Fit em um cockpit persisten
 ## Validacao
 - comandos/checks: testes focados API/Web/catalogo, `npm run check`, `npm run check:docs`, `npm run repo:hygiene`, `git diff --check`
 - revisao manual: desktop sticky, mobile linear, teclado, quantidades, mascara, restart e resumo final
+
+## Resultado
+- cockpit lateral sticky com ficha persistente, concluir, reiniciar confirmado e resumo final;
+- produtos estruturados sem limite de tres slots, com catalogo, busca, quantidades e subconjuntos validados;
+- CPF mascarado e exigido apenas nas escolhas positivas de identificacao;
+- forma/periodo de uso, permanencia do mal-estar e escopo livre removidos da ficha por ja serem capturados nas decisoes;
+- ETAPA-012 reutiliza o pedido existente sem nova selecao; classificacoes posteriores so aparecem quando alteram a rota;
+- cabecalho operacional do piloto reduzido ao titulo e acesso a Wiki;
+- seed local aplicado com nova versao publicada e historico anterior preservado.
+
+## Evidencia de conclusao
+- `npm run check`: aprovado, com 1 teste Redis opcional ignorado por configuracao;
+- `npm run check:docs` e `npm run repo:hygiene`: aprovados apos regenerar o coverage HTML da API;
+- API focada: 70 testes aprovados apos a simplificacao final;
+- Web focada: 18 testes aprovados apos a simplificacao final;
+- coverage API: 700 testes aprovados, 1 Redis opcional ignorado;
+- build Web e `git diff --check`: aprovados;
+- captura Playwright indisponivel por ausencia de `libnspr4.so` no Chromium local; nenhuma dependencia foi instalada.
 
 ## Evidencia esperada
 - testes automatizados para listas, CPF, restart, regras das etapas e regressao do fluxo;
