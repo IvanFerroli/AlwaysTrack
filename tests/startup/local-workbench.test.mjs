@@ -9,6 +9,7 @@ import {
   browserUrlsToOpen,
   buildWorkbenchHtml,
   createWorkbenchServer,
+  documentationPaths,
   presentationUrls,
   resolveAllowedFile
 } from "../../scripts/local-workbench.mjs";
@@ -54,6 +55,13 @@ test("renders a presentation hub with services, reports and coverage percentages
   assert.match(html, /<dialog id="viewer">/);
   assert.doesNotMatch(html, /http-equiv="refresh"/);
   assert.doesNotMatch(html, /Prisma Studio/);
+});
+
+test("keeps the presentation guide as the first document in the Hub", () => {
+  assert.deepEqual(documentationPaths[0], [
+    "Guia de apresentacao",
+    "docs/demo/guia-apresentacao-alwaystrack.md"
+  ]);
 });
 
 test("keeps the product catalog complete, unique and explicit about intentional gaps", () => {

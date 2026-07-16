@@ -8,6 +8,7 @@ import { capabilityCatalog, statusLabels } from "./workbench-catalog.mjs";
 const DEFAULT_PORT = 4173;
 
 export const documentationPaths = [
+  ["Guia de apresentacao", "docs/demo/guia-apresentacao-alwaystrack.md"],
   ["SPEC CaseFlow + Companion", "docs/project/SPEC-AT-CF-001-CaseFlow-Engine-AlwaysTrack-Companion.md"],
   ["Estrategia de testes", "docs/testing/strategy.md"],
   ["Playwright e CI", "docs/testing/playwright-ci.md"],
