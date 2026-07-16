@@ -110,7 +110,11 @@ const decisionCapturedFactKeys = new Set([
   "custom.alwaysfit.health.usage",
   "custom.alwaysfit.product.recommended.usage",
   "custom.alwaysfit.health.symptom.persistent",
-  "custom.alwaysfit.treatment.unusable.scope"
+  "custom.alwaysfit.treatment.unusable.scope",
+  "custom.alwaysfit.return.open.items",
+  "custom.alwaysfit.return.returned.sealed.items",
+  "custom.alwaysfit.return.retained.sealed.items",
+  "custom.alwaysfit.financial.retained.sealed.value"
 ]);
 
 function isManager(actor: CurrentUser) {
