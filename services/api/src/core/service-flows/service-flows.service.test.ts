@@ -215,6 +215,48 @@ describe("service flow tenant workflows", () => {
     expect(sessionFindFirst.mock.calls.at(-1)?.[0]).toMatchObject({ where: { organizationId: "org-2", userId: "seller-1" } });
   });
 
+  it("materializes only the selected next node for a versioned decision", async () => {
+    const session = {
+      id: "session-graph", flowId: "flow-health", versionId: "version-health", userId: seller.id, status: "OPEN",
+      flow: { id: "flow-health", slug: "saude-dev-troca-estorno", title: "Saude" }, version: { id: "version-health", version: 1 },
+      steps: [{ id: "visit-1", stepId: null, nodeKey: "ETAPA-001", visitOrder: 1, status: "DONE", decision: "Caso reconhecido" }]
+    };
+    const update = vi.fn().mockResolvedValue({ id: "visit-1", status: "DONE", decision: "Caso reconhecido", note: null });
+    const upsert = vi.fn().mockResolvedValue({ id: "visit-2" });
+    const tx = { serviceFlowSessionStep: { update, count: vi.fn().mockResolvedValue(2), upsert } };
+    const prisma = {
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(session) },
+      serviceFlowSessionStep: { findFirst: vi.fn().mockResolvedValue({ id: "visit-1", nodeKey: "ETAPA-001", status: "PENDING", choiceHistoryJson: "not-json", step: null }) },
+      serviceFlowTransition: { findMany: vi.fn().mockResolvedValue([
+        { label: "Caso reconhecido", requiresUserChoice: true, toNode: { id: "node-2", key: "ETAPA-002", type: "MESSAGE" } },
+        { label: "Fora do escopo", requiresUserChoice: true, toNode: { id: "node-result", key: "RESULTADO-009", type: "END" } }
+      ]) },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-graph" }) },
+      $transaction: vi.fn(async (operation) => operation(tx))
+    };
+
+    await expect(updateServiceFlowSessionStep(prisma as never, seller, session.id, "ETAPA-001", {
+      status: "DONE", decision: "Caso reconhecido"
+    })).resolves.toMatchObject({ session: { id: session.id } });
+
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { sessionId_nodeKey: { sessionId: session.id, nodeKey: "ETAPA-002" } },
+      create: expect.objectContaining({ nodeKey: "ETAPA-002", status: "PENDING" })
+    }));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ choiceHistoryJson: expect.stringContaining('"toNodeKey":"ETAPA-002"') })
+    }));
+  });
+
+  it("refuses to complete a versioned session before a terminal result", async () => {
+    const prisma = {
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue({ id: "session-open", versionId: "version-1", organizationId: "org-1", userId: seller.id }) },
+      serviceFlowSessionStep: { findMany: vi.fn().mockResolvedValue([{ nodeKey: "ETAPA-001" }]) },
+      serviceFlowNode: { findFirst: vi.fn().mockResolvedValue(null) }
+    };
+    await expect(completeServiceFlowSession(prisma as never, seller, "session-open")).rejects.toEqual(new ServiceFlowError("INVALID_INPUT"));
+  });
+
   it("restores a tenant-owned published version and persists its graph lineage", async () => {
     const rawFlow = {
       id: "flow-1", slug: "triagem", title: "Triagem restaurada", summary: null, content: null, tagsJson: "[]",

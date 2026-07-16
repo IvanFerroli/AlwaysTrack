@@ -92,15 +92,23 @@ interface ServiceFlowSession {
   startedAt: string;
   completedAt: string | null;
   flow: { id: string; slug: string; title: string };
+  version?: { id: string; version: number; title: string; publishedAt: string } | null;
   steps: Array<{
     id: string;
-    stepId: string;
+    stepId: string | null;
+    nodeKey?: string | null;
+    nodeSnapshotJson?: string | null;
     status: string;
     decision: string | null;
     note: string | null;
     completedAt: string | null;
-    step: { id: string; title: string; order: number; required: boolean };
+    step: { id: string; title: string; order: number; required: boolean } | null;
   }>;
+}
+
+interface FlowDecisionOption {
+  label: string;
+  target?: string;
 }
 
 const flowStatuses = [
@@ -138,10 +146,33 @@ function renderScript(body: string, values: Record<string, string>) {
   return body.replace(/\{([a-zA-Z0-9_.-]+)\}/g, (_, key: string) => values[key] || `{${key}}`);
 }
 
-function optionsFromDecision(decision: Record<string, unknown> | null | undefined) {
+function optionsFromDecision(decision: Record<string, unknown> | null | undefined): FlowDecisionOption[] {
   if (!decision) return [];
-  if (Array.isArray(decision.options)) return decision.options.filter((item): item is string => typeof item === "string");
-  return Object.entries(decision).map(([key, value]) => `${key}: ${String(value)}`);
+  if (Array.isArray(decision.options)) return decision.options.flatMap((item) => {
+    if (typeof item === "string") return [{ label: item }];
+    if (!item || typeof item !== "object") return [];
+    const option = item as Record<string, unknown>;
+    return typeof option.label === "string"
+      ? [{ label: option.label, ...(typeof option.target === "string" ? { target: option.target } : {}) }]
+      : [];
+  });
+  return Object.entries(decision)
+    .filter(([key]) => key !== "nodeKey")
+    .map(([key, value]) => ({ label: `${key}: ${String(value)}` }));
+}
+
+function nodeKeyFromStep(step: ServiceFlowStep) {
+  return typeof step.decision?.nodeKey === "string" ? step.decision.nodeKey : null;
+}
+
+function isCompletedTerminalStep(step: ServiceFlowSession["steps"][number]) {
+  if (step.status !== "DONE" || !step.nodeSnapshotJson) return false;
+  try {
+    const snapshot = JSON.parse(step.nodeSnapshotJson) as { terminal?: unknown };
+    return snapshot.terminal === true;
+  } catch {
+    return false;
+  }
 }
 
 function decisionPayload(step: StepDraft) {
@@ -201,6 +232,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     return flows.filter((flow) => `${flow.title} ${flow.summary ?? ""} ${flow.tags?.join(" ") ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(needle));
   }, [flowPickerQuery, flows]);
   const visiblePersonalScripts = useMemo(() => personalScripts.filter((script) => !selected || script.flows.length === 0 || script.flows.some((flow) => flow.id === selected.id)), [personalScripts, selected]);
+  const visibleSteps = useMemo(() => {
+    if (!selected || !activeSession) return selected?.steps ?? [];
+    return selected.steps.filter((step) => activeSession.steps.some((sessionStep) =>
+      sessionStep.stepId === step.id || sessionStep.nodeKey === nodeKeyFromStep(step)
+    ));
+  }, [activeSession, selected]);
+  const canCompleteSession = !activeSession?.version || activeSession.steps.some(isCompletedTerminalStep);
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);
@@ -277,8 +315,18 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     try {
       const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flows/${selected.id}/sessions`, { method: "POST" });
       setActiveSession(result.session);
-      setStepNotes(Object.fromEntries(result.session.steps.map((step) => [step.stepId, step.note ?? ""])));
-      setStepDecisions(Object.fromEntries(result.session.steps.map((step) => [step.stepId, step.decision ?? ""])));
+      const selectedSteps = selected.steps;
+      const stateKey = (sessionStep: ServiceFlowSession["steps"][number]) => sessionStep.stepId
+        ?? selectedSteps.find((step) => nodeKeyFromStep(step) === sessionStep.nodeKey)?.id
+        ?? sessionStep.nodeKey;
+      setStepNotes(Object.fromEntries(result.session.steps.flatMap((step) => {
+        const key = stateKey(step);
+        return key ? [[key, step.note ?? ""]] : [];
+      })));
+      setStepDecisions(Object.fromEntries(result.session.steps.flatMap((step) => {
+        const key = stateKey(step);
+        return key ? [[key, step.decision ?? ""]] : [];
+      })));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao iniciar atendimento.");
     } finally {
@@ -286,16 +334,27 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
     }
   }
 
-  async function saveSessionStep(stepId: string, statusValue: "DONE" | "SKIPPED" | "PENDING") {
+  async function saveSessionStep(step: ServiceFlowStep, statusValue: "DONE" | "SKIPPED" | "PENDING", selectedDecision?: FlowDecisionOption) {
     if (!activeSession) return;
+    const sessionStep = activeSession.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKeyFromStep(step));
+    const routeKey = sessionStep?.nodeKey ?? sessionStep?.stepId ?? step.id;
+    const decision = selectedDecision?.label ?? stepDecisions[step.id] ?? "";
+    if (selectedDecision) setStepDecisions((current) => ({ ...current, [step.id]: selectedDecision.label }));
     setSaving(true);
     setError(null);
     try {
-      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/steps/${stepId}`, {
+      const result = await api<{ session: ServiceFlowSession }>(`/v1/service-flow-sessions/${activeSession.id}/steps/${routeKey}`, {
         method: "POST",
-        body: JSON.stringify({ status: statusValue, decision: stepDecisions[stepId] || null, note: stepNotes[stepId] || null })
+        body: JSON.stringify({ status: statusValue, decision: decision || null, note: stepNotes[step.id] || null })
       });
       setActiveSession(result.session);
+      if (selectedDecision?.target) {
+        const target = selected.steps.find((item) => nodeKeyFromStep(item) === selectedDecision.target);
+        if (target) {
+          setOpenSteps((current) => ({ ...current, [target.id]: true }));
+          window.setTimeout(() => document.getElementById(`service-flow-${selectedDecision.target}`)?.scrollIntoView?.({ behavior: "smooth", block: "center" }), 0);
+        }
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao registrar etapa.");
     } finally {
@@ -530,7 +589,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                 <div className="row-actions">
                   {activeSession ? <span className="status-pill">{activeSession.status === "COMPLETED" ? "Atendimento finalizado" : "Atendimento em andamento"}</span> : null}
                   {selected.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selected.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
-                  {activeSession?.status === "OPEN" ? <button type="button" disabled={saving} onClick={() => void completeSession()}>Finalizar</button> : <button type="button" disabled={saving} onClick={() => void startSession()}>Iniciar atendimento</button>}
+                  {activeSession?.status === "OPEN" ? <button type="button" disabled={saving || !canCompleteSession} onClick={() => void completeSession()}>Finalizar</button> : <button type="button" disabled={saving} onClick={() => void startSession()}>Iniciar atendimento</button>}
                 </div>
               </div>
               {selected.content ? <MarkdownContent content={selected.content} /> : null}
@@ -563,11 +622,13 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                 </div>
               ) : null}
               <div className="service-flow-steps">
-                {selected.steps.map((step, index) => {
+                {visibleSteps.map((step, index) => {
                   const expanded = openSteps[step.id] ?? index === 0;
-                  const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id);
+                  const nodeKey = nodeKeyFromStep(step);
+                  const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKey);
+                  const decisionOptions = optionsFromDecision(step.decision);
                   return (
-                    <article className={sessionStep?.status === "DONE" ? "service-flow-step completed" : "service-flow-step"} key={step.id}>
+                    <article id={nodeKey ? `service-flow-${nodeKey}` : undefined} className={sessionStep?.status === "DONE" ? "service-flow-step completed" : "service-flow-step"} key={step.id}>
                       <button className="service-flow-step-header" type="button" onClick={() => setOpenSteps((current) => ({ ...current, [step.id]: !expanded }))}>
                         <span>{index + 1}</span>
                         <strong>{step.title}</strong>
@@ -576,10 +637,18 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                       {expanded ? (
                         <div className="service-flow-step-body">
                           {step.body ? <p>{step.body}</p> : null}
-                          {optionsFromDecision(step.decision).length ? (
+                          {decisionOptions.length ? (
                             <div className="service-flow-decision">
                               <GitBranch size={16} aria-hidden="true" />
-                              {optionsFromDecision(step.decision).map((option) => <span key={option}>{option}</span>)}
+                              {decisionOptions.map((option) => activeSession ? (
+                                <button
+                                  key={`${option.label}:${option.target ?? "legacy"}`}
+                                  type="button"
+                                  aria-pressed={stepDecisions[step.id] === option.label}
+                                  disabled={saving || activeSession.status === "COMPLETED" || sessionStep?.status === "DONE"}
+                                  onClick={() => void saveSessionStep(step, "DONE", option)}
+                                >{option.label}</button>
+                              ) : <span key={`${option.label}:${option.target ?? "legacy"}`}>{option.label}</span>)}
                             </div>
                           ) : null}
                           {step.scripts.length ? (
@@ -588,7 +657,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                 <div className="service-flow-script-card" key={script.id}>
                                   <div>
                                     <strong>{script.title}</strong>
-                                    <small>{script.channel} · {script.usageCount} copia(s)</small>
+                                    <small>{script.channel} · {script.status} · {script.usageCount} copia(s)</small>
                                   </div>
                                   {script.placeholders?.length ? (
                                     <div className="script-placeholder-grid">
@@ -622,9 +691,9 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                                 <textarea rows={3} value={stepNotes[step.id] ?? ""} onChange={(event) => setStepNotes((current) => ({ ...current, [step.id]: event.target.value }))} placeholder="Registre o contexto para auditoria do atendimento." />
                               </label>
                               <div className="row-actions">
-                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "PENDING")}>Reabrir</button>
-                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "SKIPPED")}>Pular</button>
-                                <button type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step.id, "DONE")}>Concluir etapa</button>
+                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "PENDING")}>Reabrir</button>
+                                <button className="secondary" type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "SKIPPED")}>Pular</button>
+                                <button type="button" disabled={saving || activeSession.status === "COMPLETED"} onClick={() => void saveSessionStep(step, "DONE")}>Concluir etapa</button>
                               </div>
                             </div>
                           ) : null}

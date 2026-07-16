@@ -141,6 +141,16 @@ function decisionFromJson(value: string | null | undefined) {
   }
 }
 
+function choiceHistoryFromJson(value: string | null | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function dateValue(value: unknown) {
   if (value === null) return null;
   if (typeof value !== "string") return undefined;
@@ -174,7 +184,7 @@ export function parseServiceFlowFilters(query: Record<string, unknown>): Service
 
 export function parseServiceFlowInput(payload: unknown): ServiceFlowInput {
   return parseObjectPayload(payload ?? {}, (input) => {
-    const rawSteps = optionalArray(input, "steps", { maxItems: 40 }) ?? [];
+    const rawSteps = optionalArray(input, "steps", { maxItems: 100 }) ?? [];
     const rawTags = optionalArray(input, "tags", { maxItems: 30 });
     const graph = input.graph === undefined ? undefined : parseGraphInput(input.graph);
     return {
@@ -691,8 +701,24 @@ export async function createServiceFlowSession(prisma: PrismaClient, actor: Curr
   const { flow } = await getServiceFlow(prisma, actor, flowIdOrSlug);
   const version = await prisma.serviceFlowVersion.findFirst({
     where: { flowId: flow.id, organizationId: actor.organizationId }, orderBy: { version: "desc" },
-    include: { nodes: { orderBy: { order: "asc" } } }
+    include: {
+      nodes: { orderBy: { order: "asc" } },
+      transitions: {
+        orderBy: { order: "asc" },
+        include: { fromNode: { select: { key: true } }, toNode: true }
+      }
+    }
   });
+  const startNode = version?.nodes.find((node) => node.type === "START");
+  const versionTransitions = version?.transitions ?? [];
+  const startTransition = startNode
+    ? versionTransitions.find((transition) => transition.fromNode.key === startNode.key)
+    : undefined;
+  const versionNodes = version
+    ? versionTransitions.length && startNode
+      ? [startNode, ...(startTransition ? [startTransition.toNode] : [])]
+      : version.nodes
+    : [];
   const session = await prisma.serviceFlowSession.create({
     data: {
       organizationId: actor.organizationId,
@@ -701,7 +727,7 @@ export async function createServiceFlowSession(prisma: PrismaClient, actor: Curr
       userId: actor.id,
       status: "OPEN",
       steps: {
-        create: version ? version.nodes.map((node, index) => ({
+        create: version ? versionNodes.map((node, index) => ({
           organizationId: actor.organizationId, nodeKey: node.key, nodeSnapshotJson: JSON.stringify(node), visitOrder: index,
           status: node.type === "START" ? "DONE" : "PENDING"
         })) : flow.steps.map((step, index) => ({
@@ -742,22 +768,66 @@ export async function updateServiceFlowSessionStep(
   });
   if (!step) throw new ServiceFlowError("NOT_FOUND");
   const nextStatus = input.status ?? step.status;
-  const updated = await prisma.serviceFlowSessionStep.update({
-    where: { id: step.id },
-    data: {
-      status: nextStatus,
-      decision: input.decision,
-      note: input.note,
-      completedAt: nextStatus === "DONE" || nextStatus === "SKIPPED" ? new Date() : null
-    }
-  });
+  const outgoing = session.versionId && step.nodeKey && (nextStatus === "DONE" || nextStatus === "SKIPPED")
+    ? await prisma.serviceFlowTransition.findMany({
+      where: { versionId: session.versionId, fromNode: { key: step.nodeKey } },
+      orderBy: { order: "asc" },
+      include: { toNode: true }
+    })
+    : [];
+  const normalizedDecision = input.decision?.trim().toLocaleLowerCase();
+  const requiresChoice = outgoing.length > 1 || outgoing.some((transition) => transition.requiresUserChoice);
+  const selectedTransition = requiresChoice
+    ? outgoing.find((transition) => transition.label.toLocaleLowerCase() === normalizedDecision)
+    : outgoing[0];
+  if (requiresChoice && !selectedTransition) throw new ServiceFlowError("INVALID_INPUT");
+  const completedAt = nextStatus === "DONE" || nextStatus === "SKIPPED" ? new Date() : null;
+  const history = choiceHistoryFromJson(step.choiceHistoryJson);
+  const updateData = {
+    status: nextStatus,
+    decision: input.decision,
+    note: input.note,
+    completedAt,
+    choiceHistoryJson: selectedTransition ? JSON.stringify([...history, {
+      label: selectedTransition.label,
+      fromNodeKey: step.nodeKey,
+      toNodeKey: selectedTransition.toNode.key,
+      chosenAt: completedAt?.toISOString()
+    }]) : step.choiceHistoryJson
+  };
+  const updated = selectedTransition
+    ? await prisma.$transaction(async (tx) => {
+      const current = await tx.serviceFlowSessionStep.update({ where: { id: step.id }, data: updateData });
+      const visitOrder = await tx.serviceFlowSessionStep.count({ where: { sessionId: session.id } });
+      await tx.serviceFlowSessionStep.upsert({
+        where: { sessionId_nodeKey: { sessionId: session.id, nodeKey: selectedTransition.toNode.key } },
+        update: { status: "PENDING", decision: null, completedAt: null, visitOrder },
+        create: {
+          organizationId: actor.organizationId,
+          sessionId: session.id,
+          nodeKey: selectedTransition.toNode.key,
+          nodeSnapshotJson: JSON.stringify(selectedTransition.toNode),
+          visitOrder,
+          status: "PENDING"
+        }
+      });
+      return current;
+    })
+    : await prisma.serviceFlowSessionStep.update({ where: { id: step.id }, data: updateData });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
     action: "service_flow_session.step",
     entityType: "ServiceFlowSession",
     entityId: session.id,
-    metadata: { stepId, stepTitle: step.step?.title ?? step.nodeKey ?? "Etapa versionada", status: updated.status, decision: updated.decision, note: updated.note }
+    metadata: {
+      stepId,
+      stepTitle: step.step?.title ?? step.nodeKey ?? "Etapa versionada",
+      status: updated.status,
+      decision: updated.decision,
+      note: updated.note,
+      transition: selectedTransition ? { label: selectedTransition.label, toNodeKey: selectedTransition.toNode.key } : null
+    }
   });
   return getServiceFlowSession(prisma, actor, session.id);
 }
@@ -765,6 +835,17 @@ export async function updateServiceFlowSessionStep(
 export async function completeServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, sessionId: string) {
   const session = await prisma.serviceFlowSession.findFirst({ where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id } });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
+  if (session.versionId) {
+    const completedNodes = await prisma.serviceFlowSessionStep.findMany({
+      where: { sessionId: session.id, organizationId: actor.organizationId, status: "DONE", nodeKey: { not: null } },
+      select: { nodeKey: true }
+    });
+    const terminal = completedNodes.length ? await prisma.serviceFlowNode.findFirst({
+      where: { versionId: session.versionId, terminal: true, key: { in: completedNodes.flatMap((step) => step.nodeKey ?? []) } },
+      select: { id: true }
+    }) : null;
+    if (!terminal) throw new ServiceFlowError("INVALID_INPUT");
+  }
   await prisma.serviceFlowSession.update({ where: { id: session.id }, data: { status: "COMPLETED", completedAt: new Date() } });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,

@@ -6,6 +6,7 @@ import { evaluateHeuristics } from "./heuristics/engine.js";
 import type { HeuristicRule } from "./heuristics/rules.js";
 import { applyLowConfidenceTriage } from "./heuristics/triage.js";
 import { getCaseOverrideState } from "./overrides.service.js";
+import { ALWAYS_FIT_HEALTH_FLOW_SLUG } from "../service-flows/catalog/always-fit-health-flow.js";
 
 export class CaseFlowResolveError extends Error {
   constructor(public readonly code: "NOT_FOUND") { super(code); }
@@ -25,6 +26,10 @@ export const defaultCaseFlowRules: readonly HeuristicRule[] = [
   rule("MONEY_TEXT", "FINANCIAL_TREATMENT", 5, [{ operator: "regex", factKey: "text.normalized", value: "estorno|reembolso|cobranca|dinheiro" }], { requiredFacts: ["payment.status"] }),
   rule("MONEY_STATUS", "FINANCIAL_TREATMENT", 8, [{ operator: "exists", factKey: "payment.status" }]),
   rule("MONEY_GATE", "FINANCIAL_TREATMENT", 1, [{ operator: "regex", factKey: "text.normalized", value: "estorno|cobranca indevida|dinheiro" }], { hardMatch: true, priority: 100, riskEffects: [{ category: "MONEY", level: "HIGH", gateFlowId: "FINANCIAL_REVIEW_GATE" }] }),
+  rule("ALWAYS_FIT_SUPPLEMENT_HEALTH", ALWAYS_FIT_HEALTH_FLOW_SLUG, 12, [
+    { operator: "regex", factKey: "text.normalized", value: "suplemento|produto|capsula|kit|always fit|fits36|pro3|nac" },
+    { operator: "regex", factKey: "text.normalized", value: "passei mal|passando mal|mal estar|pressao (subiu|baixou)|tontura|palpitacao|enjoo|fraqueza|reacao|alergia" }
+  ], { hardMatch: true, priority: 250, producedTags: ["HEALTH_AFTER_SUPPLEMENT", "PILOT_FLOW_V0_1"], riskEffects: [{ category: "ADVERSE_REACTION", level: "CRITICAL", gateFlowId: "HEALTH_SAFETY_GATE" }] }),
   rule("HEALTH_GATE", "HEALTH_ESCALATION", 1, [{ operator: "regex", factKey: "text.normalized", value: "alergia|reacao adversa|passando mal" }], { hardMatch: true, priority: 200, riskEffects: [{ category: "ADVERSE_REACTION", level: "CRITICAL", gateFlowId: "HEALTH_SAFETY_GATE" }] }),
   rule("FRAUD_GATE", "FRAUD_REVIEW", 1, [{ operator: "regex", factKey: "text.normalized", value: "fraude|nao reconheco (a compra|essa compra|o pedido)" }], { hardMatch: true, priority: 200, riskEffects: [{ category: "FRAUD", level: "CRITICAL", gateFlowId: "SECURITY_GATE" }] })
 ];

@@ -1,0 +1,12 @@
+{
+  "name": "Always Fit supplement health report selects only the dedicated pilot flow",
+  "text": "Tomei o suplemento de vocês e minha pressão subiu. Quero devolver os produtos.",
+  "facts": [],
+  "conflicts": [],
+  "expected": {
+    "primary": "saude-dev-troca-estorno",
+    "lowConfidence": false,
+    "riskGate": "HEALTH_SAFETY_GATE",
+    "reason": "ADVERSE_REACTION:CRITICAL"
+  }
+}

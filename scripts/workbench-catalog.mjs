@@ -100,10 +100,10 @@ export const capabilityCatalog = [
     group: "Atendimento",
     title: "Scriptoteca",
     status: "delivered",
-    summary: "Scripts versionados, busca, placeholders seguros, pacotes, sugestoes e copia auditada.",
-    delivered: ["Formatacao por canal", "Roteiros ordenaveis e scripts pessoais", "Governanca, metricas e revisao de sugestoes"],
+    summary: "Scripts versionados, busca, placeholders seguros, pacotes, sugestoes e copia auditada; o primeiro fluxo real aporta 17 mensagens rastreaveis.",
+    delivered: ["17 mensagens do piloto SAUDE-DEV-TROCA-ESTORNO", "10 textos integrais validados e 7 rascunhos sinalizados", "Governanca, metricas e copia ligada a sessao"],
     finalVision: "Conteudo homologado por operacao e integrado ao fluxo guiado em todos os canais permitidos.",
-    todos: ["Revisar corpus real com curadores", "Medir efetividade com dados autorizados"],
+    todos: ["Homologar os 7 textos sugeridos do piloto", "Adicionar os proximos fluxos reais com seus proprios scripts", "Medir efetividade com dados autorizados"],
     intentionalReason: "Copia explicita permanece o padrao; envio automatico foi proibido por seguranca.",
     href: "http://localhost:5173"
   },
@@ -112,11 +112,11 @@ export const capabilityCatalog = [
     group: "Atendimento",
     title: "Fluxos de Atendimento",
     status: "delivered",
-    summary: "Construcao, versao, publicacao e execucao guiada de etapas, decisoes e scripts.",
-    delivered: ["Editor rico e construtor de decisoes", "Sessao auditavel com rewind", "Metricas e governanca de versao"],
+    summary: "Construcao, versao, publicacao e execucao guiada; o primeiro fluxo real navega por escolhas auditadas sem se tornar modelo universal.",
+    delivered: ["Piloto com 34 etapas, 9 encerramentos e 83 transicoes", "Decisoes clicaveis materializam somente o caminho escolhido", "17 scripts ligados as etapas e acoes irreversiveis humanas"],
     finalVision: "Biblioteca homologada cobrindo os procedimentos prioritarios da operacao.",
-    todos: ["Modelar fluxos reais com especialistas", "Executar piloto controlado e medir abandono"],
-    intentionalReason: "Os fluxos entregues provam o motor; o conteudo final exige validacao humana do negocio.",
+    todos: ["Fechar as 10 pendencias registradas do piloto", "Modelar os demais procedimentos como fluxos independentes", "Executar piloto controlado e medir abandono"],
+    intentionalReason: "Este e deliberadamente o primeiro fluxo real; suas regras nao foram generalizadas para procedimentos futuros.",
     href: "http://localhost:5173"
   },
   {
@@ -125,7 +125,7 @@ export const capabilityCatalog = [
     title: "CaseFlow Engine",
     status: "delivered",
     summary: "Casos, fatos, evidencias, conflitos, heuristica deterministica e planos compilados.",
-    delivered: ["Persistencia tenant-scoped", "Reconciliacao e golden cases", "Plano e mensagens sem dependencia de IA"],
+    delivered: ["Persistencia tenant-scoped", "Resolucao especifica do piloto de saude apos suplemento", "Grafo v0.1 com firewall humano e mensagens da Scriptoteca"],
     finalVision: "Motor consultivo operando sobre fontes autorizadas e regras calibradas em shadow mode.",
     todos: ["Executar shadow mode live", "Homologar golden cases com operacao", "Fechar gate de recuperacao live"],
     intentionalReason: "A arquitetura esta pronta, mas fixtures locais nao autorizam decisao sobre casos reais.",
@@ -137,7 +137,7 @@ export const capabilityCatalog = [
     title: "Interface guiada CaseFlow",
     status: "delivered",
     summary: "Resumo progressivo, evidencias, passo atual, opcoes e mensagens no side panel e Web.",
-    delivered: ["Intake e stepper", "Conflitos e intervencao humana explicitos", "Recuperacao e atualizacao de plano"],
+    delivered: ["Intake e stepper", "Escolhas clicaveis e caminho progressivo no piloto", "Conflitos, pendencias e intervencao humana explicitos"],
     finalVision: "Experiencia diaria validada com atendentes, teclado, zoom e dispositivos do alvo.",
     todos: ["Teste assistido com operadores", "Validar leitor de tela, zoom e monitores reais"],
     intentionalReason: "Usabilidade humana e perifericos nao podem ser inferidos apenas por automacao.",
@@ -306,4 +306,3 @@ export const statusLabels = {
   partial: "Parcial / gate externo",
   planned: "Planejado intencional"
 };
-

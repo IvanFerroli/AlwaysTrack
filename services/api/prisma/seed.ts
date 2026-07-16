@@ -4,6 +4,14 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { hashPassword } from "../src/core/auth/password.js";
 import { hashUploadToken } from "../src/core/documents/upload-tokens.service.js";
+import {
+  ALWAYS_FIT_HEALTH_FLOW_CODE,
+  ALWAYS_FIT_HEALTH_FLOW_SLUG,
+  ALWAYS_FIT_HEALTH_FLOW_VERSION,
+  alwaysFitHealthMessages,
+  buildAlwaysFitHealthFlow,
+  type AlwaysFitHealthMessageCode
+} from "../src/core/service-flows/catalog/always-fit-health-flow.js";
 
 function loadDotEnv() {
   if (process.env.NODE_ENV === "test") return;
@@ -467,52 +475,63 @@ async function ensureOperationalScript(input: {
   channel: string;
   body: string;
   tags: string[];
+  status?: "DRAFT" | "VALIDATED";
+  legacyTitles?: string[];
   wikiPageId?: string;
   faqThreadId?: string;
   reviewDueAt?: Date | null;
 }) {
+  const status = input.status ?? "VALIDATED";
   const placeholders = [...new Set([...input.body.matchAll(/\{([a-zA-Z0-9_.-]+)\}/g)].map((match) => match[1]))].sort();
-  const script = await prisma.operationalScript.upsert({
-    where: { organizationId_categoryId_title: { organizationId: input.organizationId, categoryId: input.categoryId, title: input.title } },
-    update: {
-      channel: input.channel,
-      body: input.body,
-      tagsJson: JSON.stringify(input.tags),
-      placeholdersJson: JSON.stringify(placeholders),
-      wikiPageId: input.wikiPageId,
-      faqThreadId: input.faqThreadId,
-      reviewDueAt: input.reviewDueAt,
-      status: "VALIDATED",
-      updatedById: input.updatedById,
-      validatedById: input.validatedById,
-      validatedAt: daysAgo(0)
-    },
-    create: {
+  const canonicalScript = await prisma.operationalScript.findFirst({
+    where: {
       organizationId: input.organizationId,
       categoryId: input.categoryId,
-      title: input.title,
-      channel: input.channel,
-      body: input.body,
-      tagsJson: JSON.stringify(input.tags),
-      placeholdersJson: JSON.stringify(placeholders),
-      wikiPageId: input.wikiPageId,
-      faqThreadId: input.faqThreadId,
-      reviewDueAt: input.reviewDueAt,
-      status: "VALIDATED",
-      createdById: input.createdById,
-      updatedById: input.updatedById,
-      validatedById: input.validatedById,
-      validatedAt: daysAgo(0)
+      title: input.title
     }
   });
-  const existingRevision = await prisma.operationalScriptRevision.findFirst({ where: { scriptId: script.id, version: 1 } });
-  if (!existingRevision) {
+  const legacyScript = canonicalScript || !input.legacyTitles?.length
+    ? null
+    : await prisma.operationalScript.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        categoryId: input.categoryId,
+        title: { in: input.legacyTitles }
+      }
+    });
+  const existing = canonicalScript ?? legacyScript;
+  const data = {
+    channel: input.channel,
+    body: input.body,
+    tagsJson: JSON.stringify(input.tags),
+    placeholdersJson: JSON.stringify(placeholders),
+    wikiPageId: input.wikiPageId,
+    faqThreadId: input.faqThreadId,
+    reviewDueAt: input.reviewDueAt,
+    status,
+    updatedById: input.updatedById,
+    validatedById: status === "VALIDATED" ? input.validatedById : null,
+    validatedAt: status === "VALIDATED" ? daysAgo(0) : null
+  };
+  const script = existing
+    ? await prisma.operationalScript.update({ where: { id: existing.id }, data: { ...data, title: input.title } })
+    : await prisma.operationalScript.create({
+      data: {
+        organizationId: input.organizationId,
+        categoryId: input.categoryId,
+        title: input.title,
+        createdById: input.createdById,
+        ...data
+      }
+    });
+  const latestRevision = await prisma.operationalScriptRevision.findFirst({ where: { scriptId: script.id }, orderBy: { version: "desc" } });
+  if (!latestRevision || latestRevision.title !== script.title || latestRevision.channel !== script.channel || latestRevision.body !== script.body || latestRevision.tagsJson !== script.tagsJson || latestRevision.placeholdersJson !== script.placeholdersJson || latestRevision.status !== script.status) {
     await prisma.operationalScriptRevision.create({
       data: {
         organizationId: input.organizationId,
         scriptId: script.id,
         authorId: input.updatedById,
-        version: 1,
+        version: (latestRevision?.version ?? 0) + 1,
         title: script.title,
         channel: script.channel,
         body: script.body,
@@ -625,6 +644,34 @@ async function ensureServiceFlow(input: {
   tags: string[];
   status: string;
   priority: number;
+  legacySlugs?: string[];
+  graph?: {
+    nodes: Array<{
+      key: string;
+      type: string;
+      title: string;
+      operatorInstruction?: string;
+      requiredFacts: string[];
+      optionalFacts: string[];
+      scripts: Array<{ scriptId: string; revisionId?: string; label?: string }>;
+      allowedCapabilities: string[];
+      forbiddenCapabilities: string[];
+      autoAdvance: boolean;
+      riskLevel: string;
+      terminal: boolean;
+      message?: string;
+      dependencies?: string[];
+    }>;
+    transitions: Array<{
+      fromNodeKey: string;
+      toNodeKey: string;
+      label: string;
+      order: number;
+      condition?: Record<string, unknown>;
+      requiresUserChoice: boolean;
+      allowLoop?: boolean;
+    }>;
+  };
   steps: Array<{
     title: string;
     body: string;
@@ -635,34 +682,37 @@ async function ensureServiceFlow(input: {
     scriptIds?: string[];
   }>;
 }) {
-  const flow = await prisma.serviceFlow.upsert({
-    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
-    update: {
-      wikiPageId: input.wikiPageId,
-      title: input.title,
-      summary: input.summary,
-      content: input.content,
-      tagsJson: JSON.stringify(input.tags),
-      status: input.status,
-      priority: input.priority,
-      updatedById: input.updatedById,
-      publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
-    },
-    create: {
-      organizationId: input.organizationId,
-      wikiPageId: input.wikiPageId,
-      slug: input.slug,
-      title: input.title,
-      summary: input.summary,
-      content: input.content,
-      tagsJson: JSON.stringify(input.tags),
-      status: input.status,
-      priority: input.priority,
-      createdById: input.createdById,
-      updatedById: input.updatedById,
-      publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
-    }
+  const canonicalFlow = await prisma.serviceFlow.findFirst({
+    where: { organizationId: input.organizationId, slug: input.slug }
   });
+  const legacyFlow = canonicalFlow || !input.legacySlugs?.length
+    ? null
+    : await prisma.serviceFlow.findFirst({
+      where: { organizationId: input.organizationId, slug: { in: input.legacySlugs } }
+    });
+  const existingFlow = canonicalFlow ?? legacyFlow;
+  const flowData = {
+    wikiPageId: input.wikiPageId,
+    title: input.title,
+    summary: input.summary,
+    content: input.content,
+    draftGraphJson: input.graph ? JSON.stringify(input.graph) : null,
+    tagsJson: JSON.stringify(input.tags),
+    status: input.status,
+    priority: input.priority,
+    updatedById: input.updatedById,
+    publishedAt: input.status === "PUBLISHED" ? daysAgo(0) : null
+  };
+  const flow = existingFlow
+    ? await prisma.serviceFlow.update({ where: { id: existingFlow.id }, data: { ...flowData, slug: input.slug } })
+    : await prisma.serviceFlow.create({
+      data: {
+        organizationId: input.organizationId,
+        slug: input.slug,
+        createdById: input.createdById,
+        ...flowData
+      }
+    });
   const existingSteps = await prisma.serviceFlowStep.findMany({ where: { flowId: flow.id }, select: { id: true } });
   const existingStepIds = existingSteps.map((step) => step.id);
   if (existingStepIds.length) {
@@ -692,6 +742,73 @@ async function ensureServiceFlow(input: {
           order: index + 1
         }
       });
+    }
+  }
+  if (input.graph && input.status === "PUBLISHED") {
+    const graph = input.graph;
+    const graphJson = JSON.stringify(graph);
+    const latestVersion = await prisma.serviceFlowVersion.findFirst({ where: { flowId: flow.id }, orderBy: { version: "desc" } });
+    if (!latestVersion || latestVersion.graphJson !== graphJson) {
+      const versionNumber = (latestVersion?.version ?? 0) + 1;
+      await prisma.serviceFlow.update({ where: { id: flow.id }, data: { version: versionNumber } });
+      await prisma.$transaction(async (tx) => {
+        const version = await tx.serviceFlowVersion.create({
+          data: {
+            organizationId: input.organizationId,
+            flowId: flow.id,
+            version: versionNumber,
+            title: input.title,
+            summary: input.summary,
+            content: input.content,
+            tagsJson: JSON.stringify(input.tags),
+            graphJson,
+            publishedById: input.updatedById,
+            publishedAt: daysAgo(0)
+          }
+        });
+        const nodeIds = new Map<string, string>();
+        for (const [order, node] of graph.nodes.entries()) {
+          const created = await tx.serviceFlowNode.create({
+            data: {
+              organizationId: input.organizationId,
+              versionId: version.id,
+              key: node.key,
+              type: node.type,
+              title: node.title,
+              operatorInstruction: node.operatorInstruction,
+              requiredFactsJson: JSON.stringify(node.requiredFacts),
+              optionalFactsJson: JSON.stringify(node.optionalFacts),
+              scriptsJson: JSON.stringify(node.scripts),
+              allowedCapabilitiesJson: JSON.stringify(node.allowedCapabilities),
+              forbiddenCapabilitiesJson: JSON.stringify(node.forbiddenCapabilities),
+              autoAdvance: node.autoAdvance,
+              riskLevel: node.riskLevel,
+              terminal: node.terminal,
+              message: node.message,
+              dependenciesJson: node.dependencies ? JSON.stringify(node.dependencies) : null,
+              order
+            }
+          });
+          nodeIds.set(node.key, created.id);
+        }
+        for (const transition of graph.transitions) {
+          await tx.serviceFlowTransition.create({
+            data: {
+              organizationId: input.organizationId,
+              versionId: version.id,
+              fromNodeId: nodeIds.get(transition.fromNodeKey)!,
+              toNodeId: nodeIds.get(transition.toNodeKey)!,
+              label: transition.label,
+              order: transition.order,
+              conditionJson: transition.condition ? JSON.stringify(transition.condition) : null,
+              requiresUserChoice: transition.requiresUserChoice,
+              allowLoop: transition.allowLoop ?? false
+            }
+          });
+        }
+      });
+    } else if (flow.version !== latestVersion.version) {
+      await prisma.serviceFlow.update({ where: { id: flow.id }, data: { version: latestVersion.version } });
     }
   }
   return flow;
@@ -1380,32 +1497,27 @@ async function main() {
     faqThreadId: faqThread.id,
     reviewDueAt: daysAgo(2)
   });
-  const healthUsageScript = await ensureOperationalScript({
-    organizationId: organization.id,
-    categoryId: categoryProduct.id,
-    createdById: supervisor.id,
-    updatedById: supervisor.id,
-    validatedById: supervisor.id,
-    title: "Investigar forma de uso em relato de saúde",
-    channel: "WHATSAPP",
-    body: "Entendi, {nome_cliente}. Para te orientar corretamente, me confirma por favor: qual produto foi usado, quantidade por dia, horário de uso, há quanto tempo iniciou e se houve uso junto com outro suplemento ou medicamento?",
-    tags: ["saude", "produto", "sac", "triagem"],
-    wikiPageId: faqWikiPage.id,
-    reviewDueAt: addDays(45)
-  });
-  const reverseScript = await ensureOperationalScript({
-    organizationId: organization.id,
-    categoryId: categoryProduct.id,
-    createdById: supervisor.id,
-    updatedById: supervisor.id,
-    validatedById: supervisor.id,
-    title: "Orientar reversa de produto fechado",
-    channel: "WHATSAPP",
-    body: "Perfeito, {nome_cliente}. Como há frasco fechado, podemos seguir com a análise de reversa. Vou confirmar os dados do pedido {numero_pedido} e te passar os próximos passos para coleta/postagem.",
-    tags: ["saude", "reversa", "troca", "estorno"],
-    wikiPageId: faqWikiPage.id,
-    reviewDueAt: addDays(45)
-  });
+  const alwaysFitHealthScripts = {} as Record<AlwaysFitHealthMessageCode, Awaited<ReturnType<typeof ensureOperationalScript>>>;
+  for (const message of alwaysFitHealthMessages) {
+    alwaysFitHealthScripts[message.code] = await ensureOperationalScript({
+      organizationId: organization.id,
+      categoryId: categoryProduct.id,
+      createdById: supervisor.id,
+      updatedById: supervisor.id,
+      validatedById: supervisor.id,
+      title: `${message.code} | Saúde | ${message.title}`,
+      channel: message.channel,
+      body: message.body,
+      tags: [...message.tags, "always-fit", "piloto-v0-1", ALWAYS_FIT_HEALTH_FLOW_CODE.toLowerCase()],
+      status: message.status,
+      legacyTitles: message.legacyTitles,
+      wikiPageId: faqWikiPage.id,
+      reviewDueAt: message.status === "DRAFT" ? addDays(7) : addDays(30)
+    });
+  }
+  const alwaysFitHealthGraph = buildAlwaysFitHealthFlow(Object.fromEntries(
+    Object.entries(alwaysFitHealthScripts).map(([code, script]) => [code, script.id])
+  ) as Record<AlwaysFitHealthMessageCode, string>);
 
   await ensureScriptPack({
     organizationId: organization.id,
@@ -1415,11 +1527,11 @@ async function main() {
     createdById: supervisor.id,
     updatedById: supervisor.id,
     slug: "triagem-saude-reversa",
-    title: "Triagem de saúde com possível reversa",
-    summary: "Sequência curta para coletar relato, orientar produto e conduzir reversa quando houver frasco fechado.",
-    tags: ["saude", "reversa", "sac", "triagem"],
+    title: `${ALWAYS_FIT_HEALTH_FLOW_CODE} v${ALWAYS_FIT_HEALTH_FLOW_VERSION} | Mensagens do piloto`,
+    summary: "As 17 mensagens do primeiro fluxo operacional real, preservando rascunhos que ainda exigem padronização.",
+    tags: ["saude", "reversa", "troca", "estorno", "sac", "piloto-v0-1"],
     order: 1,
-    scriptIds: [healthUsageScript.id, productGuidanceScript.id, reverseScript.id]
+    scriptIds: alwaysFitHealthMessages.map((message) => alwaysFitHealthScripts[message.code].id)
   });
 
   await ensureServiceFlow({
@@ -1427,40 +1539,16 @@ async function main() {
     createdById: supervisor.id,
     updatedById: supervisor.id,
     wikiPageId: faqWikiPage.id,
-    slug: "problema-de-saude-reacao-adversa",
-    title: "Problema de saúde / reação adversa",
-    summary: "Triagem guiada para relatos de mal-estar, reação, uso incorreto ou necessidade de reversa.",
-    content: "Use este fluxo quando o cliente relata sintomas, desconforto ou suspeita de reação após uso de produto. O foco é coletar contexto, reduzir risco, preservar evidências e encaminhar troca/estorno quando fizer sentido.",
-    tags: ["saude", "sac", "reversa", "triagem"],
+    slug: ALWAYS_FIT_HEALTH_FLOW_SLUG,
+    legacySlugs: ["problema-de-saude-reacao-adversa"],
+    title: "Problema de saúde após suplemento — devolução, troca ou estorno",
+    summary: `${ALWAYS_FIT_HEALTH_FLOW_CODE} v${ALWAYS_FIT_HEALTH_FLOW_VERSION}: primeiro fluxo operacional real do CaseFlow, em piloto controlado.`,
+    content: `## Piloto operacional ${ALWAYS_FIT_HEALTH_FLOW_CODE}\n\nEste é **um fluxo específico**, não um procedimento universal de saúde. Ele cobre relatos de mal-estar após suplemento Always Fit que podem terminar em devolução, troca, estorno ou solução mista.\n\nAções em Correios, Lançador, Slack e qualquer efeito financeiro são sempre humanas. As dez pendências do documento-fonte aparecem como bloqueios ou handoffs e não foram preenchidas por suposição.\n\nFonte integral: \`fluxo_saude_caseflow_always_fit.md\`.`,
+    tags: ["saude", "sac", "reversa", "troca", "estorno", "caseflow", "piloto-v0-1"],
     status: "PUBLISHED",
     priority: 1,
-    steps: [
-      {
-        title: "Entender relato e forma de uso",
-        body: "Pergunte produto, dose, horário, tempo de uso, combinações e sintomas. Registre o relato sem prometer diagnóstico.",
-        kind: "MANUAL",
-        order: 1,
-        required: true,
-        scriptIds: [healthUsageScript.id, productGuidanceScript.id]
-      },
-      {
-        title: "Verificar frascos fechados e evidências",
-        body: "Confirme se há unidades fechadas, lote, validade, fotos e condição da embalagem.",
-        kind: "YES_NO",
-        decision: { yes: "Seguir para reversa/troca se política permitir.", no: "Avaliar exceção ou manter orientação sem reversa." },
-        order: 2,
-        required: true,
-        scriptIds: [reverseScript.id]
-      },
-      {
-        title: "Definir solução: estorno, troca ou orientação",
-        body: "Com base no relato e evidências, alinhe com Supervisor/Admin quando necessário e registre a decisão.",
-        kind: "DECISION",
-        decision: { options: ["Estorno", "Troca", "Reversa", "Orientação sem reversa", "Escalar supervisor"] },
-        order: 3,
-        scriptIds: [reverseScript.id]
-      }
-    ]
+    graph: alwaysFitHealthGraph,
+    steps: alwaysFitHealthGraph.steps
   });
 
   await ensureOperationalScriptSuggestion({

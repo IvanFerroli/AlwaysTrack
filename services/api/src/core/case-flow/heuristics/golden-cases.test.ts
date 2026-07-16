@@ -12,7 +12,7 @@ const fixturesDirectory = fileURLToPath(new URL("../../../../../../tests/fixture
 const fixture = (name: string) => JSON.parse(readFileSync(resolve(fixturesDirectory, name), "utf8")) as Fixture;
 
 describe("CaseFlow heuristic golden cases", () => {
-  it.each(["conflict.json", "low-confidence.json", "missing-facts.json", "risk.json"])("matches %s", (file) => {
+  it.each(["always-fit-health-pilot.json", "conflict.json", "low-confidence.json", "missing-facts.json", "risk.json"])("matches %s", (file) => {
     const item = fixture(file);
     const result = applyLowConfidenceTriage(evaluateHeuristics(defaultCaseFlowRules, item));
     expect(result.primary?.flowId, item.name).toBe(item.expected.primary);

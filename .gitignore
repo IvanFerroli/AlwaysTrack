@@ -17,3 +17,4 @@ docs/performance/reports/
 test-results/
 playwright-report/
 coverage/
+*:Zone.Identifier

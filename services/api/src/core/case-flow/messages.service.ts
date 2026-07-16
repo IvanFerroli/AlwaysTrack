@@ -27,11 +27,45 @@ export interface MessageTemplate {
 
 const conditionalPattern = /\{conditional:([a-zA-Z0-9_.-]+)\}([\s\S]*?)\{\/conditional\}/g;
 const placeholderPattern = /\{([a-zA-Z0-9_.-]+)\}/g;
+const placeholderFactAliases: Readonly<Record<string, string>> = {
+  nome_cliente: "customer.name",
+  codigo_reversa: "treatment.reverseCode",
+  previsao_entrega: "logistics.forecast",
+  novo_pedido: "order.manualId",
+  modo_de_uso: "custom.alwaysfit.product.recommended.usage",
+  produto_1: "order.products",
+  produto_2: "order.products",
+  produto_3: "order.products"
+};
 
 function clean(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
   const result = typeof value === "string" ? value.trim() : String(value);
   return result && result !== "undefined" ? result : undefined;
+}
+
+function factKeyForPlaceholder(key: string) {
+  return placeholderFactAliases[key] ?? key;
+}
+
+export function withScriptPlaceholderAliases(facts: Readonly<Record<string, unknown>>) {
+  const enriched: Record<string, unknown> = { ...facts };
+  for (const [placeholder, factKey] of Object.entries(placeholderFactAliases)) {
+    if (enriched[placeholder] !== undefined) continue;
+    const value = facts[factKey];
+    if (placeholder.startsWith("produto_")) {
+      const index = Number(placeholder.slice(-1)) - 1;
+      if (Array.isArray(value)) {
+        const product = value[index];
+        enriched[placeholder] = product && typeof product === "object" && "name" in product
+          ? (product as { name?: unknown }).name
+          : product;
+      }
+      continue;
+    }
+    if (value !== undefined) enriched[placeholder] = value;
+  }
+  return enriched;
 }
 
 export function compileMessageTemplate(caseId: string, planRevision: number, template: MessageTemplate, facts: Readonly<Record<string, unknown>>): CompiledCaseFlowMessage {
@@ -83,7 +117,14 @@ export async function loadPlanMessageTemplates(db: MessageDb, actor: CurrentUser
     result.push({
       scriptId: script.id, revisionId: revision.id, revision: revision.version, nodeId: node.id,
       channel: scriptChannel(revision.channel, binding.label), body: revision.body,
-      placeholders: keys.map((key) => ({ key, kind: node.optionalFacts.includes(key) ? "OPTIONAL" : "REQUIRED", essential: node.requiredFacts.includes(key) }))
+      placeholders: keys.map((key) => {
+        const factKey = factKeyForPlaceholder(key);
+        return {
+          key,
+          kind: node.optionalFacts.includes(key) || node.optionalFacts.includes(factKey) ? "OPTIONAL" : "REQUIRED",
+          essential: node.requiredFacts.includes(key) || node.requiredFacts.includes(factKey)
+        };
+      })
     });
   }
   return result.sort((left, right) => JSON.stringify([left.nodeId, left.channel, left.scriptId]).localeCompare(JSON.stringify([right.nodeId, right.channel, right.scriptId])));
@@ -100,7 +141,8 @@ export async function compileCaseMessages(db: MessageDb, actor: CurrentUser, cas
   const rows = await db.evidenceFact.findMany({ where: { caseId, organizationId: actor.organizationId }, orderBy: { observedAt: "desc" } });
   const facts: Record<string, unknown> = {};
   for (const row of rows) if (!(row.key in facts)) facts[row.key] = parseCaseFlowJson(row.normalizedValueJson);
-  return templates.map((template) => compileMessageTemplate(caseId, planRevision, template, facts));
+  const aliasedFacts = withScriptPlaceholderAliases(facts);
+  return templates.map((template) => compileMessageTemplate(caseId, planRevision, template, aliasedFacts));
 }
 
 export async function recordMessageCopy(db: Pick<PrismaClient, "auditLog">, actor: CurrentUser, message: CompiledCaseFlowMessage): Promise<CaseFlowMessageCopyReceipt> {

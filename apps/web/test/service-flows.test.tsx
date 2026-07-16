@@ -96,6 +96,35 @@ const baseFlow = {
   ]
 };
 
+const pilotFlow = {
+  ...baseFlow,
+  id: "flow-health",
+  slug: "saude-dev-troca-estorno",
+  title: "Problema de saúde após suplemento",
+  status: "PUBLISHED",
+  steps: [
+    {
+      ...baseFlow.steps[0],
+      id: "pilot-step-1",
+      title: "ETAPA-001 — Receber relato",
+      kind: "DECISION",
+      decision: { nodeKey: "ETAPA-001", options: [
+        { label: "Relato reconhecido como caso deste fluxo", target: "ETAPA-002" },
+        { label: "Fora do escopo", target: "RESULTADO-009" }
+      ] },
+      scripts: []
+    },
+    {
+      ...baseFlow.steps[1],
+      id: "pilot-step-2",
+      title: "ETAPA-002 — Apresentação com nome",
+      kind: "MANUAL",
+      decision: { nodeKey: "ETAPA-002", options: [{ label: "Apresentação enviada", target: "ETAPA-003" }] },
+      scripts: [{ id: "pilot-link", script: canonicalScript }]
+    }
+  ]
+};
+
 const personalScript = {
   id: "personal-1",
   title: "Resposta pessoal",
@@ -317,6 +346,51 @@ describe("ServiceFlowsView", () => {
     await user.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(await screen.findByText("Atendimento finalizado")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Concluir etapa" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("turns a versioned decision into a clickable audited path", async () => {
+    const user = userEvent.setup();
+    const started = {
+      id: "pilot-session", status: "OPEN", startedAt: "2026-07-15T12:00:00.000Z", completedAt: null,
+      flow: { id: pilotFlow.id, slug: pilotFlow.slug, title: pilotFlow.title },
+      version: { id: "pilot-version", version: 1, title: pilotFlow.title, publishedAt: "2026-07-15T12:00:00.000Z" },
+      steps: [
+        { id: "visit-start", stepId: null, nodeKey: "START", nodeSnapshotJson: JSON.stringify({ terminal: false }), status: "DONE", decision: null, note: null, completedAt: null, step: null },
+        { id: "visit-1", stepId: null, nodeKey: "ETAPA-001", nodeSnapshotJson: JSON.stringify({ terminal: false }), status: "PENDING", decision: null, note: null, completedAt: null, step: null }
+      ]
+    };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [pilotFlow], canManage: false });
+      if (path === "/v1/script-library") return Promise.resolve({ scripts: [canonicalScript] });
+      if (path === "/v1/script-library/personal-scripts") return Promise.resolve({ items: [] });
+      if (path === `/v1/service-flows/${pilotFlow.id}/sessions`) return Promise.resolve({ session: started });
+      if (path === "/v1/service-flow-sessions/pilot-session/steps/ETAPA-001") {
+        return Promise.resolve({ session: {
+          ...started,
+          steps: [
+            started.steps[0],
+            { ...started.steps[1], status: "DONE", decision: "Relato reconhecido como caso deste fluxo" },
+            { id: "visit-2", stepId: null, nodeKey: "ETAPA-002", status: "PENDING", decision: null, note: null, completedAt: null, step: null }
+          ]
+        } });
+      }
+      return successfulApi(path, init);
+    });
+
+    render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: pilotFlow.title });
+    await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    expect(await screen.findByText("ETAPA-001 — Receber relato")).toBeInTheDocument();
+    expect(screen.queryByText("ETAPA-002 — Apresentação com nome")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finalizar" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Relato reconhecido como caso deste fluxo" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith(
+      "/v1/service-flow-sessions/pilot-session/steps/ETAPA-001",
+      { method: "POST", body: JSON.stringify({ status: "DONE", decision: "Relato reconhecido como caso deste fluxo", note: null }) }
+    ));
+    expect(await screen.findByText("ETAPA-002 — Apresentação com nome")).toBeInTheDocument();
   });
 
   it("renders placeholders safely and audits canonical script copy in the active session", async () => {

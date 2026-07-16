@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { compileMessageTemplate, recordMessageCopy } from "./messages.service.js";
+import { compileCaseMessages, compileMessageTemplate, loadPlanMessageTemplates, recordMessageCopy, withScriptPlaceholderAliases } from "./messages.service.js";
 
 const template = {
   scriptId: "script-delivery", revisionId: "revision-3", revision: 3, nodeId: "delivery:message", channel: "CUSTOMER" as const,
@@ -62,5 +62,40 @@ describe("CaseFlow deterministic message compiler", () => {
     expect(customer.channel).toBe("CUSTOMER");
     expect(internal.channel).toBe("INTERNAL_NOTE");
     expect(customer.text).not.toContain(internal.text);
+  });
+
+  it("maps Scriptoteca operational placeholders to canonical CaseFlow facts", async () => {
+    expect(withScriptPlaceholderAliases({
+      "customer.name": "Ana",
+      "order.products": [{ name: "NAC" }, "Pro3"],
+      "treatment.reverseCode": "REV-123",
+      "logistics.forecast": "20/07",
+      "order.manualId": "O000001"
+    })).toMatchObject({
+      nome_cliente: "Ana",
+      produto_1: "NAC",
+      produto_2: "Pro3",
+      codigo_reversa: "REV-123",
+      previsao_entrega: "20/07",
+      novo_pedido: "O000001"
+    });
+
+    const messages = await compileCaseMessages({
+      serviceCase: { findFirst: vi.fn().mockResolvedValue({ id: "case-health" }) },
+      evidenceFact: { findMany: vi.fn().mockResolvedValue([{ key: "customer.name", normalizedValueJson: '"Ana"', observedAt: new Date() }]) }
+    } as never, { id: "user-1", organizationId: "org-1" } as never, "case-health", 1, [{
+      scriptId: "MSG-001", revisionId: "rev-1", revision: 1, nodeId: "ETAPA-002", channel: "CUSTOMER", body: "Olá, {nome_cliente}!", placeholders: [{ key: "nome_cliente", kind: "REQUIRED", essential: true }]
+    }]);
+    expect(messages[0]).toMatchObject({ text: "Olá, Ana!", pendingPlaceholders: [], copyAllowed: true });
+  });
+
+  it("treats an aliased canonical fact as essential when loading a pilot script", async () => {
+    const templates = await loadPlanMessageTemplates({
+      operationalScript: { findMany: vi.fn().mockResolvedValue([{ id: "script-1", channel: "WHATSAPP" }]) },
+      operationalScriptRevision: { findFirst: vi.fn().mockResolvedValue({ id: "rev-1", version: 1, channel: "WHATSAPP", body: "Olá, {nome_cliente}!", placeholdersJson: '["nome_cliente"]' }) }
+    } as never, { id: "user-1", organizationId: "org-1" } as never, {
+      nodes: [{ id: "node-1", scripts: [{ scriptId: "script-1" }], requiredFacts: ["customer.name"], optionalFacts: [] }]
+    } as never);
+    expect(templates[0].placeholders).toEqual([{ key: "nome_cliente", kind: "REQUIRED", essential: true }]);
   });
 });
