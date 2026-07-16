@@ -56,7 +56,7 @@ Demonstrar o AlwaysTrack como ferramenta interna para acompanhar DANFEs, vendas 
 - `admin@example.com`: administracao, auditoria, usuarios e configuracoes.
 - `supervisor@example.com`: campanhas, ranking e FAQ.
 - `vendedor@example.com`, `vendedor2@example.com`, `vendedor3@example.com`: visao de vendedor.
-- `sac@example.com`: revisao de notas e suporte operacional.
+- `sac@example.com`, `sac2@example.com` e `sac3@example.com`: revisao de notas e suporte operacional com a mesma senha SAC.
 - `financeiro@example.com`: revisao e extratos.
 
 ## Roteiro de 7 minutos

@@ -940,6 +940,30 @@ async function main() {
     }
   });
 
+  await prisma.user.upsert({
+    where: { email: "sac2@example.com" },
+    update: { name: "SAC Demo 2", passwordHash: sacPasswordHash, role: "SAC", active: true, organizationId: organization.id },
+    create: {
+      name: "SAC Demo 2",
+      email: "sac2@example.com",
+      passwordHash: sacPasswordHash,
+      role: "SAC",
+      organizationId: organization.id
+    }
+  });
+
+  await prisma.user.upsert({
+    where: { email: "sac3@example.com" },
+    update: { name: "SAC Demo 3", passwordHash: sacPasswordHash, role: "SAC", active: true, organizationId: organization.id },
+    create: {
+      name: "SAC Demo 3",
+      email: "sac3@example.com",
+      passwordHash: sacPasswordHash,
+      role: "SAC",
+      organizationId: organization.id
+    }
+  });
+
   const financeiro = await prisma.user.upsert({
     where: { email: "financeiro@example.com" },
     update: {
@@ -2109,6 +2133,8 @@ async function main() {
   console.log(`- Organization: ${organization.id} / ${organization.name}`);
   console.log(`- Admin: admin@example.com / ${adminPassword}`);
   console.log(`- SAC: sac@example.com / ${sacPassword}`);
+  console.log(`- SAC 2: sac2@example.com / ${sacPassword}`);
+  console.log(`- SAC 3: sac3@example.com / ${sacPassword}`);
   console.log(`- Financeiro: financeiro@example.com / ${financeiroPassword}`);
   console.log(`- Vendedor: vendedor@example.com / ${sellerPassword}`);
   console.log(`- Supervisor: supervisor@example.com / ${supervisorPassword}`);
