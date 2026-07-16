@@ -106,6 +106,23 @@ describe("announcements service", () => {
     expect(prisma.announcementReadReceipt.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ userId: "seller-1" }) }));
   });
 
+  it("rejects acknowledgement outside the published target audience", async () => {
+    const prisma = prismaMock();
+    prisma.announcement.findFirst.mockResolvedValueOnce({
+      id: "ann-1",
+      slug: "aviso",
+      title: "Aviso",
+      targetRolesJson: '["SAC"]',
+      status: "PUBLISHED",
+      requiresAck: true,
+      startsAt: null,
+      expiresAt: null
+    });
+
+    await expect(acknowledgeAnnouncement(prisma as never, seller, "ann-1")).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(prisma.announcementReadReceipt.upsert).not.toHaveBeenCalled();
+  });
+
   it("classifies the active target-role audience without crossing tenant or role boundaries", async () => {
     const prisma = prismaMock();
     prisma.user.findMany.mockResolvedValueOnce([

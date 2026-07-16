@@ -521,6 +521,8 @@ export async function archiveAnnouncement(prisma: PrismaClient, actor: CurrentUs
 export async function acknowledgeAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string) {
   const item = await prisma.announcement.findFirst({ where: { ...visibleAnnouncementWhere(actor), id: announcementId } });
   if (!item) throw new AnnouncementError("NOT_FOUND");
+  const targetRoles = cleanRoles(parseJsonArray<unknown>(item.targetRolesJson));
+  if (effectiveStatus(item) !== "PUBLISHED" || !targetRoles.includes(actor.role)) throw new AnnouncementError("FORBIDDEN");
   const existingReceipt = await prisma.announcementReadReceipt.findUnique({
     where: { announcementId_userId: { announcementId: item.id, userId: actor.id } },
     select: { acknowledgedAt: true }
@@ -532,7 +534,6 @@ export async function acknowledgeAnnouncement(prisma: PrismaClient, actor: Curre
     update: existingReceipt?.acknowledgedAt ? {} : { acknowledgedAt }
   });
 
-  const targetRoles = cleanRoles(parseJsonArray<unknown>(item.targetRolesJson));
   if (item.requiresAck && !existingReceipt?.acknowledgedAt && targetRoles.includes(actor.role)) {
     const compliance = (
       await getAnnouncementsAcknowledgementCompliance(prisma, actor.organizationId, [
