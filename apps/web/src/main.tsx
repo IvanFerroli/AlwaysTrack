@@ -790,7 +790,7 @@ function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
           <BrandMark className="login-brand-mark" />
           <div>
             <p className="eyebrow">{appName}</p>
-            <h1>Entrar</h1>
+            <h1 className="sr-only">Entrar</h1>
           </div>
         </div>
         <label>

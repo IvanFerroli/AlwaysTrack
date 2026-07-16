@@ -93,7 +93,7 @@ describe("Web bootstrap, session and role matrix", () => {
       session.reject(new Error("Sessão expirada"));
       await Promise.resolve();
     });
-    expect(await screen.findByRole("heading", { name: "Entrar" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Entrar" })).toHaveClass("sr-only");
     expect(screen.queryByText("Acesso operacional para notas, ranking, campanhas e extratos comerciais.")).not.toBeInTheDocument();
     const passwordLogin = screen.getByRole("button", { name: "Entrar com senha" });
     const googleLogin = screen.getByRole("button", { name: "Entrar com Google" });

@@ -506,7 +506,9 @@ tr:hover td {
 .login-brand {
   align-items: center;
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
 }
 
 .brand-mark {
@@ -518,8 +520,8 @@ tr:hover td {
 
 .login-brand-mark {
   filter: drop-shadow(0 12px 22px rgb(15 61 76 / 18%));
-  height: 112px;
-  width: 112px;
+  height: 168px;
+  width: 168px;
 }
 
 .login-divider {
@@ -4924,12 +4926,12 @@ legend {
   }
 
   .login-brand {
-    gap: 16px;
+    gap: 8px;
   }
 
   .login-brand-mark {
-    height: 92px;
-    width: 92px;
+    height: 136px;
+    width: 136px;
   }
 
   .topbar {
