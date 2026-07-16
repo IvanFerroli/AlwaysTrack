@@ -1249,7 +1249,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
         </div>
       ) : null}
       {canManage ? (
-        <section className="panel">
+        <section className="panel service-flow-create-panel">
           <div>
             <p className="eyebrow">Gestão</p>
             <h2>Novo fluxo de atendimento</h2>

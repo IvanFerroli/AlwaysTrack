@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed
 - owner: olympus_orchestrator
-- last-updated: 2026-06-11
+- last-updated: 2026-07-16
 - source-of-truth: docs/tasks/TASK-AT-066-screenshot-driven-visual-polish.md
 
 ## Modo
@@ -78,6 +78,13 @@ Ha melhorias visuais desejadas, mas elas dependem de evidencia visual concreta. 
 - FAQ: lista de threads recebeu paginacao, cards quebram texto longo e acoes do detalhe deixam de estourar o container.
 - Campanhas: formulario ganhou padding interno e espacamento vertical entre grupos de campos.
 - Configuracoes: painel administrativo ganhou padding interno e espacamento vertical entre campos.
+
+## Follow-up 2026-07-16 - Fluxos
+- Print desktop recebido mostrando metricas, seletor lateral, executor e criacao de fluxo colados nas bordas dos paineis.
+- Escopo: reaplicar o padrao existente de `18px` de padding interno e gaps consistentes somente na tela de Fluxos.
+- Resultado: metricas, executor e criacao receberam `18px`; conteudo da coluna lateral recebeu margens internas de `16px` sem alterar o toolbar.
+- Validacao: 13 testes do fluxo, typecheck e build Web aprovados.
+- Status: completed.
 
 ## Evidencia esperada
 - Lista dos prints atendidos.

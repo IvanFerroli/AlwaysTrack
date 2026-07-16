@@ -3272,6 +3272,14 @@ legend {
   top: 12px;
 }
 
+.service-flow-sidebar > :not(.table-panel-toolbar) {
+  margin-inline: 16px;
+}
+
+.service-flow-sidebar > :last-child {
+  margin-bottom: 16px;
+}
+
 .service-flow-picker,
 .service-flow-personal-scripts,
 .service-flow-personal-form {
@@ -3303,6 +3311,7 @@ legend {
 .service-flow-runner {
   display: grid;
   gap: 16px;
+  padding: 18px;
 }
 
 .service-flow-personal-scripts {
@@ -3315,6 +3324,16 @@ legend {
 .service-flow-governance-box {
   display: grid;
   gap: 14px;
+}
+
+.service-flow-metrics-panel,
+.service-flow-create-panel {
+  padding: 18px;
+}
+
+.service-flow-create-panel {
+  display: grid;
+  gap: 16px;
 }
 
 .service-flow-governance-box {
