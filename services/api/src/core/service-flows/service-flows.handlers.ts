@@ -9,6 +9,7 @@ import {
   createServiceFlow,
   getServiceFlowSession,
   getServiceFlow,
+  listServiceFlowProductCatalog,
   listServiceFlows,
   parseServiceFlowSessionCaseDataInput,
   parseServiceFlowGovernanceInput,
@@ -17,6 +18,7 @@ import {
   parseServiceFlowSessionStepInput,
   parseServiceFlowSessionRewindInput,
   publishServiceFlow,
+  restartServiceFlowSession,
   serviceFlowMetrics,
   ServiceFlowError,
   rewindServiceFlowSessionStep,
@@ -58,6 +60,14 @@ function sendFlowError(response: Response, error: unknown) {
 export async function listServiceFlowsHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await listServiceFlows(prisma, actorFrom(request), parseServiceFlowFilters(request.query)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function listServiceFlowProductCatalogHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listServiceFlowProductCatalog(prisma, actorFrom(request)));
   } catch (error) {
     return sendFlowError(response, error);
   }
@@ -122,6 +132,14 @@ export async function createServiceFlowSessionHandler(request: Request, response
 export async function getServiceFlowSessionHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await getServiceFlowSession(prisma, actorFrom(request), param(request.params.sessionId)));
+  } catch (error) {
+    return sendFlowError(response, error);
+  }
+}
+
+export async function restartServiceFlowSessionHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await restartServiceFlowSession(prisma, actorFrom(request), param(request.params.sessionId)));
   } catch (error) {
     return sendFlowError(response, error);
   }

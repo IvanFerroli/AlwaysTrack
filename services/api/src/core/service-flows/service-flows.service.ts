@@ -70,6 +70,11 @@ export interface ServiceFlowSessionCaseDataInput {
   values: Record<string, string>;
 }
 
+export interface ProductCatalogItem {
+  name: string;
+  sku?: string;
+}
+
 export interface ServiceFlowSessionRewindInput {
   strategy: "DISCARD_FOLLOWING" | "RECONFIRM_FOLLOWING";
 }
@@ -85,6 +90,22 @@ const sessionStepStatuses = new Set(["PENDING", "DONE", "SKIPPED"]);
 const rewindStrategies = ["DISCARD_FOLLOWING", "RECONFIRM_FOLLOWING"] as const;
 const safeCaseDataKey = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/;
 const unsafeCaseDataKeys = new Set(["__proto__", "prototype", "constructor"]);
+const structuredProductKeys = new Set([
+  "order.products",
+  "custom.alwaysfit.health.related.products",
+  "custom.alwaysfit.health.concomitant.products",
+  "custom.alwaysfit.return.open.items",
+  "custom.alwaysfit.return.sealed.items",
+  "custom.alwaysfit.return.returned.sealed.items",
+  "custom.alwaysfit.return.retained.sealed.items",
+  "custom.alwaysfit.exchange.items"
+]);
+const productSubsetKeys = [...structuredProductKeys].filter((key) =>
+  key !== "order.products"
+  && key !== "custom.alwaysfit.health.concomitant.products"
+  && key !== "custom.alwaysfit.exchange.items"
+);
+const pilotProductFallbacks = ["Fit S36", "NAC", "Pro3"] as const;
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -176,6 +197,99 @@ function caseDataFromJson(value: string | null | undefined): Record<string, stri
     return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
   } catch {
     return {};
+  }
+}
+
+interface StructuredProduct { name: string; quantity: number }
+
+function parseStructuredProducts(value: string, field: string): StructuredProduct[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new InputValidationError([{ field, code: "INVALID_VALUE" }]);
+  }
+  if (!Array.isArray(parsed) || parsed.length > 50) {
+    throw new InputValidationError([{ field, code: parsed instanceof Array ? "TOO_MANY_ITEMS" : "INVALID_TYPE" }]);
+  }
+  return parsed.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new InputValidationError([{ field: `${field}.${index}`, code: "INVALID_TYPE" }]);
+    }
+    const product = item as Record<string, unknown>;
+    const name = typeof product.name === "string" ? product.name.trim() : "";
+    if (!name || name.length > 160 || typeof product.quantity !== "number" || !Number.isInteger(product.quantity) || product.quantity <= 0) {
+      throw new InputValidationError([{ field: `${field}.${index}`, code: "INVALID_VALUE" }]);
+    }
+    return { name, quantity: product.quantity };
+  }).filter((product, index, products) => {
+    if (products.findIndex((candidate) => normalizedProductName(candidate.name) === normalizedProductName(product.name)) !== index) {
+      throw new InputValidationError([{ field, code: "INVALID_VALUE" }]);
+    }
+    return true;
+  });
+}
+
+function normalizedProductName(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+}
+
+function productQuantities(products: StructuredProduct[]) {
+  const quantities = new Map<string, number>();
+  for (const product of products) {
+    const key = normalizedProductName(product.name);
+    quantities.set(key, (quantities.get(key) ?? 0) + product.quantity);
+  }
+  return quantities;
+}
+
+function validateProductSubsets(caseData: Record<string, string>) {
+  const base = caseData["order.products"] === undefined
+    ? []
+    : parseStructuredProducts(caseData["order.products"], "values.order.products");
+  const available = productQuantities(base);
+  for (const key of productSubsetKeys) {
+    if (caseData[key] === undefined) continue;
+    const requested = productQuantities(parseStructuredProducts(caseData[key], `values.${key}`));
+    for (const [name, quantity] of requested) {
+      if (quantity > (available.get(name) ?? 0)) {
+        throw new InputValidationError([{ field: `values.${key}`, code: "INVALID_VALUE" }]);
+      }
+    }
+  }
+}
+
+function factIsPresent(key: string, value: string | undefined) {
+  if (value === undefined || !value.trim()) return false;
+  if (key === "customer.cpf") return value.replace(/\D/g, "").length === 11;
+  if (structuredProductKeys.has(key)) {
+    try {
+      return parseStructuredProducts(value, key).length > 0;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+function transitionConditionFromJson(value: string | null | undefined): FlowTransitionDefinition["condition"] {
+  if (!value) return undefined;
+  try {
+    const condition = JSON.parse(value) as Record<string, unknown>;
+    if (condition.operator === "ALWAYS") return { operator: "ALWAYS" };
+    if (condition.operator === "FACT_EXISTS" && typeof condition.factKey === "string") {
+      return { operator: "FACT_EXISTS", factKey: condition.factKey };
+    }
+    if (
+      condition.operator === "FACT_EQUALS"
+      && typeof condition.factKey === "string"
+      && ["string", "number", "boolean"].includes(typeof condition.value)
+    ) {
+      return { operator: "FACT_EQUALS", factKey: condition.factKey, value: condition.value as string | number | boolean };
+    }
+    throw new ServiceFlowError("INVALID_INPUT");
+  } catch {
+    throw new ServiceFlowError("INVALID_INPUT");
   }
 }
 
@@ -302,12 +416,36 @@ export function parseServiceFlowSessionCaseDataInput(payload: unknown): ServiceF
           throw new InputValidationError([{ field: `values.${key}`, code: "INVALID_VALUE" }]);
         }
         if (typeof value !== "string") throw new InputValidationError([{ field: `values.${key}`, code: "INVALID_TYPE" }]);
-        if (value.length > 2_000) throw new InputValidationError([{ field: `values.${key}`, code: "TOO_LONG" }]);
-        return [key, value];
+        if (value.length > (structuredProductKeys.has(key) ? 12_000 : 2_000)) {
+          throw new InputValidationError([{ field: `values.${key}`, code: "TOO_LONG" }]);
+        }
+        return [key, structuredProductKeys.has(key) ? JSON.stringify(parseStructuredProducts(value, `values.${key}`)) : value];
       }));
     });
     return { values };
   });
+}
+
+export async function listServiceFlowProductCatalog(prisma: PrismaClient, actor: CurrentUser) {
+  const rows = await prisma.salesItem.findMany({
+    where: { salesDocument: { organizationId: actor.organizationId, status: "APPROVED" } },
+    select: { description: true, sku: true },
+    take: 1_000
+  });
+  const items = new Map<string, ProductCatalogItem>();
+  for (const row of rows) {
+    const name = row.description.trim();
+    if (!name) continue;
+    const key = normalizedProductName(name);
+    const sku = row.sku?.trim() || undefined;
+    const current = items.get(key);
+    if (!current || (!current.sku && sku)) items.set(key, { name: current?.name ?? name, ...(sku ? { sku } : {}) });
+  }
+  for (const name of pilotProductFallbacks) {
+    const key = normalizedProductName(name);
+    if (!items.has(key)) items.set(key, { name });
+  }
+  return { items: [...items.values()].sort((left, right) => left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" })) };
 }
 
 export function parseServiceFlowSessionRewindInput(payload: unknown): ServiceFlowSessionRewindInput {
@@ -833,7 +971,7 @@ export async function updateServiceFlowSessionStep(
   }
   if (session.versionId && nextStatus === "DONE") {
     const caseData = caseDataFromJson(session.caseDataJson);
-    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !caseData[key]?.trim());
+    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !factIsPresent(key, caseData[key]));
     if (missingFieldKeys.length) throw new ServiceFlowError("MISSING_REQUIRED_FACTS", missingFieldKeys);
   }
   const outgoing = session.versionId && step.nodeKey && (nextStatus === "DONE" || nextStatus === "SKIPPED")
@@ -849,6 +987,16 @@ export async function updateServiceFlowSessionStep(
     ? outgoing.find((transition) => transition.label.toLocaleLowerCase() === normalizedDecision)
     : outgoing[0];
   if (requiresChoice && !selectedTransition) throw new ServiceFlowError("INVALID_INPUT");
+  if (selectedTransition) {
+    const condition = transitionConditionFromJson(selectedTransition.conditionJson);
+    const caseData = caseDataFromJson(session.caseDataJson);
+    if (condition?.operator === "FACT_EXISTS" && !factIsPresent(condition.factKey, caseData[condition.factKey])) {
+      throw new ServiceFlowError("MISSING_REQUIRED_FACTS", [condition.factKey]);
+    }
+    if (condition?.operator === "FACT_EQUALS" && caseData[condition.factKey] !== String(condition.value)) {
+      throw new ServiceFlowError("INVALID_INPUT");
+    }
+  }
   let followingStep: { id: string; nodeKey: string | null } | null = null;
   let loopTarget: { id: string; nodeKey: string | null } | null = null;
   if (selectedTransition) {
@@ -941,8 +1089,19 @@ export async function updateServiceFlowSessionCaseData(
   });
   if (!session) throw new ServiceFlowError("NOT_FOUND");
   const fieldNames = Object.keys(input.values).sort();
-  const mergedCaseData = { ...caseDataFromJson(session.caseDataJson), ...input.values };
+  const mergedCaseData = { ...caseDataFromJson(session.caseDataJson) };
+  const removals: string[] = [];
+  for (const [key, value] of Object.entries(input.values)) {
+    const remove = !value.trim() || (structuredProductKeys.has(key) && parseStructuredProducts(value, `values.${key}`).length === 0);
+    if (remove) {
+      delete mergedCaseData[key];
+      removals.push(key);
+    } else {
+      mergedCaseData[key] = value;
+    }
+  }
   if (Object.keys(mergedCaseData).length > 50) throw new ServiceFlowError("INVALID_INPUT");
+  validateProductSubsets(mergedCaseData);
   await prisma.serviceFlowSession.update({
     where: { id: session.id },
     data: { caseDataJson: JSON.stringify(mergedCaseData) }
@@ -953,9 +1112,64 @@ export async function updateServiceFlowSessionCaseData(
     action: "service_flow_session.case_data",
     entityType: "ServiceFlowSession",
     entityId: session.id,
-    metadata: { operation: "MERGE", fieldNames }
+    metadata: { fieldNames, removals: removals.sort() }
   });
   return getServiceFlowSession(prisma, actor, session.id);
+}
+
+export async function restartServiceFlowSession(prisma: PrismaClient, actor: CurrentUser, sessionId: string) {
+  const session = await prisma.serviceFlowSession.findFirst({
+    where: { id: sessionId, organizationId: actor.organizationId, userId: actor.id, status: "OPEN" }
+  });
+  if (!session) throw new ServiceFlowError("NOT_FOUND");
+
+  const version = session.versionId ? await prisma.serviceFlowVersion.findFirst({
+    where: { id: session.versionId, organizationId: actor.organizationId, flowId: session.flowId },
+    include: {
+      nodes: { orderBy: { order: "asc" } },
+      transitions: { orderBy: { order: "asc" }, include: { fromNode: { select: { key: true } }, toNode: true } }
+    }
+  }) : null;
+  if (session.versionId && !version) throw new ServiceFlowError("NOT_FOUND");
+
+  const startNode = version?.nodes.find((node) => node.type === "START");
+  const startTransition = startNode
+    ? version?.transitions.find((transition) => transition.fromNode.key === startNode.key)
+    : undefined;
+  const legacySteps = version ? [] : await prisma.serviceFlowStep.findMany({
+    where: { flowId: session.flowId, organizationId: actor.organizationId }, orderBy: { order: "asc" }
+  });
+
+  const nodes = version && startNode ? [startNode, ...(startTransition ? [startTransition.toNode] : [])] : [];
+  const created = await prisma.$transaction(async (tx) => {
+    const restarted = await tx.serviceFlowSession.updateMany({
+      where: { id: session.id, organizationId: actor.organizationId, userId: actor.id, status: "OPEN" },
+      data: { status: "RESTARTED", completedAt: new Date() }
+    });
+    if (restarted.count !== 1) throw new ServiceFlowError("INVALID_INPUT");
+    const target = await tx.serviceFlowSession.create({
+      data: {
+        organizationId: actor.organizationId, flowId: session.flowId, versionId: session.versionId,
+        userId: actor.id, status: "OPEN", caseDataJson: null,
+        steps: { create: nodes.length ? nodes.map((node, visitOrder) => ({
+          organizationId: actor.organizationId, nodeKey: node.key, nodeSnapshotJson: JSON.stringify(node),
+          visitOrder, status: node.type === "START" ? "DONE" : "PENDING"
+        })) : legacySteps.map((step, visitOrder) => ({
+          organizationId: actor.organizationId, stepId: step.id, nodeKey: `legacy:${step.id}`,
+          nodeSnapshotJson: JSON.stringify({ key: `legacy:${step.id}`, title: step.title, order: step.order, required: step.required }),
+          visitOrder, status: "PENDING"
+        })) }
+      },
+      include: sessionInclude()
+    });
+    await tx.auditLog.create({ data: {
+      organizationId: actor.organizationId, actorId: actor.id, action: "service_flow_session.restart",
+      entityType: "ServiceFlowSession", entityId: target.id,
+      metadataJson: JSON.stringify({ sourceSessionId: session.id, targetSessionId: target.id, flowId: session.flowId, versionId: session.versionId ?? null })
+    } });
+    return target;
+  });
+  return { session: formatSession(created) };
 }
 
 export async function rewindServiceFlowSessionStep(

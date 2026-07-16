@@ -10,6 +10,7 @@ const service = vi.hoisted(() => ({
   createServiceFlowSession: vi.fn(),
   getServiceFlow: vi.fn(),
   getServiceFlowSession: vi.fn(),
+  listServiceFlowProductCatalog: vi.fn(),
   listServiceFlows: vi.fn(),
   parseServiceFlowFilters: vi.fn((value) => value),
   parseServiceFlowGovernanceInput: vi.fn((value) => value),
@@ -19,6 +20,7 @@ const service = vi.hoisted(() => ({
   parseServiceFlowSessionStepInput: vi.fn((value) => value),
   publishServiceFlow: vi.fn(),
   rewindServiceFlowSessionStep: vi.fn(),
+  restartServiceFlowSession: vi.fn(),
   serviceFlowMetrics: vi.fn(),
   updateServiceFlow: vi.fn(),
   updateServiceFlowSessionCaseData: vi.fn(),
@@ -46,6 +48,7 @@ interface Scenario {
 
 const scenarios: Scenario[] = [
   { handler: handlers.listServiceFlowsHandler, operation: service.listServiceFlows, path: "/v1/service-flows?status=published", route: "/v1/service-flows" },
+  { handler: handlers.listServiceFlowProductCatalogHandler, operation: service.listServiceFlowProductCatalog, path: "/v1/service-flows/product-catalog", route: "/v1/service-flows/product-catalog" },
   { handler: handlers.getServiceFlowHandler, operation: service.getServiceFlow, path: "/v1/service-flows/triagem", route: "/v1/service-flows/:flowIdOrSlug" },
   { handler: handlers.createServiceFlowHandler, operation: service.createServiceFlow, method: "post", path: "/v1/service-flows", route: "/v1/service-flows", body: { title: "Triagem" }, status: 201 },
   { handler: handlers.updateServiceFlowHandler, operation: service.updateServiceFlow, method: "patch", path: "/v1/service-flows/flow-1", route: "/v1/service-flows/:flowId", body: { title: "Atualizado" } },
@@ -54,6 +57,7 @@ const scenarios: Scenario[] = [
   { handler: handlers.serviceFlowMetricsHandler, operation: service.serviceFlowMetrics, path: "/v1/service-flows/metrics", route: "/v1/service-flows/metrics" },
   { handler: handlers.createServiceFlowSessionHandler, operation: service.createServiceFlowSession, method: "post", path: "/v1/service-flows/triagem/sessions", route: "/v1/service-flows/:flowIdOrSlug/sessions", status: 201 },
   { handler: handlers.getServiceFlowSessionHandler, operation: service.getServiceFlowSession, path: "/v1/service-flow-sessions/session-1", route: "/v1/service-flow-sessions/:sessionId" },
+  { handler: handlers.restartServiceFlowSessionHandler, operation: service.restartServiceFlowSession, method: "post", path: "/v1/service-flow-sessions/session-1/restart", route: "/v1/service-flow-sessions/:sessionId/restart" },
   { handler: handlers.updateServiceFlowSessionCaseDataHandler, operation: service.updateServiceFlowSessionCaseData, method: "patch", path: "/v1/service-flow-sessions/session-1/case-data", route: "/v1/service-flow-sessions/:sessionId/case-data", body: { values: { "customer.name": "Ana" } } },
   { handler: handlers.updateServiceFlowSessionStepHandler, operation: service.updateServiceFlowSessionStep, method: "post", path: "/v1/service-flow-sessions/session-1/steps/step-1", route: "/v1/service-flow-sessions/:sessionId/steps/:stepId", body: { status: "DONE" } },
   { handler: handlers.rewindServiceFlowSessionStepHandler, operation: service.rewindServiceFlowSessionStep, method: "post", path: "/v1/service-flow-sessions/session-1/steps/step-1/rewind", route: "/v1/service-flow-sessions/:sessionId/steps/:stepId/rewind", body: { strategy: "RECONFIRM_FOLLOWING" } },

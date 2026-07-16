@@ -71,6 +71,43 @@ describe("Always Fit health flow pilot catalog", () => {
     expect(transition("ETAPA-032", "Aprovado com outro retorno: handoff manual")).toMatchObject({ toNodeKey: "RESULTADO-009" });
   });
 
+  it("gates only positive identification choices and exposes their required facts to the UI", () => {
+    expect(transition("ETAPA-003", "CPF visível ou recuperado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "customer.cpf" });
+    expect(transition("DECISAO-002", "CPF obtido pela Yampi ou pelo cliente")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "customer.cpf" });
+    expect(transition("ETAPA-005", "Pedido provável identificado e confirmado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "order.primaryId" });
+    expect(transition("ETAPA-003", "CPF ausente após recarregar")?.condition).toBeUndefined();
+    expect(flow.steps.find((step) => step.decision.nodeKey === "ETAPA-003")?.decision.options).toContainEqual({
+      label: "CPF visível ou recuperado", target: "ETAPA-004", requiredFacts: ["customer.cpf"]
+    });
+    expect(flow.steps.find((step) => step.decision.nodeKey === "ETAPA-005")?.decision.options).toContainEqual({
+      label: "Pedido provável identificado e confirmado", target: "ETAPA-006", requiredFacts: ["order.primaryId"]
+    });
+  });
+
+  it("keeps progressive intake optional while preserving downstream safety gates", () => {
+    const node = (key: string) => flow.nodes.find((item) => item.key === key)!;
+    expect(node("ETAPA-002").requiredFacts).toEqual([]);
+    expect(node("ETAPA-004").requiredFacts).toEqual([]);
+    expect(node("ETAPA-005").requiredFacts).toEqual([]);
+    expect(node("ETAPA-008").requiredFacts).toEqual([]);
+    expect(node("ETAPA-009").requiredFacts).toEqual([]);
+    expect(node("DECISAO-008").requiredFacts).toEqual([]);
+    expect(node("ETAPA-012").requiredFacts).toEqual([]);
+    expect(node("ETAPA-006").requiredFacts).toEqual(["logistics.deliveredAt"]);
+    expect(node("ETAPA-007").requiredFacts).toEqual(["order.products"]);
+    expect(node("ETAPA-010").requiredFacts).toEqual(["custom.alwaysfit.health.symptom.persistent"]);
+    expect(node("ETAPA-013").requiredFacts).toEqual([]);
+    expect(transition("ETAPA-013", "Há ao menos um item lacrado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" });
+    expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.open.items" });
+    expect(node("ETAPA-014").requiredFacts).toEqual(["custom.alwaysfit.return.sealed.items"]);
+  });
+
+  it("uses one structured order-products placeholder in MSG-004", () => {
+    const message = alwaysFitHealthMessages.find((item) => item.code === "MSG-004")!;
+    expect(message.body).toContain("{produtos_pedido}");
+    expect(message.body).not.toMatch(/\{produto_[123]\}/);
+  });
+
   it("keeps every numbered decision, rule and pending validation traceable", () => {
     const corpus = alwaysFitHealthCatalogNodes.map((node) => `${node.instruction} ${(node.dependencies ?? []).join(" ")}`).join(" ");
     const decisions = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "015", "017", "018", "019", "020", "021", "022", "023"];

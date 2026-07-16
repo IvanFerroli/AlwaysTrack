@@ -8,6 +8,7 @@ import {
   createServiceFlowSession,
   getServiceFlowSession,
   getServiceFlow,
+  listServiceFlowProductCatalog,
   listServiceFlows,
   parseServiceFlowSessionCaseDataInput,
   parseServiceFlowGovernanceInput,
@@ -16,6 +17,7 @@ import {
   parseServiceFlowSessionRewindInput,
   publishServiceFlow,
   restoreServiceFlowVersion,
+  restartServiceFlowSession,
   rewindServiceFlowSessionStep,
   ServiceFlowError,
   updateServiceFlow,
@@ -94,9 +96,36 @@ describe("service flows parser contracts", () => {
     });
     expect(parseServiceFlowSessionRewindInput({ strategy: "DISCARD_FOLLOWING" })).toEqual({ strategy: "DISCARD_FOLLOWING" });
   });
+
+  it("normalizes bounded structured product lists and rejects malformed products", () => {
+    expect(parseServiceFlowSessionCaseDataInput({ values: {
+      "order.products": '[{"name":" NAC ","quantity":2}]'
+    } })).toEqual({ values: { "order.products": '[{"name":"NAC","quantity":2}]' } });
+    expect(() => parseServiceFlowSessionCaseDataInput({ values: { "order.products": "{}" } })).toThrow(InputValidationError);
+    expect(() => parseServiceFlowSessionCaseDataInput({ values: { "order.products": '[{"name":"NAC","quantity":0}]' } })).toThrow(InputValidationError);
+    expect(() => parseServiceFlowSessionCaseDataInput({ values: {
+      "order.products": JSON.stringify(Array.from({ length: 51 }, () => ({ name: "NAC", quantity: 1 })))
+    } })).toThrow(InputValidationError);
+  });
 });
 
 describe("service flow tenant workflows", () => {
+  it("builds a tenant-bound deduplicated product catalog with pilot fallbacks", async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      { description: "nac", sku: null }, { description: "NAC", sku: "N-1" }, { description: "Produto Z", sku: "Z-1" }
+    ]);
+    const result = await listServiceFlowProductCatalog({ salesItem: { findMany } } as never, seller);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { salesDocument: { organizationId: "org-1", status: "APPROVED" } },
+      select: { description: true, sku: true }, take: 1_000
+    });
+    expect(result.items).toEqual(expect.arrayContaining([
+      { name: "nac", sku: "N-1" }, { name: "Fit S36" }, { name: "Pro3" }, { name: "Produto Z", sku: "Z-1" }
+    ]));
+    expect(result.items.filter((item) => item.name.toLowerCase() === "nac")).toHaveLength(1);
+  });
+
   it("runs create, update, publish, and archive as a versioned tenant lifecycle", async () => {
     let flow = {
       id: "flow-1", organizationId: "org-1", wikiPageId: null, title: "Triagem", slug: "triagem", summary: null,
@@ -345,8 +374,148 @@ describe("service flow tenant workflows", () => {
     expect(result.session).toMatchObject({ caseData: { "customer.name": "Ana", "order.id": "42" } });
     expect(result.session).not.toHaveProperty("caseDataJson");
     const auditPayload = auditCreate.mock.calls[0][0].data;
-    expect(JSON.parse(auditPayload.metadataJson)).toEqual({ operation: "MERGE", fieldNames: ["order.id"] });
+    expect(JSON.parse(auditPayload.metadataJson)).toEqual({ fieldNames: ["order.id"], removals: [] });
     expect(auditPayload.metadataJson).not.toContain("42");
+  });
+
+  it("removes empty scalar and structured list values without persisting tombstones", async () => {
+    const session = { id: "session-remove", status: "OPEN", caseDataJson: '{"customer.name":"Ana","order.products":[{"name":"NAC","quantity":1}]}', flow: { title: "Saude" }, steps: [] };
+    const findFirst = vi.fn().mockResolvedValueOnce(session).mockResolvedValueOnce({ ...session, caseDataJson: "{}" });
+    const update = vi.fn().mockResolvedValue(session);
+    const auditCreate = vi.fn().mockResolvedValue({ id: "audit-remove" });
+    const prisma = { serviceFlowSession: { findFirst, update }, auditLog: { create: auditCreate } };
+
+    const result = await updateServiceFlowSessionCaseData(prisma as never, seller, session.id, {
+      values: { "customer.name": "", "order.products": "[]" }
+    });
+
+    expect(update).toHaveBeenCalledWith({ where: { id: session.id }, data: { caseDataJson: "{}" } });
+    expect(result.session.caseData).toEqual({});
+    expect(JSON.parse(auditCreate.mock.calls[0][0].data.metadataJson)).toEqual({
+      fieldNames: ["customer.name", "order.products"], removals: ["customer.name", "order.products"]
+    });
+  });
+
+  it("rejects product subsets that exceed the base order while allowing exchange composition", async () => {
+    const session = { id: "session-products", status: "OPEN", caseDataJson: '{"order.products":"[{\\"name\\":\\"NAC\\",\\"quantity\\":2}]"}' };
+    const update = vi.fn();
+    const prisma = {
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(session), update },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-products" }) }
+    };
+
+    await expect(updateServiceFlowSessionCaseData(prisma as never, seller, session.id, {
+      values: { "custom.alwaysfit.return.open.items": '[{"name":"nac","quantity":3}]' }
+    })).rejects.toBeInstanceOf(InputValidationError);
+    await expect(updateServiceFlowSessionCaseData(prisma as never, seller, session.id, {
+      values: { "custom.alwaysfit.exchange.items": '[{"name":"Outro","quantity":20}]' }
+    })).resolves.toBeDefined();
+    await expect(updateServiceFlowSessionCaseData(prisma as never, seller, session.id, {
+      values: { "custom.alwaysfit.health.concomitant.products": '[{"name":"Medicamento externo","quantity":3}]' }
+    })).resolves.toBeDefined();
+  });
+
+  it("enforces typed transition conditions and validates CPF as exactly 11 digits", async () => {
+    const transition = { label: "CPF localizado", requiresUserChoice: true, allowLoop: false, conditionJson: '{"operator":"FACT_EXISTS","factKey":"customer.cpf"}', toNode: { key: "next" } };
+    const prismaForCpf = (cpf: string) => ({
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue({ id: "condition-session", versionId: "v1", status: "OPEN", caseDataJson: JSON.stringify({ "customer.cpf": cpf }) }) },
+      serviceFlowSessionStep: { findFirst: vi.fn().mockResolvedValue({ id: "visit", nodeKey: "decision", visitOrder: 1, status: "PENDING", nodeSnapshotJson: '{"requiredFacts":[]}', choiceHistoryJson: null, step: null }) },
+      serviceFlowTransition: { findMany: vi.fn().mockResolvedValue([transition]) }
+    });
+
+    await expect(updateServiceFlowSessionStep(prismaForCpf("123.456.789-0") as never, seller, "condition-session", "decision", {
+      status: "DONE", decision: "CPF localizado"
+    })).rejects.toEqual(new ServiceFlowError("MISSING_REQUIRED_FACTS", ["customer.cpf"]));
+    await expect(updateServiceFlowSessionStep(prismaForCpf("123.456.789-012") as never, seller, "condition-session", "decision", {
+      status: "DONE", decision: "CPF localizado"
+    })).rejects.toEqual(new ServiceFlowError("MISSING_REQUIRED_FACTS", ["customer.cpf"]));
+
+    const valid = prismaForCpf("123.456.789-01") as any;
+    valid.serviceFlowSessionStep.findFirst
+      .mockResolvedValueOnce({ id: "visit", nodeKey: "decision", visitOrder: 1, status: "PENDING", nodeSnapshotJson: '{"requiredFacts":[]}', choiceHistoryJson: null, step: null })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    const tx = {
+      serviceFlowSessionStep: {
+        update: vi.fn().mockResolvedValue({ id: "visit", status: "DONE", decision: "CPF localizado", note: null }),
+        count: vi.fn().mockResolvedValue(1),
+        create: vi.fn().mockResolvedValue({ id: "next-visit" })
+      }
+    };
+    valid.$transaction = vi.fn(async (operation: (client: unknown) => unknown) => operation(tx));
+    valid.auditLog = { create: vi.fn().mockResolvedValue({ id: "audit-condition" }) };
+    await expect(updateServiceFlowSessionStep(valid, seller, "condition-session", "decision", {
+      status: "DONE", decision: "CPF localizado"
+    })).resolves.toMatchObject({ session: { id: "condition-session" } });
+
+    const equals = prismaForCpf("123.456.789-01") as any;
+    equals.serviceFlowTransition.findMany.mockResolvedValue([{ ...transition, conditionJson: '{"operator":"FACT_EQUALS","factKey":"customer.cpf","value":"other"}' }]);
+    await expect(updateServiceFlowSessionStep(equals, seller, "condition-session", "decision", {
+      status: "DONE", decision: "CPF localizado"
+    })).rejects.toEqual(new ServiceFlowError("INVALID_INPUT"));
+  });
+
+  it("restarts into a new pinned session and atomically rejects a duplicate restart", async () => {
+    const source = { id: "source", flowId: "flow-1", versionId: "version-1", status: "OPEN", caseDataJson: '{"customer.cpf":"12345678901"}' };
+    const start = { id: "node-start", key: "START", type: "START", order: 0 };
+    const first = { id: "node-first", key: "ETAPA-001", type: "CONTEXT", order: 1 };
+    const target = { id: "target", flowId: source.flowId, versionId: source.versionId, status: "OPEN", caseDataJson: null, flow: { title: "Saude" }, version: { id: "version-1" }, steps: [] };
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const create = vi.fn().mockResolvedValue(target);
+    const auditCreate = vi.fn().mockResolvedValue({ id: "audit-restart" });
+    const tx = { serviceFlowSession: { updateMany, create }, auditLog: { create: auditCreate } };
+    const prisma = {
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(source) },
+      serviceFlowVersion: { findFirst: vi.fn().mockResolvedValue({ id: "version-1", nodes: [start, first], transitions: [{ fromNode: { key: "START" }, toNode: first }] }) },
+      $transaction: vi.fn(async (operation) => operation(tx))
+    };
+
+    const result = await restartServiceFlowSession(prisma as never, seller, source.id);
+    expect(result.session).toMatchObject({ id: "target", status: "OPEN", caseData: {} });
+    expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: source.id, organizationId: "org-1", userId: seller.id, status: "OPEN" }) }));
+    expect(create.mock.calls[0][0].data).toMatchObject({ flowId: source.flowId, versionId: source.versionId, caseDataJson: null });
+    expect(create.mock.calls[0][0].data.steps.create).toHaveLength(2);
+    expect(JSON.parse(auditCreate.mock.calls[0][0].data.metadataJson)).toEqual({ sourceSessionId: "source", targetSessionId: "target", flowId: "flow-1", versionId: "version-1" });
+    expect(prisma.serviceFlowSession.findFirst).toHaveBeenCalledWith({
+      where: { id: source.id, organizationId: "org-1", userId: seller.id, status: "OPEN" }
+    });
+
+    updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(restartServiceFlowSession(prisma as never, seller, source.id)).rejects.toEqual(new ServiceFlowError("INVALID_INPUT"));
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects restart outside owner, tenant, or open status before entering a transaction", async () => {
+    const prisma = { serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(null) }, $transaction: vi.fn() };
+    await expect(restartServiceFlowSession(prisma as never, seller, "foreign")).rejects.toEqual(new ServiceFlowError("NOT_FOUND"));
+    expect(prisma.serviceFlowSession.findFirst).toHaveBeenCalledWith({
+      where: { id: "foreign", organizationId: "org-1", userId: seller.id, status: "OPEN" }
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("restarts a legacy session with every current legacy step pending", async () => {
+    const source = { id: "legacy-source", flowId: "flow-legacy", versionId: null, status: "OPEN" };
+    const legacySteps = [
+      { id: "step-1", title: "Primeiro", order: 1, required: true },
+      { id: "step-2", title: "Segundo", order: 2, required: false }
+    ];
+    const target = { id: "legacy-target", flowId: source.flowId, versionId: null, status: "OPEN", caseDataJson: null, flow: { title: "Legado" }, steps: [] };
+    const create = vi.fn().mockResolvedValue(target);
+    const tx = {
+      serviceFlowSession: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), create },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "legacy-audit" }) }
+    };
+    const prisma = {
+      serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(source) },
+      serviceFlowStep: { findMany: vi.fn().mockResolvedValue(legacySteps) },
+      $transaction: vi.fn(async (operation) => operation(tx))
+    };
+    await restartServiceFlowSession(prisma as never, seller, source.id);
+    expect(create.mock.calls[0][0].data.steps.create).toEqual([
+      expect.objectContaining({ stepId: "step-1", status: "PENDING", visitOrder: 0 }),
+      expect.objectContaining({ stepId: "step-2", status: "PENDING", visitOrder: 1 })
+    ]);
   });
 
   it("rejects case data updates outside the owner, tenant, or open session scope", async () => {

@@ -73,6 +73,7 @@ describe("CaseFlow deterministic message compiler", () => {
       "order.manualId": "O000001"
     })).toMatchObject({
       nome_cliente: "Ana",
+      produtos_pedido: "— NAC\n— Pro3",
       produto_1: "NAC",
       produto_2: "Pro3",
       codigo_reversa: "REV-123",
@@ -87,6 +88,20 @@ describe("CaseFlow deterministic message compiler", () => {
       scriptId: "MSG-001", revisionId: "rev-1", revision: 1, nodeId: "ETAPA-002", channel: "CUSTOMER", body: "Olá, {nome_cliente}!", placeholders: [{ key: "nome_cliente", kind: "REQUIRED", essential: true }]
     }]);
     expect(messages[0]).toMatchObject({ text: "Olá, Ana!", pendingPlaceholders: [], copyAllowed: true });
+  });
+
+  it("formats structured order products as one readable quantity-aware placeholder", () => {
+    const facts = withScriptPlaceholderAliases({
+      "order.products": [{ name: "NAC", quantity: 2 }, { name: "Fit S36", quantity: 1 }]
+    });
+    const message = compileMessageTemplate("case-products", 1, {
+      scriptId: "MSG-004", revisionId: "rev-products", revision: 1, nodeId: "ETAPA-007", channel: "CUSTOMER",
+      body: "Produtos:\n{produtos_pedido}", placeholders: [{ key: "produtos_pedido", kind: "REQUIRED", essential: true }]
+    }, facts);
+    expect(message).toMatchObject({
+      text: "Produtos:\n— NAC — quantidade: 2\n— Fit S36 — quantidade: 1",
+      pendingPlaceholders: [], copyAllowed: true
+    });
   });
 
   it("treats an aliased canonical fact as essential when loading a pilot script", async () => {

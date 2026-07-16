@@ -33,6 +33,7 @@ const placeholderFactAliases: Readonly<Record<string, string>> = {
   previsao_entrega: "logistics.forecast",
   novo_pedido: "order.manualId",
   modo_de_uso: "custom.alwaysfit.product.recommended.usage",
+  produtos_pedido: "order.products",
   produto_1: "order.products",
   produto_2: "order.products",
   produto_3: "order.products"
@@ -53,6 +54,21 @@ export function withScriptPlaceholderAliases(facts: Readonly<Record<string, unkn
   for (const [placeholder, factKey] of Object.entries(placeholderFactAliases)) {
     if (enriched[placeholder] !== undefined) continue;
     const value = facts[factKey];
+    if (placeholder === "produtos_pedido") {
+      if (Array.isArray(value)) {
+        enriched[placeholder] = value.flatMap((item) => {
+          if (typeof item === "string") return item.trim() ? [`— ${item.trim()}`] : [];
+          if (!item || typeof item !== "object" || !("name" in item)) return [];
+          const product = item as { name?: unknown; quantity?: unknown };
+          const name = clean(product.name);
+          const quantity = typeof product.quantity === "number" && Number.isFinite(product.quantity) && product.quantity > 0
+            ? product.quantity
+            : undefined;
+          return name ? [`— ${name}${quantity === undefined ? "" : ` — quantidade: ${quantity}`}`] : [];
+        }).join("\n");
+      }
+      continue;
+    }
     if (placeholder.startsWith("produto_")) {
       const index = Number(placeholder.slice(-1)) - 1;
       if (Array.isArray(value)) {

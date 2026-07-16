@@ -53,7 +53,7 @@ export const alwaysFitHealthMessages: readonly AlwaysFitHealthMessage[] = [
     code: "MSG-004",
     title: "Confirmar produto do pedido",
     channel: "WHATSAPP",
-    body: "{nome_cliente}, localizei o pedido recebido próximo desse período, que contém os seguintes produtos:\n\n— {produto_1}\n— {produto_2}\n— {produto_3}\n\nO mal-estar aconteceu durante o uso de algum desses produtos? Você consegue me informar qual ou quais utilizou?",
+    body: "{nome_cliente}, localizei o pedido recebido próximo desse período, que contém os seguintes produtos:\n\n{produtos_pedido}\n\nO mal-estar aconteceu durante o uso de algum desses produtos? Você consegue me informar qual ou quais utilizou?",
     status: "DRAFT",
     tags: ["saude", "pedido", "produto", "validacao-pendente"]
   },
@@ -169,6 +169,8 @@ interface CatalogChoice {
   label: string;
   target: string;
   allowLoop?: boolean;
+  condition?: FlowTransitionDefinition["condition"];
+  requiredFacts?: string[];
 }
 
 interface CatalogNode {
@@ -202,24 +204,24 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     optionalFacts: ["conversation.intentText", "customer.name", "customer.cpf"], dependencies: ["AlwaysChat"],
     choices: [{ label: "Relato reconhecido como caso deste fluxo", target: "ETAPA-002" }, { label: "Fora do escopo: encaminhar ao fluxo correspondente", target: "RESULTADO-009" }]
   }),
-  stage("ETAPA-002", "Apresentação com nome", "MESSAGE", "Preencha o nome, copie MSG-001 da Scriptoteca e envie manualmente no AlwaysChat.", {
-    messageCodes: ["MSG-001"], requiredFacts: ["customer.name"], dependencies: ["AlwaysChat"], choices: [{ label: "Apresentação enviada", target: "ETAPA-003" }]
+  stage("ETAPA-002", "Apresentação com nome", "MESSAGE", "Se o nome estiver disponível, preencha-o; copie MSG-001 da Scriptoteca e envie manualmente no AlwaysChat.", {
+    messageCodes: ["MSG-001"], optionalFacts: ["customer.name"], dependencies: ["AlwaysChat"], choices: [{ label: "Apresentação enviada", target: "ETAPA-003" }]
   }),
   stage("ETAPA-003", "Localizar CPF e cadastro", "DECISION", "DECISAO-001. Verifique o CPF no canto superior direito do AlwaysChat e recarregue a página uma vez se estiver ausente. Não registre credenciais no CaseFlow.", {
     messageCodes: ["MSG-002"], optionalFacts: ["customer.cpf", "customer.email", "customer.phone"], dependencies: ["AlwaysChat", "Yampi"],
-    choices: [{ label: "CPF visível ou recuperado", target: "ETAPA-004" }, { label: "CPF ausente após recarregar", target: "DECISAO-002" }, { label: "AlwaysChat/Yampi indisponível", target: "ETAPA-034" }]
+    choices: [{ label: "CPF visível ou recuperado", target: "ETAPA-004", condition: { operator: "FACT_EXISTS", factKey: "customer.cpf" }, requiredFacts: ["customer.cpf"] }, { label: "CPF ausente após recarregar", target: "DECISAO-002" }, { label: "AlwaysChat/Yampi indisponível", target: "ETAPA-034" }]
   }),
   stage("DECISAO-002", "Há e-mail para localizar o CPF?", "DECISION", "DECISAO-002. Se houver e-mail, consulte a Yampi. Se houver apenas nome e celular, use MSG-002 e aguarde um CPF válido. Sem CPF, e-mail ou resposta, encerre em aguardando identificação.", {
     messageCodes: ["MSG-002"], optionalFacts: ["customer.cpf", "customer.email"], dependencies: ["AlwaysChat", "Yampi"],
-    choices: [{ label: "CPF obtido pela Yampi ou pelo cliente", target: "ETAPA-004" }, { label: "Sem CPF e sem resposta do cliente", target: "RESULTADO-008" }, { label: "Fonte indisponível ou dado inválido", target: "ETAPA-034" }]
+    choices: [{ label: "CPF obtido pela Yampi ou pelo cliente", target: "ETAPA-004", condition: { operator: "FACT_EXISTS", factKey: "customer.cpf" }, requiredFacts: ["customer.cpf"] }, { label: "Sem CPF e sem resposta do cliente", target: "RESULTADO-008" }, { label: "Fonte indisponível ou dado inválido", target: "ETAPA-034" }]
   }),
-  stage("ETAPA-004", "Buscar pedidos no Rastreio", "CONSULT", "DECISAO-003. Pesquise o CPF manualmente no Rastreio. Consulte pedidos, produtos, status, data de recebimento e forma de pagamento. Se não localizar, cruze com Yampi e histórico; não invente um pedido.", {
-    requiredFacts: ["customer.cpf"], optionalFacts: ["order.primaryId", "order.products", "logistics.deliveredAt", "payment.method"], dependencies: ["Rastreio", "Yampi"],
+  stage("ETAPA-004", "Buscar pedidos no Rastreio", "CONSULT", "DECISAO-003. A escolha positiva anterior já confirma um CPF válido; pesquise-o manualmente no Rastreio. Consulte pedidos, produtos, status, data de recebimento e forma de pagamento. Se não localizar, cruze com Yampi e histórico; não invente um pedido.", {
+    optionalFacts: ["customer.cpf", "order.primaryId", "order.products", "logistics.deliveredAt", "payment.method"], dependencies: ["Rastreio", "Yampi"],
     choices: [{ label: "Um ou mais pedidos localizados", target: "ETAPA-005" }, { label: "Pedido não localizado após fontes alternativas", target: "ETAPA-034" }, { label: "Rastreio indisponível", target: "ETAPA-034" }]
   }),
-  stage("ETAPA-005", "Investigar início do mal-estar e confirmar o pedido", "DECISION", "DECISAO-004. Use MSG-003, cruze o período informado com as datas de recebimento e peça confirmação. Nunca escolha automaticamente apenas o pedido mais recente.", {
-    messageCodes: ["MSG-003"], requiredFacts: ["custom.alwaysfit.health.symptom.started"], optionalFacts: ["order.primaryId", "logistics.deliveredAt"], dependencies: ["AlwaysChat", "Rastreio"],
-    choices: [{ label: "Pedido provável identificado e confirmado", target: "ETAPA-006" }, { label: "Múltiplos pedidos sem associação segura", target: "ETAPA-034" }]
+  stage("ETAPA-005", "Investigar início do mal-estar e confirmar o pedido", "DECISION", "DECISAO-004. Use MSG-003, registre o período e as datas disponíveis, cruze-os e peça confirmação. Nunca escolha automaticamente apenas o pedido mais recente; só confirme quando houver um pedido identificado.", {
+    messageCodes: ["MSG-003"], optionalFacts: ["custom.alwaysfit.health.symptom.started", "order.primaryId", "logistics.deliveredAt"], dependencies: ["AlwaysChat", "Rastreio"],
+    choices: [{ label: "Pedido provável identificado e confirmado", target: "ETAPA-006", condition: { operator: "FACT_EXISTS", factKey: "order.primaryId" }, requiredFacts: ["order.primaryId"] }, { label: "Múltiplos pedidos sem associação segura", target: "ETAPA-034" }]
   }),
   stage("ETAPA-006", "Verificar data de recebimento", "DECISION", "DECISAO-005 e REGRAS REGRA-001/REGRA-002. Conte o prazo exclusivamente desde a data de recebimento no Rastreio, nunca desde compra, aprovação ou faturamento. Menos de 30 dias dá acesso ao valor integral do escopo afetado mesmo com uso divergente. O tratamento do 30º dia exato continua pendente e exige decisão humana.", {
     requiredFacts: ["logistics.deliveredAt"], dependencies: ["Rastreio", "PENDENCIA-001"],
@@ -230,15 +232,15 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     choices: [{ label: "Um produto identificado", target: "ETAPA-008" }, { label: "Vários produtos identificados", target: "ETAPA-008" }, { label: "Kit usado em conjunto", target: "ETAPA-008" }, { label: "Produto não identificado: considerar kit", target: "ETAPA-008" }]
   }),
   stage("ETAPA-008", "Enviar /saúde_inicio", "MESSAGE", "Copie MSG-005 e colete água, alimentação, medicamentos ou suplementos concomitantes, tempo e horários de uso. Se faltar algo, pergunte somente o dado faltante. Trate as respostas como dados sensíveis de saúde.", {
-    messageCodes: ["MSG-005"], requiredFacts: ["custom.alwaysfit.health.usage", "custom.alwaysfit.health.concomitant.products"], dependencies: ["AlwaysChat"],
+    messageCodes: ["MSG-005"], optionalFacts: ["custom.alwaysfit.health.usage", "custom.alwaysfit.health.concomitant.products"], dependencies: ["AlwaysChat"],
     choices: [{ label: "Informações suficientes coletadas", target: "ETAPA-009" }, { label: "Resposta incompleta: permanecer nesta etapa", target: "ETAPA-008", allowLoop: true }]
   }),
   stage("ETAPA-009", "Avaliar uso divergente", "DECISION", "DECISAO-007 e REGRA-019. Compare o relato com a recomendação do produto. Uso divergente serve para orientar e contextualizar; nunca elimina o direito dentro do prazo.", {
-    requiredFacts: ["custom.alwaysfit.health.usage"], optionalFacts: ["custom.alwaysfit.product.recommended.usage"],
+    optionalFacts: ["custom.alwaysfit.health.usage", "custom.alwaysfit.product.recommended.usage"],
     choices: [{ label: "Uso conforme recomendação", target: "ETAPA-010" }, { label: "Uso divergente identificado", target: "DECISAO-008" }]
   }),
   stage("DECISAO-008", "Cliente deseja continuar após orientação?", "DECISION", "DECISAO-008. Explique a forma correta com MSG-017 sem diagnosticar ou afirmar causalidade. Pergunte se o cliente ainda quer devolução, troca ou estorno.", {
-    messageCodes: ["MSG-017"], requiredFacts: ["custom.alwaysfit.product.recommended.usage"],
+    messageCodes: ["MSG-017"], optionalFacts: ["custom.alwaysfit.product.recommended.usage"],
     choices: [{ label: "Cliente mantém o pedido de solução", target: "ETAPA-010" }, { label: "Cliente desiste após a orientação", target: "RESULTADO-007" }]
   }),
   stage("ETAPA-010", "Verificar se o mal-estar permanece", "RISK_GATE", "DECISAO-009 e REGRA-020. Se o cliente ainda estiver mal, copie MSG-006 e oriente atendimento médico. Não diagnostique, não atribua causa e não interrompa a tratativa comercial.", {
@@ -248,16 +250,23 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
   stage("ETAPA-011", "Acolhimento", "MESSAGE", "Copie MSG-007 e reconheça o transtorno. Não prometa efeito médico, diagnóstico ou causalidade.", {
     messageCodes: ["MSG-007"], choices: [{ label: "Acolhimento enviado", target: "ETAPA-012" }]
   }),
-  stage("ETAPA-012", "Definir o escopo sem usufruto", "MANUAL_INPUT", "DECISAO-010 e REGRA-004. Use MSG-008 e registre tudo que o cliente ficou impossibilitado ou inseguro de utilizar por causa do episódio: produto usado, unidades iguais, kit e outros itens do pedido. Não limite automaticamente ao frasco aberto.", {
-    messageCodes: ["MSG-008"], requiredFacts: ["custom.alwaysfit.treatment.unusable.scope", "order.products"], choices: [{ label: "Escopo afetado confirmado", target: "ETAPA-013" }]
+  stage("ETAPA-012", "Definir o escopo sem usufruto", "MANUAL_INPUT", "DECISAO-010 e REGRA-004. Use MSG-008 e, quando disponível, confirme o escopo diretamente nos produtos estruturados do pedido, incluindo produto usado, unidades iguais, kit e outros itens envolvidos. A classificação obrigatória ocorre na próxima etapa; não limite automaticamente ao frasco aberto.", {
+    messageCodes: ["MSG-008"], optionalFacts: ["order.products"], choices: [{ label: "Escopo afetado confirmado", target: "ETAPA-013" }]
   }),
   stage("ETAPA-013", "Classificar itens lacrados e abertos", "DECISION", "DECISAO-011 e REGRAS REGRA-006/REGRA-007. Use MSG-009. Lacrado significa lacre interno abaixo da tampa intacto. Produto usado ou com lacre rompido é aberto, não retorna e continua no saldo.", {
-    messageCodes: ["MSG-009"], requiredFacts: ["custom.alwaysfit.return.open.items", "custom.alwaysfit.return.sealed.items"], dependencies: ["PENDENCIA-008"],
-    choices: [{ label: "Há ao menos um item lacrado", target: "ETAPA-014" }, { label: "Tudo está aberto: dispensar reversa", target: "ETAPA-019" }]
+    messageCodes: ["MSG-009"], optionalFacts: ["custom.alwaysfit.return.open.items", "custom.alwaysfit.return.sealed.items"], dependencies: ["PENDENCIA-008"],
+    choices: [
+      { label: "Há ao menos um item lacrado", target: "ETAPA-014", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" } },
+      { label: "Tudo está aberto: dispensar reversa", target: "ETAPA-019", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.open.items" } }
+    ]
   }),
   stage("ETAPA-014", "Confirmar lacrados devolvidos e retidos", "DECISION", "DECISAO-012 e REGRA-008. Produtos abertos não retornam. Lacrados devolvidos permanecem no saldo; o valor efetivamente pago por lacrados retidos deve ser descontado.", {
-    requiredFacts: ["custom.alwaysfit.return.sealed.items", "custom.alwaysfit.return.returned.sealed.items", "custom.alwaysfit.return.retained.sealed.items"], dependencies: ["PENDENCIA-008"],
-    choices: [{ label: "Devolverá todos os lacrados", target: "ETAPA-015" }, { label: "Devolverá parte; descontar os retidos", target: "ETAPA-015" }, { label: "Não devolverá lacrados; descontar todos", target: "ETAPA-019" }]
+    requiredFacts: ["custom.alwaysfit.return.sealed.items"], optionalFacts: ["custom.alwaysfit.return.returned.sealed.items", "custom.alwaysfit.return.retained.sealed.items"], dependencies: ["PENDENCIA-008"],
+    choices: [
+      { label: "Devolverá todos os lacrados", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.returned.sealed.items" } },
+      { label: "Devolverá parte; descontar os retidos", target: "ETAPA-015", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.returned.sealed.items" } },
+      { label: "Não devolverá lacrados; descontar todos", target: "ETAPA-019", condition: { operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.retained.sealed.items" } }
+    ]
   }),
   stage("ETAPA-015", "Calcular valor e gerar logística reversa", "RISK_GATE", "REGRA-022. Consulte pedido e nota fiscal, considere descontos e declare somente o valor dos itens lacrados enviados. A fonte definitiva da NF permanece pendente. A geração no Correios é obrigatoriamente humana.", {
     requiredFacts: ["custom.alwaysfit.return.returned.sealed.items", "custom.alwaysfit.return.declared.value"], dependencies: ["Correios - Logistica Reversa", "Fonte da nota fiscal", "PENDENCIA-004", "LOGISTICA-REVERSA"],
@@ -361,7 +370,7 @@ export interface AlwaysFitHealthStepDefinition {
   kind: "MANUAL" | "YES_NO" | "CHECKLIST" | "DECISION";
   decision: {
     nodeKey: string;
-    options?: Array<{ label: string; target: string }>;
+    options?: Array<{ label: string; target: string; requiredFacts?: string[] }>;
   };
   order: number;
   required: boolean;
@@ -413,6 +422,7 @@ export function buildAlwaysFitHealthFlow(scriptIdsByCode: Readonly<Record<Always
       toNodeKey: choice.target,
       label: choice.label,
       order: index,
+      condition: choice.condition,
       requiresUserChoice: (item.choices?.length ?? 0) > 1,
       allowLoop: choice.allowLoop ?? false
     })))
@@ -423,7 +433,10 @@ export function buildAlwaysFitHealthFlow(scriptIdsByCode: Readonly<Record<Always
     kind: kindFor(item),
     decision: {
       nodeKey: item.key,
-      ...(item.choices?.length ? { options: item.choices.map(({ label, target }) => ({ label, target })) } : {})
+      ...(item.choices?.length ? { options: item.choices.map(({ label, target, requiredFacts, condition }) => {
+        const optionRequiredFacts = requiredFacts ?? (condition?.operator === "FACT_EXISTS" ? [condition.factKey] : []);
+        return { label, target, ...(optionRequiredFacts.length ? { requiredFacts: optionRequiredFacts } : {}) };
+      }) } : {})
     },
     order: index + 1,
     required: item.key === "ETAPA-001",
