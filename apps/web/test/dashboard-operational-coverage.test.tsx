@@ -3,6 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardView } from "../src/views/dashboard";
 
+const adminUser = {
+  id: "admin-1",
+  name: "Admin Teste",
+  email: "admin@example.test",
+  role: "ADMIN" as const,
+  organizationId: "org-1",
+  unitScopeIds: [],
+  sectorScopeIds: [],
+  avatarUrl: null
+};
+const sellerUser = { ...adminUser, id: "seller-user-1", role: "VENDEDOR" as const };
+
 const documentItem = {
   id: "document-1",
   fileName: "danfe-001.pdf",
@@ -69,8 +81,20 @@ const todayData = {
     pendingDocuments: [documentItem],
     ranking: [{ sellerId: "seller-1" }],
     activeCampaigns: [],
-    wikiPendingReviews: [],
-    faqUnanswered: [],
+    wikiPendingReviews: [{
+      id: "wiki-review-1",
+      title: "Atualizar política de troca",
+      createdAt: "2026-07-15T09:00:00.000Z",
+      page: { id: "wiki-1", slug: "politica-de-troca", title: "Política de troca" },
+      author: { id: "sac-1", name: "Analista SAC", role: "SAC" }
+    }],
+    faqUnanswered: [{
+      id: "faq-1",
+      title: "Como retomar um atendimento?",
+      body: "Cliente voltou depois da pausa.",
+      createdAt: "2026-07-15T10:00:00.000Z",
+      author: { id: "sac-2", name: "Pessoa SAC", role: "SAC" }
+    }],
     unreadNotifications: [],
     activeAnnouncements: [
       { id: "announcement-1", slug: "critical-update", title: "Atualização crítica", summary: "Leia antes de operar", priority: "CRITICAL", pinned: true, requiresAck: true, publishedAt: null, expiresAt: null },
@@ -119,7 +143,7 @@ describe("DashboardView operational coverage", () => {
     const resolvers: Array<(value: ReturnType<typeof response>) => void> = [];
     const fetchMock = vi.fn(() => new Promise<ReturnType<typeof response>>((resolve) => resolvers.push(resolve)));
     vi.stubGlobal("fetch", fetchMock);
-    render(<DashboardView onOpen={vi.fn()} />);
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Carregando dashboard");
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -139,7 +163,7 @@ describe("DashboardView operational coverage", () => {
     installSuccessfulHttp();
     const user = userEvent.setup();
     const onOpen = vi.fn();
-    render(<DashboardView onOpen={onOpen} />);
+    render(<DashboardView user={adminUser} onOpen={onOpen} />);
 
     expect(await screen.findByText("danfe-001.pdf")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Grafico de vendas aprovadas por periodo" })).toBeInTheDocument();
@@ -176,9 +200,47 @@ describe("DashboardView operational coverage", () => {
     expect(onOpen).toHaveBeenCalledWith("wiki");
   });
 
+  it("lets an admin switch between general, SAC and sales operational panels", async () => {
+    installSuccessfulHttp();
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(<DashboardView user={adminUser} onOpen={onOpen} />);
+
+    expect(await screen.findByRole("heading", { name: "Hoje" })).toBeInTheDocument();
+    const modeSelector = screen.getByRole("tablist", { name: "Visão do dashboard" });
+    expect(within(modeSelector).getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Geral", "SAC", "Vendas"]);
+    expect(within(modeSelector).getByRole("tab", { name: "Geral" })).toHaveAttribute("aria-selected", "true");
+
+    await user.click(within(modeSelector).getByRole("tab", { name: "SAC" }));
+    expect(screen.getByRole("heading", { name: "Operação SAC" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Exportar dashboard CSV" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Vendas aprovadas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Notas pendentes/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Política de troca")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Como retomar um atendimento/ }));
+    expect(onOpen).toHaveBeenLastCalledWith("faq", { faq: { status: "OPEN" } });
+
+    await user.click(within(modeSelector).getByRole("tab", { name: "Vendas" }));
+    expect(screen.getByRole("heading", { name: "Operação de vendas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Exportar dashboard CSV" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Vendas aprovadas" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /FAQ sem resposta/ })).not.toBeInTheDocument();
+    expect(within(modeSelector).getByRole("tab", { name: "Vendas" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps the administrative mode selector hidden and sales-focused for sellers", async () => {
+    installSuccessfulHttp();
+    render(<DashboardView user={sellerUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Operação de vendas" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist", { name: "Visão do dashboard" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Exportar dashboard CSV" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /FAQ sem resposta/ })).not.toBeInTheDocument();
+  });
+
   it("reloads through HTTP when date, group and seller filters change", async () => {
     const fetchMock = installSuccessfulHttp();
-    const { container } = render(<DashboardView onOpen={vi.fn()} />);
+    const { container } = render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
     await screen.findByText("danfe-001.pdf");
     let [fromInput, toInput] = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="date"]'));
 
@@ -231,7 +293,7 @@ describe("DashboardView operational coverage", () => {
       },
       sellers: { items: [] }
     });
-    render(<DashboardView onOpen={vi.fn()} />);
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
     expect(await screen.findByText("Sem vendas aprovadas no período")).toBeInTheDocument();
     expect(screen.getByText("Nenhum alerta crítico")).toBeInTheDocument();
@@ -249,13 +311,13 @@ describe("DashboardView operational coverage", () => {
         : { ok: false, error: { code: "FORBIDDEN", message: "Acesso negado para este perfil." } })
     }));
     vi.stubGlobal("fetch", deniedFetch);
-    const first = render(<DashboardView onOpen={vi.fn()} />);
+    const first = render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Acesso negado para este perfil.");
     first.unmount();
 
     const retryFetch = installSuccessfulHttp();
-    render(<DashboardView onOpen={vi.fn()} />);
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
     expect(await screen.findByRole("heading", { name: "Hoje" })).toBeInTheDocument();
     expect(retryFetch).toHaveBeenCalledWith(expect.stringMatching(/^\/v1\/sales\/dashboard\?/), expect.any(Object));
   });
@@ -269,7 +331,7 @@ describe("DashboardView operational coverage", () => {
       throw new Error(`Unexpected dashboard request: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<DashboardView onOpen={vi.fn()} />);
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
     expect(await screen.findByRole("status")).toHaveTextContent("Dashboard indisponível");
     expect(fetchMock).toHaveBeenCalledWith("/v1/sales/sellers", expect.any(Object));

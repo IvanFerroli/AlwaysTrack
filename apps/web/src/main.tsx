@@ -4641,7 +4641,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "professionals" ? (
           <ProfessionalsView user={user} />
         ) : activeItem.key === "dashboard" ? (
-          <DashboardView onOpen={openView} />
+          <DashboardView user={user} onOpen={openView} />
         ) : activeItem.key === "licenses" ? (
           <LicensesView user={user} />
         ) : activeItem.key === "documents" ? (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { CurrentUser } from "@alwaystrack/shared";
 import { api, apiBaseUrl } from "../api";
 import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
 import {
@@ -19,6 +20,7 @@ type DashboardOpenOptions = {
   faq?: { status?: string };
   announcements?: { slug?: string | null };
 };
+type DashboardMode = "general" | "support" | "sales";
 
 function MetricCard({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -111,72 +113,82 @@ function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
   );
 }
 
-function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
+function OperationalTodayCenter({ today, mode, onOpen }: { today: OperationalTodayData; mode: DashboardMode; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
+  const showSales = mode !== "support";
+  const showSupport = mode !== "sales";
+  const alertTargets = mode === "sales"
+    ? new Set(["notes", "ranking", "campaigns", "statements"])
+    : mode === "support"
+      ? new Set(["wiki", "faq", "announcements"])
+      : null;
+  const alerts = alertTargets ? today.queues.alerts.filter((alert) => alertTargets.has(alert.target)) : today.queues.alerts;
+  const heading = mode === "sales" ? "Operação de vendas" : mode === "support" ? "Operação SAC" : "Hoje";
+
   return (
     <section className="panel operational-today-panel">
       <div className="table-panel-toolbar">
         <div>
           <p className="eyebrow">Central operacional</p>
-          <h2>Hoje</h2>
+          <h2>{heading}</h2>
           <p className="muted">Pulso da operação em {formatDateBr(today.period.today)}</p>
         </div>
         <span className="status-badge">Atualizada {new Date(today.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
       </div>
       <div className="today-card-grid">
-        <button type="button" onClick={() => onOpen("notes", { notes: { status: "PENDING_REVIEW" } })}>
+        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "PENDING_REVIEW" } })}>
           <span>Notas pendentes</span>
           <strong>{today.metrics.pendingDocuments}</strong>
           <small>Revisar DANFEs para liberar ranking e extratos</small>
-        </button>
-        <button type="button" onClick={() => onOpen("notes", { notes: { status: "APPROVED" } })}>
+        </button> : null}
+        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "APPROVED" } })}>
           <span>Aprovadas hoje</span>
           <strong>{today.metrics.approvedToday}</strong>
           <small>Entraram na operação após revisão</small>
-        </button>
-        <button type="button" onClick={() => onOpen("notes", { notes: { status: "REJECTED" } })}>
+        </button> : null}
+        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "REJECTED" } })}>
           <span>Rejeições hoje</span>
           <strong>{today.metrics.rejectedToday}</strong>
           <small>Precisam de motivo claro para auditoria</small>
-        </button>
-        <button type="button" onClick={() => onOpen("notes", { notes: { status: "DUPLICATE" } })}>
+        </button> : null}
+        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "DUPLICATE" } })}>
           <span>Duplicidades</span>
           <strong>{today.metrics.duplicates}</strong>
           <small>Conferir chaves e pacotes reprocessados</small>
-        </button>
-        <button type="button" onClick={() => onOpen("ranking", { ranking: { from: today.period.from, to: today.period.to } })}>
+        </button> : null}
+        {showSales ? <button type="button" onClick={() => onOpen("ranking", { ranking: { from: today.period.from, to: today.period.to } })}>
           <span>Ranking parcial</span>
           <strong>{today.queues.ranking.length}</strong>
           <small>Vendedores com venda aprovada hoje</small>
-        </button>
-        <button type="button" onClick={() => onOpen("campaigns")}>
+        </button> : null}
+        {showSales ? <button type="button" onClick={() => onOpen("campaigns")}>
           <span>Campanhas ativas</span>
           <strong>{today.metrics.activeCampaigns}</strong>
           <small>{today.metrics.campaignsEndingSoon} encerrando em até 7 dias</small>
-        </button>
-        <button type="button" onClick={() => onOpen("wiki")}>
+        </button> : null}
+        {showSupport ? <button type="button" onClick={() => onOpen("wiki")}>
           <span>Wiki pendente</span>
           <strong>{today.metrics.wikiPendingReviews}</strong>
           <small>Propostas aguardando curadoria</small>
-        </button>
-        <button type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
+        </button> : null}
+        {showSupport ? <button type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
           <span>FAQ sem resposta</span>
           <strong>{today.metrics.faqUnanswered}</strong>
           <small>Dúvidas que ainda não viraram conhecimento</small>
-        </button>
-        <button type="button" onClick={() => onOpen("announcements")}>
+        </button> : null}
+        {showSupport ? <button type="button" onClick={() => onOpen("announcements")}>
           <span>Avisos ativos</span>
           <strong>{today.metrics.activeAnnouncements}</strong>
           <small>Comunicados vigentes para sua operação</small>
-        </button>
+        </button> : null}
       </div>
       <div className="today-work-grid">
         <div>
           <h3>Alertas importantes</h3>
-          {today.queues.alerts.length === 0 ? (
+          {alerts.length === 0 ? (
             <OperationalState state="success" title="Nenhum alerta crítico" detail="A operação não tem bloqueios relevantes agora." />
           ) : (
             <div className="today-alert-list">
-              {today.queues.alerts.map((alert) => (
+              {alerts.map((alert) => (
                 <button className={`today-alert ${alert.severity}`} key={`${alert.title}-${alert.target}`} type="button" onClick={() => onOpen(alert.target as DashboardTargetView)}>
                   <strong>{alert.title}</strong>
                   <span>{alert.detail}</span>
@@ -185,7 +197,7 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
             </div>
           )}
         </div>
-        <div>
+        {showSales ? <div>
           <h3>Fila imediata</h3>
           {today.queues.pendingDocuments.length === 0 ? (
             <OperationalState state="empty" title="Sem notas na fila" detail="Novas DANFEs aparecerão aqui primeiro." />
@@ -200,8 +212,38 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
               ]}
             />
           )}
-        </div>
-        <div>
+        </div> : null}
+        {mode === "support" ? <div>
+          <h3>Revisões da Wiki</h3>
+          {today.queues.wikiPendingReviews.length === 0 ? (
+            <OperationalState state="empty" title="Wiki sem revisão pendente" detail="Novas propostas aparecerão aqui para curadoria." />
+          ) : (
+            <div className="today-alert-list">
+              {today.queues.wikiPendingReviews.map((item) => (
+                <button className="today-alert info" key={item.id} type="button" onClick={() => onOpen("wiki")}>
+                  <strong>{item.page.title}</strong>
+                  <span>{item.author.name} · {formatDateBr(item.createdAt)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div> : null}
+        {mode === "support" ? <div>
+          <h3>FAQ sem resposta</h3>
+          {today.queues.faqUnanswered.length === 0 ? (
+            <OperationalState state="empty" title="FAQ em dia" detail="Novas dúvidas sem resposta aparecerão aqui." />
+          ) : (
+            <div className="today-alert-list">
+              {today.queues.faqUnanswered.map((item) => (
+                <button className="today-alert info" key={item.id} type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
+                  <strong>{item.title}</strong>
+                  <span>{item.body ?? `Aberta por ${item.author.name}`}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div> : null}
+        {showSupport ? <div>
           <h3>Avisos do dia</h3>
           {today.queues.activeAnnouncements.length === 0 ? (
             <OperationalState state="empty" title="Sem avisos ativos" detail="Comunicados importantes aparecerão aqui." />
@@ -220,19 +262,20 @@ function OperationalTodayCenter({ today, onOpen }: { today: OperationalTodayData
               ))}
             </div>
           )}
-        </div>
+        </div> : null}
       </div>
     </section>
   );
 }
 
-export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
+export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
   const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
   const [today, setToday] = useState<OperationalTodayData | null>(null);
   const [sellers, setSellers] = useState<SalesSellerItem[]>([]);
   const [filters, setFilters] = useState<SalesFilters>({ from: daysAgoIso(29), to: todayIso() });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<DashboardMode>(user.role === "ADMIN" ? "general" : "sales");
 
   async function load() {
     setLoading(true);
@@ -267,6 +310,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, 
     return [...values.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [sellers]);
   const csvHref = `${apiBaseUrl}/v1/sales/dashboard.csv${salesFilterQuery(filters)}`;
+  const showSales = mode !== "support";
 
   if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
   if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
@@ -275,7 +319,20 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, 
   return (
     <div className="content-stack">
       <section className="panel filter-panel">
-        <div className="filter-grid">
+        {user.role === "ADMIN" ? (
+          <div className={`segmented-control dashboard-mode-filter${showSales ? " with-sales-filters" : ""}`} role="tablist" aria-label="Visão do dashboard">
+            {([
+              ["general", "Geral"],
+              ["support", "SAC"],
+              ["sales", "Vendas"]
+            ] as const).map(([value, label]) => (
+              <button className={mode === value ? "" : "secondary"} key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => setMode(value)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {showSales ? <><div className="filter-grid">
           <label>
             <span className="label-row">De <InfoTip text="O gráfico usa a data de emissao das notas aprovadas." href="#dashboard" /></span>
             <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
@@ -307,12 +364,12 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, 
           <a className="secondary button-link" href={csvHref}>
             Exportar dashboard CSV
           </a>
-        </div>
+        </div></> : null}
       </section>
 
-      {today ? <OperationalTodayCenter today={today} onOpen={onOpen} /> : null}
+      {today ? <OperationalTodayCenter today={today} mode={mode} onOpen={onOpen} /> : null}
 
-      <section className="metrics-grid">
+      {showSales ? <><section className="metrics-grid">
         <MetricCard label="Notas enviadas" value={dashboard.metrics.totalDocuments} />
         <MetricCard label="Pendentes" value={dashboard.metrics.pendingDocuments} />
         <MetricCard label="Aprovadas" value={dashboard.metrics.approvedDocuments} />
@@ -417,7 +474,7 @@ export function DashboardView({ onOpen }: { onOpen: (view: DashboardTargetView, 
             />
           )}
         </div>
-      </section>
+      </section></> : null}
     </div>
   );
 }

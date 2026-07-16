@@ -2400,6 +2400,18 @@ button .icon {
   padding: 16px;
 }
 
+.dashboard-mode-filter {
+  width: fit-content;
+}
+
+.dashboard-mode-filter.with-sales-filters {
+  margin-bottom: 14px;
+}
+
+.dashboard-mode-filter button {
+  min-width: 92px;
+}
+
 .filter-grid {
   display: grid;
   gap: 12px;
