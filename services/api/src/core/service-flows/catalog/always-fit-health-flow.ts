@@ -159,7 +159,7 @@ export const alwaysFitHealthMessages: readonly AlwaysFitHealthMessage[] = [
     code: "MSG-017",
     title: "Orientar uso divergente",
     channel: "WHATSAPP",
-    body: "{nome_cliente}, verifiquei que a forma de uso realizada foi diferente da recomendação do produto, e isso pode ter influenciado no mal-estar relatado.\n\nA orientação correta é {modo_de_uso}.\n\nMesmo com essa informação, você prefere seguir com a devolução para troca ou estorno?",
+    body: "{nome_cliente}, verifiquei que a forma de uso realizada foi diferente da recomendação do produto. A orientação é seguir a forma de uso indicada no rótulo.\n\nMesmo com essa informação, você prefere seguir com a devolução para troca ou estorno?",
     status: "DRAFT",
     tags: ["saude", "modo-de-uso", "validacao-pendente"]
   }
@@ -232,19 +232,18 @@ export const alwaysFitHealthCatalogNodes: readonly CatalogNode[] = [
     choices: [{ label: "Um produto identificado", target: "ETAPA-008" }, { label: "Vários produtos identificados", target: "ETAPA-008" }, { label: "Kit usado em conjunto", target: "ETAPA-008" }, { label: "Produto não identificado: considerar kit", target: "ETAPA-008" }]
   }),
   stage("ETAPA-008", "Enviar /saúde_inicio", "MESSAGE", "Copie MSG-005 e colete água, alimentação, medicamentos ou suplementos concomitantes, tempo e horários de uso. Se faltar algo, pergunte somente o dado faltante. Trate as respostas como dados sensíveis de saúde.", {
-    messageCodes: ["MSG-005"], optionalFacts: ["custom.alwaysfit.health.usage", "custom.alwaysfit.health.concomitant.products"], dependencies: ["AlwaysChat"],
+    messageCodes: ["MSG-005"], optionalFacts: ["custom.alwaysfit.health.concomitant.products"], dependencies: ["AlwaysChat"],
     choices: [{ label: "Informações suficientes coletadas", target: "ETAPA-009" }, { label: "Resposta incompleta: permanecer nesta etapa", target: "ETAPA-008", allowLoop: true }]
   }),
   stage("ETAPA-009", "Avaliar uso divergente", "DECISION", "DECISAO-007 e REGRA-019. Compare o relato com a recomendação do produto. Uso divergente serve para orientar e contextualizar; nunca elimina o direito dentro do prazo.", {
-    optionalFacts: ["custom.alwaysfit.health.usage", "custom.alwaysfit.product.recommended.usage"],
     choices: [{ label: "Uso conforme recomendação", target: "ETAPA-010" }, { label: "Uso divergente identificado", target: "DECISAO-008" }]
   }),
   stage("DECISAO-008", "Cliente deseja continuar após orientação?", "DECISION", "DECISAO-008. Explique a forma correta com MSG-017 sem diagnosticar ou afirmar causalidade. Pergunte se o cliente ainda quer devolução, troca ou estorno.", {
-    messageCodes: ["MSG-017"], optionalFacts: ["custom.alwaysfit.product.recommended.usage"],
+    messageCodes: ["MSG-017"],
     choices: [{ label: "Cliente mantém o pedido de solução", target: "ETAPA-010" }, { label: "Cliente desiste após a orientação", target: "RESULTADO-007" }]
   }),
   stage("ETAPA-010", "Verificar se o mal-estar permanece", "RISK_GATE", "DECISAO-009 e REGRA-020. Se o cliente ainda estiver mal, copie MSG-006 e oriente atendimento médico. Não diagnostique, não atribua causa e não interrompa a tratativa comercial.", {
-    messageCodes: ["MSG-006"], requiredFacts: ["custom.alwaysfit.health.symptom.persistent"], forbiddenCapabilities: ["SEND_MESSAGE", "SUBMIT"], riskLevel: "CRITICAL",
+    messageCodes: ["MSG-006"], forbiddenCapabilities: ["SEND_MESSAGE", "SUBMIT"], riskLevel: "CRITICAL",
     choices: [{ label: "Sintoma persiste: orientação médica enviada", target: "ETAPA-011" }, { label: "Sintoma não persiste", target: "ETAPA-011" }]
   }),
   stage("ETAPA-011", "Acolhimento", "MESSAGE", "Copie MSG-007 e reconheça o transtorno. Não prometa efeito médico, diagnóstico ou causalidade.", {

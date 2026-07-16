@@ -601,7 +601,7 @@ describe("service flow tenant workflows", () => {
     const prisma = {
       serviceFlowSession: { findFirst: vi.fn().mockResolvedValue(session) },
       serviceFlowSessionStep: {
-        findFirst: vi.fn().mockResolvedValue({ id: "visit-ready", nodeKey: "check", visitOrder: 1, status: "RECONFIRMATION_REQUIRED", nodeSnapshotJson: '{"requiredFacts":["customer.name"]}', choiceHistoryJson: null, step: null }),
+        findFirst: vi.fn().mockResolvedValue({ id: "visit-ready", nodeKey: "check", visitOrder: 1, status: "RECONFIRMATION_REQUIRED", nodeSnapshotJson: '{"requiredFacts":["customer.name","custom.alwaysfit.health.usage","custom.alwaysfit.health.symptom.persistent","custom.alwaysfit.treatment.unusable.scope"]}', choiceHistoryJson: null, step: null }),
         update
       },
       serviceFlowTransition: { findMany: vi.fn().mockResolvedValue([]) },

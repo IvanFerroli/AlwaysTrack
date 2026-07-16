@@ -228,6 +228,17 @@ const productFieldConfiguration: Record<string, { sourceKey?: string; allowCusto
   "custom.alwaysfit.exchange.items": { allowCustom: true }
 };
 
+const decisionCapturedCaseFields = new Set([
+  "custom.alwaysfit.health.usage",
+  "custom.alwaysfit.product.recommended.usage",
+  "custom.alwaysfit.health.symptom.persistent",
+  "custom.alwaysfit.treatment.unusable.scope"
+]);
+
+function caseFieldIsVisible(key: string) {
+  return !decisionCapturedCaseFields.has(key) && !/^produto_[1-9]\d*$/.test(key);
+}
+
 function caseValuePresent(key: string, value: string | undefined) {
   if (productFieldConfiguration[key]) return parseProductQuantityItems(value ?? "").length > 0;
   if (key === "customer.cpf") return (value ?? "").replace(/\D/g, "").length === 11;
@@ -384,6 +395,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [error, setError] = useState<string | null>(null);
   const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const selected = flows.find((flow) => flow.id === selectedId) ?? flows[0] ?? null;
+  const isAlwaysFitHealthPilot = selected?.slug === "saude-dev-troca-estorno";
   const tags = useMemo(() => [...new Set(flows.flatMap((flow) => flow.tags ?? []))].sort(), [flows]);
   const selectableFlows = useMemo(() => {
     const needle = flowPickerQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -406,7 +418,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
       ...visiblePersonalScripts.flatMap((script) => script.placeholders ?? [])
     ].map((key) => aliases[key] ?? key);
     return [...new Set([...required, ...optional, ...placeholders])]
-      .filter((key) => key !== "custom.alwaysfit.treatment.unusable.scope")
+      .filter(caseFieldIsVisible)
       .map((key) => ({
         key,
         label: humanizeCaseField(key),
@@ -984,20 +996,24 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
             <>
               <div className="detail-header">
                 <div>
-                  <p className="eyebrow">/{selected.slug}</p>
+                  {isAlwaysFitHealthPilot ? null : <p className="eyebrow">/{selected.slug}</p>}
                   <h2>{selected.title}</h2>
-                  <p className="muted">
-                    v{selected.version} · {selected.status}
-                    {selected.reviewedBy ? ` · validado por ${selected.reviewedBy.name}` : ""}
-                    {selected.reviewDueAt ? ` · revisar até ${formatDateBr(selected.reviewDueAt)}` : ""}
-                  </p>
-                  {selected.summary ? <p className="muted">{selected.summary}</p> : null}
+                  {isAlwaysFitHealthPilot ? null : (
+                    <>
+                      <p className="muted">
+                        v{selected.version} · {selected.status}
+                        {selected.reviewedBy ? ` · validado por ${selected.reviewedBy.name}` : ""}
+                        {selected.reviewDueAt ? ` · revisar até ${formatDateBr(selected.reviewDueAt)}` : ""}
+                      </p>
+                      {selected.summary ? <p className="muted">{selected.summary}</p> : null}
+                    </>
+                  )}
                 </div>
                 <div className="row-actions">
                   {selected.wikiPage ? <button className="secondary" type="button" onClick={() => window.location.assign(`/wiki/${selected.wikiPage!.slug}`)}>Abrir Wiki</button> : null}
                 </div>
               </div>
-              {selected.content ? <MarkdownContent content={selected.content} /> : null}
+              {!isAlwaysFitHealthPilot && selected.content ? <MarkdownContent content={selected.content} /> : null}
               {canManage ? (
                 <div className="service-flow-governance-box">
                   <div>
@@ -1033,7 +1049,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
                   const sessionStep = activeSession?.steps.find((item) => item.stepId === step.id || item.nodeKey === nodeKey);
                   const decisionOptions = optionsFromDecision(step.decision);
                   const snapshot = factsFromSnapshot(sessionStep?.nodeSnapshotJson);
-                  const missingRequiredFacts = snapshot.required.filter((key) => !caseValuePresent(key, caseData[key]));
+                  const missingRequiredFacts = snapshot.required.filter((key) => caseFieldIsVisible(key) && !caseValuePresent(key, caseData[key]));
                   const canSkipStep = !activeSession?.version && !step.required && snapshot.type !== "RISK_GATE" && snapshot.required.length === 0;
                   return (
                     <article

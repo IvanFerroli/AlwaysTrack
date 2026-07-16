@@ -95,7 +95,7 @@ describe("Always Fit health flow pilot catalog", () => {
     expect(node("ETAPA-012").requiredFacts).toEqual([]);
     expect(node("ETAPA-006").requiredFacts).toEqual(["logistics.deliveredAt"]);
     expect(node("ETAPA-007").requiredFacts).toEqual(["order.products"]);
-    expect(node("ETAPA-010").requiredFacts).toEqual(["custom.alwaysfit.health.symptom.persistent"]);
+    expect(node("ETAPA-010").requiredFacts).toEqual([]);
     expect(node("ETAPA-013").requiredFacts).toEqual([]);
     expect(transition("ETAPA-013", "Há ao menos um item lacrado")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.sealed.items" });
     expect(transition("ETAPA-013", "Tudo está aberto: dispensar reversa")?.condition).toEqual({ operator: "FACT_EXISTS", factKey: "custom.alwaysfit.return.open.items" });
@@ -106,6 +106,14 @@ describe("Always Fit health flow pilot catalog", () => {
     const message = alwaysFitHealthMessages.find((item) => item.code === "MSG-004")!;
     expect(message.body).toContain("{produtos_pedido}");
     expect(message.body).not.toMatch(/\{produto_[123]\}/);
+  });
+
+  it("records usage and symptom answers in decisions instead of duplicate case fields", () => {
+    const node = (key: string) => flow.nodes.find((item) => item.key === key)!;
+    expect(node("ETAPA-009").optionalFacts).not.toContain("custom.alwaysfit.health.usage");
+    expect(node("DECISAO-008").optionalFacts).not.toContain("custom.alwaysfit.product.recommended.usage");
+    expect(node("ETAPA-010").requiredFacts).not.toContain("custom.alwaysfit.health.symptom.persistent");
+    expect(alwaysFitHealthMessages.find((item) => item.code === "MSG-017")?.body).not.toContain("{modo_de_uso}");
   });
 
   it("keeps every numbered decision, rule and pending validation traceable", () => {

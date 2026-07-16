@@ -389,6 +389,10 @@ describe("ServiceFlowsView", () => {
 
     render(<ServiceFlowsView user={users.sac} />);
     await screen.findByRole("heading", { name: pilotFlow.title });
+    const runner = within(document.querySelector(".service-flow-runner") as HTMLElement);
+    expect(runner.queryByText(`/${pilotFlow.slug}`)).not.toBeInTheDocument();
+    expect(runner.queryByText(pilotFlow.summary)).not.toBeInTheDocument();
+    expect(runner.queryByRole("heading", { name: "Orientacao" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     expect(await screen.findByText("ETAPA-001 — Receber relato")).toBeInTheDocument();
     expect(screen.queryByText("ETAPA-002 — Apresentação com nome")).not.toBeInTheDocument();
@@ -415,7 +419,17 @@ describe("ServiceFlowsView", () => {
       caseData: {},
       steps: [{
         id: "visit-1", stepId: null, nodeKey: "ETAPA-001",
-        nodeSnapshotJson: JSON.stringify({ type: "CONTEXT", requiredFacts: ["customer.name"], terminal: false }),
+        nodeSnapshotJson: JSON.stringify({
+          type: "CONTEXT",
+          requiredFacts: [
+            "customer.name",
+            "custom.alwaysfit.health.usage",
+            "custom.alwaysfit.health.symptom.persistent",
+            "custom.alwaysfit.treatment.unusable.scope"
+          ],
+          optionalFacts: ["produto_1", "produto_2", "produto_3"],
+          terminal: false
+        }),
         status: "PENDING", decision: null, note: null, completedAt: null, step: null
       }]
     };
@@ -442,6 +456,10 @@ describe("ServiceFlowsView", () => {
     const decision = screen.getByRole("button", { name: "Relato reconhecido como caso deste fluxo" });
     expect(decision).toBeDisabled();
     expect(screen.getByText("Complete a ficha antes de avançar")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Forma e período de uso" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "O mal-estar permanece?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Escopo que não poderá/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Produto 1" })).not.toBeInTheDocument();
     const customerName = screen.getByRole("textbox", { name: /Nome do cliente/ });
     expect(customerName).toBeInTheDocument();
     await user.type(customerName, "Maria");

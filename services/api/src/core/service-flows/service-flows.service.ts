@@ -106,6 +106,12 @@ const productSubsetKeys = [...structuredProductKeys].filter((key) =>
   && key !== "custom.alwaysfit.exchange.items"
 );
 const pilotProductFallbacks = ["Fit S36", "NAC", "Pro3"] as const;
+const decisionCapturedFactKeys = new Set([
+  "custom.alwaysfit.health.usage",
+  "custom.alwaysfit.product.recommended.usage",
+  "custom.alwaysfit.health.symptom.persistent",
+  "custom.alwaysfit.treatment.unusable.scope"
+]);
 
 function isManager(actor: CurrentUser) {
   return (commercialManagerRoles as readonly string[]).includes(actor.role);
@@ -971,7 +977,7 @@ export async function updateServiceFlowSessionStep(
   }
   if (session.versionId && nextStatus === "DONE") {
     const caseData = caseDataFromJson(session.caseDataJson);
-    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !factIsPresent(key, caseData[key]));
+    const missingFieldKeys = snapshot.requiredFacts.filter((key) => !decisionCapturedFactKeys.has(key) && !factIsPresent(key, caseData[key]));
     if (missingFieldKeys.length) throw new ServiceFlowError("MISSING_REQUIRED_FACTS", missingFieldKeys);
   }
   const outgoing = session.versionId && step.nodeKey && (nextStatus === "DONE" || nextStatus === "SKIPPED")
