@@ -125,12 +125,8 @@ O fluxo pode ser encerrado quando:
 | `medicamentos_suplementos` | Outros medicamentos ou suplementos utilizados | Texto | Sim | Cliente | “Remédio para pressão” | Aceitar “nenhum” | Saúde/sensível | Investigação |
 | `sintoma_persistente` | Cliente ainda está se sentindo mal | Booleano | Sim | Cliente | Sim | Sim/Não | Saúde/sensível | Orientação médica |
 | `escopo_sem_uso` | Tudo que o cliente não conseguirá mais utilizar | Lista | Sim | Cliente + pedido | Kit Anti-Inchaço completo | Itens precisam pertencer ao pedido | Operacional/saúde | Cálculo do saldo |
-| `itens_lacrados` | Itens com lacre interno intacto | Lista/quantidade | Sim | Cliente | 3 potes | Lacre abaixo da tampa intacto | Operacional | Reversa |
-| `itens_abertos` | Itens com lacre rompido ou já utilizados | Lista/quantidade | Sim | Cliente | 3 potes | Lacre rompido = aberto | Operacional | Bypass da reversa |
-| `itens_lacrados_devolvidos` | Lacrados que o cliente aceitará devolver | Lista/quantidade | Condicional | Cliente | 2 potes | Subconjunto de `itens_lacrados` | Operacional | Saldo e reversa |
-| `itens_lacrados_retidos` | Lacrados que o cliente não devolverá | Lista/quantidade | Condicional | Cliente | 1 pote | Subconjunto de `itens_lacrados` | Operacional | Desconto no saldo |
+| `itens_lacrados` | Itens com lacre interno intacto | Lista/quantidade | Condicional | Cliente | 3 potes | Subconjunto de `produtos_pedido`; `Todos` e `Nenhum` são respostas válidas | Operacional | Reversa |
 | `valor_pago_escopo` | Valor efetivamente pago pelos itens afetados | Número monetário | Sim | Pedido/NF | R$ 300,00 | Considerar descontos | Financeiro | Saldo |
-| `valor_itens_retidos` | Valor pago pelos lacrados não devolvidos | Número monetário | Condicional | Pedido/NF | R$ 50,00 | Considerar descontos | Financeiro | Saldo |
 | `saldo_disponivel` | Valor para troca/estorno | Número monetário | Sim | Cálculo | R$ 250,00 | Nunca negativo | Financeiro | Troca/estorno |
 | `codigo_reversa` | Código de postagem dos Correios | Texto | Condicional | Correios | 0000000000 | Código válido | Operacional | Confirmação da postagem |
 | `postagem_confirmada` | Confirmação de postagem | Booleano | Condicional | Foto ou site dos Correios | Sim | Foto do canhoto ou rastreio dos Correios | Operacional | Liberação da solução |
@@ -289,27 +285,21 @@ O fluxo pode ser encerrado quando:
 - **Condição para avançar:** Lista de itens afetados definida.
 - **Destino:** `ETAPA-013`.
 
-## ETAPA-013 — Classificar itens lacrados e abertos
+## ETAPA-013 — Identificar itens lacrados
 
 - **Objetivo:** Definir necessidade de logística reversa.
 - **Mensagem sugerida:** `MSG-009`.
 - **Definição de lacrado:** Lacre interno abaixo da tampa permanece intacto.
+- **Entrada única:** Selecionar entre os produtos do pedido somente os itens lacrados, com atalhos `Todos` e `Nenhum`.
+- **Regra:** Tudo que não for marcado como lacrado é tratado implicitamente como aberto, sem segundo preenchimento.
 - **Decisão:** `DECISAO-011`.
 - **Se nenhum item estiver lacrado:** Bypass da reversa → `ETAPA-019`.
-- **Se houver lacrados:** `ETAPA-014`.
-
-## ETAPA-014 — Confirmar quais lacrados serão devolvidos
-
-- **Objetivo:** Separar os lacrados que retornarão dos que permanecerão com o cliente.
-- **Decisão:** `DECISAO-012`.
-- **Se devolver todos:** Valor integral dos itens afetados continua no saldo → `ETAPA-015`.
-- **Se devolver apenas parte:** Deduzir do saldo os lacrados não devolvidos → `ETAPA-015`.
-- **Se não devolver nenhum lacrado:** Deduzir todos os lacrados retidos e seguir sem reversa para `ETAPA-019`.
-- **Regra:** Produtos abertos não precisam retornar.
+- **Se houver lacrados:** `ETAPA-015`.
+- **Decisão operacional de 16/07/2026:** A separação entre lacrados devolvidos e retidos foi removida para reduzir preenchimento; o atendente conduz essa confirmação durante a conversa.
 
 ## ETAPA-015 — Calcular valor e gerar logística reversa
 
-- **Objetivo:** Gerar código dos Correios apenas para os itens lacrados que serão devolvidos.
+- **Objetivo:** Gerar código dos Correios para os itens lacrados selecionados.
 - **Ação humana:**
   1. consultar pedido e nota fiscal;
   2. considerar descontos;
@@ -588,14 +578,8 @@ O fluxo pode ser encerrado quando:
 
 ## DECISAO-011 — Há produto com lacre interno intacto?
 
-- Sim → `ETAPA-014`
+- Sim → `ETAPA-015`
 - Não → `ETAPA-019`
-
-## DECISAO-012 — O cliente devolverá os lacrados?
-
-- Todos → reversa de todos.
-- Parte → reversa da parte e desconto dos retidos.
-- Nenhum → desconto total dos lacrados retidos e bypass.
 
 ## DECISAO-013 — A postagem foi confirmada?
 
@@ -662,11 +646,8 @@ O fluxo pode ser encerrado quando:
 | DECISAO-008 | Sim | Cliente mantém desejo | ETAPA-010 | Continuar |
 | DECISAO-008 | Não | Cliente desiste | RESULTADO-007 | Encerrado |
 | DECISAO-009 | Sim | Sintoma permanece | MSG-006 + ETAPA-011 | Médico + fluxo comercial |
-| DECISAO-011 | Sim | Há lacrados | ETAPA-014 | Avaliar reversa |
+| DECISAO-011 | Sim | Há lacrados | ETAPA-015 | Gerar reversa |
 | DECISAO-011 | Não | Tudo aberto | ETAPA-019 | Bypass |
-| DECISAO-012 | Todos | Devolve todos | ETAPA-015 | Saldo integral |
-| DECISAO-012 | Parte | Retém alguns | ETAPA-015 | Descontar retidos |
-| DECISAO-012 | Nenhum | Recusa devolução | ETAPA-019 | Descontar lacrados |
 | DECISAO-013 | Sim | Foto ou Correios | ETAPA-019 | Escolher solução |
 | DECISAO-013 | Não | Sem postagem | ETAPA-017 | Aguardar |
 | DECISAO-015 | Estorno | Cliente escolhe estorno | ETAPA-020 | Estorno |
@@ -725,10 +706,6 @@ O fluxo pode ser encerrado quando:
 
 - **Descrição:** Lacre rompido ou produto usado.
 - **Resultado:** Não gera logística reversa e continua no saldo.
-
-## REGRA-008 — Lacrado não devolvido é descontado
-
-- **Descrição:** Se o cliente optar por permanecer com um lacrado, o valor efetivamente pago por ele é retirado do saldo.
 
 ## REGRA-009 — Escolha final somente após postagem
 
@@ -1342,11 +1319,6 @@ Se for troca, terá de cobrar o frete?
 - **Entradas:** Código venceu antes da postagem.
 - **Resultado:** Gerar outro e reenviar `/reversa`.
 
-## TESTE-013 — Cliente não devolve um lacrado
-
-- **Entradas:** Saldo inicial R$ 300; lacrado retido vale R$ 50.
-- **Resultado:** Saldo final R$ 250.
-
 ## TESTE-014 — Cliente muda de troca para estorno antes do Slack processar
 
 - **Resultado:** Cancelar solicitação anterior e seguir estorno.
@@ -1382,9 +1354,8 @@ Se for troca, terá de cobrar o frete?
 5. Confirmar o preenchimento de `/devolução_reversa` quando troca/estorno ainda não foi decidido.
 6. Definir timeout aceitável para indisponibilidade dos sistemas.
 7. Definir texto final quando solicitação já foi processada e o cliente muda de ideia.
-8. Definir se o CaseFlow deve registrar separadamente itens abertos, lacrados devolvidos e lacrados retidos, embora hoje o registro obrigatório seja apenas `/devolução_reversa`.
-9. Definir gatilho/barra para a mensagem de previsão e rastreio do novo pedido.
-10. Definir o ponto exato de retorno quando uma exceção acima de 30 dias for aprovada.
+8. Definir gatilho/barra para a mensagem de previsão e rastreio do novo pedido.
+9. Definir o ponto exato de retorno quando uma exceção acima de 30 dias for aprovada.
 
 ---
 
@@ -1438,14 +1409,9 @@ flowchart TD
     AC --> AD{Há itens lacrados?}
 
     AD -- Não --> AO[Escolher troca ou estorno]
-    AD -- Sim --> AE{Cliente devolverá os lacrados?}
-    AE -- Todos --> AF[Calcular e gerar reversa de todos]
-    AE -- Parte --> AG[Reversa da parte + descontar retidos]
-    AE -- Nenhum --> AH[Descontar lacrados retidos]
-    AH --> AO
+    AD -- Sim --> AF[Calcular e gerar reversa dos lacrados]
 
     AF --> AI[Enviar /reversa]
-    AG --> AI
     AI --> AJ[Registrar /devolução_reversa no sussurro]
     AJ --> AK[Aguardar postagem]
     AK --> AL{Foto ou Correios confirmam postagem?}

@@ -78,6 +78,14 @@ Transformar a ficha lateral do primeiro fluxo Always Fit em um cockpit persisten
 - cabecalho operacional do piloto reduzido ao titulo e acesso a Wiki;
 - seed local aplicado com nova versao publicada e historico anterior preservado.
 
+## Follow-up 2026-07-16 - Classificacao por lacrados
+- status: in-progress
+- substituir a dupla selecao de itens abertos e lacrados por um unico seletor de itens lacrados;
+- oferecer `Todos` e `Nenhum` sobre os produtos do pedido;
+- considerar implicitamente abertas as unidades nao marcadas como lacradas;
+- eliminar a ETAPA-014 e os campos de lacrados devolvidos/retidos; havendo lacrados, seguir diretamente para a reversa;
+- manter apenas o saldo final calculado, sem exigir o valor separado de itens retidos.
+
 ## Evidencia de conclusao
 - `npm run check`: aprovado, com 1 teste Redis opcional ignorado por configuracao;
 - `npm run check:docs` e `npm run repo:hygiene`: aprovados apos regenerar o coverage HTML da API;
