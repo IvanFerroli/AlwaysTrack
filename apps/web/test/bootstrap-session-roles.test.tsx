@@ -100,13 +100,13 @@ describe("Web bootstrap, session and role matrix", () => {
     expect(await screen.findByText("Credenciais sintéticas inválidas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Entrar com senha" })).toBeEnabled();
 
-    const expectations: Array<{ role: Role; visible: string; group?: string; forbidden?: string }> = [
+    const expectations: Array<{ role: Role; visible: string; group?: string; forbidden?: string[] }> = [
       { role: "ADMIN", visible: "CaseFlow Admin", group: "Administração" },
-      { role: "SAC", visible: "Scriptoteca", group: "SAC", forbidden: "Administração" },
-      { role: "FINANCEIRO", visible: "Extratos", group: "Vendas", forbidden: "Administração" },
-      { role: "VENDEDOR", visible: "Notas", group: "Vendas", forbidden: "Administração" },
-      { role: "SUPERVISOR", visible: "Ranking", group: "Vendas", forbidden: "Administração" },
-      { role: "RT", visible: "Como usar", forbidden: "CaseFlow Admin" }
+      { role: "SAC", visible: "Scriptoteca", group: "SAC", forbidden: ["Administração"] },
+      { role: "FINANCEIRO", visible: "Extratos", group: "Vendas", forbidden: ["Administração"] },
+      { role: "VENDEDOR", visible: "Notas", group: "Vendas", forbidden: ["SAC", "Administração"] },
+      { role: "SUPERVISOR", visible: "Ranking", group: "Vendas", forbidden: ["Administração"] },
+      { role: "RT", visible: "Como usar", forbidden: ["CaseFlow Admin"] }
     ];
 
     for (const { role, visible, group, forbidden } of expectations) {
@@ -118,7 +118,7 @@ describe("Web bootstrap, session and role matrix", () => {
         if (groupButton.getAttribute("aria-expanded") !== "true") fireEvent.click(groupButton);
       }
       expect(navigation).toHaveTextContent(visible);
-      if (forbidden) expect(navigation).not.toHaveTextContent(forbidden);
+      for (const hiddenLabel of forbidden ?? []) expect(navigation).not.toHaveTextContent(hiddenLabel);
       expect(screen.getByText(role, { selector: ".eyebrow" })).toBeInTheDocument();
 
       const destination = primaryNav.getByRole("button", { name: group ? new RegExp(`^${visible}$`) : new RegExp(`^${visible}`) });

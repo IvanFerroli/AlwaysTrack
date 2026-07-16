@@ -503,18 +503,20 @@ interface NavGroup {
   children: Array<{ key: ViewKey; section?: "technical" }>;
 }
 
+const supportNavigationRoles = commercialAllRoles.filter((role) => role !== "VENDEDOR");
+
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialSalesAccessRoles },
   { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialSalesAccessRoles },
   { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
   { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialSalesAccessRoles },
   { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialSalesAccessRoles },
-  { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: commercialAllRoles },
-  { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: commercialAllRoles },
+  { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: supportNavigationRoles },
+  { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: supportNavigationRoles },
   { key: "caseFlowHealth", label: "Status CaseFlow", description: "Conectores e métricas", icon: "scan", roles: commercialManagerRoles },
-  { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: commercialAllRoles },
-  { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: commercialAllRoles },
-  { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: commercialAllRoles },
+  { key: "scriptLibrary", label: "Scriptoteca", description: "Textos prontos do SAC", icon: "file", roles: supportNavigationRoles },
+  { key: "wiki", label: "Wiki", description: "Procedimentos transversais", icon: "wiki", roles: supportNavigationRoles },
+  { key: "faq", label: "FAQ", description: "Perguntas e threads", icon: "help", roles: supportNavigationRoles },
   { key: "users", label: "Usuários/Times", description: "Vendedores e grupos", icon: "users", roles: adminOnlyRoles },
   { key: "settings", label: "Configurações", description: "Organização e defaults", icon: "settings", roles: adminOnlyRoles },
   { key: "profile", label: "Perfil", description: "Identidade e notificações", icon: "profile", roles: commercialAllRoles },
