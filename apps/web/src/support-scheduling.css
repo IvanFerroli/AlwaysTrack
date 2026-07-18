@@ -1,0 +1,569 @@
+@import "./support-operations.css";
+
+.support-schedules-view {
+  --schedule-regular: #2563eb;
+  --schedule-extra: #7c3aed;
+  --schedule-double: #c2410c;
+}
+
+.support-schedule-header {
+  align-items: end;
+}
+
+.support-schedule-period {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.support-schedule-period label,
+.support-schedule-scope label,
+.support-offer-accept label {
+  color: var(--color-muted);
+  display: grid;
+  font-size: 0.7rem;
+  font-weight: 800;
+  gap: 4px;
+  letter-spacing: 0;
+}
+
+.support-schedule-period input,
+.support-schedule-scope select,
+.support-offer-accept select,
+.support-schedules-view td input {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  min-height: 36px;
+  padding: 7px 9px;
+  width: 100%;
+}
+
+.support-updated-indicator {
+  align-items: center;
+  color: var(--color-muted);
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 750;
+  min-height: 36px;
+  min-width: 108px;
+}
+
+.support-schedule-scope {
+  align-items: end;
+  background: var(--color-surface-soft);
+  border-bottom: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 9px;
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 260px) minmax(220px, 1fr);
+  padding: 10px 0;
+}
+
+.support-schedule-scope > small {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  padding-bottom: 8px;
+}
+
+.support-tab-count {
+  align-items: center;
+  background: var(--color-danger);
+  border-radius: 9px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.62rem;
+  height: 18px;
+  justify-content: center;
+  margin-left: 5px;
+  min-width: 18px;
+  padding: 0 4px;
+}
+
+.support-schedule-calendar {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+
+.support-week-grid {
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: repeat(7, minmax(118px, 1fr));
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.support-week-day {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 220px;
+  min-width: 118px;
+}
+
+.support-week-day > header {
+  background: var(--color-surface-soft);
+  border-bottom: 1px solid var(--color-border-soft);
+  color: var(--color-heading);
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 8px;
+  text-transform: capitalize;
+}
+
+.support-shift-block {
+  align-self: start;
+  border-left: 4px solid var(--schedule-regular);
+  border-bottom: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 5px;
+  margin: 7px;
+  min-width: 0;
+  padding: 7px 6px;
+}
+
+.support-shift-block.extra {
+  border-left-color: var(--schedule-extra);
+}
+
+.support-shift-block.double {
+  border-left-color: var(--schedule-double);
+}
+
+.support-shift-kind {
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.support-shift-block strong {
+  color: var(--color-heading);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.support-shift-block small,
+.support-day-empty {
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.support-shift-block button {
+  justify-self: start;
+  margin-top: 3px;
+  min-height: 30px;
+  padding: 0 7px;
+}
+
+.support-day-empty {
+  align-self: center;
+  justify-self: center;
+}
+
+.support-pause-warning {
+  color: var(--color-danger-dark) !important;
+}
+
+.support-extra-grid .support-slot-card {
+  min-height: 172px;
+}
+
+.support-extra-card > .support-status {
+  justify-self: start;
+}
+
+.support-extra-card header > div {
+  align-items: center;
+}
+
+.support-extra-card header svg {
+  color: var(--color-muted);
+}
+
+.support-schedule-exchanges {
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+}
+
+.support-offer-accept {
+  display: grid;
+  gap: 6px;
+  min-width: 190px;
+}
+
+.support-offer-accept button {
+  justify-self: start;
+}
+
+.support-highlight-row {
+  background: var(--color-warning-soft);
+  box-shadow: inset 4px 0 0 var(--color-warning-dark);
+  outline: 2px solid transparent;
+}
+
+.support-highlight-row:focus {
+  outline-color: var(--color-primary);
+  outline-offset: -2px;
+}
+
+.support-coverage {
+  border-bottom: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 13px;
+  padding: 14px 0;
+}
+
+.support-view-switch {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.support-view-switch button {
+  background: var(--color-surface);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  min-height: 32px;
+  padding: 0 9px;
+}
+
+.support-view-switch button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.support-view-switch button.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.support-coverage-figure {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.support-coverage-axis,
+.support-coverage-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 72px minmax(420px, 1fr);
+}
+
+.support-coverage-axis {
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  grid-template-columns: 72px repeat(5, minmax(0, 1fr));
+  padding-right: 3px;
+}
+
+.support-coverage-axis span:first-child {
+  grid-column: 2;
+}
+
+.support-coverage-axis span {
+  text-align: left;
+}
+
+.support-coverage-row {
+  align-items: center;
+  min-width: 500px;
+}
+
+.support-coverage-row > time {
+  color: var(--color-heading);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.support-coverage-track {
+  background-color: var(--color-surface-soft);
+  background-image: linear-gradient(to right, transparent calc(25% - 1px), var(--color-border-soft) 25%, transparent calc(25% + 1px));
+  background-size: 25% 100%;
+  border: 1px solid var(--color-border-soft);
+  height: 34px;
+  overflow: hidden;
+  position: relative;
+}
+
+.support-coverage-bar {
+  align-items: center;
+  background: rgba(37, 99, 235, var(--coverage-opacity));
+  bottom: 3px;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  min-width: 4px;
+  position: absolute;
+  top: 3px;
+}
+
+.support-coverage-bar:focus {
+  outline: 2px solid var(--color-heading);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.support-coverage-bar b {
+  font-size: 0.62rem;
+  overflow: hidden;
+}
+
+.support-coverage-figure figcaption {
+  color: var(--color-muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+  margin-left: 80px;
+}
+
+.support-schedule-management {
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.support-rule-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.support-weekday-field {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.support-weekday-field legend {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.support-weekday-field > div {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.support-weekday-field label {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.68rem;
+  font-weight: 800;
+  gap: 3px;
+  justify-content: center;
+  min-height: 34px;
+  padding: 4px;
+}
+
+.support-weekday-field label + label {
+  border-left: 0;
+}
+
+.support-weekday-field label:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.support-weekday-field label:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.support-weekday-field label.active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.support-weekday-field input {
+  height: 14px;
+  min-height: 14px;
+  width: 14px;
+}
+
+.support-materialization-summary {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.support-materialization-summary > div {
+  border-left: 3px solid var(--color-primary);
+  display: grid;
+  gap: 2px;
+  padding: 5px 7px;
+}
+
+.support-materialization-summary dt {
+  color: var(--color-muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.support-materialization-summary dd {
+  color: var(--color-heading);
+  font-size: 1rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.support-conflicts summary {
+  color: var(--color-danger-dark);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.support-conflicts ul {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.support-extra-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.support-retry-state {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.support-schedules-view .spin {
+  animation: support-schedule-spin 0.8s linear infinite;
+}
+
+@keyframes support-schedule-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-schedules-view .spin {
+    animation: none;
+  }
+}
+
+@media (max-width: 1050px) {
+  .support-schedule-exchanges,
+  .support-schedule-management {
+    grid-template-columns: 1fr;
+  }
+
+  .support-rule-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .support-schedule-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .support-schedule-period {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px 36px;
+    justify-content: stretch;
+  }
+
+  .support-updated-indicator {
+    grid-column: 1 / -1;
+    min-height: 22px;
+  }
+
+  .support-schedule-scope {
+    grid-template-columns: 1fr;
+  }
+
+  .support-schedule-scope > small {
+    padding-bottom: 0;
+  }
+
+  .support-week-grid {
+    border-bottom: 0;
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .support-week-day {
+    border-bottom: 1px solid var(--color-border);
+    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-rows: auto;
+    min-height: 74px;
+  }
+
+  .support-week-day > header {
+    border-bottom: 0;
+    border-right: 1px solid var(--color-border-soft);
+  }
+
+  .support-day-empty {
+    justify-self: start;
+    padding: 10px;
+  }
+
+  .support-coverage-figure {
+    overflow-x: auto;
+  }
+
+  .support-coverage-figure figcaption {
+    margin-left: 0;
+    min-width: 500px;
+  }
+
+  .support-extra-form,
+  .support-rule-form {
+    grid-template-columns: 1fr;
+  }
+
+  .support-extra-form > *,
+  .support-rule-form > *,
+  .support-rule-form .support-wide-field {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .support-schedules-view .support-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .support-schedules-view .support-form-grid > *,
+  .support-schedules-view .support-wide-field,
+  .support-schedules-view .support-full-span {
+    grid-column: 1;
+  }
+
+  .support-weekday-field > div {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .support-weekday-field label,
+  .support-weekday-field label + label {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+  }
+
+  .support-materialization-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

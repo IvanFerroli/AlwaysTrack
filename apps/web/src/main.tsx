@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  CalendarDays,
   Check,
   ChevronDown,
   CircleHelp,
@@ -69,6 +70,7 @@ import { CaseFlowHealthView } from "./views/case-flow/health";
 import { SupportCampaignsView } from "./views/support-campaigns";
 import { SupportPausesView } from "./views/support-pauses";
 import { SupportPerformanceView } from "./views/support-performance";
+import { SupportSchedulesView } from "./views/support-schedules";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
 import { CaseFlowAdminView } from "./views/case-flow/admin";
@@ -125,6 +127,7 @@ type IconName =
   | "profile"
   | "download"
   | "check"
+  | "calendar"
   | "bell"
   | "workflow"
   | "scan";
@@ -511,6 +514,7 @@ const supportNavigationRoles = supportOperationsRoles;
 
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Capacidade e qualidade do SAC", icon: "home", roles: supportOperationsRoles },
+  { key: "supportSchedules", label: "Escalas", description: "Turnos, extras e trocas", icon: "calendar", roles: supportOperationsRoles },
   { key: "supportPauses", label: "Pausas", description: "Slots, trocas e cobertura", icon: "check", roles: supportOperationsRoles },
   { key: "supportPerformance", label: "Performance", description: "CSAT, produtividade e SLA", icon: "chart", roles: supportOperationsRoles },
   { key: "supportCampaigns", label: "Campanhas", description: "Metas operacionais do SAC", icon: "bell", roles: supportOperationsRoles },
@@ -536,6 +540,7 @@ const navGroups: NavGroup[] = [
     icon: "workflow",
     children: [
       { key: "announcements" },
+      { key: "supportSchedules" },
       { key: "supportPauses" },
       { key: "supportPerformance" },
       { key: "supportCampaigns" },
@@ -599,6 +604,7 @@ const iconComponents: Record<IconName, LucideIcon> = {
   profile: UserCircle,
   download: Download,
   check: Check,
+  calendar: CalendarDays,
   bell: Bell,
   workflow: Workflow,
   scan: ScanSearch
@@ -4262,13 +4268,17 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
   const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
   const startsInAnnouncements = window.location.pathname === "/avisos" || window.location.pathname.startsWith("/avisos/");
-  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
+  const initialScheduleNavigation = window.location.pathname === "/escalas"
+    ? resolveNotificationNavigation({ href: `${window.location.pathname}${window.location.search}` })
+    : null;
+  const startsInSchedules = initialScheduleNavigation?.view === "supportSchedules" && visibleNavByKey.has("supportSchedules");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInSchedules ? "supportSchedules" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
   const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
-  const [viewIntent, setViewIntent] = useState<ViewIntent>({});
+  const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules ? initialScheduleNavigation?.intent as ViewIntent : {});
   const topNavRef = useRef<HTMLElement>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
@@ -4311,11 +4321,14 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       window.history.replaceState(null, "", "/wiki");
     } else if (key === "announcements") {
       window.history.replaceState(null, "", "/avisos");
+    } else if (key === "supportSchedules") {
+      window.history.replaceState(null, "", "/escalas");
     } else if (
       window.location.pathname === "/wiki" ||
       window.location.pathname.startsWith("/wiki/") ||
       window.location.pathname === "/avisos" ||
-      window.location.pathname.startsWith("/avisos/")
+      window.location.pathname.startsWith("/avisos/") ||
+      window.location.pathname === "/escalas"
     ) {
       window.history.replaceState(null, "", "/");
     }
@@ -4586,7 +4599,9 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         </header>
         <BetaModeBanner />
         <DemoModeBanner onOpen={openView} />
-        {activeItem.key === "supportPauses" ? (
+        {activeItem.key === "supportSchedules" ? (
+          <SupportSchedulesView user={user} initialIntent={viewIntent.supportSchedules} />
+        ) : activeItem.key === "supportPauses" ? (
           <SupportPausesView user={user} />
         ) : activeItem.key === "supportPerformance" ? (
           <SupportPerformanceView user={user} />

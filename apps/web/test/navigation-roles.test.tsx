@@ -27,6 +27,11 @@ vi.mock("../src/views/service-flows", () => ({ ServiceFlowsView: () => <div>Flux
 vi.mock("../src/views/settings", () => ({ SettingsView: () => null }));
 vi.mock("../src/views/statements", () => ({ StatementsView: () => null }));
 vi.mock("../src/views/support-pauses", () => ({ SupportPausesView: () => <div>Pausas SAC</div> }));
+vi.mock("../src/views/support-schedules", () => ({
+  SupportSchedulesView: ({ initialIntent }: { initialIntent?: { date?: string; teamId?: string; offerId?: string } }) => (
+    <div>Escalas SAC {initialIntent?.date} {initialIntent?.teamId} {initialIntent?.offerId}</div>
+  )
+}));
 vi.mock("../src/views/support-performance", () => ({ SupportPerformanceView: () => <div>Performance SAC</div> }));
 vi.mock("../src/views/support-campaigns", () => ({ SupportCampaignsView: () => <div>Campanhas SAC</div> }));
 vi.mock("../src/views/users-teams", () => ({ UsersTeamsView: () => null }));
@@ -39,7 +44,9 @@ const adminUser = { ...sacUser, id: "user-admin", name: "Pessoa Admin", role: "A
 
 describe("role navigation guards", () => {
   beforeEach(() => {
+    vi.resetModules();
     document.body.innerHTML = '<div id="root"></div>';
+    window.history.replaceState(null, "", "/");
     apiMock.mockImplementation((path: string) => {
       if (path === "/v1/auth/me") return Promise.resolve({ user: sacUser });
       if (path === "/v1/auth/logout") return Promise.resolve({});
@@ -60,6 +67,8 @@ describe("role navigation guards", () => {
     expect(navigation).not.toHaveTextContent("Fluxos");
     fireEvent.click(primaryNav.getByRole("button", { name: /^SAC/ }));
     expect(navigation).toHaveTextContent("Fluxos");
+    const supportOptions = screen.getByRole("group", { name: "Opções de SAC" });
+    expect(supportOptions.textContent?.indexOf("Escalas")).toBeLessThan(supportOptions.textContent?.indexOf("Pausas") ?? -1);
     expect(navigation).not.toHaveTextContent("CaseFlow Admin");
     expect(navigation).not.toHaveTextContent("Auditoria");
 
@@ -105,5 +114,15 @@ describe("role navigation guards", () => {
 
     fireEvent.click(adminPrimaryNav.getByRole("button", { name: /CaseFlow Admin/ }));
     expect(await screen.findByText("Administração CaseFlow carregada")).toBeInTheDocument();
+  });
+
+  it("boots directly into a schedule deep link with its typed intent", async () => {
+    window.history.replaceState(null, "", "/escalas?date=2099-07-15&teamId=team-1&offerId=offer-7");
+    await import("../src/main");
+
+    expect(await screen.findByText("Escalas SAC 2099-07-15 team-1 offer-7")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Escalas" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/escalas");
+    expect(window.location.search).toContain("offerId=offer-7");
   });
 });
