@@ -76,6 +76,13 @@ model Organization {
   supportPauseSlots             SupportPauseSlot[]
   supportPauseBookings          SupportPauseBooking[]
   supportPauseSwaps             SupportPauseSwap[]
+  supportScheduleRuleVersions   SupportScheduleRuleVersion[]
+  supportShiftPatternVersions   SupportShiftPatternVersion[]
+  supportShiftAssignments       SupportShiftAssignment[]
+  supportShiftOccurrences       SupportShiftOccurrence[]
+  supportShiftOffers            SupportShiftOffer[]
+  supportExtraShiftSlots        SupportExtraShiftSlot[]
+  supportExtraShiftClaims       SupportExtraShiftClaim[]
   supportKpiEntries             SupportKpiEntry[]
   supportCampaigns              SupportCampaign[]
   serviceCases                  ServiceCase[]
@@ -209,6 +216,20 @@ model User {
   supportCampaignsCreated              SupportCampaign[]              @relation("SupportCampaignCreator")
   supportCampaignsUpdated              SupportCampaign[]              @relation("SupportCampaignUpdater")
   supportTeamMemberships               SupportTeamMembership[]
+  supportScheduleRulesCreated          SupportScheduleRuleVersion[]   @relation("SupportScheduleRuleCreator")
+  supportShiftPatternsCreated          SupportShiftPatternVersion[]   @relation("SupportShiftPatternCreator")
+  supportShiftAssignments              SupportShiftAssignment[]       @relation("SupportShiftAssignmentUser")
+  supportShiftAssignmentsCreated       SupportShiftAssignment[]       @relation("SupportShiftAssignmentCreator")
+  supportShiftAssignmentsUpdated       SupportShiftAssignment[]       @relation("SupportShiftAssignmentUpdater")
+  supportShiftOccurrences              SupportShiftOccurrence[]       @relation("SupportShiftOccurrenceUser")
+  supportShiftOccurrencesCreated       SupportShiftOccurrence[]       @relation("SupportShiftOccurrenceCreator")
+  supportShiftOccurrencesUpdated       SupportShiftOccurrence[]       @relation("SupportShiftOccurrenceUpdater")
+  supportShiftOffersCreated            SupportShiftOffer[]            @relation("SupportShiftOfferCreator")
+  supportShiftOffersTargeted           SupportShiftOffer[]            @relation("SupportShiftOfferTargetUser")
+  supportShiftOffersDecided            SupportShiftOffer[]            @relation("SupportShiftOfferDecider")
+  supportExtraShiftSlotsCreated        SupportExtraShiftSlot[]        @relation("SupportExtraShiftSlotCreator")
+  supportExtraShiftClaims              SupportExtraShiftClaim[]       @relation("SupportExtraShiftClaimUser")
+  supportExtraShiftClaimsDecided       SupportExtraShiftClaim[]       @relation("SupportExtraShiftClaimDecider")
 
   @@index([organizationId])
   @@index([role])
@@ -409,11 +430,18 @@ model SupportTeam {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization            @relation(fields: [organizationId], references: [id])
-  memberships  SupportTeamMembership[]
-  pauseSlots   SupportPauseSlot[]
-  kpiEntries   SupportKpiEntry[]
-  campaigns    SupportCampaign[]
+  organization         Organization                 @relation(fields: [organizationId], references: [id])
+  memberships          SupportTeamMembership[]
+  pauseSlots           SupportPauseSlot[]
+  kpiEntries           SupportKpiEntry[]
+  campaigns            SupportCampaign[]
+  scheduleRuleVersions SupportScheduleRuleVersion[]
+  shiftPatternVersions SupportShiftPatternVersion[]
+  shiftAssignments     SupportShiftAssignment[]
+  shiftOccurrences     SupportShiftOccurrence[]
+  shiftOffers          SupportShiftOffer[]
+  extraShiftSlots      SupportExtraShiftSlot[]
+  extraShiftClaims     SupportExtraShiftClaim[]
 
   @@unique([organizationId, name])
   @@index([organizationId, active])
@@ -436,6 +464,224 @@ model SupportTeamMembership {
   @@unique([teamId, userId, validFrom])
   @@index([organizationId, validFrom, validTo])
   @@index([userId, validFrom, validTo])
+}
+
+model SupportScheduleRuleVersion {
+  id                          String    @id @default(cuid())
+  organizationId              String
+  teamId                      String
+  version                     Int
+  timezone                    String    @default("America/Sao_Paulo")
+  maxDailyMinutes             Int       @default(840)
+  maxWeeklyMinutes            Int       @default(3600)
+  minimumRestMinutes          Int       @default(600)
+  minimumNoticeMinutes        Int       @default(60)
+  maxMonthlyExchanges         Int       @default(8)
+  autoApproveEligibleSwaps    Boolean   @default(true)
+  requireManagerExtraApproval Boolean   @default(true)
+  active                      Boolean   @default(true)
+  effectiveFrom               DateTime
+  effectiveTo                 DateTime?
+  createdById                 String
+  createdAt                   DateTime  @default(now())
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  team         SupportTeam              @relation(fields: [teamId], references: [id])
+  createdBy    User                     @relation("SupportScheduleRuleCreator", fields: [createdById], references: [id])
+  occurrences  SupportShiftOccurrence[]
+  offers       SupportShiftOffer[]
+  extraSlots   SupportExtraShiftSlot[]
+
+  @@unique([teamId, version])
+  @@index([organizationId, effectiveFrom, effectiveTo])
+  @@index([teamId, active, effectiveFrom])
+}
+
+model SupportShiftPatternVersion {
+  id             String    @id @default(cuid())
+  organizationId String
+  teamId         String
+  name           String
+  version        Int
+  startMinute    Int
+  endMinute      Int
+  weekdaysJson   String    @default("[1,2,3,4,5,6,0]")
+  timezone       String    @default("America/Sao_Paulo")
+  active         Boolean   @default(true)
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  createdById    String
+  createdAt      DateTime  @default(now())
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  team         SupportTeam              @relation(fields: [teamId], references: [id])
+  createdBy    User                     @relation("SupportShiftPatternCreator", fields: [createdById], references: [id])
+  assignments  SupportShiftAssignment[]
+  occurrences  SupportShiftOccurrence[]
+
+  @@unique([teamId, name, version])
+  @@index([organizationId, active])
+  @@index([teamId, effectiveFrom, effectiveTo])
+}
+
+model SupportShiftAssignment {
+  id               String    @id @default(cuid())
+  organizationId   String
+  teamId           String
+  userId           String
+  patternVersionId String
+  validFrom        DateTime
+  validTo          DateTime?
+  active           Boolean   @default(true)
+  createdById      String
+  updatedById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization   Organization               @relation(fields: [organizationId], references: [id])
+  team           SupportTeam                @relation(fields: [teamId], references: [id])
+  user           User                       @relation("SupportShiftAssignmentUser", fields: [userId], references: [id])
+  patternVersion SupportShiftPatternVersion @relation(fields: [patternVersionId], references: [id])
+  createdBy      User                       @relation("SupportShiftAssignmentCreator", fields: [createdById], references: [id])
+  updatedBy      User                       @relation("SupportShiftAssignmentUpdater", fields: [updatedById], references: [id])
+  occurrences    SupportShiftOccurrence[]
+
+  @@index([organizationId, userId, validFrom, validTo])
+  @@index([teamId, active, validFrom])
+  @@index([patternVersionId])
+}
+
+model SupportShiftOccurrence {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  teamId             String
+  userId             String
+  assignmentId       String?
+  patternVersionId   String?
+  ruleVersionId      String
+  localDate          String
+  startsAt           DateTime
+  endsAt             DateTime
+  kind               String    @default("REGULAR")
+  status             String    @default("PUBLISHED")
+  sourceType         String    @default("MATERIALIZED")
+  sourceId           String?
+  ruleSnapshotJson   String
+  publishedAt        DateTime  @default(now())
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdById        String
+  updatedById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization   Organization                @relation(fields: [organizationId], references: [id])
+  team           SupportTeam                 @relation(fields: [teamId], references: [id])
+  user           User                        @relation("SupportShiftOccurrenceUser", fields: [userId], references: [id])
+  assignment     SupportShiftAssignment?     @relation(fields: [assignmentId], references: [id])
+  patternVersion SupportShiftPatternVersion? @relation(fields: [patternVersionId], references: [id])
+  ruleVersion    SupportScheduleRuleVersion  @relation(fields: [ruleVersionId], references: [id])
+  createdBy      User                        @relation("SupportShiftOccurrenceCreator", fields: [createdById], references: [id])
+  updatedBy      User                        @relation("SupportShiftOccurrenceUpdater", fields: [updatedById], references: [id])
+  pauseBookings  SupportPauseBooking[]
+  offersCreated  SupportShiftOffer[]         @relation("SupportShiftOfferOccurrence")
+  offersTargeted SupportShiftOffer[]         @relation("SupportShiftOfferTargetOccurrence")
+  extraClaims    SupportExtraShiftClaim[]
+
+  @@unique([assignmentId, localDate])
+  @@index([organizationId, localDate, status])
+  @@index([teamId, startsAt, endsAt])
+  @@index([userId, startsAt, endsAt])
+}
+
+model SupportShiftOffer {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  teamId             String
+  occurrenceId       String
+  targetOccurrenceId String?
+  offeredById        String
+  targetUserId       String?
+  ruleVersionId      String
+  type               String    @default("SWAP")
+  status             String    @default("OPEN")
+  note               String?
+  policySnapshotJson String
+  expiresAt          DateTime?
+  peerAcceptedAt     DateTime?
+  decidedById        String?
+  decidedAt          DateTime?
+  decisionReason     String?
+  appliedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization     Organization               @relation(fields: [organizationId], references: [id])
+  team             SupportTeam                @relation(fields: [teamId], references: [id])
+  occurrence       SupportShiftOccurrence     @relation("SupportShiftOfferOccurrence", fields: [occurrenceId], references: [id])
+  targetOccurrence SupportShiftOccurrence?    @relation("SupportShiftOfferTargetOccurrence", fields: [targetOccurrenceId], references: [id])
+  offeredBy        User                       @relation("SupportShiftOfferCreator", fields: [offeredById], references: [id])
+  targetUser       User?                      @relation("SupportShiftOfferTargetUser", fields: [targetUserId], references: [id])
+  ruleVersion      SupportScheduleRuleVersion @relation(fields: [ruleVersionId], references: [id])
+  decidedBy        User?                      @relation("SupportShiftOfferDecider", fields: [decidedById], references: [id])
+
+  @@index([organizationId, status, expiresAt])
+  @@index([teamId, status])
+  @@index([offeredById, status])
+  @@index([targetUserId, status])
+}
+
+model SupportExtraShiftSlot {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  teamId             String
+  ruleVersionId      String
+  startsAt           DateTime
+  endsAt             DateTime
+  capacity           Int      @default(1)
+  status             String   @default("OPEN")
+  note               String?
+  policySnapshotJson String
+  createdById        String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization               @relation(fields: [organizationId], references: [id])
+  team         SupportTeam                @relation(fields: [teamId], references: [id])
+  ruleVersion  SupportScheduleRuleVersion @relation(fields: [ruleVersionId], references: [id])
+  createdBy    User                       @relation("SupportExtraShiftSlotCreator", fields: [createdById], references: [id])
+  claims       SupportExtraShiftClaim[]
+
+  @@unique([teamId, startsAt, endsAt])
+  @@index([organizationId, status, startsAt])
+}
+
+model SupportExtraShiftClaim {
+  id             String    @id @default(cuid())
+  organizationId String
+  teamId         String
+  slotId         String
+  userId         String
+  occurrenceId   String?
+  status         String    @default("PENDING")
+  note           String?
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  team         SupportTeam             @relation(fields: [teamId], references: [id])
+  slot         SupportExtraShiftSlot   @relation(fields: [slotId], references: [id])
+  user         User                    @relation("SupportExtraShiftClaimUser", fields: [userId], references: [id])
+  occurrence   SupportShiftOccurrence? @relation(fields: [occurrenceId], references: [id])
+  decidedBy    User?                   @relation("SupportExtraShiftClaimDecider", fields: [decidedById], references: [id])
+
+  @@unique([slotId, userId])
+  @@index([organizationId, status])
+  @@index([teamId, status])
+  @@index([userId, status])
 }
 
 model SupportPauseSlot {
@@ -468,6 +714,8 @@ model SupportPauseBooking {
   organizationId       String
   slotId               String
   userId               String
+  shiftOccurrenceId    String?
+  rescheduledFromId    String?
   status               String    @default("BOOKED")
   overrideReason       String?
   coverageBefore       Int?
@@ -478,18 +726,25 @@ model SupportPauseBooking {
   overrideRevokedById  String?
   overrideRevokedAt    DateTime?
   overrideRevokeReason String?
+  rescheduleRequiredAt DateTime?
+  rescheduleReason     String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  organization   Organization       @relation(fields: [organizationId], references: [id])
-  slot           SupportPauseSlot   @relation(fields: [slotId], references: [id])
-  user           User               @relation(fields: [userId], references: [id])
-  requestedSwaps SupportPauseSwap[] @relation("SupportPauseSwapRequesterBooking")
-  targetSwaps    SupportPauseSwap[] @relation("SupportPauseSwapTargetBooking")
+  organization    Organization            @relation(fields: [organizationId], references: [id])
+  slot            SupportPauseSlot        @relation(fields: [slotId], references: [id])
+  user            User                    @relation(fields: [userId], references: [id])
+  shiftOccurrence SupportShiftOccurrence? @relation(fields: [shiftOccurrenceId], references: [id])
+  rescheduledFrom SupportPauseBooking?    @relation("SupportPauseReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo   SupportPauseBooking[]   @relation("SupportPauseReschedule")
+  requestedSwaps  SupportPauseSwap[]      @relation("SupportPauseSwapRequesterBooking")
+  targetSwaps     SupportPauseSwap[]      @relation("SupportPauseSwapTargetBooking")
 
   @@unique([slotId, userId])
   @@index([organizationId, status])
   @@index([userId, status])
+  @@index([shiftOccurrenceId, status])
+  @@index([rescheduledFromId])
 }
 
 model SupportPauseSwap {
