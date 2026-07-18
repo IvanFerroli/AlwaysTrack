@@ -1,8 +1,21 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { commercialUserRoles, type UserRole } from "@alwaystrack/shared";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { userRoles, type UserRole } from "@alwaystrack/shared";
 import { api } from "../api";
 import { ConfirmButton, InfoTip, OperationalFilters, OperationalState, OperationalTable, StatusBadge } from "../components/operational";
-import type { SalesSellerItem } from "../sales";
+
+interface SupportTeamOption {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+interface SupportTeamMembershipItem {
+  id: string;
+  teamId: string;
+  validFrom: string;
+  validTo: string | null;
+  team: SupportTeamOption;
+}
 
 interface ManagedUserItem {
   id: string;
@@ -11,36 +24,29 @@ interface ManagedUserItem {
   role: UserRole;
   phone: string | null;
   active: boolean;
-  organizationId: string;
-  unitScopeIds: string[];
-  sectorScopeIds: string[];
-  sellerProfile?: {
-    id: string;
-    code: string;
-    displayName: string;
-    email: string | null;
-    phone: string | null;
-    active: boolean;
-    salesGroupId: string | null;
-    salesGroup: { id: string; name: string } | null;
-  } | null;
-  supervisedSalesGroups?: Array<{ id: string; name: string; active: boolean }>;
+  supportTeamMemberships?: SupportTeamMembershipItem[];
   createdAt: string;
   updatedAt: string;
 }
 
-interface SalesGroupOption {
-  id: string;
-  name: string;
-  active: boolean;
-  supervisorId?: string | null;
+const operationalCreateRoles = ["SAC", "GESTOR", "ADMIN"] as const;
+
+function roleLabel(role: string) {
+  if (["VENDEDOR", "SUPERVISOR", "FINANCEIRO"].includes(role)) return `${role} (legado)`;
+  return role;
 }
 
-const commercialCreateRoles = ["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"] as const;
+function currentMembership(user: ManagedUserItem, now = Date.now()) {
+  return user.supportTeamMemberships?.find((membership) => {
+    const starts = new Date(membership.validFrom).getTime();
+    const ends = membership.validTo ? new Date(membership.validTo).getTime() : Number.POSITIVE_INFINITY;
+    return starts <= now && ends > now;
+  }) ?? null;
+}
 
-function commercialRoleLabel(role: string) {
-  if (role === "VENDEDOR") return "VENDAS";
-  return role;
+function formatMembershipDate(value: string | null) {
+  if (!value) return "atual";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
 function digitsOnly(value: string) {
@@ -51,10 +57,8 @@ function formatBrazilPhoneCore(value: string) {
   const digits = digitsOnly(value).slice(0, 11);
   if (!digits) return "";
   if (digits.length <= 2) return `(${digits}`;
-
   const areaCode = digits.slice(0, 2);
   const local = digits.slice(2);
-
   if (local.length <= 4) return `(${areaCode}) ${local}`;
   if (local.length <= 8) return `(${areaCode}) ${local.slice(0, 4)}-${local.slice(4)}`;
   return `(${areaCode}) ${local.slice(0, 5)}-${local.slice(5, 9)}`;
@@ -73,30 +77,29 @@ function formatPhoneInput(value: string) {
 
 export function UsersTeamsView() {
   const [users, setUsers] = useState<ManagedUserItem[]>([]);
-  const [salesGroups, setSalesGroups] = useState<SalesGroupOption[]>([]);
+  const [supportTeams, setSupportTeams] = useState<SupportTeamOption[]>([]);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [groupFilter, setGroupFilter] = useState("");
+  const [teamFilter, setTeamFilter] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("VENDEDOR");
-  const [sellerCode, setSellerCode] = useState("");
-  const [sellerDisplayName, setSellerDisplayName] = useState("");
-  const [salesGroupId, setSalesGroupId] = useState("");
+  const [role, setRole] = useState<UserRole>("SAC");
+  const [supportTeamId, setSupportTeamId] = useState("");
   const [editingUserId, setEditingUserId] = useState("");
   const [editingName, setEditingName] = useState("");
   const [editingEmail, setEditingEmail] = useState("");
   const [editingPhone, setEditingPhone] = useState("");
-  const [editingRole, setEditingRole] = useState<UserRole>("VENDEDOR");
-  const [editingSellerCode, setEditingSellerCode] = useState("");
-  const [editingSellerDisplayName, setEditingSellerDisplayName] = useState("");
-  const [editingSalesGroupId, setEditingSalesGroupId] = useState("");
+  const [editingRole, setEditingRole] = useState<UserRole>("SAC");
+  const [editingSupportTeamId, setEditingSupportTeamId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const activeTeams = useMemo(() => supportTeams.filter((team) => team.active), [supportTeams]);
+  const editingUser = users.find((user) => user.id === editingUserId) ?? null;
 
   async function load() {
     setLoading(true);
@@ -104,13 +107,13 @@ export function UsersTeamsView() {
     try {
       const [usersResult, optionsResult] = await Promise.all([
         api<{ users: ManagedUserItem[] }>("/v1/users"),
-        api<{ salesGroups: SalesGroupOption[]; sellers: SalesSellerItem[] }>("/v1/users/commercial-options")
+        api<{ supportTeams: SupportTeamOption[] }>("/v1/users/operational-options")
       ]);
       setUsers(usersResult.users);
-      setSalesGroups(optionsResult.salesGroups);
-      setSalesGroupId((current) => current || optionsResult.salesGroups[0]?.id || "");
+      setSupportTeams(optionsResult.supportTeams);
+      setSupportTeamId((current) => current || optionsResult.supportTeams.find((team) => team.active)?.id || "");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar usuarios.");
+      setError(caught instanceof Error ? caught.message : "Falha ao carregar usuários.");
     } finally {
       setLoading(false);
     }
@@ -127,18 +130,10 @@ export function UsersTeamsView() {
       await action();
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao salvar usuario.");
+      setError(caught instanceof Error ? caught.message : "Falha ao salvar usuário.");
     } finally {
       setSaving(false);
     }
-  }
-
-  function commercialPayload(currentRole: UserRole, input: { sellerCode?: string; sellerDisplayName?: string; salesGroupId?: string }) {
-    return {
-      sellerCode: currentRole === "VENDEDOR" ? input.sellerCode || undefined : undefined,
-      sellerDisplayName: currentRole === "VENDEDOR" ? input.sellerDisplayName || undefined : undefined,
-      salesGroupId: currentRole === "VENDEDOR" || currentRole === "SUPERVISOR" ? input.salesGroupId || null : null
-    };
   }
 
   async function createUser(event: FormEvent) {
@@ -146,22 +141,13 @@ export function UsersTeamsView() {
     await run(async () => {
       await api("/v1/users", {
         method: "POST",
-        body: JSON.stringify({
-          name,
-          email,
-          phone: phone || null,
-          password,
-          role,
-          ...commercialPayload(role, { sellerCode, sellerDisplayName, salesGroupId })
-        })
+        body: JSON.stringify({ name, email, phone: phone || null, password, role, supportTeamId: role === "SAC" ? supportTeamId : null })
       });
       setName("");
       setEmail("");
       setPhone("");
       setPassword("");
-      setRole("VENDEDOR");
-      setSellerCode("");
-      setSellerDisplayName("");
+      setRole("SAC");
     });
   }
 
@@ -171,9 +157,7 @@ export function UsersTeamsView() {
     setEditingEmail(user.email);
     setEditingPhone(formatPhoneInput(user.phone ?? ""));
     setEditingRole(user.role);
-    setEditingSellerCode(user.sellerProfile?.code ?? "");
-    setEditingSellerDisplayName(user.sellerProfile?.displayName ?? user.name);
-    setEditingSalesGroupId(user.sellerProfile?.salesGroupId ?? user.supervisedSalesGroups?.[0]?.id ?? "");
+    setEditingSupportTeamId(currentMembership(user)?.teamId ?? activeTeams[0]?.id ?? "");
   }
 
   function cancelEdit() {
@@ -181,10 +165,8 @@ export function UsersTeamsView() {
     setEditingName("");
     setEditingEmail("");
     setEditingPhone("");
-    setEditingRole("VENDEDOR");
-    setEditingSellerCode("");
-    setEditingSellerDisplayName("");
-    setEditingSalesGroupId("");
+    setEditingRole("SAC");
+    setEditingSupportTeamId("");
   }
 
   async function saveEdit(event: FormEvent) {
@@ -197,11 +179,7 @@ export function UsersTeamsView() {
           email: editingEmail,
           phone: editingPhone || null,
           role: editingRole,
-          ...commercialPayload(editingRole, {
-            sellerCode: editingSellerCode,
-            sellerDisplayName: editingSellerDisplayName,
-            salesGroupId: editingSalesGroupId
-          })
+          supportTeamId: editingRole === "SAC" ? editingSupportTeamId : null
         })
       });
       cancelEdit();
@@ -212,64 +190,44 @@ export function UsersTeamsView() {
     const nextPassword = window.prompt(`Nova senha para ${user.email}`);
     if (!nextPassword) return;
     await run(async () => {
-      await api(`/v1/users/${user.id}/reset-password`, {
-        method: "POST",
-        body: JSON.stringify({ password: nextPassword })
-      });
+      await api(`/v1/users/${user.id}/reset-password`, { method: "POST", body: JSON.stringify({ password: nextPassword }) });
     });
   }
 
   const filteredUsers = users.filter((user) => {
-    const haystack = `${user.name} ${user.email} ${user.sellerProfile?.displayName ?? ""}`.toLowerCase();
-    const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
-    const matchesRole = !roleFilter || user.role === roleFilter;
-    const matchesStatus = !statusFilter || (statusFilter === "ACTIVE" ? user.active : !user.active);
-    const userGroupIds = new Set([user.sellerProfile?.salesGroupId, ...(user.supervisedSalesGroups ?? []).map((group) => group.id)].filter(Boolean));
-    const matchesGroup = !groupFilter || userGroupIds.has(groupFilter);
-    return matchesQuery && matchesRole && matchesStatus && matchesGroup;
+    const membership = currentMembership(user);
+    const haystack = `${user.name} ${user.email} ${membership?.team.name ?? ""}`.toLowerCase();
+    return (!query.trim() || haystack.includes(query.trim().toLowerCase()))
+      && (!roleFilter || user.role === roleFilter)
+      && (!statusFilter || (statusFilter === "ACTIVE" ? user.active : !user.active))
+      && (!teamFilter || membership?.teamId === teamFilter);
   });
 
-  if (loading) return <OperationalState state="loading" title="Carregando usuarios e times" />;
+  if (loading) return <OperationalState state="loading" title="Carregando usuários e times" />;
+
+  const editRoleOptions = operationalCreateRoles.includes(editingRole as (typeof operationalCreateRoles)[number])
+    ? [...operationalCreateRoles]
+    : [editingRole, ...operationalCreateRoles];
 
   return (
     <div className="content-stack">
-      {error ? <OperationalState state="error" title="Falha em usuarios" detail={error} /> : null}
+      {error ? <OperationalState state="error" title="Falha em usuários" detail={error} /> : null}
       <OperationalFilters
         fields={[
-          { key: "query", label: "Busca", value: query, placeholder: "Nome, email ou vendedor", help: "Busca usuarios e vinculos comerciais.", helpHref: "#usuarios-times", onChange: setQuery },
+          { key: "query", label: "Busca", value: query, placeholder: "Nome, email ou time", help: "Busca usuários e vínculos SAC.", helpHref: "#usuarios-times", onChange: setQuery },
           {
-            key: "role",
-            label: "Funcao",
-            value: roleFilter,
-            type: "select",
-            placeholder: "Todas",
-            options: commercialUserRoles.map((item) => ({ value: item, label: commercialRoleLabel(item) })),
-            help: "Roles comerciais controlam as telas e acoes disponiveis.",
-            helpHref: "#perfis-e-permissoes",
-            onChange: setRoleFilter
+            key: "role", label: "Função", value: roleFilter, type: "select", placeholder: "Todas",
+            options: userRoles.map((item) => ({ value: item, label: roleLabel(item) })),
+            help: "A função controla as telas e ações disponíveis.", helpHref: "#perfis-e-permissoes", onChange: setRoleFilter
           },
           {
-            key: "status",
-            label: "Status",
-            value: statusFilter,
-            type: "select",
-            placeholder: "Todos",
-            options: [
-              { value: "ACTIVE", label: "Ativos" },
-              { value: "INACTIVE", label: "Inativos" }
-            ],
-            onChange: setStatusFilter
+            key: "status", label: "Status", value: statusFilter, type: "select", placeholder: "Todos",
+            options: [{ value: "ACTIVE", label: "Ativos" }, { value: "INACTIVE", label: "Inativos" }], onChange: setStatusFilter
           },
           {
-            key: "group",
-            label: "Grupo",
-            value: groupFilter,
-            type: "select",
-            placeholder: "Todos",
-            options: salesGroups.map((group) => ({ value: group.id, label: group.name })),
-            help: "Filtra vendedores vinculados ao grupo ou supervisores responsaveis por ele.",
-            helpHref: "#usuarios-times",
-            onChange: setGroupFilter
+            key: "team", label: "Time SAC", value: teamFilter, type: "select", placeholder: "Todos",
+            options: supportTeams.map((team) => ({ value: team.id, label: `${team.name}${team.active ? "" : " (inativo)"}` })),
+            help: "Filtra pela lotação vigente, preservando o histórico anterior.", helpHref: "#usuarios-times", onChange: setTeamFilter
           }
         ]}
         onSubmit={() => undefined}
@@ -278,124 +236,61 @@ export function UsersTeamsView() {
       <section className="panel form-panel">
         <form onSubmit={createUser}>
           <div className="table-panel-toolbar">
-            <div>
-              <p className="eyebrow">Admin</p>
-              <h2>Criar usuario comercial</h2>
-            </div>
+            <div><p className="eyebrow">Admin</p><h2>Criar usuário operacional</h2></div>
           </div>
           <div className="form-grid">
+            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} required /></label>
+            <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
+            <label>Telefone<input inputMode="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} /></label>
+            <label>Senha inicial<input minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
             <label>
-              Nome
-              <input value={name} onChange={(event) => setName(event.target.value)} />
-            </label>
-            <label>
-              Email
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            </label>
-            <label>
-              Telefone
-              <input inputMode="tel" value={phone} onChange={(event) => setPhone(formatPhoneInput(event.target.value))} />
-            </label>
-            <label>
-              Senha inicial
-              <input minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-            </label>
-            <label>
-              <span className="label-row">Funcao <InfoTip text="Criacao nova aceita ADMIN, SAC, VENDAS e SUPERVISOR." href="#usuarios-times" /></span>
+              <span className="label-row">Função <InfoTip text="Novos acessos são criados para SAC, Gestor ou Admin. Perfis comerciais permanecem apenas como histórico." href="#usuarios-times" /></span>
               <select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
-                {commercialCreateRoles.map((item) => (
-                  <option key={item} value={item}>
-                    {commercialRoleLabel(item)}
-                  </option>
-                ))}
+                {operationalCreateRoles.map((item) => <option key={item} value={item}>{roleLabel(item)}</option>)}
               </select>
             </label>
-            {role === "VENDEDOR" ? (
-              <>
-                <label>
-                  Codigo vendedor
-                  <input value={sellerCode} onChange={(event) => setSellerCode(event.target.value)} placeholder="VD-004" />
-                </label>
-                <label>
-                  Nome comercial
-                  <input value={sellerDisplayName} onChange={(event) => setSellerDisplayName(event.target.value)} placeholder={name || "Nome no ranking"} />
-                </label>
-              </>
-            ) : null}
-            {role === "VENDEDOR" || role === "SUPERVISOR" ? (
-              <label>
-                Grupo comercial
-                <select value={salesGroupId} onChange={(event) => setSalesGroupId(event.target.value)}>
-                  <option value="">Sem grupo</option>
-                  {salesGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            {role === "SAC" ? (
+              <label>Time SAC<select required value={supportTeamId} onChange={(event) => setSupportTeamId(event.target.value)}>
+                <option value="">Selecione</option>
+                {activeTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              </select></label>
             ) : null}
           </div>
           <div className="form-actions">
-            <button disabled={saving || !name.trim() || !email.trim() || password.length < 8}>Criar usuario</button>
+            <button disabled={saving || !name.trim() || !email.trim() || password.length < 8 || (role === "SAC" && !supportTeamId)}>Criar usuário</button>
           </div>
         </form>
       </section>
 
       <section className="panel table-panel">
         <div className="table-panel-toolbar">
-          <div>
-            <p className="eyebrow">Usuarios/Times</p>
-            <h2>Usuarios comerciais</h2>
-          </div>
-          <span className="status-badge">{filteredUsers.length} usuario(s)</span>
+          <div><p className="eyebrow">Usuários/Times</p><h2>Operação e acessos legados</h2></div>
+          <span className="status-badge">{filteredUsers.length} usuário(s)</span>
         </div>
         {filteredUsers.length === 0 ? (
-          <OperationalState state="empty" title="Nenhum usuario encontrado" detail="Crie usuários e vincule vendedores para alimentar notas, ranking e extratos." />
+          <OperationalState state="empty" title="Nenhum usuário encontrado" detail="Crie um acesso operacional ou ajuste os filtros." />
         ) : (
           <OperationalTable
             items={filteredUsers}
             getRowKey={(item) => item.id}
             columns={[
-              { key: "user", header: "Usuario", render: (item) => `${item.name} (${item.email})` },
-              { key: "role", header: "Funcao", render: (item) => commercialRoleLabel(item.role) },
-              {
-                key: "link",
-                header: "Vinculo comercial",
-                render: (item) =>
-                  item.sellerProfile
-                    ? `${item.sellerProfile.displayName} / ${item.sellerProfile.salesGroup?.name ?? "Sem grupo"}`
-                    : item.supervisedSalesGroups?.length
-                      ? `Supervisor: ${item.supervisedSalesGroups.map((group) => group.name).join(", ")}`
-                      : "-"
-              },
+              { key: "user", header: "Usuário", render: (item) => `${item.name} (${item.email})` },
+              { key: "role", header: "Função", render: (item) => roleLabel(item.role) },
+              { key: "team", header: "Time SAC atual", render: (item) => currentMembership(item)?.team.name ?? "-" },
               { key: "phone", header: "Telefone", render: (item) => item.phone ?? "-" },
               { key: "status", header: "Status", render: (item) => <StatusBadge kind="active" value={item.active ? "ACTIVE" : "INACTIVE"} /> },
               {
-                key: "actions",
-                header: "Acoes",
-                render: (item) => (
+                key: "actions", header: "Ações", render: (item) => (
                   <div className="row-actions">
-                    <button className="secondary small" type="button" onClick={() => startEdit(item)}>
-                      Editar
-                    </button>
-                    <button className="secondary small" type="button" onClick={() => void resetPassword(item)}>
-                      Resetar senha
-                    </button>
+                    <button className="secondary small" type="button" onClick={() => startEdit(item)}>Editar</button>
+                    <button className="secondary small" type="button" onClick={() => void resetPassword(item)}>Resetar senha</button>
                     <ConfirmButton
                       disabled={saving}
-                      confirmLabel={item.active ? "Confirmar desativacao" : "Confirmar reativacao"}
-                      onConfirm={() =>
-                        void run(async () => {
-                          await api(`/v1/users/${item.id}`, {
-                            method: "PATCH",
-                            body: JSON.stringify({ active: !item.active })
-                          });
-                        })
-                      }
-                    >
-                      {item.active ? "Desativar" : "Reativar"}
-                    </ConfirmButton>
+                      confirmLabel={item.active ? "Confirmar desativação" : "Confirmar reativação"}
+                      onConfirm={() => void run(async () => {
+                        await api(`/v1/users/${item.id}`, { method: "PATCH", body: JSON.stringify({ active: !item.active }) });
+                      })}
+                    >{item.active ? "Desativar" : "Reativar"}</ConfirmButton>
                   </div>
                 )
               }
@@ -408,66 +303,33 @@ export function UsersTeamsView() {
         <section className="panel form-panel">
           <form onSubmit={saveEdit}>
             <div className="table-panel-toolbar">
-              <div>
-                <p className="eyebrow">Edicao</p>
-                <h2>Editar usuario</h2>
-              </div>
-              <button className="secondary" disabled={saving} type="button" onClick={cancelEdit}>
-                Cancelar
-              </button>
+              <div><p className="eyebrow">Edição</p><h2>Editar usuário</h2></div>
+              <button className="secondary" disabled={saving} type="button" onClick={cancelEdit}>Cancelar</button>
             </div>
             <div className="form-grid">
-              <label>
-                Nome
-                <input value={editingName} onChange={(event) => setEditingName(event.target.value)} />
-              </label>
-              <label>
-                Email
-                <input type="email" value={editingEmail} onChange={(event) => setEditingEmail(event.target.value)} />
-              </label>
-              <label>
-                Telefone
-                <input inputMode="tel" value={editingPhone} onChange={(event) => setEditingPhone(formatPhoneInput(event.target.value))} />
-              </label>
-              <label>
-                Funcao
-                <select value={editingRole} onChange={(event) => setEditingRole(event.target.value as UserRole)}>
-                  {commercialUserRoles.map((item) => (
-                    <option key={item} value={item}>
-                      {commercialRoleLabel(item)}
-                    </option>
-                  ))}
-                  {!commercialUserRoles.includes(editingRole as never) ? <option value={editingRole}>{editingRole}</option> : null}
-                </select>
-              </label>
-              {editingRole === "VENDEDOR" ? (
-                <>
-                  <label>
-                    Codigo vendedor
-                    <input value={editingSellerCode} onChange={(event) => setEditingSellerCode(event.target.value)} />
-                  </label>
-                  <label>
-                    Nome comercial
-                    <input value={editingSellerDisplayName} onChange={(event) => setEditingSellerDisplayName(event.target.value)} />
-                  </label>
-                </>
-              ) : null}
-              {editingRole === "VENDEDOR" || editingRole === "SUPERVISOR" ? (
-                <label>
-                  Grupo comercial
-                  <select value={editingSalesGroupId} onChange={(event) => setEditingSalesGroupId(event.target.value)}>
-                    <option value="">Sem grupo</option>
-                    {salesGroups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <label>Nome<input value={editingName} onChange={(event) => setEditingName(event.target.value)} required /></label>
+              <label>Email<input type="email" value={editingEmail} onChange={(event) => setEditingEmail(event.target.value)} required /></label>
+              <label>Telefone<input inputMode="tel" value={editingPhone} onChange={(event) => setEditingPhone(formatPhoneInput(event.target.value))} /></label>
+              <label>Função<select value={editingRole} onChange={(event) => setEditingRole(event.target.value as UserRole)}>
+                {editRoleOptions.map((item) => <option key={item} value={item}>{roleLabel(item)}</option>)}
+              </select></label>
+              {editingRole === "SAC" ? (
+                <label>Time SAC<select required value={editingSupportTeamId} onChange={(event) => setEditingSupportTeamId(event.target.value)}>
+                  <option value="">Selecione</option>
+                  {activeTeams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                </select></label>
               ) : null}
             </div>
+            {editingUser?.supportTeamMemberships?.length ? (
+              <div className="support-membership-history">
+                <strong>Histórico de times</strong>
+                <ul>{editingUser.supportTeamMemberships.map((membership) => (
+                  <li key={membership.id}>{membership.team.name}: {formatMembershipDate(membership.validFrom)} até {formatMembershipDate(membership.validTo)}</li>
+                ))}</ul>
+              </div>
+            ) : null}
             <div className="form-actions">
-              <button disabled={saving || !editingName.trim() || !editingEmail.trim()}>Salvar usuario</button>
+              <button disabled={saving || !editingName.trim() || !editingEmail.trim() || (editingRole === "SAC" && !editingSupportTeamId)}>Salvar usuário</button>
             </div>
           </form>
         </section>

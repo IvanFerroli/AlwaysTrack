@@ -19,7 +19,8 @@ describe("users service", () => {
         name: " Admin ",
         email: " ADMIN@EXAMPLE.COM ",
         password: "Rastro#Seguro2026",
-        role: "VENDEDOR",
+        role: "SAC",
+        supportTeamId: " team-1 ",
         phone: "",
         unitScopeIds: ["unit-1", "unit-1", ""],
         ignored: true
@@ -28,14 +29,15 @@ describe("users service", () => {
       name: "Admin",
       email: "admin@example.com",
       password: "Rastro#Seguro2026",
-      role: "VENDEDOR",
+      role: "SAC",
       phone: null,
       active: undefined,
       unitScopeIds: ["unit-1"],
       sectorScopeIds: undefined,
       sellerCode: undefined,
       sellerDisplayName: undefined,
-      salesGroupId: undefined
+      salesGroupId: undefined,
+      supportTeamId: "team-1"
     });
   });
 
@@ -83,6 +85,12 @@ describe("users service", () => {
       unit: { count: vi.fn().mockResolvedValue(1) },
       sector: { count: vi.fn().mockResolvedValue(0) },
       salesGroup: { findFirst: vi.fn() },
+      supportTeam: { findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC Atendimento" }) },
+      supportTeamMembership: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: "membership-1" }),
+        updateMany: vi.fn()
+      },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
@@ -91,7 +99,8 @@ describe("users service", () => {
       email: "sac@example.com",
       password: "Rastro#Seguro2026",
       role: "SAC",
-      unitScopeIds: ["unit-1"]
+      unitScopeIds: ["unit-1"],
+      supportTeamId: "team-1"
     });
 
     expect(prisma.user.create).toHaveBeenCalledWith({
@@ -104,6 +113,9 @@ describe("users service", () => {
     });
     expect(user).not.toHaveProperty("passwordHash");
     expect(user.unitScopeIds).toEqual(["unit-1"]);
+    expect(prisma.supportTeamMembership.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ organizationId: "org-1", teamId: "team-1", userId: "user-1" })
+    });
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ action: "user.create", entityType: "User", actorId: "admin-1" })
@@ -146,7 +158,7 @@ describe("users service", () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it("creates a seller profile when creating a seller user", async () => {
+  it("rejects creation of new legacy sales users", async () => {
     const prisma = {
       user: {
         findUnique: vi.fn().mockResolvedValue(null),
@@ -173,7 +185,7 @@ describe("users service", () => {
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
-    await createManagedUser(prisma as never, actor, {
+    await expect(createManagedUser(prisma as never, actor, {
       name: "Ana",
       email: "ana@example.com",
       password: "Rastro#Seguro2026",
@@ -182,18 +194,8 @@ describe("users service", () => {
       sellerCode: "VD-004",
       sellerDisplayName: "Ana Vendas",
       salesGroupId: "group-1"
-    });
-
-    expect(prisma.sellerProfile.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        organizationId: "org-1",
-        userId: "seller-user-1",
-        code: "VD-004",
-        displayName: "Ana Vendas",
-        salesGroupId: "group-1",
-        active: true
-      })
-    });
+    })).rejects.toEqual(new UserManagementError("INVALID_INPUT"));
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it("assigns a sales group when updating a supervisor", async () => {
@@ -219,6 +221,7 @@ describe("users service", () => {
         findFirst: vi.fn().mockResolvedValue({ id: "group-1", organizationId: "org-1" }),
         update: vi.fn().mockResolvedValue({ id: "group-1" })
       },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue(null), updateMany: vi.fn() },
       auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
     };
 
@@ -228,6 +231,40 @@ describe("users service", () => {
       where: { id: "group-1" },
       data: { supervisorId: "sup-1" }
     });
+  });
+
+  it("changes SAC team by closing the previous membership and preserving history", async () => {
+    const previousMembership = { id: "membership-1", teamId: "team-1", team: { id: "team-1", name: "SAC A" } };
+    const prisma = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({ id: "sac-1", role: "SAC", organizationId: "org-1" }),
+        update: vi.fn().mockResolvedValue({
+          id: "sac-1", name: "Ana", email: "ana@example.com", passwordHash: "secret", role: "SAC", phone: null,
+          active: true, organizationId: "org-1", unitScopeJson: null, sectorScopeJson: null, createdAt: new Date(), updatedAt: new Date()
+        })
+      },
+      salesGroup: { findFirst: vi.fn() },
+      supportTeam: { findFirst: vi.fn().mockResolvedValue({ id: "team-2", name: "SAC B" }) },
+      supportTeamMembership: {
+        findFirst: vi.fn().mockResolvedValue(previousMembership),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({ id: "membership-2" })
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({ id: "audit-1" }) }
+    };
+
+    await updateManagedUser(prisma as never, actor, "sac-1", { role: "SAC", supportTeamId: "team-2" });
+
+    expect(prisma.supportTeamMembership.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "sac-1", OR: expect.any(Array) }),
+      data: { validTo: expect.any(Date) }
+    }));
+    expect(prisma.supportTeamMembership.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: "team-2", userId: "sac-1", validFrom: expect.any(Date) })
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_team.membership.change", entityType: "SupportTeamMembership" })
+    }));
   });
 
   it("does not allow an admin to deactivate itself", async () => {

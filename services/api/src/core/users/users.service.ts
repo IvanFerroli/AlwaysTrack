@@ -35,6 +35,7 @@ export interface UserManagementInput {
   sellerCode?: string;
   sellerDisplayName?: string;
   salesGroupId?: string | null;
+  supportTeamId?: string | null;
 }
 
 function cleanText(value: unknown) {
@@ -76,9 +77,9 @@ function cleanRole(value: unknown) {
   return typeof value === "string" && userRoles.includes(value as UserRole) ? (value as UserRole) : undefined;
 }
 
-function cleanCommercialCreateRole(value: unknown) {
+function cleanOperationalCreateRole(value: unknown) {
   const role = cleanRole(value);
-  return role && ["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"].includes(role) ? role : undefined;
+  return role && ["ADMIN", "GESTOR", "SAC"].includes(role) ? role : undefined;
 }
 
 function isCommercialRole(role: string): role is UserRole {
@@ -121,6 +122,10 @@ function profileSelect() {
     organization: { select: { id: true, name: true } },
     sellerProfile: { include: { salesGroup: true } },
     supervisedSalesGroups: true,
+    supportTeamMemberships: {
+      include: { team: true },
+      orderBy: { validFrom: "desc" }
+    },
     googleConnection: { select: { id: true, connectedAt: true } }
   } as const;
 }
@@ -130,14 +135,15 @@ export function parseCreateUserInput(payload: unknown): UserManagementInput {
     name: optionalString(input, "name", { maxLength: 120 }),
     email: optionalString(input, "email", { maxLength: 320 })?.toLowerCase(),
     password: optionalString(input, "password", { maxLength: 256 }),
-    role: cleanCommercialCreateRole(optionalEnum(input, "role", userRoles)),
+    role: cleanOperationalCreateRole(optionalEnum(input, "role", userRoles)),
     phone: optionalString(input, "phone", { maxLength: 40, nullable: true }),
     active: optionalBoolean(input, "active"),
     unitScopeIds: cleanScopeIds(optionalStringArray(input, "unitScopeIds", { maxItems: 100, itemMaxLength: 80 })),
     sectorScopeIds: cleanScopeIds(optionalStringArray(input, "sectorScopeIds", { maxItems: 100, itemMaxLength: 80 })),
     sellerCode: optionalString(input, "sellerCode", { maxLength: 40 }),
     sellerDisplayName: optionalString(input, "sellerDisplayName", { maxLength: 120 }),
-    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true })
+    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true }),
+    supportTeamId: optionalString(input, "supportTeamId", { maxLength: 80, nullable: true })
   }));
 }
 
@@ -152,7 +158,8 @@ export function parseUpdateUserInput(payload: unknown): UserManagementInput {
     sectorScopeIds: cleanScopeIds(optionalStringArray(input, "sectorScopeIds", { maxItems: 100, itemMaxLength: 80 })),
     sellerCode: optionalString(input, "sellerCode", { maxLength: 40 }),
     sellerDisplayName: optionalString(input, "sellerDisplayName", { maxLength: 120 }),
-    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true })
+    salesGroupId: optionalString(input, "salesGroupId", { maxLength: 80, nullable: true }),
+    supportTeamId: optionalString(input, "supportTeamId", { maxLength: 80, nullable: true })
   }));
 }
 
@@ -211,6 +218,85 @@ async function ensureSalesGroupBelongsToOrganization(prisma: PrismaClient, actor
   if (!group) throw new UserManagementError("INVALID_INPUT");
 }
 
+async function ensureSupportTeamBelongsToOrganization(prisma: PrismaClient, actor: ActorContext, supportTeamId: string) {
+  const team = await prisma.supportTeam.findFirst({
+    where: { id: supportTeamId, organizationId: actor.organizationId, active: true },
+    select: { id: true, name: true }
+  });
+  if (!team) throw new UserManagementError("INVALID_INPUT");
+  return team;
+}
+
+async function syncSupportMembership(
+  prisma: PrismaClient,
+  actor: ActorContext,
+  user: { id: string; role: string },
+  input: UserManagementInput
+) {
+  const now = new Date();
+  const activeMembership = await prisma.supportTeamMembership.findFirst({
+    where: {
+      organizationId: actor.organizationId,
+      userId: user.id,
+      validFrom: { lte: now },
+      OR: [{ validTo: null }, { validTo: { gt: now } }]
+    },
+    include: { team: true },
+    orderBy: { validFrom: "desc" }
+  });
+
+  if (user.role === "SAC") {
+    const supportTeamId = input.supportTeamId ?? activeMembership?.teamId;
+    if (!supportTeamId) throw new UserManagementError("INVALID_INPUT");
+    const team = await ensureSupportTeamBelongsToOrganization(prisma, actor, supportTeamId);
+    if (activeMembership?.teamId === supportTeamId) return;
+
+    if (activeMembership) {
+      await prisma.supportTeamMembership.updateMany({
+        where: {
+          organizationId: actor.organizationId,
+          userId: user.id,
+          validFrom: { lte: now },
+          OR: [{ validTo: null }, { validTo: { gt: now } }]
+        },
+        data: { validTo: now }
+      });
+    }
+    const membership = await prisma.supportTeamMembership.create({
+      data: { organizationId: actor.organizationId, teamId: supportTeamId, userId: user.id, validFrom: now }
+    });
+    await recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      action: activeMembership ? "support_team.membership.change" : "support_team.membership.start",
+      entityType: "SupportTeamMembership",
+      entityId: membership.id,
+      metadata: { userId: user.id, teamId: team.id, teamName: team.name, previousTeamId: activeMembership?.teamId ?? null }
+    });
+    return;
+  }
+
+  if (activeMembership && input.role !== undefined) {
+    await prisma.supportTeamMembership.updateMany({
+      where: {
+        organizationId: actor.organizationId,
+        userId: user.id,
+        validFrom: { lte: now },
+        OR: [{ validTo: null }, { validTo: { gt: now } }]
+      },
+      data: { validTo: now }
+    });
+    await recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      action: "support_team.membership.end",
+      entityType: "SupportTeamMembership",
+      entityId: activeMembership.id,
+      metadata: { userId: user.id, teamId: activeMembership.teamId }
+    });
+  }
+}
+
 function defaultSellerCode(input: UserManagementInput, userId: string) {
   return (input.sellerCode ?? input.email?.split("@")[0] ?? userId).replace(/[^\w.-]/g, "-").slice(0, 40);
 }
@@ -259,7 +345,8 @@ export async function listManagedUsers(prisma: PrismaClient, actor: ActorContext
     where: { organizationId: actor.organizationId },
     include: {
       sellerProfile: { include: { salesGroup: true } },
-      supervisedSalesGroups: true
+      supervisedSalesGroups: true,
+      supportTeamMemberships: { include: { team: true }, orderBy: { validFrom: "desc" } }
     },
     orderBy: [{ active: "desc" }, { role: "asc" }, { name: "asc" }]
   });
@@ -283,6 +370,14 @@ export async function listCommercialUserOptions(prisma: PrismaClient, actor: Act
   return { salesGroups, sellers };
 }
 
+export async function listOperationalUserOptions(prisma: PrismaClient, actor: ActorContext) {
+  const supportTeams = await prisma.supportTeam.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ active: "desc" }, { name: "asc" }]
+  });
+  return { supportTeams };
+}
+
 export async function createManagedUser(prisma: PrismaClient, actor: ActorContext, input: UserManagementInput) {
   if (!input.name || !input.email || !input.password || !input.role) {
     throw new UserManagementError("INVALID_INPUT");
@@ -290,7 +385,7 @@ export async function createManagedUser(prisma: PrismaClient, actor: ActorContex
   if (!validatePasswordPolicy(input.password, { email: input.email }).valid) {
     throw new UserManagementError("INVALID_INPUT");
   }
-  if (!["ADMIN", "SAC", "VENDEDOR", "SUPERVISOR"].includes(input.role)) {
+  if (!["ADMIN", "GESTOR", "SAC"].includes(input.role)) {
     throw new UserManagementError("INVALID_INPUT");
   }
 
@@ -313,6 +408,7 @@ export async function createManagedUser(prisma: PrismaClient, actor: ActorContex
   });
 
   await syncCommercialLinks(prisma, actor, user, input);
+  if (user.role === "SAC") await syncSupportMembership(prisma, actor, user, input);
 
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
@@ -347,7 +443,8 @@ export async function updateManagedUser(
     input.sectorScopeIds === undefined &&
     input.sellerCode === undefined &&
     input.sellerDisplayName === undefined &&
-    input.salesGroupId === undefined
+    input.salesGroupId === undefined &&
+    input.supportTeamId === undefined
   ) {
     throw new UserManagementError("INVALID_INPUT");
   }
@@ -382,6 +479,9 @@ export async function updateManagedUser(
   });
 
   await syncCommercialLinks(prisma, actor, user, input);
+  if (input.role !== undefined || input.supportTeamId !== undefined) {
+    await syncSupportMembership(prisma, actor, user, input);
+  }
 
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
@@ -399,7 +499,8 @@ export async function updateManagedUser(
       sectorScopeIds: input.sectorScopeIds,
       sellerCode: input.sellerCode,
       sellerDisplayName: input.sellerDisplayName,
-      salesGroupId: input.salesGroupId
+      salesGroupId: input.salesGroupId,
+      supportTeamId: input.supportTeamId
     }
   });
 

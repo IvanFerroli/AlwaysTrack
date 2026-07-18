@@ -39,6 +39,7 @@ import {
   createUserHandler,
   getProfileHandler,
   listCommercialUserOptionsHandler,
+  listOperationalUserOptionsHandler,
   listUsersHandler,
   resetUserPasswordHandler,
   updateProfileHandler,
@@ -477,6 +478,7 @@ export function createApp() {
   app.patch("/v1/organization/sectors/:sectorId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, updateSectorHandler);
   app.get("/v1/users", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, listUsersHandler);
   app.get("/v1/users/commercial-options", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, listCommercialUserOptionsHandler);
+  app.get("/v1/users/operational-options", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, listOperationalUserOptionsHandler);
   app.post("/v1/users", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, createUserHandler);
   app.patch("/v1/users/:userId", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, updateUserHandler);
   app.post("/v1/users/:userId/reset-password", requireAuth, requireRole(adminOnlyRoles), rateLimits.adminSensitive, resetUserPasswordHandler);

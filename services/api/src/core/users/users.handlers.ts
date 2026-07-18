@@ -6,6 +6,7 @@ import {
   createManagedUser,
   getUserProfile,
   listCommercialUserOptions,
+  listOperationalUserOptions,
   listManagedUsers,
   parseCreateUserInput,
   parseProfileInput,
@@ -77,6 +78,14 @@ export async function updateProfileHandler(request: Request, response: Response)
 export async function listCommercialUserOptionsHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await listCommercialUserOptions(prisma, actorFrom(request)));
+  } catch (error) {
+    return sendUserManagementError(response, error);
+  }
+}
+
+export async function listOperationalUserOptionsHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await listOperationalUserOptions(prisma, actorFrom(request)));
   } catch (error) {
     return sendUserManagementError(response, error);
   }
