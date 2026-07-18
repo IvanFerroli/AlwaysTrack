@@ -196,6 +196,36 @@ describe("support operations service", () => {
     expect(overridden.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_pause.booking.override" }) }));
   });
 
+  it("returns an existing active booking for an idempotent retry", async () => {
+    const slot = {
+      id: "slot-1",
+      organizationId: "org-1",
+      startsAt: new Date("2099-07-17T15:00:00.000Z"),
+      endsAt: new Date("2099-07-17T16:15:00.000Z"),
+      capacity: 1,
+      teamId: null,
+      bookings: [{ id: "booking-1", userId: "sac-1" }]
+    };
+    const booking = { id: "booking-1", slotId: slot.id, userId: "sac-1", status: "BOOKED" };
+    const tx = {
+      supportPauseSlot: { findFirst: vi.fn().mockResolvedValue(slot) },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }) },
+      supportPauseBooking: {
+        findUnique: vi.fn().mockResolvedValue(booking),
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn()
+      }
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(bookSupportPauseSlot(prisma as never, sac, slot.id, {}))
+      .resolves.toEqual({ booking, idempotent: true });
+    expect(tx.supportPauseBooking.findFirst).not.toHaveBeenCalled();
+    expect(tx.supportPauseBooking.create).not.toHaveBeenCalled();
+    expect(tx.supportPauseBooking.update).not.toHaveBeenCalled();
+  });
+
   it("requires a reason and explicit impact confirmation for a manager override", async () => {
     const prisma = { $transaction: vi.fn() };
 

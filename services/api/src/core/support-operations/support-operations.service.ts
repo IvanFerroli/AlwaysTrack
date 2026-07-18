@@ -573,12 +573,15 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
         if (!slot) throw new SupportOperationsError("NOT_FOUND");
         if (slot.startsAt <= new Date()) throw new SupportOperationsError("CONFLICT");
         await ensureSupportAgent(tx, actor.organizationId, requestedUserId, slot.teamId, slot.startsAt);
+        const existing = await tx.supportPauseBooking.findUnique({ where: { slotId_userId: { slotId, userId: requestedUserId } } });
+        if (existing?.status === "BOOKED") return { booking: existing, idempotent: true };
         if (slot.bookings.length >= slot.capacity && !overrideCoverage) throw new SupportOperationsError("CONFLICT");
         const existingOverlap = await tx.supportPauseBooking.findFirst({
           where: {
             organizationId: actor.organizationId,
             userId: requestedUserId,
             status: "BOOKED",
+            id: existing ? { not: existing.id } : undefined,
             slot: overlaps(slot.startsAt, slot.endsAt)
           }
         });
@@ -612,7 +615,6 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
         const breachesCoverage = coverageAfter < minimumCoverage;
         if (!overrideCoverage && breachesCoverage) throw new SupportOperationsError("CONFLICT");
         if (overrideCoverage && !exceedsSlotCapacity && !breachesCoverage) throw new SupportOperationsError("INVALID_INPUT");
-        const existing = await tx.supportPauseBooking.findUnique({ where: { slotId_userId: { slotId, userId: requestedUserId } } });
         const overrideData = overrideCoverage ? {
           overrideReason,
           coverageBefore,
