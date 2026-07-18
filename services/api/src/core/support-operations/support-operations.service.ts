@@ -1,5 +1,16 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import type { CurrentUser } from "@alwaystrack/shared";
+import {
+  SUPPORT_PERFORMANCE_DICTIONARY_VERSION,
+  getSupportMetricDefinition,
+  supportMetricDataStates,
+  supportMetricDefinitions,
+  supportMetricGranularities,
+  supportObservationTypes,
+  type CurrentUser,
+  type SupportMetricDefinition,
+  type SupportMetricKey,
+  type WritableSupportMetricKey
+} from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { emitInAppNotifications } from "../notifications/notifications.service.js";
 import {
@@ -10,8 +21,7 @@ import {
   supportZonedDateTimeToUtc
 } from "../support-scheduling/support-scheduling.service.js";
 
-export const supportMetricKeys = ["CSAT", "PRODUCTIVITY", "SLA", "RECLAME_AQUI_OPEN"] as const;
-export type SupportMetricKey = (typeof supportMetricKeys)[number];
+export { supportMetricKeys } from "@alwaystrack/shared";
 
 const campaignStatuses = ["DRAFT", "ACTIVE", "PAUSED", "CLOSED"] as const;
 const scopeTypes = ["ORGANIZATION", "USER", "TEAM"] as const;
@@ -1364,8 +1374,58 @@ export async function decideSupportPauseSwap(prisma: PrismaClient, actor: Curren
 
 function parseMetric(value: unknown): SupportMetricKey {
   const metric = requiredString(value, 40).toUpperCase();
-  if (!(supportMetricKeys as readonly string[]).includes(metric)) throw new SupportOperationsError("INVALID_INPUT");
+  if (!getSupportMetricDefinition(metric)) throw new SupportOperationsError("INVALID_INPUT");
   return metric as SupportMetricKey;
+}
+
+function parseWritableMetric(value: unknown): WritableSupportMetricKey {
+  const metric = parseMetric(value);
+  if (getSupportMetricDefinition(metric)?.status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
+  return metric as WritableSupportMetricKey;
+}
+
+function metricDefinition(metric: string): SupportMetricDefinition {
+  const definition = getSupportMetricDefinition(metric);
+  if (!definition) throw new SupportOperationsError("INVALID_INPUT");
+  return definition;
+}
+
+function choice<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  const normalized = requiredString(value ?? fallback, 40).toUpperCase();
+  if (!(allowed as readonly string[]).includes(normalized)) throw new SupportOperationsError("INVALID_INPUT");
+  return normalized as T;
+}
+
+interface SeriesDimensions {
+  channel: string | null;
+  granularity: (typeof supportMetricGranularities)[number];
+  observationType: (typeof supportObservationTypes)[number];
+}
+
+function normalizedChannel(value: unknown) {
+  const channel = optionalString(value, 40)?.toUpperCase() ?? null;
+  if (channel && !/^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(channel)) throw new SupportOperationsError("INVALID_INPUT");
+  return channel;
+}
+
+function seriesDimensions(body: Record<string, unknown>, fallback?: Partial<SeriesDimensions>): SeriesDimensions {
+  const channelValue = body.channel === undefined ? fallback?.channel ?? null : normalizedChannel(body.channel);
+  return {
+    channel: channelValue,
+    granularity: choice(body.granularity, supportMetricGranularities, fallback?.granularity ?? "REPORTED_INTERVAL"),
+    observationType: choice(body.observationType, supportObservationTypes, fallback?.observationType ?? "ACTUAL")
+  };
+}
+
+function observationData(
+  body: Record<string, unknown>,
+  fallback?: Partial<SeriesDimensions & { rawValue: string | null; dataState: (typeof supportMetricDataStates)[number] }>
+) {
+  return {
+    ...seriesDimensions(body, fallback),
+    rawValue: body.rawValue === undefined ? fallback?.rawValue ?? null : optionalString(body.rawValue, 160),
+    dataState: choice(body.dataState, supportMetricDataStates, fallback?.dataState ?? "AVAILABLE")
+  };
 }
 
 function parseScope(body: Record<string, unknown>) {
@@ -1378,20 +1438,41 @@ function parseScope(body: Record<string, unknown>) {
   return { scopeType, userId, teamId, teamLabel };
 }
 
-function validateMetricValue(metric: SupportMetricKey, value: unknown) {
-  if (metric === "CSAT" || metric === "SLA") return numberInRange(value, 0, 100);
-  if (metric === "RECLAME_AQUI_OPEN") return integerInRange(value, 0, 100000);
-  return numberInRange(value, 0, 1000000);
+function validateMetricValue(definition: SupportMetricDefinition, value: unknown) {
+  if (definition.unit === "SCORE_1_5") return numberInRange(value, 1, 5);
+  if (definition.unit === "DURATION_SECONDS") return integerInRange(value, 0, 31_536_000);
+  if (definition.unit === "PERCENT") return numberInRange(value, 0, 100);
+  return integerInRange(value, 0, 1_000_000_000);
 }
 
-function performanceWhere(actor: CurrentUser, query: { from?: string; to?: string; metric?: string; userId?: string }) {
+export interface SupportPerformanceQuery {
+  from?: string;
+  to?: string;
+  metric?: string;
+  userId?: string;
+  channel?: string;
+  granularity?: string;
+  observationType?: string;
+}
+
+function performanceWhere(actor: CurrentUser, query: SupportPerformanceQuery) {
   const to = query.to ? parseDateTime(query.to) : new Date();
   const from = query.from ? parseDateTime(query.from) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
   const metric = query.metric ? parseMetric(query.metric) : undefined;
+  const channel = query.channel ? normalizedChannel(query.channel) ?? undefined : undefined;
+  const granularity = query.granularity
+    ? choice(query.granularity, supportMetricGranularities, "REPORTED_INTERVAL")
+    : undefined;
+  const observationType = query.observationType
+    ? choice(query.observationType, supportObservationTypes, "ACTUAL")
+    : undefined;
   const where: Prisma.SupportKpiEntryWhereInput = {
     organizationId: actor.organizationId,
     archivedAt: null,
     metric,
+    channel,
+    granularity,
+    observationType,
     userId: isManager(actor) ? query.userId || undefined : undefined,
     periodStart: { gte: from, lte: to },
     OR: isManager(actor) ? undefined : [{ userId: actor.id }, { scopeType: "ORGANIZATION" }]
@@ -1399,27 +1480,77 @@ function performanceWhere(actor: CurrentUser, query: { from?: string; to?: strin
   return { where, from, to };
 }
 
-function percentageWeight(metric: SupportMetricKey, value: number, body: Record<string, unknown>, fallbackDenominator: number | null = null) {
-  if (metric !== "CSAT" && metric !== "SLA") return { numerator: null, denominator: null };
-  const supplied = body.denominator ?? body.sampleSize;
-  const denominator = supplied === undefined ? fallbackDenominator : numberInRange(supplied, 1, 1_000_000);
-  return denominator === null
-    ? { numerator: null, denominator: null }
-    : { numerator: value * denominator / 100, denominator };
+function approximatelyEqual(left: number, right: number) {
+  return Math.abs(left - right) <= Math.max(1e-9, Math.abs(right) * 1e-9);
 }
 
-function aggregateMetricEntries(metric: SupportMetricKey, entries: Array<{ value: number; numerator: number | null; denominator: number | null }>) {
-  const canWeight = (metric === "CSAT" || metric === "SLA")
-    && entries.length > 0
-    && entries.every((entry) => entry.numerator !== null && entry.denominator !== null && entry.denominator > 0);
-  const denominator = canWeight ? entries.reduce((total, entry) => total + (entry.denominator ?? 0), 0) : null;
-  const average = canWeight && denominator
-    ? entries.reduce((total, entry) => total + (entry.numerator ?? 0), 0) / denominator * 100
-    : entries.length ? entries.reduce((total, entry) => total + entry.value, 0) / entries.length : null;
+function metricComponents(
+  definition: SupportMetricDefinition,
+  value: number,
+  body: Record<string, unknown>,
+  fallback: { numerator: number | null; denominator: number | null } = { numerator: null, denominator: null }
+) {
+  const hasInput = ["numerator", "denominator", "sampleSize"].some((key) => key in body);
+  if (definition.aggregation === "SUM" || definition.aggregation === "LATEST") {
+    if (hasInput) throw new SupportOperationsError("INVALID_INPUT");
+    return { numerator: null, denominator: null };
+  }
+
+  if (body.denominator !== undefined && body.sampleSize !== undefined
+    && Number(body.denominator) !== Number(body.sampleSize)) throw new SupportOperationsError("INVALID_INPUT");
+  const suppliedDenominator = body.denominator ?? body.sampleSize;
+  const denominator = hasInput
+    ? suppliedDenominator === null || suppliedDenominator === undefined ? null : numberInRange(suppliedDenominator, 1, 1_000_000_000)
+    : fallback.denominator;
+  if (denominator === null) {
+    if (body.numerator !== undefined && body.numerator !== null) throw new SupportOperationsError("INVALID_INPUT");
+    return { numerator: null, denominator: null };
+  }
+
+  const expectedNumerator = definition.aggregation === "RATIO"
+    ? value * denominator / 100
+    : value * denominator;
+  const numerator = body.numerator === undefined || body.numerator === null
+    ? expectedNumerator
+    : numberInRange(body.numerator, 0, Number.MAX_SAFE_INTEGER);
+  if (!approximatelyEqual(numerator, expectedNumerator)) throw new SupportOperationsError("INVALID_INPUT");
+  return { numerator, denominator };
+}
+
+interface AggregationEntry {
+  value: number;
+  numerator: number | null;
+  denominator: number | null;
+}
+
+function aggregateMetricEntries(definition: SupportMetricDefinition, entries: AggregationEntry[]) {
+  if (!entries.length) return { average: null, samples: 0, aggregation: definition.aggregation };
+  if (definition.aggregation === "LATEST") {
+    return { average: entries[entries.length - 1].value, samples: 1, aggregation: "LATEST" as const };
+  }
+  if (definition.aggregation === "SUM") {
+    return {
+      average: entries.reduce((total, entry) => total + entry.value, 0),
+      samples: entries.length,
+      aggregation: "SUM" as const
+    };
+  }
+  const hasCompleteComponents = entries.every((entry) => (
+    entry.numerator !== null && entry.denominator !== null && entry.denominator > 0
+  ));
+  if (hasCompleteComponents) {
+    const denominator = entries.reduce((total, entry) => total + (entry.denominator ?? 0), 0);
+    const numerator = entries.reduce((total, entry) => total + (entry.numerator ?? 0), 0);
+    return {
+      average: definition.aggregation === "RATIO" ? numerator / denominator * 100 : numerator / denominator,
+      samples: denominator,
+      aggregation: definition.aggregation
+    };
+  }
   return {
-    average,
-    samples: denominator ?? entries.length,
-    aggregation: canWeight ? "WEIGHTED" as const : "SIMPLE" as const
+    average: entries.reduce((total, entry) => total + entry.value, 0) / entries.length,
+    samples: entries.length,
+    aggregation: "MEAN" as const
   };
 }
 
@@ -1446,6 +1577,11 @@ interface CampaignAudienceSnapshot {
 interface CampaignResultEntry {
   id?: string;
   metric: string;
+  definitionVersion?: number;
+  unit?: string;
+  channel?: string | null;
+  granularity?: string;
+  observationType?: string;
   value: number;
   numerator: number | null;
   denominator: number | null;
@@ -1459,6 +1595,38 @@ interface CampaignResultEntry {
   source?: string | null;
 }
 
+interface MetricSeriesRecord {
+  metric: string;
+  definitionVersion?: number;
+  unit?: string;
+  channel?: string | null;
+  granularity?: string;
+  observationType?: string;
+}
+
+function resolvedMetricSeries(record: MetricSeriesRecord) {
+  const definition = metricDefinition(record.metric);
+  return {
+    definition,
+    definitionVersion: record.definitionVersion ?? definition.definitionVersion,
+    unit: record.unit ?? definition.unit,
+    channel: record.channel ?? null,
+    granularity: record.granularity ?? "REPORTED_INTERVAL",
+    observationType: record.observationType ?? "ACTUAL"
+  };
+}
+
+function sameMetricSeries(left: MetricSeriesRecord, right: MetricSeriesRecord) {
+  const leftSeries = resolvedMetricSeries(left);
+  const rightSeries = resolvedMetricSeries(right);
+  return left.metric === right.metric
+    && leftSeries.definitionVersion === rightSeries.definitionVersion
+    && leftSeries.unit === rightSeries.unit
+    && leftSeries.channel === rightSeries.channel
+    && leftSeries.granularity === rightSeries.granularity
+    && leftSeries.observationType === rightSeries.observationType;
+}
+
 function parseStoredJson<T>(value: string | null | undefined): T | null {
   if (!value) return null;
   try {
@@ -1469,11 +1637,18 @@ function parseStoredJson<T>(value: string | null | undefined): T | null {
 }
 
 function entriesForCampaign(
-  campaign: { metric: string; scopeType: string; userId: string | null; teamId: string | null; teamLabel: string | null; startsAt: Date; endsAt: Date },
+  campaign: MetricSeriesRecord & {
+    scopeType: string;
+    userId: string | null;
+    teamId: string | null;
+    teamLabel: string | null;
+    startsAt: Date;
+    endsAt: Date;
+  },
   entries: CampaignResultEntry[]
 ) {
   return entries.filter((entry) => {
-    if (entry.metric !== campaign.metric || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
+    if (!sameMetricSeries(entry, campaign) || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
     if (campaign.scopeType === "USER") return entry.userId === campaign.userId;
     if (campaign.scopeType === "TEAM") return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
     return entry.scopeType === "ORGANIZATION";
@@ -1481,12 +1656,11 @@ function entriesForCampaign(
 }
 
 function evaluatedCampaignResult(
-  campaign: { metric: string; comparison: string; targetValue: number },
+  campaign: MetricSeriesRecord & { comparison: string; targetValue: number },
   entries: CampaignResultEntry[],
   frozenAt: Date | null = null
 ) {
-  const metric = campaign.metric as SupportMetricKey;
-  const aggregate = aggregateMetricEntries(metric, entries);
+  const aggregate = aggregateMetricEntries(metricDefinition(campaign.metric), entries);
   const current = aggregate.average;
   return {
     current,
@@ -1499,7 +1673,10 @@ function evaluatedCampaignResult(
       periodStart: entry.periodStart,
       periodEnd: entry.periodEnd,
       value: entry.value,
-      samples: entry.denominator ?? 1
+      samples: entry.denominator ?? 1,
+      channel: entry.channel ?? null,
+      granularity: entry.granularity ?? "REPORTED_INTERVAL",
+      observationType: entry.observationType ?? "ACTUAL"
     })),
     provenance: entries.map((entry) => ({
       entryId: entry.id ?? null,
@@ -1545,7 +1722,7 @@ async function resolveCampaignAudience(
   return { rule: "FIXED_AT_ACTIVATION", members };
 }
 
-export async function listSupportPerformance(prisma: PrismaClient, actor: CurrentUser, query: { from?: string; to?: string; metric?: string; userId?: string }) {
+export async function listSupportPerformance(prisma: PrismaClient, actor: CurrentUser, query: SupportPerformanceQuery) {
   const { where, from, to } = performanceWhere(actor, query);
   const actorMemberships = actor.role === "SAC"
     ? await prisma.supportTeamMembership.findMany({
@@ -1599,7 +1776,7 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
         team: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true } }
       },
-      orderBy: [{ periodStart: "asc" }, { createdAt: "asc" }],
+      orderBy: [{ periodEnd: "asc" }, { periodStart: "asc" }, { createdAt: "asc" }],
       take: 1000
     }),
     prisma.supportCampaign.findMany({
@@ -1621,18 +1798,54 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
     })
   ]);
   const approvedEntries = entries.filter((entry) => entry.status === "APPROVED");
-  const summary = supportMetricKeys.map((metric) => {
-    const metricEntries = approvedEntries.filter((entry) => entry.metric === metric);
+  const seriesGroups = new Map<string, {
+    series: ReturnType<typeof resolvedMetricSeries>;
+    scope: { scopeType: string; userId: string | null; teamId: string | null; teamLabel: string | null };
+    entries: typeof approvedEntries;
+  }>();
+  for (const entry of approvedEntries) {
+    const series = resolvedMetricSeries(entry);
+    if (series.definitionVersion !== series.definition.definitionVersion || series.unit !== series.definition.unit) continue;
+    const scope = {
+      scopeType: entry.scopeType,
+      userId: entry.scopeType === "USER" ? entry.userId : null,
+      teamId: entry.scopeType === "TEAM" ? entry.teamId : null,
+      teamLabel: entry.scopeType === "TEAM" ? entry.teamLabel : null
+    };
+    const key = JSON.stringify([
+      entry.metric,
+      series.definitionVersion,
+      series.unit,
+      series.channel,
+      series.granularity,
+      series.observationType,
+      scope.scopeType,
+      scope.userId,
+      scope.teamId ?? scope.teamLabel
+    ]);
+    const group = seriesGroups.get(key);
+    if (group) group.entries.push(entry);
+    else seriesGroups.set(key, { series, scope, entries: [entry] });
+  }
+  const summary = [...seriesGroups.values()].map(({ series, scope, entries: metricEntries }) => {
     const latest = metricEntries.at(-1) ?? null;
-    const aggregate = aggregateMetricEntries(metric, metricEntries);
+    const aggregate = aggregateMetricEntries(series.definition, metricEntries);
     return {
-      metric,
+      metric: series.definition.key,
+      definitionVersion: series.definitionVersion,
+      unit: series.unit,
+      channel: series.channel,
+      granularity: series.granularity,
+      observationType: series.observationType,
+      ...scope,
       latest: latest?.value ?? null,
       ...aggregate
     };
   });
   return {
     canManage: isManager(actor),
+    dictionaryVersion: SUPPORT_PERFORMANCE_DICTIONARY_VERSION,
+    definitions: supportMetricDefinitions,
     period: { from, to },
     agents,
     teams: allTeams,
@@ -1646,7 +1859,9 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
 export async function createSupportKpiEntry(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
   if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
   const body = input as Record<string, unknown>;
-  const metric = parseMetric(body.metric);
+  const metric = parseWritableMetric(body.metric);
+  const definition = metricDefinition(metric);
+  const observation = observationData(body);
   const scope = parseScope(body);
   const periodStart = parseDateTime(body.periodStart);
   const periodEnd = parseDateTime(body.periodEnd);
@@ -1656,14 +1871,17 @@ export async function createSupportKpiEntry(prisma: PrismaClient, actor: Current
     const team = await ensureSupportTeam(prisma, actor.organizationId, scope.teamId);
     scope.teamLabel ??= team.name;
   }
-  const value = validateMetricValue(metric, body.value);
-  const weight = percentageWeight(metric, value, body);
+  const value = validateMetricValue(definition, body.value);
+  const components = metricComponents(definition, value, body);
   const entry = await prisma.supportKpiEntry.create({
     data: {
       organizationId: actor.organizationId,
       metric,
+      definitionVersion: definition.definitionVersion,
+      unit: definition.unit,
       value,
-      ...weight,
+      ...components,
+      ...observation,
       ...scope,
       periodStart,
       periodEnd,
@@ -1681,7 +1899,18 @@ export async function createSupportKpiEntry(prisma: PrismaClient, actor: Current
     action: "support_performance.entry.draft.create",
     entityType: "SupportKpiEntry",
     entityId: entry.id,
-    metadata: { metric, scopeType: scope.scopeType, userId: scope.userId, periodStart, periodEnd }
+    metadata: {
+      metric,
+      definitionVersion: definition.definitionVersion,
+      unit: definition.unit,
+      channel: observation.channel,
+      granularity: observation.granularity,
+      observationType: observation.observationType,
+      scopeType: scope.scopeType,
+      userId: scope.userId,
+      periodStart,
+      periodEnd
+    }
   });
   return { entry };
 }
@@ -1691,14 +1920,29 @@ export async function updateSupportKpiEntry(prisma: PrismaClient, actor: Current
   const existing = await prisma.supportKpiEntry.findFirst({ where: { id: entryId, organizationId: actor.organizationId, archivedAt: null } });
   if (!existing) throw new SupportOperationsError("NOT_FOUND");
   const body = input as Record<string, unknown>;
-  const metric = body.metric === undefined ? existing.metric as SupportMetricKey : parseMetric(body.metric);
-  const value = body.value === undefined ? existing.value : validateMetricValue(metric, body.value);
-  const weight = percentageWeight(metric, value, body, existing.denominator);
+  if (metricDefinition(existing.metric).status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
+  const metric = body.metric === undefined ? existing.metric as WritableSupportMetricKey : parseWritableMetric(body.metric);
+  const definition = metricDefinition(metric);
+  const value = validateMetricValue(definition, body.value === undefined ? existing.value : body.value);
+  const components = metricComponents(definition, value, body, metric === existing.metric
+    ? { numerator: existing.numerator, denominator: existing.denominator }
+    : undefined);
+  const observation = observationData(body, {
+    channel: existing.channel,
+    granularity: existing.granularity as SeriesDimensions["granularity"],
+    observationType: existing.observationType as SeriesDimensions["observationType"],
+    rawValue: existing.rawValue,
+    dataState: existing.dataState as (typeof supportMetricDataStates)[number]
+  });
   if (existing.status === "SUBMITTED" || existing.status === "SUPERSEDED") throw new SupportOperationsError("CONFLICT");
   if (body.archived === true && existing.status === "APPROVED") throw new SupportOperationsError("CONFLICT");
   const data = {
+    metric,
+    definitionVersion: definition.definitionVersion,
+    unit: definition.unit,
     value,
-    ...weight,
+    ...components,
+    ...observation,
     source: body.source === undefined ? existing.source : optionalString(body.source, 160),
     note: body.note === undefined ? existing.note : optionalString(body.note, 1000),
     updatedById: actor.id
@@ -1708,7 +1952,6 @@ export async function updateSupportKpiEntry(prisma: PrismaClient, actor: Current
     ? await prisma.supportKpiEntry.create({
         data: {
           organizationId: existing.organizationId,
-          metric,
           ...data,
           scopeType: existing.scopeType,
           userId: existing.userId,
@@ -1871,12 +2114,21 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
       result
     };
   });
-  return { canManage: isManager(actor), items: evaluatedItems, teams };
+  return {
+    canManage: isManager(actor),
+    dictionaryVersion: SUPPORT_PERFORMANCE_DICTIONARY_VERSION,
+    definitions: supportMetricDefinitions,
+    items: evaluatedItems,
+    teams
+  };
 }
 
 function campaignData(actor: CurrentUser, body: Record<string, unknown>) {
-  const metric = parseMetric(body.metric);
-  const comparison = requiredString(body.comparison ?? (metric === "RECLAME_AQUI_OPEN" ? "LTE" : "GTE"), 10).toUpperCase();
+  const metric = parseWritableMetric(body.metric);
+  const definition = metricDefinition(metric);
+  const dimensions = seriesDimensions(body);
+  const defaultComparison = definition.direction === "LOWER_IS_BETTER" ? "LTE" : "GTE";
+  const comparison = requiredString(body.comparison ?? defaultComparison, 10).toUpperCase();
   const status = requiredString(body.status ?? "DRAFT", 20).toUpperCase();
   if (!(comparisons as readonly string[]).includes(comparison) || !(campaignStatuses as readonly string[]).includes(status)) {
     throw new SupportOperationsError("INVALID_INPUT");
@@ -1889,7 +2141,10 @@ function campaignData(actor: CurrentUser, body: Record<string, unknown>) {
     name: requiredString(body.name),
     description: optionalString(body.description, 1000),
     metric,
-    targetValue: validateMetricValue(metric, body.targetValue),
+    definitionVersion: definition.definitionVersion,
+    unit: definition.unit,
+    ...dimensions,
+    targetValue: validateMetricValue(definition, body.targetValue),
     comparison,
     ...parseScope(body),
     status,
@@ -1922,7 +2177,16 @@ export async function createSupportCampaign(prisma: PrismaClient, actor: Current
     action: "support_campaign.create",
     entityType: "SupportCampaign",
     entityId: campaign.id,
-    metadata: { metric: campaign.metric, targetValue: campaign.targetValue, scopeType: campaign.scopeType }
+    metadata: {
+      metric: campaign.metric,
+      definitionVersion: campaign.definitionVersion,
+      unit: campaign.unit,
+      channel: campaign.channel,
+      granularity: campaign.granularity,
+      observationType: campaign.observationType,
+      targetValue: campaign.targetValue,
+      scopeType: campaign.scopeType
+    }
   });
   return { campaign };
 }
@@ -1944,8 +2208,11 @@ export async function updateSupportCampaign(prisma: PrismaClient, actor: Current
           name: body.name ?? existing.name,
           description: body.description === undefined ? existing.description : body.description,
           metric: body.metric ?? existing.metric,
+          channel: body.channel === undefined ? existing.channel : body.channel,
+          granularity: body.granularity ?? existing.granularity,
+          observationType: body.observationType ?? existing.observationType,
           targetValue: body.targetValue ?? existing.targetValue,
-          comparison: body.comparison ?? existing.comparison,
+          comparison: body.comparison ?? (body.metric !== undefined && body.metric !== existing.metric ? undefined : existing.comparison),
           scopeType: body.scopeType ?? existing.scopeType,
           userId: body.userId === undefined ? existing.userId : body.userId,
           teamId: body.teamId === undefined ? existing.teamId : body.teamId,

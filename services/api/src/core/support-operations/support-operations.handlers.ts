@@ -100,7 +100,10 @@ export async function listSupportPerformanceHandler(request: Request, response: 
       from: queryText(request.query.from),
       to: queryText(request.query.to),
       metric: queryText(request.query.metric),
-      userId: queryText(request.query.userId)
+      userId: queryText(request.query.userId),
+      channel: queryText(request.query.channel),
+      granularity: queryText(request.query.granularity),
+      observationType: queryText(request.query.observationType)
     }));
   } catch (error) { return failure(response, error); }
 }

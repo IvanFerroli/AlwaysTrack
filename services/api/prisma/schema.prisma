@@ -850,32 +850,39 @@ model SupportPauseSwapBookingLock {
 }
 
 model SupportKpiEntry {
-  id             String    @id @default(cuid())
-  organizationId String
-  metric         String
-  value          Float
-  numerator      Float?
-  denominator    Float?
-  scopeType      String
-  userId         String?
-  teamLabel      String?
-  teamId         String?
-  periodStart    DateTime
-  periodEnd      DateTime
-  source         String?
-  note           String?
-  createdById    String
-  updatedById    String
-  status         String    @default("DRAFT")
-  revision       Int       @default(1)
-  supersedesId   String?
-  submittedAt    DateTime?
-  reviewedAt     DateTime?
-  reviewedById   String?
-  reviewNote     String?
-  archivedAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  organizationId    String
+  metric            String
+  definitionVersion Int       @default(2)
+  unit              String    @default("COUNT")
+  value             Float
+  numerator         Float?
+  denominator       Float?
+  channel           String?
+  granularity       String    @default("REPORTED_INTERVAL")
+  observationType   String    @default("ACTUAL")
+  rawValue          String?
+  dataState         String    @default("AVAILABLE")
+  scopeType         String
+  userId            String?
+  teamLabel         String?
+  teamId            String?
+  periodStart       DateTime
+  periodEnd         DateTime
+  source            String?
+  note              String?
+  createdById       String
+  updatedById       String
+  status            String    @default("DRAFT")
+  revision          Int       @default(1)
+  supersedesId      String?
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  reviewNote        String?
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User?        @relation("SupportKpiTarget", fields: [userId], references: [id])
@@ -888,6 +895,7 @@ model SupportKpiEntry {
   @@index([userId, periodStart])
   @@index([teamId, periodStart])
   @@index([organizationId, status, periodStart])
+  @@index([organizationId, metric, channel, granularity, observationType, periodStart])
   @@index([supersedesId])
 }
 
@@ -897,6 +905,11 @@ model SupportCampaign {
   name                 String
   description          String?
   metric               String
+  definitionVersion    Int       @default(2)
+  unit                 String    @default("COUNT")
+  channel              String?
+  granularity          String    @default("REPORTED_INTERVAL")
+  observationType      String    @default("ACTUAL")
   targetValue          Float
   comparison           String
   scopeType            String
@@ -928,6 +941,7 @@ model SupportCampaign {
 
   @@index([organizationId, status])
   @@index([organizationId, metric])
+  @@index([organizationId, metric, channel, granularity, observationType])
   @@index([startsAt])
   @@index([endsAt])
   @@index([teamId, status])

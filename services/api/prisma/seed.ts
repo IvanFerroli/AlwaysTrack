@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { getSupportMetricDefinition } from "@alwaystrack/shared";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -1340,28 +1341,60 @@ async function main() {
     periodStart.setUTCDate(periodStart.getUTCDate() - 6);
     return { periodStart, periodEnd };
   });
-  const supportMetricSeries = {
-    CSAT: [86, 89, 91, 93],
-    PRODUCTIVITY: [72, 76, 79, 84],
-    SLA: [78, 82, 88, 92],
-    RECLAME_AQUI_OPEN: [6, 4, 3, 1]
-  } as const;
-  for (const [metric, values] of Object.entries(supportMetricSeries)) {
+
+  // `npm run up` aligns an existing local database through a schema diff, which
+  // cannot rename historical metric values. Preserve those percentages as
+  // explicit read-only legacy series before seeding the v2 demo observations.
+  await prisma.supportKpiEntry.updateMany({
+    where: { organizationId: organization.id, metric: "CSAT" },
+    data: { metric: "CSAT_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
+  });
+  await prisma.supportKpiEntry.updateMany({
+    where: { organizationId: organization.id, metric: "SLA" },
+    data: { metric: "SLA_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
+  });
+  await prisma.supportCampaign.updateMany({
+    where: { organizationId: organization.id, metric: "CSAT" },
+    data: { metric: "CSAT_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
+  });
+  await prisma.supportCampaign.updateMany({
+    where: { organizationId: organization.id, metric: "SLA" },
+    data: { metric: "SLA_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
+  });
+
+  const supportMetricSeries = [
+    { metric: "CSAT_SCORE", values: [4.25, 4.3, 4.4, 4.4], rawValues: ["4,25", "4,3", "4,4", "4,4"], channel: null, scopeType: "TEAM" },
+    { metric: "SLA_DURATION", values: [956, 564, 485, 778], rawValues: ["15min56s", "9min24s", "8min5s", "12min58s"], channel: null, scopeType: "TEAM" },
+    { metric: "PRODUCTIVITY", values: [72, 76, 79, 84], rawValues: null, channel: null, scopeType: "TEAM" },
+    { metric: "RECLAME_AQUI_OPEN", values: [6, 4, 3, 1], rawValues: null, channel: null, scopeType: "TEAM" },
+    { metric: "SATISFACTION_RATE", values: [77.5, 83, 79, 82.8], rawValues: ["77,50%", "83%", "79%", "82,80%"], channel: "TIKTOK", scopeType: "ORGANIZATION" },
+    { metric: "RESOLUTION_WITHIN_24H_RATE", values: [99.76, 99.8, 99.8, 99.51], rawValues: ["99,76%", "99,8%", "99,8%", "99,51%"], channel: "TIKTOK", scopeType: "ORGANIZATION" },
+    { metric: "FIRST_RESPONSE_TIME", values: [7500, 7200, 7440, 9300], rawValues: ["2h5min", "2h", "2h4min", "2h35min"], channel: "TIKTOK", scopeType: "ORGANIZATION" }
+  ] as const;
+  for (const series of supportMetricSeries) {
+    const definition = getSupportMetricDefinition(series.metric);
+    if (!definition) throw new Error(`Missing support metric definition: ${series.metric}`);
     for (const [index, period] of supportPeriods.entries()) {
       const existing = await prisma.supportKpiEntry.findFirst({
-        where: { organizationId: organization.id, metric, periodStart: period.periodStart }
+        where: { organizationId: organization.id, metric: series.metric, channel: series.channel, periodStart: period.periodStart }
       });
-      const denominator = metric === "CSAT" || metric === "SLA" ? 40 + index * 15 : null;
       const data = {
-        value: values[index],
-        numerator: denominator ? values[index] * denominator / 100 : null,
-        denominator,
-        scopeType: "TEAM",
-        teamId: supportTeam.id,
-        teamLabel: supportTeam.name,
+        definitionVersion: definition.definitionVersion,
+        unit: definition.unit,
+        value: series.values[index],
+        numerator: null,
+        denominator: null,
+        channel: series.channel,
+        granularity: "REPORTED_INTERVAL",
+        observationType: "ACTUAL",
+        rawValue: series.rawValues?.[index] ?? null,
+        dataState: "AVAILABLE",
+        scopeType: series.scopeType,
+        teamId: series.scopeType === "TEAM" ? supportTeam.id : null,
+        teamLabel: series.scopeType === "TEAM" ? supportTeam.name : null,
         periodEnd: period.periodEnd,
         source: "Painel operacional demonstrativo",
-        note: index === values.length - 1 ? "Último fechamento informado pela gestão." : null,
+        note: index === series.values.length - 1 ? "Último fechamento informado pela gestão." : null,
         updatedById: admin.id,
         status: "APPROVED",
         submittedAt: period.periodEnd,
@@ -1376,7 +1409,7 @@ async function main() {
         await prisma.supportKpiEntry.create({
           data: {
             organizationId: organization.id,
-            metric,
+            metric: series.metric,
             periodStart: period.periodStart,
             createdById: admin.id,
             ...data
@@ -1387,13 +1420,27 @@ async function main() {
   }
 
   const supportCampaignDefinitions = [
-    { name: "CSAT acima de 92", description: "Manter a qualidade percebida sem sacrificar o SLA.", metric: "CSAT", targetValue: 92, comparison: "GTE" },
-    { name: "ReclameAqui sob controle", description: "No máximo uma ocorrência aberta atribuída ao atendimento no período.", metric: "RECLAME_AQUI_OPEN", targetValue: 1, comparison: "LTE" }
+    { name: "CSAT acima de 4,4", legacyName: "CSAT acima de 92", description: "Manter a qualidade percebida sem sacrificar o SLA.", metric: "CSAT_SCORE", targetValue: 4.4, comparison: "GTE" },
+    { name: "ReclameAqui sob controle", legacyName: null, description: "No máximo uma ocorrência aberta atribuída ao atendimento no período.", metric: "RECLAME_AQUI_OPEN", targetValue: 1, comparison: "LTE" }
   ];
   for (const definition of supportCampaignDefinitions) {
-    const existing = await prisma.supportCampaign.findFirst({ where: { organizationId: organization.id, name: definition.name } });
+    const metricDefinition = getSupportMetricDefinition(definition.metric);
+    if (!metricDefinition) throw new Error(`Missing support metric definition: ${definition.metric}`);
+    const existing = await prisma.supportCampaign.findFirst({
+      where: {
+        organizationId: organization.id,
+        name: { in: [definition.name, definition.legacyName].filter((name): name is string => Boolean(name)) }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    const { legacyName: _legacyName, ...campaignDefinition } = definition;
     const data = {
-      ...definition,
+      ...campaignDefinition,
+      definitionVersion: metricDefinition.definitionVersion,
+      unit: metricDefinition.unit,
+      channel: null,
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL",
       scopeType: "TEAM",
       teamId: supportTeam.id,
       teamLabel: supportTeam.name,

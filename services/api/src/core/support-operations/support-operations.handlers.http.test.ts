@@ -56,6 +56,26 @@ describe("support operations HTTP handlers", () => {
     expect(mock.mock.calls[0]?.[1]).toMatchObject({ organizationId: "org-1" });
   });
 
+  it("forwards the metric series dimensions used by the performance filters", async () => {
+    const response = await requestHandler({
+      handler: listSupportPerformanceHandler,
+      method: "get",
+      path: "/v1/support/performance?channel=TIKTOK&granularity=REPORTED_MONTH&observationType=EXPECTATION",
+      route: "/v1/support/performance"
+    });
+
+    expect(response.status).toBe(200);
+    expect(service.listSupportPerformance).toHaveBeenCalledWith(
+      expect.objectContaining({ mocked: true }),
+      expect.objectContaining({ organizationId: "org-1" }),
+      expect.objectContaining({
+        channel: "TIKTOK",
+        granularity: "REPORTED_MONTH",
+        observationType: "EXPECTATION"
+      })
+    );
+  });
+
   it.each([
     [new SupportOperationsError("FORBIDDEN"), 403, "FORBIDDEN"],
     [new SupportOperationsError("CONFLICT"), 409, "CONFLICT"],

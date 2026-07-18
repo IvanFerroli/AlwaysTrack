@@ -38,6 +38,43 @@ function auditMock() {
   return { create: vi.fn().mockResolvedValue({ id: "audit-1" }) };
 }
 
+function approvedMetricEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "kpi-1",
+    metric: "CSAT_SCORE",
+    definitionVersion: 2,
+    unit: "SCORE_1_5",
+    value: 4.4,
+    numerator: null,
+    denominator: null,
+    channel: null,
+    granularity: "REPORTED_INTERVAL",
+    observationType: "ACTUAL",
+    rawValue: null,
+    dataState: "AVAILABLE",
+    scopeType: "TEAM",
+    userId: null,
+    teamId: "team-1",
+    teamLabel: "SAC Atendimento",
+    periodStart: new Date("2026-07-01T03:00:00.000Z"),
+    periodEnd: new Date("2026-07-07T02:59:59.999Z"),
+    createdAt: new Date("2026-07-07T03:00:00.000Z"),
+    status: "APPROVED",
+    revision: 1,
+    source: "Painel oficial",
+    ...overrides
+  };
+}
+
+function performanceListPrisma(entries: Array<Record<string, unknown>>) {
+  return {
+    supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) },
+    supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
+    supportKpiEntry: { findMany: vi.fn().mockResolvedValue(entries) },
+    supportCampaign: { findMany: vi.fn().mockResolvedValue([]) }
+  };
+}
+
 function pauseFlowHarness(options: { initialBooking?: boolean; peerBooking?: boolean; pendingSwap?: boolean } = {}) {
   const slots = [
     {
@@ -1038,24 +1075,71 @@ describe("support operations service", () => {
     expect(bookingUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("weights CSAT and SLA by sample size instead of averaging percentages", async () => {
-    const prisma = {
-      supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) },
-      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
-      supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
-        { metric: "CSAT", value: 80, numerator: 8, denominator: 10, status: "APPROVED" },
-        { metric: "CSAT", value: 100, numerator: 90, denominator: 90, status: "APPROVED" }
-      ]) },
-      supportCampaign: { findMany: vi.fn().mockResolvedValue([]) }
-    };
+  it("aggregates score, duration, percentage, flow count and open-case gauge by definition", async () => {
+    const prisma = performanceListPrisma([
+      approvedMetricEntry({ id: "csat-1", value: 4, numerator: 40, denominator: 10 }),
+      approvedMetricEntry({ id: "csat-2", value: 5, numerator: 450, denominator: 90, periodStart: new Date("2026-07-08T03:00:00.000Z") }),
+      approvedMetricEntry({ id: "sla-1", metric: "SLA_DURATION", unit: "DURATION_SECONDS", value: 600, numerator: 6000, denominator: 10 }),
+      approvedMetricEntry({ id: "sla-2", metric: "SLA_DURATION", unit: "DURATION_SECONDS", value: 778, numerator: 70020, denominator: 90, periodStart: new Date("2026-07-08T03:00:00.000Z") }),
+      approvedMetricEntry({ id: "rate-1", metric: "SATISFACTION_RATE", unit: "PERCENT", value: 80, numerator: 8, denominator: 10, channel: "TIKTOK", scopeType: "ORGANIZATION", teamId: null, teamLabel: null }),
+      approvedMetricEntry({ id: "rate-2", metric: "SATISFACTION_RATE", unit: "PERCENT", value: 100, numerator: 90, denominator: 90, channel: "TIKTOK", scopeType: "ORGANIZATION", teamId: null, teamLabel: null, periodStart: new Date("2026-07-08T03:00:00.000Z") }),
+      approvedMetricEntry({ id: "productivity-1", metric: "PRODUCTIVITY", unit: "COUNT", value: 3 }),
+      approvedMetricEntry({ id: "productivity-2", metric: "PRODUCTIVITY", unit: "COUNT", value: 4, periodStart: new Date("2026-07-08T03:00:00.000Z") }),
+      approvedMetricEntry({ id: "open-1", metric: "RECLAME_AQUI_OPEN", unit: "COUNT", value: 6 }),
+      approvedMetricEntry({ id: "open-2", metric: "RECLAME_AQUI_OPEN", unit: "COUNT", value: 4, periodStart: new Date("2026-07-08T03:00:00.000Z"), periodEnd: new Date("2026-07-14T02:59:59.999Z") })
+    ]);
 
     const result = await listSupportPerformance(prisma as never, admin, {});
-    const csat = result.summary.find((item) => item.metric === "CSAT");
 
-    expect(csat).toEqual({ metric: "CSAT", latest: 100, average: 98, samples: 100, aggregation: "WEIGHTED" });
+    expect(result.summary.find((item) => item.metric === "CSAT_SCORE")).toMatchObject({ latest: 5, average: 4.9, samples: 100, aggregation: "WEIGHTED_MEAN", unit: "SCORE_1_5" });
+    expect(result.summary.find((item) => item.metric === "SLA_DURATION")).toMatchObject({ latest: 778, average: 760.2, samples: 100, aggregation: "WEIGHTED_MEAN", unit: "DURATION_SECONDS" });
+    expect(result.summary.find((item) => item.metric === "SATISFACTION_RATE")).toMatchObject({ average: 98, samples: 100, aggregation: "RATIO", channel: "TIKTOK" });
+    expect(result.summary.find((item) => item.metric === "PRODUCTIVITY")).toMatchObject({ average: 7, aggregation: "SUM" });
+    expect(result.summary.find((item) => item.metric === "RECLAME_AQUI_OPEN")).toMatchObject({ latest: 4, average: 4, samples: 1, aggregation: "LATEST" });
+    expect(prisma.supportKpiEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      orderBy: [{ periodEnd: "asc" }, { periodStart: "asc" }, { createdAt: "asc" }]
+    }));
   });
 
-  it("limits SAC team enumeration and KPI data to each membership window", async () => {
+  it("keeps channel, granularity, observation type and subject in separate summary series", async () => {
+    const base = { metric: "SATISFACTION_RATE", unit: "PERCENT", value: 80, scopeType: "ORGANIZATION", teamId: null, teamLabel: null };
+    const prisma = performanceListPrisma([
+      approvedMetricEntry({ ...base, id: "tiktok-actual", channel: "TIKTOK" }),
+      approvedMetricEntry({ ...base, id: "whatsapp-actual", channel: "WHATSAPP" }),
+      approvedMetricEntry({ ...base, id: "tiktok-month", channel: "TIKTOK", granularity: "REPORTED_MONTH" }),
+      approvedMetricEntry({ ...base, id: "tiktok-expectation", channel: "TIKTOK", observationType: "EXPECTATION" }),
+      approvedMetricEntry({ ...base, id: "team-1", channel: "TIKTOK", scopeType: "TEAM", teamId: "team-1", teamLabel: "SAC Atendimento" }),
+      approvedMetricEntry({ ...base, id: "team-2", channel: "TIKTOK", scopeType: "TEAM", teamId: "team-2", teamLabel: "SAC B" }),
+      approvedMetricEntry({ ...base, id: "user-1", channel: "TIKTOK", scopeType: "USER", userId: "sac-1" })
+    ]);
+
+    const result = await listSupportPerformance(prisma as never, admin, {});
+    const satisfaction = result.summary.filter((item) => item.metric === "SATISFACTION_RATE");
+
+    expect(satisfaction).toHaveLength(7);
+    expect(satisfaction).toEqual(expect.arrayContaining([
+      expect.objectContaining({ channel: "TIKTOK", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL", scopeType: "ORGANIZATION" }),
+      expect.objectContaining({ channel: "WHATSAPP", scopeType: "ORGANIZATION" }),
+      expect.objectContaining({ channel: "TIKTOK", granularity: "REPORTED_MONTH", scopeType: "ORGANIZATION" }),
+      expect.objectContaining({ channel: "TIKTOK", observationType: "EXPECTATION", scopeType: "ORGANIZATION" }),
+      expect.objectContaining({ scopeType: "TEAM", teamId: "team-1" }),
+      expect.objectContaining({ scopeType: "TEAM", teamId: "team-2" }),
+      expect.objectContaining({ scopeType: "USER", userId: "sac-1" })
+    ]));
+  });
+
+  it("keeps migrated legacy percentages readable without reinterpreting their values", async () => {
+    const prisma = performanceListPrisma([
+      approvedMetricEntry({ metric: "CSAT_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT", value: 94.5, numerator: 94.5, denominator: 100 })
+    ]);
+
+    const result = await listSupportPerformance(prisma as never, admin, {});
+
+    expect(result.definitions.find((definition) => definition.key === "CSAT_LEGACY_PERCENT")).toMatchObject({ status: "LEGACY_READ_ONLY", unit: "PERCENT" });
+    expect(result.summary).toContainEqual(expect.objectContaining({ metric: "CSAT_LEGACY_PERCENT", latest: 94.5, average: 94.5, unit: "PERCENT" }));
+  });
+
+  it("applies channel filters without weakening SAC tenancy and membership windows", async () => {
     const validFrom = new Date("2026-07-10T00:00:00.000Z");
     const validTo = new Date("2026-07-20T23:59:59.999Z");
     const kpiFindMany = vi.fn().mockResolvedValue([]);
@@ -1074,7 +1158,12 @@ describe("support operations service", () => {
 
     const result = await listSupportPerformance(prisma as never, sac, {
       from: "2026-07-01T00:00:00.000Z",
-      to: "2026-07-31T23:59:59.999Z"
+      to: "2026-07-31T23:59:59.999Z",
+      metric: "SATISFACTION_RATE",
+      userId: "user-from-another-tenant",
+      channel: "tiktok",
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL"
     });
 
     expect(result.teams).toEqual([{ id: "team-1", name: "SAC A" }]);
@@ -1083,6 +1172,12 @@ describe("support operations service", () => {
     }));
     expect(kpiFindMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
+        organizationId: "org-1",
+        metric: "SATISFACTION_RATE",
+        userId: undefined,
+        channel: "TIKTOK",
+        granularity: "REPORTED_INTERVAL",
+        observationType: "ACTUAL",
         OR: expect.arrayContaining([
           expect.objectContaining({ teamId: "team-1", periodStart: { gte: validFrom }, periodEnd: { lte: validTo } })
         ])
@@ -1097,23 +1192,47 @@ describe("support operations service", () => {
     }));
   });
 
-  it("validates KPI semantics and records governed manual input", async () => {
+  it("persists CSAT 4.4, SLA 778 seconds and TikTok as a normalized dimension", async () => {
     const prisma = {
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }) },
       supportKpiEntry: { create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-1", ...data })) },
       auditLog: auditMock()
     };
     const input = {
-      metric: "CSAT",
-      value: 94.5,
+      metric: "CSAT_SCORE",
+      value: 4.4,
+      sampleSize: 10,
+      rawValue: "4,4",
       scopeType: "USER",
       userId: "sac-1",
       periodStart: "2026-07-01T03:00:00.000Z",
       periodEnd: "2026-07-07T02:59:59.999Z",
       source: "Planilha semanal"
     };
-    await expect(createSupportKpiEntry(prisma as never, admin, input)).resolves.toMatchObject({ entry: { metric: "CSAT", value: 94.5 } });
-    await expect(createSupportKpiEntry(prisma as never, admin, { ...input, value: 140 })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(createSupportKpiEntry(prisma as never, admin, input)).resolves.toMatchObject({
+      entry: { metric: "CSAT_SCORE", definitionVersion: 2, unit: "SCORE_1_5", value: 4.4, numerator: 44, denominator: 10 }
+    });
+    await expect(createSupportKpiEntry(prisma as never, admin, {
+      ...input,
+      metric: "SLA_DURATION",
+      value: 778,
+      sampleSize: undefined,
+      rawValue: "12min58s",
+      scopeType: "ORGANIZATION",
+      userId: undefined
+    })).resolves.toMatchObject({ entry: { metric: "SLA_DURATION", unit: "DURATION_SECONDS", value: 778, rawValue: "12min58s" } });
+    await expect(createSupportKpiEntry(prisma as never, admin, {
+      ...input,
+      metric: "SATISFACTION_RATE",
+      value: 82.8,
+      sampleSize: undefined,
+      channel: "tiktok",
+      scopeType: "ORGANIZATION",
+      userId: undefined
+    })).resolves.toMatchObject({ entry: { metric: "SATISFACTION_RATE", unit: "PERCENT", channel: "TIKTOK", value: 82.8 } });
+    await expect(createSupportKpiEntry(prisma as never, admin, { ...input, value: 94.5 })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(createSupportKpiEntry(prisma as never, admin, { ...input, metric: "CSAT_LEGACY_PERCENT" })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(createSupportKpiEntry(prisma as never, admin, { ...input, channel: "Tik Tok" })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.draft.create" }) }));
   });
 
@@ -1152,7 +1271,9 @@ describe("support operations service", () => {
 
   it("creates a draft revision instead of overwriting an approved KPI", async () => {
     const existing = {
-      id: "kpi-1", organizationId: "org-1", metric: "CSAT", value: 90, numerator: 90, denominator: 100,
+      id: "kpi-1", organizationId: "org-1", metric: "CSAT_SCORE", definitionVersion: 2, unit: "SCORE_1_5",
+      value: 4.2, numerator: 420, denominator: 100, channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+      rawValue: "4,2", dataState: "AVAILABLE",
       scopeType: "TEAM", userId: null, teamId: "team-1", teamLabel: "SAC Atendimento",
       periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z"),
       source: "Painel", note: null, status: "APPROVED", revision: 1, supersedesId: null
@@ -1166,11 +1287,22 @@ describe("support operations service", () => {
       auditLog: auditMock()
     };
 
-    const result = await updateSupportKpiEntry(prisma as never, admin, "kpi-1", { value: 95, sampleSize: 120 });
+    const result = await updateSupportKpiEntry(prisma as never, admin, "kpi-1", { value: 4.5, sampleSize: 120, rawValue: "4,5" });
 
-    expect(result.entry).toMatchObject({ id: "kpi-2", status: "DRAFT", revision: 2, supersedesId: "kpi-1", value: 95 });
+    expect(result.entry).toMatchObject({ id: "kpi-2", status: "DRAFT", revision: 2, supersedesId: "kpi-1", value: 4.5, numerator: 540, denominator: 120 });
     expect(prisma.supportKpiEntry.update).not.toHaveBeenCalled();
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.revision.create" }) }));
+  });
+
+  it("keeps legacy KPI revisions read-only", async () => {
+    const prisma = {
+      supportKpiEntry: {
+        findFirst: vi.fn().mockResolvedValue(approvedMetricEntry({ metric: "SLA_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT", value: 92 }))
+      }
+    };
+
+    await expect(updateSupportKpiEntry(prisma as never, admin, "legacy-1", { value: 90 }))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
   });
 
   it("creates a lower-is-better ReclameAqui campaign without sales dependencies", async () => {
@@ -1182,17 +1314,24 @@ describe("support operations service", () => {
       name: "Zero reincidência",
       metric: "RECLAME_AQUI_OPEN",
       targetValue: 0,
-      comparison: "LTE",
       scopeType: "ORGANIZATION",
       status: "DRAFT",
       startsAt: "2026-07-17T03:00:00.000Z",
       endsAt: "2026-07-31T02:59:59.999Z"
     });
-    expect(result.campaign).toMatchObject({ metric: "RECLAME_AQUI_OPEN", comparison: "LTE", targetValue: 0, status: "DRAFT" });
+    expect(result.campaign).toMatchObject({ metric: "RECLAME_AQUI_OPEN", unit: "COUNT", comparison: "LTE", targetValue: 0, status: "DRAFT" });
+    await expect(createSupportCampaign(prisma as never, admin, {
+      name: "SLA abaixo de 13 minutos",
+      metric: "SLA_DURATION",
+      targetValue: 780,
+      scopeType: "ORGANIZATION",
+      startsAt: "2026-07-17T03:00:00.000Z",
+      endsAt: "2026-07-31T02:59:59.999Z"
+    })).resolves.toMatchObject({ campaign: { metric: "SLA_DURATION", comparison: "LTE", targetValue: 780 } });
     await expect(createSupportCampaign(prisma as never, admin, {
       name: "Publicação direta",
-      metric: "CSAT",
-      targetValue: 90,
+      metric: "CSAT_SCORE",
+      targetValue: 4.4,
       scopeType: "ORGANIZATION",
       status: "ACTIVE",
       startsAt: "2026-07-17T03:00:00.000Z",
@@ -1202,8 +1341,9 @@ describe("support operations service", () => {
 
   it("publishes a draft with a fixed audience snapshot, audit and deduplicated notification", async () => {
     const existing = {
-      id: "campaign-1", organizationId: "org-1", name: "CSAT alto", description: "Qualidade sustentável", metric: "CSAT",
-      targetValue: 92, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
+      id: "campaign-1", organizationId: "org-1", name: "CSAT alto", description: "Qualidade sustentável", metric: "CSAT_SCORE",
+      definitionVersion: 2, unit: "SCORE_1_5", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+      targetValue: 4.4, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
       status: "DRAFT", startsAt: new Date("2026-07-17T03:00:00.000Z"), endsAt: new Date("2026-07-31T02:59:59.999Z"),
       audienceSnapshotJson: null, publishedAt: null, lifecycleVersion: 1
     };
@@ -1238,16 +1378,35 @@ describe("support operations service", () => {
     }));
   });
 
+  it("recomputes a draft campaign default comparison when its metric direction changes", async () => {
+    const existing = {
+      id: "campaign-1", organizationId: "org-1", name: "Qualidade", description: null, metric: "CSAT_SCORE",
+      definitionVersion: 2, unit: "SCORE_1_5", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+      targetValue: 4.4, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
+      status: "DRAFT", startsAt: new Date("2026-07-17T03:00:00.000Z"), endsAt: new Date("2026-07-31T02:59:59.999Z"),
+      audienceSnapshotJson: null, publishedAt: null, lifecycleVersion: 1
+    };
+    const update = vi.fn().mockImplementation(({ data }) => Promise.resolve({ ...existing, ...data }));
+    const tx = { supportCampaign: { findFirst: vi.fn().mockResolvedValue(existing), update }, auditLog: auditMock() };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { metric: "SLA_DURATION", targetValue: 778 }))
+      .resolves.toMatchObject({ campaign: { metric: "SLA_DURATION", unit: "DURATION_SECONDS", comparison: "LTE", targetValue: 778 } });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ comparison: "LTE" }) }));
+  });
+
   it("blocks destructive edits after publication and freezes approved provenance on close", async () => {
     const audienceSnapshotJson = JSON.stringify({ rule: "FIXED_AT_ACTIVATION", members: [{ id: "sac-1", name: "Ana" }] });
     const existing = {
-      id: "campaign-1", organizationId: "org-1", name: "SLA estável", description: null, metric: "SLA",
-      targetValue: 90, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
+      id: "campaign-1", organizationId: "org-1", name: "SLA estável", description: null, metric: "SLA_DURATION",
+      definitionVersion: 2, unit: "DURATION_SECONDS", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+      targetValue: 780, comparison: "LTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
       status: "ACTIVE", startsAt: new Date("2026-07-01T03:00:00.000Z"), endsAt: new Date("2026-07-31T02:59:59.999Z"),
       audienceSnapshotJson, publishedAt: new Date("2026-07-01T03:00:00.000Z"), lifecycleVersion: 2
     };
     const approved = [{
-      id: "kpi-1", metric: "SLA", value: 95, numerator: 95, denominator: 100, scopeType: "ORGANIZATION", userId: null,
+      id: "kpi-1", metric: "SLA_DURATION", definitionVersion: 2, unit: "DURATION_SECONDS", channel: null,
+      granularity: "REPORTED_INTERVAL", observationType: "ACTUAL", value: 778, numerator: 7780, denominator: 10, scopeType: "ORGANIZATION", userId: null,
       teamId: null, teamLabel: null, periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z"),
       revision: 2, source: "Painel oficial"
     }];
@@ -1263,12 +1422,12 @@ describe("support operations service", () => {
       inAppNotification: { upsert: vi.fn().mockResolvedValue({ id: "notification-1" }) }
     };
 
-    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { targetValue: 99 }))
+    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { targetValue: 700 }))
       .rejects.toEqual(new SupportOperationsError("CONFLICT"));
     await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { status: "CLOSED" }))
       .resolves.toMatchObject({ campaign: { status: "CLOSED" } });
     const frozen = JSON.parse(campaignUpdate.mock.calls[0]?.[0].data.resultSnapshotJson);
-    expect(frozen).toMatchObject({ current: 95, achieved: true, samples: 100 });
+    expect(frozen).toMatchObject({ current: 778, achieved: true, samples: 10, aggregation: "WEIGHTED_MEAN" });
     expect(frozen.provenance).toEqual([expect.objectContaining({ entryId: "kpi-1", revision: 2, source: "Painel oficial" })]);
   });
 
@@ -1277,9 +1436,14 @@ describe("support operations service", () => {
       supportCampaign: { findMany: vi.fn().mockResolvedValue([{
         id: "campaign-1",
         organizationId: "org-1",
-        name: "CSAT 95",
-        metric: "CSAT",
-        targetValue: 95,
+        name: "CSAT 4,8",
+        metric: "CSAT_SCORE",
+        definitionVersion: 2,
+        unit: "SCORE_1_5",
+        channel: null,
+        granularity: "REPORTED_INTERVAL",
+        observationType: "ACTUAL",
+        targetValue: 4.8,
         comparison: "GTE",
         scopeType: "TEAM",
         teamId: "team-1",
@@ -1291,11 +1455,13 @@ describe("support operations service", () => {
       supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
       supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
         {
-          metric: "CSAT", value: 80, numerator: 8, denominator: 10, scopeType: "TEAM", teamId: "team-1", teamLabel: "SAC Atendimento",
+          metric: "CSAT_SCORE", definitionVersion: 2, unit: "SCORE_1_5", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+          value: 4, numerator: 40, denominator: 10, scopeType: "TEAM", userId: null, teamId: "team-1", teamLabel: "SAC Atendimento",
           periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z")
         },
         {
-          metric: "CSAT", value: 100, numerator: 90, denominator: 90, scopeType: "TEAM", teamId: "team-1", teamLabel: "SAC Atendimento",
+          metric: "CSAT_SCORE", definitionVersion: 2, unit: "SCORE_1_5", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL",
+          value: 5, numerator: 450, denominator: 90, scopeType: "TEAM", userId: null, teamId: "team-1", teamLabel: "SAC Atendimento",
           periodStart: new Date("2026-07-08T03:00:00.000Z"), periodEnd: new Date("2026-07-14T02:59:59.999Z")
         }
       ]) }
@@ -1304,16 +1470,59 @@ describe("support operations service", () => {
     const result = await listSupportCampaigns(prisma as never, admin);
 
     expect(result.items[0]?.result).toMatchObject({
-      current: 98,
-      average: 98,
+      current: 4.9,
+      average: 4.9,
       samples: 100,
-      aggregation: "WEIGHTED",
+      aggregation: "WEIGHTED_MEAN",
       achieved: true,
       progressPercent: 100,
       frozenAt: null
     });
     expect(result.items[0]?.result.trend).toHaveLength(2);
     expect(result.items[0]?.result.provenance).toHaveLength(2);
+  });
+
+  it("evaluates a campaign only against its exact channel and reporting series", async () => {
+    const campaign = {
+      id: "campaign-tiktok",
+      organizationId: "org-1",
+      name: "Satisfação TikTok",
+      metric: "SATISFACTION_RATE",
+      definitionVersion: 2,
+      unit: "PERCENT",
+      channel: "TIKTOK",
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL",
+      targetValue: 80,
+      comparison: "GTE",
+      scopeType: "ORGANIZATION",
+      userId: null,
+      teamId: null,
+      teamLabel: null,
+      status: "ACTIVE",
+      startsAt: new Date("2026-07-01T03:00:00.000Z"),
+      endsAt: new Date("2026-08-01T02:59:59.999Z"),
+      audienceSnapshotJson: null,
+      resultSnapshotJson: null,
+      resultSnapshotAt: null
+    };
+    const base = approvedMetricEntry({ metric: "SATISFACTION_RATE", unit: "PERCENT", value: 80, scopeType: "ORGANIZATION", teamId: null, teamLabel: null });
+    const prisma = {
+      supportCampaign: { findMany: vi.fn().mockResolvedValue([campaign]) },
+      supportTeam: { findMany: vi.fn().mockResolvedValue([]) },
+      supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
+        { ...base, id: "matching", channel: "TIKTOK" },
+        { ...base, id: "other-channel", channel: "WHATSAPP", value: 100 },
+        { ...base, id: "monthly", channel: "TIKTOK", granularity: "REPORTED_MONTH", value: 100 },
+        { ...base, id: "expectation", channel: "TIKTOK", observationType: "EXPECTATION", value: 100 }
+      ]) }
+    };
+
+    const result = await listSupportCampaigns(prisma as never, admin);
+
+    expect(result.items[0]?.result).toMatchObject({ current: 80, average: 80, samples: 1, aggregation: "MEAN", achieved: true });
+    expect(result.items[0]?.result.trend).toHaveLength(1);
+    expect(result.items[0]?.result.trend[0]).toMatchObject({ entryId: "matching", channel: "TIKTOK", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" });
   });
 
   it("does not enumerate support teams outside a SAC membership", async () => {
