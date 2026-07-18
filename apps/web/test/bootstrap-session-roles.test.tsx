@@ -26,6 +26,9 @@ vi.mock("../src/views/script-library", () => ({ ScriptLibraryView: () => <div>Sc
 vi.mock("../src/views/service-flows", () => ({ ServiceFlowsView: () => <div>Fluxos operacionais</div> }));
 vi.mock("../src/views/settings", () => ({ SettingsView: () => <div>Configurações operacionais</div> }));
 vi.mock("../src/views/statements", () => ({ StatementsView: () => <div>Extratos operacionais</div> }));
+vi.mock("../src/views/support-pauses", () => ({ SupportPausesView: () => <div>Pausas SAC operacional</div> }));
+vi.mock("../src/views/support-performance", () => ({ SupportPerformanceView: () => <div>Performance SAC operacional</div> }));
+vi.mock("../src/views/support-campaigns", () => ({ SupportCampaignsView: () => <div>Campanhas SAC operacionais</div> }));
 vi.mock("../src/views/users-teams", () => ({ UsersTeamsView: () => <div>Usuários operacionais</div> }));
 vi.mock("../src/views/wiki", () => ({ WikiView: () => <div>Wiki operacional</div> }));
 vi.mock("../src/views/case-flow/health", () => ({ CaseFlowHealthView: () => <div>Saúde CaseFlow operacional</div> }));
@@ -106,11 +109,11 @@ describe("Web bootstrap, session and role matrix", () => {
 
     const expectations: Array<{ role: Role; visible: string; group?: string; forbidden?: string[] }> = [
       { role: "ADMIN", visible: "CaseFlow Admin", group: "Administração" },
-      { role: "SAC", visible: "Scriptoteca", group: "SAC", forbidden: ["Administração"] },
-      { role: "FINANCEIRO", visible: "Extratos", group: "Vendas", forbidden: ["Administração"] },
-      { role: "VENDEDOR", visible: "Notas", group: "Vendas", forbidden: ["SAC", "Administração"] },
-      { role: "SUPERVISOR", visible: "Ranking", group: "Vendas", forbidden: ["Administração"] },
-      { role: "RT", visible: "Como usar", forbidden: ["CaseFlow Admin"] }
+      { role: "SAC", visible: "Scriptoteca", group: "SAC", forbidden: ["Administração", "Vendas"] },
+      { role: "FINANCEIRO", visible: "Perfil", forbidden: ["SAC", "Administração", "Vendas"] },
+      { role: "VENDEDOR", visible: "Perfil", forbidden: ["SAC", "Administração", "Vendas"] },
+      { role: "SUPERVISOR", visible: "Perfil", forbidden: ["SAC", "Administração", "Vendas"] },
+      { role: "RT", visible: "Como usar", forbidden: ["CaseFlow Admin", "SAC", "Vendas"] }
     ];
 
     for (const { role, visible, group, forbidden } of expectations) {

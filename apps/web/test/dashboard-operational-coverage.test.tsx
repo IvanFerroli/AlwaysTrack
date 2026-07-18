@@ -1,7 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardView } from "../src/views/dashboard";
+
+const apiMock = vi.fn();
+vi.mock("../src/api", () => ({ api: (...args: unknown[]) => apiMock(...args) }));
 
 const adminUser = {
   id: "admin-1",
@@ -13,349 +16,199 @@ const adminUser = {
   sectorScopeIds: [],
   avatarUrl: null
 };
-const sellerUser = { ...adminUser, id: "seller-user-1", role: "VENDEDOR" as const };
 
-const documentItem = {
-  id: "document-1",
-  fileName: "danfe-001.pdf",
-  status: "PENDING_REVIEW",
-  accessKey: null,
-  invoiceNumber: null,
-  series: null,
-  issuedAt: null,
-  issuerName: null,
-  buyerName: null,
-  totalAmountCents: 12500,
-  createdAt: "2026-07-15T12:00:00.000Z",
-  sellerProfile: {
-    id: "seller-1",
-    displayName: "Ana Vendas",
-    code: "ANA",
-    salesGroup: { id: "group-1", name: "Equipe Norte" }
-  },
-  items: []
-};
-
-const dashboardData = {
-  metrics: {
-    totalDocuments: 12,
-    pendingDocuments: 3,
-    approvedDocuments: 7,
-    rejectedDocuments: 2,
-    activeSellers: 4,
-    totalAmountCents: 125000
-  },
-  chart: {
-    bucket: "day" as const,
-    from: "2026-07-14",
-    to: "2026-07-15",
-    series: [
-      { key: "2026-07-14", label: "14/07", from: "2026-07-14", to: "2026-07-14", documents: 2, quantity: 5, totalAmountCents: 50000, averageTicketCents: 25000 },
-      { key: "2026-07-15", label: "15/07", from: "2026-07-15", to: "2026-07-15", documents: 3, quantity: 8, totalAmountCents: 75000, averageTicketCents: 25000 }
-    ]
-  },
-  queues: {
-    pendingDocuments: [documentItem],
-    topSellers: [{ sellerId: "seller-1", sellerName: "Ana Vendas", groupName: null, totalAmountCents: 125000, quantity: 13 }],
-    groups: [{ groupName: "Equipe Norte", totalAmountCents: 125000, quantity: 13 }]
-  }
-};
-
-const todayData = {
-  generatedAt: "2026-07-15T12:30:00.000Z",
-  period: { today: "2026-07-15", from: "2026-07-15", to: "2026-07-15" },
-  metrics: {
-    pendingDocuments: 3,
-    approvedToday: 2,
-    rejectedToday: 1,
-    duplicates: 1,
-    extractionFailuresToday: 0,
-    activeCampaigns: 2,
-    campaignsEndingSoon: 1,
-    wikiPendingReviews: 4,
-    faqUnanswered: 5,
-    unreadNotifications: 6,
-    activeAnnouncements: 3
-  },
-  queues: {
-    pendingDocuments: [documentItem],
-    ranking: [{ sellerId: "seller-1" }],
-    activeCampaigns: [],
-    wikiPendingReviews: [{
-      id: "wiki-review-1",
-      title: "Atualizar política de troca",
-      createdAt: "2026-07-15T09:00:00.000Z",
-      page: { id: "wiki-1", slug: "politica-de-troca", title: "Política de troca" },
-      author: { id: "sac-1", name: "Analista SAC", role: "SAC" }
-    }],
-    faqUnanswered: [{
-      id: "faq-1",
-      title: "Como retomar um atendimento?",
-      body: "Cliente voltou depois da pausa.",
-      createdAt: "2026-07-15T10:00:00.000Z",
-      author: { id: "sac-2", name: "Pessoa SAC", role: "SAC" }
-    }],
-    unreadNotifications: [],
-    activeAnnouncements: [
-      {
-        id: "announcement-1", slug: "critical-update", title: "Atualização crítica", summary: "Leia antes de operar", priority: "CRITICAL", pinned: true, requiresAck: true, publishedAt: null, expiresAt: null,
-        acknowledgement: {
-          audienceCount: 3,
-          acknowledgedCount: 1,
-          openedCount: 2,
-          pendingCount: 2,
-          completed: false,
-          acknowledgedUsers: [{ id: "sac-1", name: "Ana SAC", email: "ana@example.test", role: "SAC" }],
-          openedWithoutAckUsers: [{ id: "sac-2", name: "Bruno SAC", email: "bruno@example.test", role: "SAC" }],
-          notOpenedUsers: [{ id: "sac-3", name: "Carla SAC", email: "carla@example.test", role: "SAC" }]
-        }
-      },
-      { id: "announcement-2", slug: "high-update", title: "Atenção comercial", summary: null, priority: "HIGH", pinned: false, requiresAck: false, publishedAt: null, expiresAt: null },
-      { id: "announcement-3", slug: "daily-update", title: "Resumo diário", summary: "Operação normal", priority: "NORMAL", pinned: false, requiresAck: false, publishedAt: null, expiresAt: null }
+const supportDashboard = {
+  date: "2026-07-17",
+  pauses: {
+    summary: { activeAgents: 3, minimumCoverage: 2, bookedPauses: 3, criticalIntervals: 1 },
+    timeline: [
+      { startsAt: "2026-07-17T15:00:00.000Z", endsAt: "2026-07-17T15:15:00.000Z", pausedCount: 1, availableCount: 2, critical: false },
+      { startsAt: "2026-07-17T15:15:00.000Z", endsAt: "2026-07-17T15:30:00.000Z", pausedCount: 2, availableCount: 1, critical: true }
     ],
-    alerts: [{ severity: "warning" as const, title: "Revisar campanha", detail: "Campanha termina hoje", target: "campaigns" }]
+    slots: [{
+      id: "slot-1",
+      label: "Almoço",
+      startsAt: "2026-07-17T15:00:00.000Z",
+      endsAt: "2026-07-17T15:30:00.000Z",
+      capacity: 2,
+      bookedCount: 2,
+      remainingCapacity: 0,
+      bookings: [
+        { id: "booking-1", user: { id: "sac-1", name: "Ana SAC", email: "ana@example.test" } },
+        { id: "booking-2", user: { id: "sac-2", name: "Bruno SAC", email: "bruno@example.test" } }
+      ]
+    }]
+  },
+  performance: {
+    summary: [
+      { metric: "CSAT", latest: 93, average: 91.8, samples: 120, aggregation: "WEIGHTED" },
+      { metric: "PRODUCTIVITY", latest: 84, average: 80, samples: 4, aggregation: "SIMPLE" },
+      { metric: "SLA", latest: 92, average: 88.5, samples: 140, aggregation: "WEIGHTED" },
+      { metric: "RECLAME_AQUI_OPEN", latest: 1, average: 2, samples: 4, aggregation: "SIMPLE" }
+    ],
+    entries: []
+  },
+  campaigns: [{
+    id: "campaign-1",
+    name: "CSAT acima de 92",
+    metric: "CSAT",
+    targetValue: 92,
+    comparison: "GTE",
+    endsAt: "2026-08-07T02:59:59.999Z",
+    result: { current: 93, achieved: true, progressPercent: 100 }
+  }]
+};
+
+const operationalKnowledge = {
+  generatedAt: "2026-07-17T15:00:00.000Z",
+  metrics: { wikiPendingReviews: 2, faqUnanswered: 1, activeAnnouncements: 1 },
+  queues: {
+    wikiPendingReviews: [],
+    faqUnanswered: [],
+    activeAnnouncements: [{
+      id: "announcement-1",
+      slug: "mudanca-critica",
+      title: "Mudança crítica",
+      summary: "Leia antes de atender",
+      priority: "CRITICAL",
+      pinned: true,
+      requiresAck: true,
+      acknowledgement: {
+        audienceCount: 3,
+        acknowledgedCount: 1,
+        pendingCount: 2,
+        completed: false,
+        acknowledgedUsers: [{ id: "sac-1", name: "Ana SAC", email: "ana@example.test", role: "SAC" }],
+        openedWithoutAckUsers: [],
+        notOpenedUsers: []
+      }
+    }]
   }
 };
 
-const sellersData = {
-  items: [
-    { id: "seller-2", displayName: "Bruno Vendas", code: "BRU", salesGroup: { id: "group-2", name: "Equipe Sul" } },
-    { id: "seller-1", displayName: "Ana Vendas", code: "ANA", salesGroup: { id: "group-1", name: "Equipe Norte" } },
-    { id: "seller-3", displayName: "Carla Vendas", code: "CAR", salesGroup: { id: "group-1", name: "Equipe Norte" } },
-    { id: "seller-4", displayName: "Diego Vendas", code: "DIE", salesGroup: null }
-  ]
-};
-
-function response(data: unknown) {
-  return { json: vi.fn().mockResolvedValue({ ok: true, data }) };
-}
-
-function installSuccessfulHttp(overrides?: { dashboard?: unknown; today?: unknown; sellers?: unknown }) {
-  const fetchMock = vi.fn((input: RequestInfo | URL) => {
-    const url = String(input);
-    if (url.startsWith("/v1/sales/dashboard?")) return Promise.resolve(response(overrides?.dashboard ?? dashboardData));
-    if (url === "/v1/operations/today") return Promise.resolve(response(overrides?.today ?? todayData));
-    if (url === "/v1/sales/sellers") return Promise.resolve(response(overrides?.sellers ?? sellersData));
-    throw new Error(`Unexpected dashboard request: ${url}`);
+function installSuccess(overrides?: { dashboard?: unknown; knowledge?: unknown }) {
+  apiMock.mockImplementation((path: string) => {
+    if (path.startsWith("/v1/support/dashboard?")) return Promise.resolve(overrides?.dashboard ?? supportDashboard);
+    if (path === "/v1/operations/today") return Promise.resolve(overrides?.knowledge ?? operationalKnowledge);
+    return Promise.reject(new Error(`Unexpected dashboard request: ${path}`));
   });
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
 }
 
-describe("DashboardView operational coverage", () => {
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe("DashboardView SAC operational coverage", () => {
   beforeEach(() => {
-    vi.useRealTimers();
+    apiMock.mockReset();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+  it("announces loading until capacity and knowledge settle", async () => {
+    const dashboard = deferred<typeof supportDashboard>();
+    const knowledge = deferred<typeof operationalKnowledge>();
+    apiMock.mockImplementation((path: string) => path.startsWith("/v1/support/dashboard?") ? dashboard.promise : knowledge.promise);
 
-  it("announces loading before rendering the successful HTTP payload", async () => {
-    const resolvers: Array<(value: ReturnType<typeof response>) => void> = [];
-    const fetchMock = vi.fn(() => new Promise<ReturnType<typeof response>>((resolve) => resolvers.push(resolve)));
-    vi.stubGlobal("fetch", fetchMock);
     render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Carregando operação SAC");
+    expect(apiMock).toHaveBeenCalledWith(expect.stringMatching(/^\/v1\/support\/dashboard\?date=\d{4}-\d{2}-\d{2}$/));
+    expect(apiMock).toHaveBeenCalledWith("/v1/operations/today");
 
-    expect(screen.getByRole("status")).toHaveTextContent("Carregando dashboard");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    const urls = fetchMock.mock.calls.map(([input]) => String(input));
-    resolvers[urls.findIndex((url) => url.startsWith("/v1/sales/dashboard?"))](response(dashboardData));
-    resolvers[urls.indexOf("/v1/operations/today")](response(todayData));
-    resolvers[urls.indexOf("/v1/sales/sellers")](response(sellersData));
-
-    expect(await screen.findByRole("heading", { name: "Vendas aprovadas" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/^\/v1\/sales\/dashboard\?/), expect.objectContaining({
-      credentials: "include",
-      headers: { "content-type": "application/json" }
-    }));
+    await act(async () => {
+      dashboard.resolve(supportDashboard);
+      knowledge.resolve(operationalKnowledge);
+    });
+    expect(await screen.findByText("Overlap das pausas")).toBeInTheDocument();
   });
 
-  it("renders operational queues and routes every actionable shortcut", async () => {
-    installSuccessfulHttp();
-    const user = userEvent.setup();
+  it("renders capacity, quality, campaigns and actionable knowledge", async () => {
+    installSuccess();
     const onOpen = vi.fn();
+    const user = userEvent.setup();
     render(<DashboardView user={adminUser} onOpen={onOpen} />);
 
-    expect(await screen.findByText("danfe-001.pdf")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Grafico de vendas aprovadas por periodo" })).toBeInTheDocument();
-    expect(screen.getAllByText("R$ 1.250,00")).toHaveLength(4);
-    expect(screen.getByText("Fixado · Atualização crítica")).toBeInTheDocument();
-    expect(screen.getByText("Abrir comunicado interno")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Sobreposição de pausas e capacidade disponível por horário" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /SAC ativos: 3/ })).toHaveTextContent("Cobertura mínima: 2");
+    expect(screen.getByText("Ana SAC, Bruno SAC")).toBeInTheDocument();
+    expect(screen.getByText("93%")).toBeInTheDocument();
+    expect(screen.getByText("CSAT acima de 92")).toBeInTheDocument();
+    expect(screen.getByText(/Na meta · atual 93%/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Notas pendentes/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("notes", { notes: { status: "PENDING_REVIEW" } });
-    await user.click(screen.getByRole("button", { name: /Aprovadas hoje/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("notes", { notes: { status: "APPROVED" } });
-    await user.click(screen.getByRole("button", { name: /Rejeições hoje/ }));
-    await user.click(screen.getByRole("button", { name: /Duplicidades/ }));
-    await user.click(screen.getByRole("button", { name: /Ranking parcial/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("ranking", { ranking: { from: "2026-07-15", to: "2026-07-15" } });
-    await user.click(screen.getByRole("button", { name: /Campanhas ativas/ }));
-    await user.click(screen.getByRole("button", { name: /Wiki pendente/ }));
-    await user.click(screen.getByRole("button", { name: /FAQ sem resposta/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("faq", { faq: { status: "OPEN" } });
-    await user.click(screen.getByRole("button", { name: /Avisos ativos/ }));
-    await user.click(screen.getByRole("button", { name: /Revisar campanha/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("campaigns");
-    await user.click(screen.getByRole("button", { name: /Fixado · Atualização crítica/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("announcements", { announcements: { slug: "critical-update" } });
-    await user.click(screen.getByRole("button", { name: "Revisar" }));
-    expect(onOpen).toHaveBeenLastCalledWith("notes");
-
-    const priorities = screen.getByRole("heading", { name: "Prioridades comerciais" }).closest("section");
-    await user.click(within(priorities!).getByRole("button", { name: /vendedor\(es\) no ranking/ }));
-    await user.click(within(priorities!).getByRole("button", { name: /em vendas aprovadas/ }));
-    await user.click(within(priorities!).getByRole("button", { name: /procedimentos do SAC/ }));
-    expect(onOpen).toHaveBeenCalledWith("ranking");
-    expect(onOpen).toHaveBeenCalledWith("statements");
-    expect(onOpen).toHaveBeenCalledWith("wiki");
-  });
-
-  it("lets an admin switch between general, SAC and sales operational panels", async () => {
-    installSuccessfulHttp();
-    const user = userEvent.setup();
-    const onOpen = vi.fn();
-    render(<DashboardView user={adminUser} onOpen={onOpen} />);
-
-    expect(await screen.findByRole("heading", { name: "Hoje" })).toBeInTheDocument();
-    const modeSelector = screen.getByRole("tablist", { name: "Visão do dashboard" });
-    expect(within(modeSelector).getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Geral", "SAC", "Vendas"]);
-    expect(within(modeSelector).getByRole("tab", { name: "Geral" })).toHaveAttribute("aria-selected", "true");
-
-    await user.click(within(modeSelector).getByRole("tab", { name: "SAC" }));
-    expect(screen.getByRole("heading", { name: "Operação SAC" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Exportar dashboard CSV" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Vendas aprovadas" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Notas pendentes/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Política de troca")).toBeInTheDocument();
-    const complianceCard = screen.getByRole("button", { name: /Fixado · Atualização crítica/ });
-    expect(complianceCard).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("1 ciente(s) · faltam 2");
-    await user.click(complianceCard);
-    expect(complianceCard).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("button", { name: /SAC ativos: 3/ }));
+    await user.click(screen.getByRole("button", { name: "Abrir performance" }));
+    await user.click(screen.getByRole("button", { name: /CSAT acima de 92/ }));
+    await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));
     expect(screen.getByText("Ana SAC")).toBeInTheDocument();
-    expect(screen.getByText("Bruno SAC")).toBeInTheDocument();
-    expect(screen.getByText("Carla SAC")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Abrir aviso" }));
-    expect(onOpen).toHaveBeenLastCalledWith("announcements", { announcements: { slug: "critical-update" } });
-    await user.click(screen.getByRole("button", { name: /Como retomar um atendimento/ }));
-    expect(onOpen).toHaveBeenLastCalledWith("faq", { faq: { status: "OPEN" } });
+    await user.click(screen.getByRole("button", { name: /2 revisões da Wiki/ }));
+    await user.click(screen.getByRole("button", { name: /1 perguntas sem resposta/ }));
 
-    await user.click(within(modeSelector).getByRole("tab", { name: "Vendas" }));
-    expect(screen.getByRole("heading", { name: "Operação de vendas" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Exportar dashboard CSV" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Vendas aprovadas" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /FAQ sem resposta/ })).not.toBeInTheDocument();
-    expect(within(modeSelector).getByRole("tab", { name: "Vendas" })).toHaveAttribute("aria-selected", "true");
+    expect(onOpen).toHaveBeenCalledWith("supportPauses");
+    expect(onOpen).toHaveBeenCalledWith("supportPerformance");
+    expect(onOpen).toHaveBeenCalledWith("supportCampaigns");
+    expect(onOpen).toHaveBeenCalledWith("announcements", { announcements: { slug: "mudanca-critica" } });
+    expect(onOpen).toHaveBeenCalledWith("wiki");
+    expect(onOpen).toHaveBeenCalledWith("faq");
   });
 
-  it("keeps the administrative mode selector hidden and sales-focused for sellers", async () => {
-    installSuccessfulHttp();
-    render(<DashboardView user={sellerUser} onOpen={vi.fn()} />);
+  it("switches between pause and quality modes without shifting the controls", async () => {
+    installSuccess();
+    const user = userEvent.setup();
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+    const tabs = await screen.findByRole("tablist", { name: "Visão do dashboard" });
 
-    expect(await screen.findByRole("heading", { name: "Operação de vendas" })).toBeInTheDocument();
-    expect(screen.queryByRole("tablist", { name: "Visão do dashboard" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Exportar dashboard CSV" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /FAQ sem resposta/ })).not.toBeInTheDocument();
+    await user.click(within(tabs).getByRole("tab", { name: "Qualidade" }));
+    expect(screen.queryByText("Overlap das pausas")).not.toBeInTheDocument();
+    expect(screen.getByText("Performance SAC")).toBeInTheDocument();
+
+    await user.click(within(tabs).getByRole("tab", { name: "Pausas" }));
+    expect(screen.getByText("Overlap das pausas")).toBeInTheDocument();
+    expect(screen.queryByText("Performance SAC")).not.toBeInTheDocument();
   });
 
-  it("reloads through HTTP when date, group and seller filters change", async () => {
-    const fetchMock = installSuccessfulHttp();
-    const { container } = render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
-    await screen.findByText("danfe-001.pdf");
-    let [fromInput, toInput] = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="date"]'));
-
-    const groupSelect = screen.getByRole("combobox", { name: "Grupo" });
-    expect(within(groupSelect).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Todos", "Equipe Norte", "Equipe Sul"
-    ]);
-
-    fireEvent.change(fromInput, { target: { value: "2026-07-01" } });
-    await screen.findByText("danfe-001.pdf");
-    [fromInput, toInput] = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="date"]'));
-    fireEvent.change(toInput, { target: { value: "2026-07-20" } });
-    await screen.findByText("danfe-001.pdf");
-    fireEvent.change(screen.getByRole("combobox", { name: "Grupo" }), { target: { value: "group-2" } });
-    await screen.findByText("danfe-001.pdf");
-    fireEvent.change(screen.getByRole("combobox", { name: "Vendedor" }), { target: { value: "seller-2" } });
-
-    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => {
-      const url = String(input);
-      return url.startsWith("/v1/sales/dashboard?")
-        && url.includes("from=2026-07-01")
-        && url.includes("to=2026-07-20")
-        && url.includes("salesGroupId=group-2")
-        && url.includes("sellerProfileId=seller-2");
-    })).toBe(true));
-    expect(screen.getByRole("link", { name: "Exportar dashboard CSV" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("salesGroupId=group-2")
-    );
-
-    await screen.findByText("danfe-001.pdf");
-    [fromInput] = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="date"]'));
-    fireEvent.change(fromInput, { target: { value: "" } });
-    await screen.findByText("danfe-001.pdf");
-    fireEvent.change(screen.getByRole("combobox", { name: "Grupo" }), { target: { value: "" } });
-    await waitFor(() => expect(screen.getByRole("link", { name: "Exportar dashboard CSV" }).getAttribute("href")).not.toContain("salesGroupId"));
+  it("reloads the SAC dashboard when the local operation date changes", async () => {
+    installSuccess();
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+    await screen.findByText("Overlap das pausas");
+    fireEvent.change(screen.getByLabelText("Data"), { target: { value: "2026-07-16" } });
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/dashboard?date=2026-07-16"));
   });
 
-  it("shows real empty states when the operation has no activity", async () => {
-    installSuccessfulHttp({
-      dashboard: {
-        ...dashboardData,
-        metrics: { ...dashboardData.metrics, pendingDocuments: 0, totalAmountCents: 0 },
-        chart: { ...dashboardData.chart, series: [{ ...dashboardData.chart.series[0], totalAmountCents: 0 }] },
-        queues: { pendingDocuments: [], topSellers: [], groups: [] }
-      },
-      today: {
-        ...todayData,
-        queues: { ...todayData.queues, pendingDocuments: [], activeAnnouncements: [], alerts: [] }
-      },
-      sellers: { items: [] }
-    });
+  it("keeps the core dashboard useful when knowledge is temporarily unavailable", async () => {
+    apiMock.mockImplementation((path: string) => path.startsWith("/v1/support/dashboard?")
+      ? Promise.resolve(supportDashboard)
+      : Promise.reject(new Error("knowledge unavailable")));
     render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
-    expect(await screen.findByText("Sem vendas aprovadas no período")).toBeInTheDocument();
-    expect(screen.getByText("Nenhum alerta crítico")).toBeInTheDocument();
-    expect(screen.getByText("Sem notas na fila")).toBeInTheDocument();
+    expect(await screen.findByText("Overlap das pausas")).toBeInTheDocument();
     expect(screen.getByText("Sem avisos ativos")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma nota pendente")).toBeInTheDocument();
-    expect(screen.getByText("Ranking sem vendas aprovadas")).toBeInTheDocument();
-    expect(screen.getByText("Nenhum grupo com venda aprovada")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /0 revisões da Wiki/ })).toBeInTheDocument();
   });
 
-  it("surfaces role denial and retries successfully when the view is reopened", async () => {
-    const deniedFetch = vi.fn((input: RequestInfo | URL) => Promise.resolve({
-      json: vi.fn().mockResolvedValue(String(input) === "/v1/sales/sellers"
-        ? { ok: true, data: sellersData }
-        : { ok: false, error: { code: "FORBIDDEN", message: "Acesso negado para este perfil." } })
-    }));
-    vi.stubGlobal("fetch", deniedFetch);
-    const first = render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Acesso negado para este perfil.");
-    first.unmount();
-
-    const retryFetch = installSuccessfulHttp();
-    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
-    expect(await screen.findByRole("heading", { name: "Hoje" })).toBeInTheDocument();
-    expect(retryFetch).toHaveBeenCalledWith(expect.stringMatching(/^\/v1\/sales\/dashboard\?/), expect.any(Object));
-  });
-
-  it("degrades seller filters safely and exposes the top-level empty fallback", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.startsWith("/v1/sales/dashboard?")) return Promise.resolve(response(null));
-      if (url === "/v1/operations/today") return Promise.resolve(response(todayData));
-      if (url === "/v1/sales/sellers") return Promise.reject(new Error("seller directory unavailable"));
-      throw new Error(`Unexpected dashboard request: ${url}`);
+  it("renders honest empty states for an operation without slots or campaigns", async () => {
+    installSuccess({
+      dashboard: {
+        ...supportDashboard,
+        pauses: { ...supportDashboard.pauses, summary: { ...supportDashboard.pauses.summary, bookedPauses: 0, criticalIntervals: 0 }, timeline: [], slots: [] },
+        campaigns: []
+      },
+      knowledge: { ...operationalKnowledge, metrics: { wikiPendingReviews: 0, faqUnanswered: 0, activeAnnouncements: 0 }, queues: { ...operationalKnowledge.queues, activeAnnouncements: [] } }
     });
-    vi.stubGlobal("fetch", fetchMock);
     render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Dashboard indisponível");
-    expect(fetchMock).toHaveBeenCalledWith("/v1/sales/sellers", expect.any(Object));
+    expect(await screen.findByText("Sem slots neste dia")).toBeInTheDocument();
+    expect(screen.getByText("Sem campanha ativa")).toBeInTheDocument();
+    expect(screen.getByText("Sem avisos ativos")).toBeInTheDocument();
+  });
+
+  it("surfaces the support API error without masking it", async () => {
+    apiMock.mockImplementation((path: string) => path.startsWith("/v1/support/dashboard?")
+      ? Promise.reject(new Error("Acesso negado para este perfil."))
+      : Promise.resolve(operationalKnowledge));
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dashboard SAC indisponível");
+    expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado para este perfil.");
   });
 });

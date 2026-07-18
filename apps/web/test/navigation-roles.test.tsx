@@ -26,6 +26,9 @@ vi.mock("../src/views/script-library", () => ({ ScriptLibraryView: () => null })
 vi.mock("../src/views/service-flows", () => ({ ServiceFlowsView: () => <div>Fluxos de atendimento</div> }));
 vi.mock("../src/views/settings", () => ({ SettingsView: () => null }));
 vi.mock("../src/views/statements", () => ({ StatementsView: () => null }));
+vi.mock("../src/views/support-pauses", () => ({ SupportPausesView: () => <div>Pausas SAC</div> }));
+vi.mock("../src/views/support-performance", () => ({ SupportPerformanceView: () => <div>Performance SAC</div> }));
+vi.mock("../src/views/support-campaigns", () => ({ SupportCampaignsView: () => <div>Campanhas SAC</div> }));
 vi.mock("../src/views/users-teams", () => ({ UsersTeamsView: () => null }));
 vi.mock("../src/views/wiki", () => ({ WikiView: () => null }));
 vi.mock("../src/views/case-flow/health", () => ({ CaseFlowHealthView: () => null }));
@@ -54,8 +57,6 @@ describe("role navigation guards", () => {
     const navigation = await screen.findByRole("navigation", { name: "Navegação principal" });
     const primaryNav = within(navigation);
     expect(navigation).toHaveTextContent("SAC");
-    expect(navigation).toHaveTextContent("Fluxos");
-    fireEvent.click(primaryNav.getByRole("button", { name: /^SAC/ }));
     expect(navigation).not.toHaveTextContent("Fluxos");
     fireEvent.click(primaryNav.getByRole("button", { name: /^SAC/ }));
     expect(navigation).toHaveTextContent("Fluxos");
@@ -71,11 +72,10 @@ describe("role navigation guards", () => {
     const adminNavigation = screen.getByRole("navigation", { name: "Navegação principal" });
     const adminPrimaryNav = within(adminNavigation);
     const topLevel = Array.from(adminNavigation.children).map((element) => element.matches("button") ? element : element.querySelector(":scope > button"));
-    expect(topLevel).toHaveLength(6);
+    expect(topLevel).toHaveLength(5);
     expect(topLevel.map((element) => element?.textContent)).toEqual([
       expect.stringContaining("Dashboard"),
       expect.stringContaining("Perfil"),
-      expect.stringContaining("Vendas"),
       expect.stringContaining("SAC"),
       expect.stringContaining("Administração"),
       expect.stringContaining("Como usar")

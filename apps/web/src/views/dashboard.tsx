@@ -1,534 +1,265 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
-import { api, apiBaseUrl } from "../api";
-import { InfoTip, OperationalState, OperationalTable } from "../components/operational";
-import {
-  formatDateBr,
-  formatMoneyFromCents,
-  salesFilterQuery,
-  type OperationalTodayData,
-  type SalesDashboardData,
-  type SalesDocumentListFilters,
-  type SalesFilters,
-  type SalesSellerItem
-} from "../sales";
+import { api } from "../api";
+import { OperationalState } from "../components/operational";
+import { formatSupportDate, formatSupportTime, supportDateInputValue } from "../support-operations";
+import "../support-dashboard.css";
 
-type DashboardTargetView = "notes" | "ranking" | "statements" | "wiki" | "faq" | "campaigns" | "announcements";
-type DashboardOpenOptions = {
-  notes?: SalesDocumentListFilters;
-  ranking?: SalesFilters;
-  faq?: { status?: string };
-  announcements?: { slug?: string | null };
+type DashboardTargetView = "announcements" | "faq" | "wiki" | "supportPauses" | "supportPerformance" | "supportCampaigns";
+type DashboardMode = "overview" | "pauses" | "quality";
+type DashboardIntent = { faq?: { status?: string }; announcements?: { slug?: string | null } };
+
+interface SupportDashboardData {
+  date: string;
+  pauses: {
+    summary: { activeAgents: number; minimumCoverage: number; bookedPauses: number; criticalIntervals: number };
+    timeline: Array<{ startsAt: string; endsAt: string; pausedCount: number; availableCount: number; critical: boolean }>;
+    slots: Array<{
+      id: string;
+      label: string | null;
+      startsAt: string;
+      endsAt: string;
+      capacity: number;
+      bookedCount: number;
+      remainingCapacity: number;
+      bookings: Array<{ id: string; user: { id: string; name: string; email: string } }>;
+    }>;
+  };
+  performance: {
+    summary: Array<{ metric: string; latest: number | null; average: number | null; samples: number; aggregation: "WEIGHTED" | "SIMPLE" }>;
+    entries: Array<{ id: string; metric: string; value: number; periodStart: string }>;
+  };
+  campaigns: Array<{
+    id: string;
+    name: string;
+    metric: string;
+    targetValue: number;
+    comparison: string;
+    endsAt: string;
+    result: { current: number | null; achieved: boolean; progressPercent: number };
+  }>;
+}
+
+interface OperationalKnowledgeData {
+  generatedAt: string;
+  metrics: { wikiPendingReviews: number; faqUnanswered: number; activeAnnouncements: number };
+  queues: {
+    wikiPendingReviews: Array<{ id: string; page: { title: string }; author: { name: string }; createdAt: string }>;
+    faqUnanswered: Array<{ id: string; title: string; body: string | null }>;
+    activeAnnouncements: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      summary: string | null;
+      priority: string;
+      pinned: boolean;
+      requiresAck: boolean;
+      acknowledgement?: {
+        audienceCount: number;
+        acknowledgedCount: number;
+        pendingCount: number;
+        completed: boolean;
+        acknowledgedUsers: Array<{ id: string; name: string; email: string; role: string }>;
+        openedWithoutAckUsers: Array<{ id: string; name: string; email: string; role: string }>;
+        notOpenedUsers: Array<{ id: string; name: string; email: string; role: string }>;
+      } | null;
+    }>;
+  };
+}
+
+const metricLabels: Record<string, string> = {
+  CSAT: "CSAT",
+  PRODUCTIVITY: "Produtividade",
+  SLA: "SLA",
+  RECLAME_AQUI_OPEN: "ReclameAqui abertos"
 };
-type DashboardMode = "general" | "support" | "sales";
 
-function MetricCard({ label, value }: { label: string; value: ReactNode }) {
+function formatTime(value: string) {
+  return formatSupportTime(value);
+}
+
+function formatDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(`${value}T12:00:00-03:00`))
+    : formatSupportDate(value);
+}
+
+function formatMetric(metric: string, value: number | null) {
+  if (value === null) return "-";
+  if (metric === "CSAT" || metric === "SLA") return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function OverlapChart({ data }: { data: SupportDashboardData["pauses"] }) {
+  const maximum = Math.max(data.summary.activeAgents, 1);
+  if (!data.timeline.length) return <OperationalState state="empty" title="Sem slots neste dia" detail="A gestão ainda não publicou a grade de pausas." />;
   return (
-    <div className="metric-card">
+    <div className="support-overlap-chart" role="img" aria-label="Sobreposição de pausas e capacidade disponível por horário">
+      {data.timeline.map((point, index) => (
+        <div className="support-overlap-column" key={point.startsAt}>
+          <span
+            className={point.critical ? "support-overlap-bar critical" : "support-overlap-bar"}
+            style={{ height: `${Math.max((point.pausedCount / maximum) * 100, point.pausedCount ? 12 : 3)}%` }}
+            title={`${formatTime(point.startsAt)}: ${point.pausedCount} em pausa, ${point.availableCount} disponíveis`}
+          />
+          {index % Math.max(Math.ceil(data.timeline.length / 8), 1) === 0 ? <small>{formatTime(point.startsAt)}</small> : <small aria-hidden="true">&nbsp;</small>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricButton({ label, value, detail, onClick }: { label: string; value: string | number; detail: string; onClick: () => void }) {
+  return (
+    <button className="support-dashboard-metric" type="button" aria-label={`${label}: ${value}. ${detail}`} onClick={onClick}>
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+      <small>{detail}</small>
+    </button>
   );
 }
 
-function AcknowledgementPeople({ label, users, emptyLabel }: {
-  label: string;
-  users: Array<{ id: string; name: string; email: string; role: string }>;
-  emptyLabel: string;
-}) {
-  return (
-    <div className="announcement-compliance-people">
-      <strong>{label} ({users.length})</strong>
-      {users.length ? (
-        <ul>
-          {users.map((person) => <li key={person.id}><span>{person.name}</span><small>{person.role}</small></li>)}
-        </ul>
-      ) : <span className="muted">{emptyLabel}</span>}
-    </div>
-  );
-}
+export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (view: DashboardTargetView, options?: DashboardIntent) => void }) {
+  const [date, setDate] = useState(supportDateInputValue());
+  const [mode, setMode] = useState<DashboardMode>("overview");
+  const [dashboard, setDashboard] = useState<SupportDashboardData | null>(null);
+  const [knowledge, setKnowledge] = useState<OperationalKnowledgeData | null>(null);
+  const [expandedAnnouncement, setExpandedAnnouncement] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      api<SupportDashboardData>(`/v1/support/dashboard?date=${date}`),
+      api<OperationalKnowledgeData>("/v1/operations/today").catch(() => null)
+    ]).then(([supportResult, knowledgeResult]) => {
+      if (cancelled) return;
+      setDashboard(supportResult);
+      setKnowledge(knowledgeResult);
+    }).catch((caught) => {
+      if (!cancelled) setError(caught instanceof Error ? caught.message : "Falha ao carregar o dashboard SAC.");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [date]);
 
-function daysAgoIso(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
-}
+  const criticalSlots = useMemo(() => dashboard?.pauses.timeline.filter((point) => point.critical) ?? [], [dashboard]);
+  const showPauses = mode === "overview" || mode === "pauses";
+  const showQuality = mode === "overview" || mode === "quality";
 
-function chartLabel(from: string, to: string, bucket: string) {
-  if (bucket === "month") return from.slice(5, 7) + "/" + from.slice(0, 4);
-  if (bucket === "week") return `${formatDateBr(from)}-${formatDateBr(to).slice(0, 5)}`;
-  return formatDateBr(from).slice(0, 5);
-}
-
-function SalesTrendChart({ dashboard }: { dashboard: SalesDashboardData }) {
-  const series = dashboard.chart.series;
-  const max = Math.max(...series.map((item) => item.totalAmountCents), 1);
-  const width = 720;
-  const height = 220;
-  const padding = { top: 18, right: 18, bottom: 54, left: 86 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const barGap = 8;
-  const barWidth = Math.max(8, plotWidth / Math.max(series.length, 1) - barGap);
-  const labelStep = Math.max(1, Math.ceil(series.length / 10));
-  const total = series.reduce((sum, item) => sum + item.totalAmountCents, 0);
-  const quantity = series.reduce((sum, item) => sum + item.quantity, 0);
-  const documents = series.reduce((sum, item) => sum + item.documents, 0);
+  if (loading) return <OperationalState state="loading" title="Carregando operação SAC" detail="Consolidando cobertura, qualidade e comunicados." />;
+  if (error || !dashboard) return <OperationalState state="error" title="Dashboard SAC indisponível" detail={error ?? "Dados operacionais não encontrados."} />;
 
   return (
-    <section className="panel sales-chart-panel">
-      <div className="table-panel-toolbar">
-        <div>
-          <p className="eyebrow">Evolução comercial</p>
-          <h2>Vendas aprovadas</h2>
-          <p className="muted">{formatDateBr(dashboard.chart.from)} até {formatDateBr(dashboard.chart.to)}</p>
+    <div className="support-dashboard-page">
+      <section className="panel support-dashboard-controls">
+        <label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <div className="segmented-control" role="tablist" aria-label="Visão do dashboard">
+          {([[
+            "overview", "Visão geral"
+          ], ["pauses", "Pausas"], ["quality", "Qualidade"]] as Array<[DashboardMode, string]>).map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={mode === key} className={mode === key ? "active" : ""} onClick={() => setMode(key)}>{label}</button>
+          ))}
         </div>
-        <div className="chart-summary">
-          <span>{formatMoneyFromCents(total)}</span>
-          <small>{documents} nota(s) / {quantity} item(ns)</small>
-        </div>
-      </div>
-      {series.length === 0 || total === 0 ? (
-        <OperationalState state="empty" title="Sem vendas aprovadas no período" detail="Aprove notas ou ajuste o range para alimentar o gráfico." />
-      ) : (
-        <div className="sales-chart-scroll">
-          <svg className="sales-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafico de vendas aprovadas por periodo">
-            <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} />
-            <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} />
-            {[0, 0.5, 1].map((tick) => {
-              const y = padding.top + plotHeight - plotHeight * tick;
-              return (
-                <g key={tick}>
-                  <line className="chart-grid-line" x1={padding.left} y1={y} x2={width - padding.right} y2={y} />
-                  <text x={padding.left - 10} y={y + 4} textAnchor="end">{formatMoneyFromCents(max * tick).replace(",00", "")}</text>
-                </g>
-              );
-            })}
-            {series.map((item, index) => {
-              const x = padding.left + index * (barWidth + barGap) + barGap / 2;
-              const barHeight = Math.max(2, (item.totalAmountCents / max) * plotHeight);
-              const y = padding.top + plotHeight - barHeight;
-              return (
-                <g key={item.key}>
-                  <rect x={x} y={y} width={barWidth} height={barHeight} rx="4">
-                    <title>{`${chartLabel(item.from, item.to, dashboard.chart.bucket)}: ${formatMoneyFromCents(item.totalAmountCents)} / ${item.documents} nota(s)`}</title>
-                  </rect>
-                  {index % labelStep === 0 || index === series.length - 1 ? (
-                    <text x={x + barWidth / 2} y={height - 22} textAnchor="middle">{chartLabel(item.from, item.to, dashboard.chart.bucket)}</text>
-                  ) : null}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      )}
-    </section>
-  );
-}
+      </section>
 
-function OperationalTodayCenter({ today, mode, onOpen }: { today: OperationalTodayData; mode: DashboardMode; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
-  const [expandedAnnouncementId, setExpandedAnnouncementId] = useState<string | null>(null);
-  const showSales = mode !== "support";
-  const showSupport = mode !== "sales";
-  const alertTargets = mode === "sales"
-    ? new Set(["notes", "ranking", "campaigns", "statements"])
-    : mode === "support"
-      ? new Set(["wiki", "faq", "announcements"])
-      : null;
-  const alerts = alertTargets ? today.queues.alerts.filter((alert) => alertTargets.has(alert.target)) : today.queues.alerts;
-  const heading = mode === "sales" ? "Operação de vendas" : mode === "support" ? "Operação SAC" : "Hoje";
+      <section className="support-dashboard-metrics" aria-label="Indicadores principais">
+        <MetricButton label="SAC ativos" value={dashboard.pauses.summary.activeAgents} detail={`Cobertura mínima: ${dashboard.pauses.summary.minimumCoverage}`} onClick={() => onOpen("supportPauses")} />
+        <MetricButton label="Pausas reservadas" value={dashboard.pauses.summary.bookedPauses} detail={date === supportDateInputValue() ? "Grade de hoje" : formatDate(date)} onClick={() => onOpen("supportPauses")} />
+        <MetricButton label="Faixas críticas" value={dashboard.pauses.summary.criticalIntervals} detail={criticalSlots.length ? `Primeira às ${formatTime(criticalSlots[0].startsAt)}` : "Cobertura saudável"} onClick={() => onOpen("supportPauses")} />
+        <MetricButton label="Campanhas ativas" value={dashboard.campaigns.length} detail="Metas operacionais SAC" onClick={() => onOpen("supportCampaigns")} />
+        <MetricButton label="Avisos ativos" value={knowledge?.metrics.activeAnnouncements ?? 0} detail="Comunicados da operação" onClick={() => onOpen("announcements")} />
+      </section>
 
-  return (
-    <section className="panel operational-today-panel">
-      <div className="table-panel-toolbar">
-        <div>
-          <p className="eyebrow">Central operacional</p>
-          <h2>{heading}</h2>
-          <p className="muted">Pulso da operação em {formatDateBr(today.period.today)}</p>
-        </div>
-        <span className="status-badge">Atualizada {new Date(today.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-      </div>
-      <div className="today-card-grid">
-        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "PENDING_REVIEW" } })}>
-          <span>Notas pendentes</span>
-          <strong>{today.metrics.pendingDocuments}</strong>
-          <small>Revisar DANFEs para liberar ranking e extratos</small>
-        </button> : null}
-        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "APPROVED" } })}>
-          <span>Aprovadas hoje</span>
-          <strong>{today.metrics.approvedToday}</strong>
-          <small>Entraram na operação após revisão</small>
-        </button> : null}
-        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "REJECTED" } })}>
-          <span>Rejeições hoje</span>
-          <strong>{today.metrics.rejectedToday}</strong>
-          <small>Precisam de motivo claro para auditoria</small>
-        </button> : null}
-        {showSales ? <button type="button" onClick={() => onOpen("notes", { notes: { status: "DUPLICATE" } })}>
-          <span>Duplicidades</span>
-          <strong>{today.metrics.duplicates}</strong>
-          <small>Conferir chaves e pacotes reprocessados</small>
-        </button> : null}
-        {showSales ? <button type="button" onClick={() => onOpen("ranking", { ranking: { from: today.period.from, to: today.period.to } })}>
-          <span>Ranking parcial</span>
-          <strong>{today.queues.ranking.length}</strong>
-          <small>Vendedores com venda aprovada hoje</small>
-        </button> : null}
-        {showSales ? <button type="button" onClick={() => onOpen("campaigns")}>
-          <span>Campanhas ativas</span>
-          <strong>{today.metrics.activeCampaigns}</strong>
-          <small>{today.metrics.campaignsEndingSoon} encerrando em até 7 dias</small>
-        </button> : null}
-        {showSupport ? <button type="button" onClick={() => onOpen("wiki")}>
-          <span>Wiki pendente</span>
-          <strong>{today.metrics.wikiPendingReviews}</strong>
-          <small>Propostas aguardando curadoria</small>
-        </button> : null}
-        {showSupport ? <button type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
-          <span>FAQ sem resposta</span>
-          <strong>{today.metrics.faqUnanswered}</strong>
-          <small>Dúvidas que ainda não viraram conhecimento</small>
-        </button> : null}
-        {showSupport ? <button type="button" onClick={() => onOpen("announcements")}>
-          <span>Avisos ativos</span>
-          <strong>{today.metrics.activeAnnouncements}</strong>
-          <small>Comunicados vigentes para sua operação</small>
-        </button> : null}
-      </div>
-      <div className="today-work-grid">
-        <div>
-          <h3>Alertas importantes</h3>
-          {alerts.length === 0 ? (
-            <OperationalState state="success" title="Nenhum alerta crítico" detail="A operação não tem bloqueios relevantes agora." />
-          ) : (
-            <div className="today-alert-list">
-              {alerts.map((alert) => (
-                <button className={`today-alert ${alert.severity}`} key={`${alert.title}-${alert.target}`} type="button" onClick={() => onOpen(alert.target as DashboardTargetView)}>
-                  <strong>{alert.title}</strong>
-                  <span>{alert.detail}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {showSales ? <div>
-          <h3>Fila imediata</h3>
-          {today.queues.pendingDocuments.length === 0 ? (
-            <OperationalState state="empty" title="Sem notas na fila" detail="Novas DANFEs aparecerão aqui primeiro." />
-          ) : (
-            <OperationalTable
-              items={today.queues.pendingDocuments}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
-                { key: "status", header: "Status", render: (item) => item.status },
-                { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) }
-              ]}
-            />
-          )}
-        </div> : null}
-        {mode === "support" ? <div>
-          <h3>Revisões da Wiki</h3>
-          {today.queues.wikiPendingReviews.length === 0 ? (
-            <OperationalState state="empty" title="Wiki sem revisão pendente" detail="Novas propostas aparecerão aqui para curadoria." />
-          ) : (
-            <div className="today-alert-list">
-              {today.queues.wikiPendingReviews.map((item) => (
-                <button className="today-alert info" key={item.id} type="button" onClick={() => onOpen("wiki")}>
-                  <strong>{item.page.title}</strong>
-                  <span>{item.author.name} · {formatDateBr(item.createdAt)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div> : null}
-        {mode === "support" ? <div>
-          <h3>FAQ sem resposta</h3>
-          {today.queues.faqUnanswered.length === 0 ? (
-            <OperationalState state="empty" title="FAQ em dia" detail="Novas dúvidas sem resposta aparecerão aqui." />
-          ) : (
-            <div className="today-alert-list">
-              {today.queues.faqUnanswered.map((item) => (
-                <button className="today-alert info" key={item.id} type="button" onClick={() => onOpen("faq", { faq: { status: "OPEN" } })}>
-                  <strong>{item.title}</strong>
-                  <span>{item.body ?? `Aberta por ${item.author.name}`}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div> : null}
-        {showSupport ? <div>
-          <h3>Avisos do dia</h3>
-          {today.queues.activeAnnouncements.length === 0 ? (
-            <OperationalState state="empty" title="Sem avisos ativos" detail="Comunicados importantes aparecerão aqui." />
-          ) : (
-            <div className="today-alert-list">
-              {today.queues.activeAnnouncements.map((item) => {
-                const compliance = item.acknowledgement;
-                const expanded = expandedAnnouncementId === item.id;
-                const severity = item.priority === "CRITICAL" ? "danger" : item.priority === "HIGH" ? "warning" : "info";
-                const tooltip = compliance?.completed && compliance.audienceCount > 0
-                  ? `Todos os ${compliance.audienceCount} destinatários marcaram ciência`
-                  : `${compliance?.acknowledgedCount ?? 0} ciente(s) · faltam ${compliance?.pendingCount ?? 0}`;
-                if (mode === "support" && item.requiresAck && compliance) {
-                  const tooltipId = `announcement-compliance-${item.id}`;
+      {showPauses ? (
+        <section className="panel support-dashboard-section">
+          <div className="table-panel-toolbar">
+            <div><p className="eyebrow">Capacidade</p><h2>Overlap das pausas</h2></div>
+            <button className="secondary" type="button" onClick={() => onOpen("supportPauses")}>Gerenciar pausas</button>
+          </div>
+          <OverlapChart data={dashboard.pauses} />
+          <div className="support-dashboard-slot-strip">
+            {dashboard.pauses.slots.map((slot) => (
+              <button key={slot.id} type="button" aria-label={`${formatTime(slot.startsAt)} a ${formatTime(slot.endsAt)}: ${slot.bookedCount} de ${slot.capacity} em pausa`} onClick={() => onOpen("supportPauses")}>
+                <strong>{formatTime(slot.startsAt)}–{formatTime(slot.endsAt)}</strong>
+                <span>{slot.bookedCount}/{slot.capacity} em pausa</span>
+                <small>{slot.bookings.map((booking) => booking.user.name).join(", ") || "Livre"}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {showQuality ? (
+        <section className="panel support-dashboard-section">
+          <div className="table-panel-toolbar">
+            <div><p className="eyebrow">Qualidade</p><h2>Performance SAC</h2></div>
+            <button className="secondary" type="button" onClick={() => onOpen("supportPerformance")}>Abrir performance</button>
+          </div>
+          <div className="support-quality-grid">
+            {dashboard.performance.summary.map((item) => (
+              <div key={item.metric}>
+                <span>{metricLabels[item.metric] ?? item.metric}</span>
+                <strong>{formatMetric(item.metric, item.latest)}</strong>
+                <small>{item.samples ? `Média ${formatMetric(item.metric, item.average)}` : "Sem lançamento"}</small>
+              </div>
+            ))}
+          </div>
+          <div className="support-campaign-list">
+            {dashboard.campaigns.map((campaign) => (
+              <button key={campaign.id} type="button" aria-label={`${campaign.name}: ${campaign.result.current === null ? "sem medição" : campaign.result.achieved ? "na meta" : "em evolução"}`} onClick={() => onOpen("supportCampaigns")}>
+                <strong>{campaign.name}</strong>
+                <span>{metricLabels[campaign.metric] ?? campaign.metric} {campaign.comparison === "LTE" ? "≤" : "≥"} {formatMetric(campaign.metric, campaign.targetValue)}</span>
+                <small>{campaign.result.current === null ? "Sem medição" : `${campaign.result.achieved ? "Na meta" : "Em evolução"} · atual ${formatMetric(campaign.metric, campaign.result.current)}`} · até {formatDate(campaign.endsAt)}</small>
+              </button>
+            ))}
+            {dashboard.campaigns.length ? null : <OperationalState state="empty" title="Sem campanha ativa" detail="A gestão pode criar uma meta operacional em Campanhas." />}
+          </div>
+        </section>
+      ) : null}
+
+      {mode === "overview" ? (
+        <section className="panel support-dashboard-section">
+          <div className="table-panel-toolbar"><div><p className="eyebrow">Comunicação</p><h2>Avisos e conhecimento</h2></div></div>
+          <div className="support-knowledge-grid">
+            <div>
+              <h3>Avisos ativos</h3>
+              <div className="today-alert-list">
+                {(knowledge?.queues.activeAnnouncements ?? []).map((announcement) => {
+                  const compliance = announcement.acknowledgement;
+                  const expanded = expandedAnnouncement === announcement.id;
                   return (
-                    <article className={`announcement-compliance-card ${severity}`} key={item.id}>
-                      <button
-                        className="announcement-compliance-trigger"
-                        type="button"
-                        aria-expanded={expanded}
-                        aria-describedby={tooltipId}
-                        onClick={() => setExpandedAnnouncementId((current) => current === item.id ? null : item.id)}
-                      >
-                        <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
-                        <span>{item.summary ?? "Comunicado com ciência obrigatória"}</span>
-                        <span className="announcement-compliance-tooltip" id={tooltipId} role="tooltip">{tooltip}</span>
+                    <article className={`announcement-compliance-card ${announcement.priority === "CRITICAL" ? "danger" : announcement.priority === "HIGH" ? "warning" : "info"}`} key={announcement.id}>
+                      <button className="announcement-compliance-trigger" type="button" aria-expanded={expanded} onClick={() => setExpandedAnnouncement((current) => current === announcement.id ? null : announcement.id)}>
+                        <strong>{announcement.pinned ? "Fixado · " : ""}{announcement.title}</strong>
+                        <span>{announcement.summary ?? "Comunicado interno"}</span>
+                        {compliance ? <small>{compliance.acknowledgedCount} cientes · {compliance.pendingCount} pendentes</small> : null}
                       </button>
                       {expanded ? (
                         <div className="announcement-compliance-detail">
-                          <div className="announcement-compliance-grid">
-                            <AcknowledgementPeople label="Cientes" users={compliance.acknowledgedUsers} emptyLabel="Ninguém confirmou ainda." />
-                            <AcknowledgementPeople label="Abriu, falta ciência" users={compliance.openedWithoutAckUsers} emptyLabel="Nenhuma confirmação intermediária." />
-                            <AcknowledgementPeople label="Não abriu" users={compliance.notOpenedUsers} emptyLabel="Toda a audiência já abriu." />
-                          </div>
-                          <button className="secondary" type="button" onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}>Abrir aviso</button>
+                          {compliance ? <p>{compliance.acknowledgedUsers.map((person) => person.name).join(", ") || "Nenhuma ciência registrada."}</p> : null}
+                          <button className="secondary" type="button" onClick={() => onOpen("announcements", { announcements: { slug: announcement.slug } })}>Abrir aviso</button>
                         </div>
                       ) : null}
                     </article>
                   );
-                }
-                return (
-                  <button
-                    className={`today-alert ${severity}`}
-                    key={item.id}
-                    type="button"
-                    onClick={() => onOpen("announcements", { announcements: { slug: item.slug } })}
-                  >
-                    <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
-                    <span>{item.summary ?? "Abrir comunicado interno"}</span>
-                  </button>
-                );
-              })}
+                })}
+                {knowledge?.queues.activeAnnouncements.length ? null : <OperationalState state="empty" title="Sem avisos ativos" detail="A operação está sem comunicados pendentes." />}
+              </div>
             </div>
-          )}
-        </div> : null}
-      </div>
-    </section>
-  );
-}
-
-export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (view: DashboardTargetView, options?: DashboardOpenOptions) => void }) {
-  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
-  const [today, setToday] = useState<OperationalTodayData | null>(null);
-  const [sellers, setSellers] = useState<SalesSellerItem[]>([]);
-  const [filters, setFilters] = useState<SalesFilters>({ from: daysAgoIso(29), to: todayIso() });
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<DashboardMode>(user.role === "ADMIN" ? "general" : "sales");
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [dashboardResult, todayResult] = await Promise.all([
-        api<SalesDashboardData>(`/v1/sales/dashboard${salesFilterQuery(filters)}`),
-        api<OperationalTodayData>("/v1/operations/today")
-      ]);
-      setDashboard(dashboardResult);
-      setToday(todayResult);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Falha ao carregar dashboard.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void load();
-  }, [filters]);
-
-  useEffect(() => {
-    api<{ items: SalesSellerItem[] }>("/v1/sales/sellers").then((result) => setSellers(result.items)).catch(() => setSellers([]));
-  }, []);
-
-  const groups = useMemo(() => {
-    const values = new Map<string, string>();
-    for (const seller of sellers) {
-      if (seller.salesGroup) values.set(seller.salesGroup.id, seller.salesGroup.name);
-    }
-    return [...values.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [sellers]);
-  const csvHref = `${apiBaseUrl}/v1/sales/dashboard.csv${salesFilterQuery(filters)}`;
-  const showSales = mode !== "support";
-
-  if (loading) return <OperationalState state="loading" title="Carregando dashboard" />;
-  if (error) return <OperationalState state="error" title="Falha ao carregar dashboard" detail={error} />;
-  if (!dashboard) return <OperationalState state="empty" title="Dashboard indisponível" />;
-
-  return (
-    <div className="content-stack">
-      <section className="panel filter-panel">
-        {user.role === "ADMIN" ? (
-          <div className={`segmented-control dashboard-mode-filter${showSales ? " with-sales-filters" : ""}`} role="tablist" aria-label="Visão do dashboard">
-            {([
-              ["general", "Geral"],
-              ["support", "SAC"],
-              ["sales", "Vendas"]
-            ] as const).map(([value, label]) => (
-              <button className={mode === value ? "" : "secondary"} key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => setMode(value)}>
-                {label}
-              </button>
-            ))}
+            <div>
+              <h3>Conhecimento pendente</h3>
+              <button className="support-knowledge-action" type="button" aria-label={`${knowledge?.metrics.wikiPendingReviews ?? 0} revisões da Wiki`} onClick={() => onOpen("wiki")}><strong>{knowledge?.metrics.wikiPendingReviews ?? 0}</strong><span>revisões da Wiki</span></button>
+              <button className="support-knowledge-action" type="button" aria-label={`${knowledge?.metrics.faqUnanswered ?? 0} perguntas sem resposta`} onClick={() => onOpen("faq")}><strong>{knowledge?.metrics.faqUnanswered ?? 0}</strong><span>perguntas sem resposta</span></button>
+            </div>
           </div>
-        ) : null}
-        {showSales ? <><div className="filter-grid">
-          <label>
-            <span className="label-row">De <InfoTip text="O gráfico usa a data de emissao das notas aprovadas." href="#dashboard" /></span>
-            <input type="date" value={filters.from ?? ""} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value || undefined }))} />
-          </label>
-          <label>
-            Ate
-            <input type="date" value={filters.to ?? ""} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value || undefined }))} />
-          </label>
-          <label>
-            Grupo
-            <select value={filters.salesGroupId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, salesGroupId: event.target.value || undefined }))}>
-              <option value="">Todos</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>{group.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Vendedor
-            <select value={filters.sellerProfileId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, sellerProfileId: event.target.value || undefined }))}>
-              <option value="">Todos</option>
-              {sellers.map((seller) => (
-                <option key={seller.id} value={seller.id}>{seller.displayName}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="form-actions">
-          <a className="secondary button-link" href={csvHref}>
-            Exportar dashboard CSV
-          </a>
-        </div></> : null}
-      </section>
-
-      {today ? <OperationalTodayCenter today={today} mode={mode} onOpen={onOpen} /> : null}
-
-      {showSales ? <><section className="metrics-grid">
-        <MetricCard label="Notas enviadas" value={dashboard.metrics.totalDocuments} />
-        <MetricCard label="Pendentes" value={dashboard.metrics.pendingDocuments} />
-        <MetricCard label="Aprovadas" value={dashboard.metrics.approvedDocuments} />
-        <MetricCard label="Recusadas/Duplicadas" value={dashboard.metrics.rejectedDocuments} />
-        <MetricCard label="Vendedores ativos" value={dashboard.metrics.activeSellers} />
-      </section>
-
-      <SalesTrendChart dashboard={dashboard} />
-
-      <section className="panel action-center-panel">
-        <div className="table-panel-toolbar">
-          <div>
-            <p className="eyebrow">Central de ações</p>
-            <h2>Prioridades comerciais</h2>
-          </div>
-        </div>
-        <div className="action-center-grid">
-          <button type="button" onClick={() => onOpen("notes")}>
-            <strong>{dashboard.metrics.pendingDocuments}</strong>
-            <span>nota(s) aguardando revisão</span>
-          </button>
-          <button type="button" onClick={() => onOpen("ranking")}>
-            <strong>{dashboard.queues.topSellers.length}</strong>
-            <span>vendedor(es) no ranking</span>
-          </button>
-          <button type="button" onClick={() => onOpen("statements")}>
-            <strong>{formatMoneyFromCents(dashboard.metrics.totalAmountCents)}</strong>
-            <span>em vendas aprovadas</span>
-          </button>
-          <button type="button" onClick={() => onOpen("wiki")}>
-            <strong>Wiki</strong>
-            <span>procedimentos do SAC, financeiro e vendas</span>
-          </button>
-        </div>
-      </section>
-
-      <section className="dashboard-grid">
-        <div className="panel table-panel">
-          <h2>Série do período</h2>
-          <OperationalTable
-            items={dashboard.chart.series.filter((item) => item.totalAmountCents > 0).slice(-10)}
-            getRowKey={(item) => item.key}
-            columns={[
-              { key: "period", header: "Periodo", render: (item) => chartLabel(item.from, item.to, dashboard.chart.bucket) },
-              { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-              { key: "documents", header: "Notas", render: (item) => item.documents },
-              { key: "ticket", header: "Ticket", render: (item) => formatMoneyFromCents(item.averageTicketCents) }
-            ]}
-          />
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Notas pendentes</h2>
-          {dashboard.queues.pendingDocuments.length === 0 ? (
-            <OperationalState state="empty" title="Nenhuma nota pendente" detail="Quando vendedores subirem DANFEs, elas aparecem aqui para revisão." />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.pendingDocuments}
-              getRowKey={(item) => item.id}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerProfile.displayName },
-                { key: "file", header: "Arquivo", render: (item) => item.fileName },
-                { key: "status", header: "Status", render: (item) => item.status },
-                { key: "created", header: "Enviada", render: (item) => formatDateBr(item.createdAt) },
-                { key: "action", header: "Ação", render: () => <button className="secondary" onClick={() => onOpen("notes")}>Revisar</button> }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Top vendedores</h2>
-          {dashboard.queues.topSellers.length === 0 ? (
-            <OperationalState state="empty" title="Ranking sem vendas aprovadas" detail="A primeira nota aprovada libera comparação entre vendedores." />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.topSellers}
-              getRowKey={(item) => item.sellerId}
-              columns={[
-                { key: "seller", header: "Vendedor", render: (item) => item.sellerName },
-                { key: "group", header: "Grupo", render: (item) => item.groupName ?? "-" },
-                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity }
-              ]}
-            />
-          )}
-        </div>
-
-        <div className="panel table-panel">
-          <h2>Grupos</h2>
-          {dashboard.queues.groups.length === 0 ? (
-            <OperationalState state="empty" title="Nenhum grupo com venda aprovada" detail="Vincule vendedores a grupos e aprove notas para ver o consolidado." />
-          ) : (
-            <OperationalTable
-              items={dashboard.queues.groups}
-              getRowKey={(item) => item.groupName}
-              columns={[
-                { key: "group", header: "Grupo", render: (item) => item.groupName },
-                { key: "amount", header: "Total", render: (item) => formatMoneyFromCents(item.totalAmountCents) },
-                { key: "quantity", header: "Itens", render: (item) => item.quantity }
-              ]}
-            />
-          )}
-        </div>
-      </section></> : null}
+        </section>
+      ) : null}
+      <span className="sr-only">Dashboard de {user.name}</span>
     </div>
   );
 }

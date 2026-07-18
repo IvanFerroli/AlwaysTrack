@@ -94,18 +94,20 @@ const permissionRoles: Array<{ role: UserRole; label: string }> = [
   { role: "SUPERVISOR", label: "Supervisor" },
   { role: "SAC", label: "SAC" },
   { role: "FINANCEIRO", label: "Financeiro" },
-  { role: "VENDEDOR", label: "Vendas" }
+  { role: "VENDEDOR", label: "Legado" }
 ];
 
 const permissionRows: Array<{ permission: CommercialPermission; module: string; action: string; level: "view" | "act" | "admin" }> = [
-  { permission: "sales.read", module: "Notas", action: "Ver DANFEs e status", level: "view" },
-  { permission: "sales.upload", module: "Notas", action: "Enviar DANFEs", level: "act" },
-  { permission: "sales.review", module: "Notas", action: "Aprovar ou rejeitar notas", level: "act" },
-  { permission: "ranking.read", module: "Ranking", action: "Consultar ranking", level: "view" },
-  { permission: "ranking.filterSeller", module: "Ranking", action: "Filtrar por vendedor", level: "act" },
-  { permission: "campaign.read", module: "Campanhas", action: "Ver campanhas", level: "view" },
-  { permission: "campaign.manage", module: "Campanhas", action: "Criar e alterar campanhas", level: "admin" },
-  { permission: "statements.read", module: "Extratos", action: "Consultar extratos", level: "view" },
+  { permission: "supportPauses.read", module: "Pausas", action: "Ver agenda, ocupação e cobertura", level: "view" },
+  { permission: "supportPauses.manage", module: "Pausas", action: "Configurar políticas e slots", level: "admin" },
+  { permission: "supportPerformance.read", module: "Desempenho", action: "Consultar KPIs do SAC", level: "view" },
+  { permission: "supportPerformance.manage", module: "Desempenho", action: "Registrar e corrigir KPIs", level: "admin" },
+  { permission: "supportCampaigns.read", module: "Campanhas", action: "Ver metas e resultados", level: "view" },
+  { permission: "supportCampaigns.manage", module: "Campanhas", action: "Criar e alterar campanhas", level: "admin" },
+  { permission: "announcements.read", module: "Avisos", action: "Ler avisos e marcar ciência", level: "view" },
+  { permission: "announcements.manage", module: "Avisos", action: "Publicar e acompanhar ciência", level: "admin" },
+  { permission: "scriptLibrary.read", module: "Scriptoteca", action: "Consultar mensagens", level: "view" },
+  { permission: "scriptLibrary.manage", module: "Scriptoteca", action: "Governar mensagens canônicas", level: "admin" },
   { permission: "knowledge.read", module: "Wiki", action: "Consultar conhecimento", level: "view" },
   { permission: "knowledge.contribute", module: "Wiki", action: "Sugerir conteúdo", level: "act" },
   { permission: "knowledge.publish", module: "Wiki", action: "Publicar e arquivar páginas", level: "admin" },
@@ -222,10 +224,10 @@ function ObservabilityPanel({ onOpenAudit }: { onOpenAudit?: () => void }) {
       {observability && !loading ? (
         <>
           <div className="observability-metrics">
-            <div><span>DANFEs 24h</span><strong>{observability.metrics.documents24h}</strong></div>
-            <div><span>Aprovadas 24h</span><strong>{observability.metrics.approvals24h}</strong></div>
-            <div><span>Rejeitadas 24h</span><strong>{observability.metrics.rejections24h}</strong></div>
-            <div className={observability.metrics.extractionFailures24h > 0 ? "warning" : ""}><span>Falhas extração</span><strong>{observability.metrics.extractionFailures24h}</strong></div>
+            <div><span>Documentos legado 24h</span><strong>{observability.metrics.documents24h}</strong></div>
+            <div><span>Aprovações legado 24h</span><strong>{observability.metrics.approvals24h}</strong></div>
+            <div><span>Rejeições legado 24h</span><strong>{observability.metrics.rejections24h}</strong></div>
+            <div className={observability.metrics.extractionFailures24h > 0 ? "warning" : ""}><span>Falhas do legado</span><strong>{observability.metrics.extractionFailures24h}</strong></div>
             <div><span>FAQ abertas</span><strong>{observability.metrics.openFaqThreads}</strong></div>
             <div><span>Wiki pendente</span><strong>{observability.metrics.pendingWikiReviews}</strong></div>
             <div><span>Notificações não lidas</span><strong>{observability.metrics.unreadNotifications}</strong></div>
@@ -382,7 +384,7 @@ export function SettingsView({ onSaved, onOpenAudit }: { onSaved?: (settings: Or
               </label>
               <label>
                 Tags padrão
-                <input value={defaultTags} onChange={(event) => setDefaultTags(event.target.value)} placeholder="vendas, notas, processo" />
+                <input value={defaultTags} onChange={(event) => setDefaultTags(event.target.value)} placeholder="sac, atendimento, processo" />
               </label>
               <label>
                 Range padrão do dashboard

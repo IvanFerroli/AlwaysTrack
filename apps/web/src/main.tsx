@@ -30,7 +30,7 @@ import {
   userRoles,
   commercialAllRoles,
   commercialManagerRoles,
-  commercialSalesAccessRoles,
+  supportOperationsRoles,
   adminOnlyRoles,
   type ApiResult,
   type CurrentUser,
@@ -51,22 +51,20 @@ import {
 } from "./components/operational";
 import { AuditView } from "./views/audit";
 import { AnnouncementsView } from "./views/announcements";
-import { CampaignsView } from "./views/campaigns";
 import { DashboardView } from "./views/dashboard";
 import { FaqThreadsView } from "./views/faq";
 import { HelpView } from "./views/help";
-import { NotesView } from "./views/notes";
 import { ProfileView } from "./views/profile";
-import { RankingView } from "./views/ranking";
 import { SettingsView as OrganizationSettingsView, type OrganizationSettingsResponse } from "./views/settings";
 import { ScriptLibraryView } from "./views/script-library";
 import { ServiceFlowsView } from "./views/service-flows";
 import { CaseFlowHealthView } from "./views/case-flow/health";
-import { StatementsView } from "./views/statements";
+import { SupportCampaignsView } from "./views/support-campaigns";
+import { SupportPausesView } from "./views/support-pauses";
+import { SupportPerformanceView } from "./views/support-performance";
 import { UsersTeamsView } from "./views/users-teams";
 import { WikiView } from "./views/wiki";
 import { CaseFlowAdminView } from "./views/case-flow/admin";
-import type { SalesDocumentListFilters, SalesFilters } from "./sales";
 import "./styles.css";
 
 interface GlobalSearchResult {
@@ -86,10 +84,9 @@ interface GlobalSearchGroup {
 
 type ViewKey =
   | "dashboard"
-  | "notes"
-  | "ranking"
-  | "campaigns"
-  | "statements"
+  | "supportPauses"
+  | "supportPerformance"
+  | "supportCampaigns"
   | "announcements"
   | "serviceFlows"
   | "caseFlowHealth"
@@ -125,8 +122,6 @@ type IconName =
   | "scan";
 
 type ViewIntent = {
-  notes?: SalesDocumentListFilters;
-  ranking?: SalesFilters;
   faq?: { status?: string };
   announcements?: { slug?: string | null };
 };
@@ -493,7 +488,7 @@ interface NavItem {
   roles: readonly CurrentUser["role"][];
 }
 
-type NavGroupKey = "sales" | "support" | "administration";
+type NavGroupKey = "support" | "administration";
 
 interface NavGroup {
   key: NavGroupKey;
@@ -503,14 +498,13 @@ interface NavGroup {
   children: Array<{ key: ViewKey; section?: "technical" }>;
 }
 
-const supportNavigationRoles = commercialAllRoles.filter((role) => role !== "VENDEDOR");
+const supportNavigationRoles = supportOperationsRoles;
 
 const navItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", description: "Vendas, notas e ranking do dia", icon: "home", roles: commercialSalesAccessRoles },
-  { key: "notes", label: "Notas", description: "Upload e revisão de DANFEs", icon: "file", roles: commercialSalesAccessRoles },
-  { key: "ranking", label: "Ranking", description: "Campanhas e posições", icon: "chart", roles: ["ADMIN", "GESTOR", "VENDEDOR", "SUPERVISOR"] },
-  { key: "campaigns", label: "Campanhas", description: "Regras comerciais", icon: "bell", roles: commercialSalesAccessRoles },
-  { key: "statements", label: "Extratos", description: "Geral, grupos e vendedores", icon: "download", roles: commercialSalesAccessRoles },
+  { key: "dashboard", label: "Dashboard", description: "Capacidade e qualidade do SAC", icon: "home", roles: supportOperationsRoles },
+  { key: "supportPauses", label: "Pausas", description: "Slots, trocas e cobertura", icon: "check", roles: supportOperationsRoles },
+  { key: "supportPerformance", label: "Performance", description: "CSAT, produtividade e SLA", icon: "chart", roles: supportOperationsRoles },
+  { key: "supportCampaigns", label: "Campanhas", description: "Metas operacionais do SAC", icon: "bell", roles: supportOperationsRoles },
   { key: "announcements", label: "Avisos", description: "Comunicados do dia", icon: "bell", roles: supportNavigationRoles },
   { key: "serviceFlows", label: "Fluxos", description: "Atendimento guiado", icon: "workflow", roles: supportNavigationRoles },
   { key: "caseFlowHealth", label: "Status CaseFlow", description: "Conectores e métricas", icon: "scan", roles: commercialManagerRoles },
@@ -527,24 +521,15 @@ const navItems: NavItem[] = [
 
 const navGroups: NavGroup[] = [
   {
-    key: "sales",
-    label: "Vendas",
-    description: "Notas, ranking e campanhas",
-    icon: "chart",
-    children: [
-      { key: "notes" },
-      { key: "ranking" },
-      { key: "campaigns" },
-      { key: "statements" }
-    ]
-  },
-  {
     key: "support",
     label: "SAC",
     description: "Atendimento e conhecimento",
     icon: "workflow",
     children: [
       { key: "announcements" },
+      { key: "supportPauses" },
+      { key: "supportPerformance" },
+      { key: "supportCampaigns" },
       { key: "serviceFlows" },
       { key: "scriptLibrary" },
       { key: "wiki" },
@@ -573,15 +558,14 @@ function navGroupForView(key: ViewKey) {
 const helpAnchorIds = new Set([
   "visao-geral",
   "primeiro-acesso",
-  "dashboard-comercial",
-  "upload-danfe",
-  "status-das-notas",
-  "reprocessamento-ia",
-  "duplicidade-danfe",
-  "aprovacao-de-notas",
-  "ranking",
-  "campanhas",
-  "extratos",
+  "dashboard-sac",
+  "pausas-e-cobertura",
+  "trocas-de-pausa",
+  "desempenho-sac",
+  "campanhas-sac",
+  "avisos-e-ciencia",
+  "fluxos-de-atendimento",
+  "scriptoteca",
   "wiki",
   "faq",
   "usuarios-times",
@@ -836,12 +820,12 @@ function DemoModeBanner({ onOpen }: { onOpen: (key: ViewKey) => void }) {
       <div>
         <p className="eyebrow">Modo demo</p>
         <strong>Roteiro pronto para apresentação interna</strong>
-        <span>Central, nota pendente, aprovação, ranking explicável, timeline, FAQ/Wiki e notificações</span>
+        <span>Capacidade, pausas, performance, campanhas, fluxo guiado, FAQ/Wiki e notificações</span>
       </div>
       <div className="demo-mode-actions">
         <button className="secondary small" type="button" onClick={() => onOpen("dashboard")}>Central</button>
-        <button className="secondary small" type="button" onClick={() => onOpen("notes")}>Nota</button>
-        <button className="secondary small" type="button" onClick={() => onOpen("ranking")}>Ranking</button>
+        <button className="secondary small" type="button" onClick={() => onOpen("supportPauses")}>Pausas</button>
+        <button className="secondary small" type="button" onClick={() => onOpen("supportPerformance")}>Performance</button>
         <button className="secondary small" type="button" onClick={() => onOpen("faq")}>FAQ</button>
       </div>
     </section>
@@ -4368,19 +4352,27 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       return;
     }
     if (path === "/notas") {
-      openView("notes");
+      openView("dashboard");
       return;
     }
     if (path === "/campanhas") {
-      openView("campaigns");
+      openView("supportCampaigns");
       return;
     }
     if (path === "/ranking") {
-      openView("ranking");
+      openView("supportPerformance");
       return;
     }
     if (path === "/extratos") {
-      openView("statements");
+      openView("supportPerformance");
+      return;
+    }
+    if (path === "/pausas") {
+      openView("supportPauses");
+      return;
+    }
+    if (path === "/performance") {
+      openView("supportPerformance");
       return;
     }
     if (path === "/audit") {
@@ -4620,14 +4612,12 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         </header>
         <BetaModeBanner />
         <DemoModeBanner onOpen={openView} />
-        {activeItem.key === "notes" ? (
-          <NotesView user={user} initialFilters={viewIntent.notes} />
-        ) : activeItem.key === "ranking" ? (
-          <RankingView user={user} initialFilters={viewIntent.ranking} />
-        ) : activeItem.key === "campaigns" ? (
-          <CampaignsView user={user} />
-        ) : activeItem.key === "statements" ? (
-          <StatementsView />
+        {activeItem.key === "supportPauses" ? (
+          <SupportPausesView user={user} />
+        ) : activeItem.key === "supportPerformance" ? (
+          <SupportPerformanceView user={user} />
+        ) : activeItem.key === "supportCampaigns" ? (
+          <SupportCampaignsView user={user} />
         ) : activeItem.key === "announcements" ? (
           <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
         ) : activeItem.key === "serviceFlows" ? (
