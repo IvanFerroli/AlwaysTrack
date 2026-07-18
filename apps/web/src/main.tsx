@@ -1,4 +1,4 @@
-import { Fragment, StrictMode, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, StrictMode, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BadgeCheck,
@@ -40,6 +40,7 @@ import {
 import { api, apiBaseUrl, appMode, appName, demoMode } from "./api";
 import { BrandMark } from "./components/brand";
 import { NotificationCenter } from "./components/notification-center";
+import { useDismissibleLayer } from "./components/dismissible-layer";
 import {
   resolveNotificationNavigation,
   type NotificationNavigate,
@@ -613,6 +614,16 @@ function GlobalSearchBox({ onNavigate }: { onNavigate: (href?: string | null) =>
   const [groups, setGroups] = useState<GlobalSearchGroup[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useDismissibleLayer({
+    open,
+    layerRef: popoverRef,
+    triggerRef: inputRef,
+    restoreFocus: false,
+    onDismiss: () => setOpen(false)
+  });
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -655,6 +666,7 @@ function GlobalSearchBox({ onNavigate }: { onNavigate: (href?: string | null) =>
       <label>
         <ScanSearch className="icon" aria-hidden="true" strokeWidth={2.25} />
         <input
+          ref={inputRef}
           aria-label="Busca global"
           placeholder="Buscar..."
           value={query}
@@ -666,7 +678,7 @@ function GlobalSearchBox({ onNavigate }: { onNavigate: (href?: string | null) =>
         />
       </label>
       {open && query.trim().length >= 2 ? (
-        <div className="global-search-popover">
+        <div ref={popoverRef} className="global-search-popover">
           {loading ? <p className="muted">Buscando...</p> : null}
           {!loading && groups.length === 0 ? <p className="muted">Nenhum resultado encontrado</p> : null}
           {groups.map((group) => (
@@ -4257,9 +4269,17 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
   const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
   const [viewIntent, setViewIntent] = useState<ViewIntent>({});
+  const topNavRef = useRef<HTMLElement>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
   const activeNavGroup = navGroupForView(activeView)?.key ?? null;
+
+  useDismissibleLayer({
+    open: openTopNavGroup !== null,
+    layerRef: topNavRef,
+    restoreFocus: false,
+    onDismiss: () => setOpenTopNavGroup(null)
+  });
 
   function clearHelpHash() {
     if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {
@@ -4476,7 +4496,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
             <p className="muted">{activeItem.description}</p>
           </div>
           <div className="topbar-nav-group">
-            <nav className="top-nav" aria-label="Atalhos principais">
+            <nav ref={topNavRef} className="top-nav" aria-label="Atalhos principais">
               {directSidebarItems.filter((item) => item.key !== "help").map((item) => (
                 <button
                   className={item.key === activeItem.key ? "top-nav-item active" : "top-nav-item"}

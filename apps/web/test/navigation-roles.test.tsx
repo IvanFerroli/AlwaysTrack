@@ -46,7 +46,7 @@ describe("role navigation guards", () => {
       if (path === "/v1/auth/google/status") return Promise.resolve({ configured: false });
       if (path === "/v1/auth/login") return Promise.resolve({ user: adminUser });
       if (path === "/v1/organization/settings") return Promise.resolve({ organization: { name: "AlwaysTrack", logoUrl: null } });
-      if (path === "/v1/search") return Promise.resolve({ groups: [] });
+      if (path.startsWith("/v1/search")) return Promise.resolve({ groups: [] });
       return Promise.resolve({});
     });
   });
@@ -62,6 +62,12 @@ describe("role navigation guards", () => {
     expect(navigation).toHaveTextContent("Fluxos");
     expect(navigation).not.toHaveTextContent("CaseFlow Admin");
     expect(navigation).not.toHaveTextContent("Auditoria");
+
+    const search = screen.getByLabelText("Busca global");
+    fireEvent.change(search, { target: { value: "pa" } });
+    expect(await screen.findByText("Nenhum resultado encontrado")).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole("heading", { name: "Dashboard" }));
+    expect(screen.queryByText("Nenhum resultado encontrado")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Sair/ }));
     const password = await screen.findByLabelText("Senha");
@@ -94,6 +100,8 @@ describe("role navigation guards", () => {
     const topAdmin = within(topNavigation).getByRole("button", { name: /^Administração/ });
     fireEvent.click(topAdmin);
     expect(within(topNavigation).getByRole("group", { name: "Atalhos de Administração" })).toHaveTextContent("CaseFlow Admin");
+    fireEvent.pointerDown(screen.getByRole("heading", { name: "Dashboard" }));
+    expect(within(topNavigation).queryByRole("group", { name: "Atalhos de Administração" })).not.toBeInTheDocument();
 
     fireEvent.click(adminPrimaryNav.getByRole("button", { name: /CaseFlow Admin/ }));
     expect(await screen.findByText("Administração CaseFlow carregada")).toBeInTheDocument();
