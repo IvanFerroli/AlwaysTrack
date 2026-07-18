@@ -55,6 +55,8 @@ Apresentar o AlwaysTrack como uma plataforma interna que conecta três necessida
 | Módulo | Resolve o quê | Como foi arquiteturado | O que mostrar |
 | --- | --- | --- | --- |
 | Avisos | Distribui comunicados internos com leitura e segmentação. | Conteúdo governado, notificações deduplicadas e links contextuais. | Aviso ativo, público-alvo e estado de leitura. |
+| Escalas | Organiza turno-base, dobras, extras e trocas com transparência para SAC e gestão. | Regras e padrões versionados materializam ocorrências efetivas; limites, aprovações, auditoria e deep links são aplicados no backend. | Calendário semanal do SAC; como gestor, selecionar equipe, mostrar cobertura e uma troca/extra pendente. |
+| Pausas | Evita sobreposição excessiva e permite escolha/troca de horários sem perder cobertura. | Cada reserva valida capacidade e o turno efetivo; mudança de escala sinaliza reagendamento explícito, sem mover a pausa silenciosamente. | Timeline de overlap, fonte `escala publicada` e o aviso de reagendamento quando houver conflito. |
 | Fluxos | Conduz procedimentos longos sem depender de memória individual. | Grafo versionado com decisões auditadas; só o caminho escolhido é materializado. A ficha fixa contém apenas nome, CPF e produtos. | Iniciar o fluxo `Problema de saúde após suplemento — devolução, troca ou estorno`, preencher a ficha mínima e avançar por decisões. |
 | Scriptoteca | Padroniza mensagens sem automatizar o envio ao cliente. | Scripts versionados com tags, placeholders seguros, vínculo com etapas e cópia auditada. | Abrir uma mensagem do fluxo, mostrar o preenchimento por dados do caso e copiar. |
 | Wiki | Mantém procedimentos publicados, pesquisáveis e revisáveis. | Páginas por slug, revisões, sugestões, anexos e aprovação com autoria. | Abrir uma página, histórico e uma sugestão de alteração. |
@@ -120,6 +122,7 @@ O primeiro fluxo real é específico para relatos de problema de saúde após su
 | Firewall CaseFlow | Envio, submit, pagamento, pedido, reversa, estorno, Slack, captcha e 2FA não podem ser concluídos automaticamente. | Decisões do fluxo e documentação de arquitetura. |
 | Performance | Smoke local cobre login, dashboard, ranking, extratos, Wiki, FAQ, Fluxos, Scriptoteca e notificações. Há perfis mixed, stress, spike e soak. | Hub > Qualidade > relatório de carga. |
 | Observabilidade | Health live/ready, métricas HTTP, requests/queries lentas, estados de conectores e logs estruturados. | Hub > Operação e Administração > Status CaseFlow. |
+| Operação SAC | Escalas, extras, trocas, pausas conflitadas e atraso do scheduler possuem sinais administrativos próprios. | Administração > Configurações > Saúde operacional. |
 | Recovery | Existem reset/seed local, runbooks de backup, restore, rollback e recuperação do Companion. | Hub > Documentação > Operação. |
 
 ### Como falar de coverage

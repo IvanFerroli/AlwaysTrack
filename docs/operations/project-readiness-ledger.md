@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-07-15
+- last-updated: 2026-07-18
 - source-of-truth: docs/operations/project-readiness-ledger.md
 - related-task: docs/tasks/TASK-AT-308-canonical-project-readiness-ledger.md
 
@@ -35,6 +35,8 @@ Classificacoes de evidencia permitidas:
 | Integracoes e conectores externos | Matriz local cobre Google, Meta/WhatsApp, OpenAI, Gemini e providers fake com degradacao/redaction. | Sandbox/live continua pendente por provider e conector CaseFlow. | integrations + security | AT-321 sandbox/live, AT-334 | 53 testes `local/fake`; gates `PENDENTE_LIVE`. |
 | Infra, CI e release | Contrato de seis workspaces, SAST/SCA/secrets/licencas, builds, artefatos nao-root e provenance local implementados. | Gate container CI/Docker e deploy final ainda nao foram observados neste host. | ops/platform + security | AT-326 CI/container, AT-320 | Evidencia `local`; sem candidato production-like. |
 | Performance e observabilidade | SLO/alertas exercitados e matriz mixed/stress/spike/soak versionada. | Perfis pesados, recursos, Redis e soak production-like nao executados. | ops/observability | AT-323 production-like, AT-320 | Um VU/13 requests `local`; nao prova capacidade. |
+| Escalas SAC e Pausas | Regra/padrao/atribuicao versionados, calendario, extras/trocas, notificacoes e Pausa subordinada implementados com seed e testes locais. | Replay historico e concorrencia PostgreSQL production-like; rehearsal humano de rollback. | support-operations | AT-415, AT-416, AT-320 | `local/fake`: demo GO; rollout NO-GO conforme AT-415. |
+| Avisos recorrentes | Series/versionamento, ocorrencias 14/29, `SKIP`, scheduler idempotente, UI, cron e observabilidade implementados. | Scheduler/backup/restore no alvo e validacao de atraso sustentado. | support-operations + platform | AT-415, AT-416 | Banco vazio e duas execucoes locais; nao promove producao. |
 | Documentacao, runbooks e evidencias | Integridade executavel, catalogo de runbooks e schema/pacote de evidencia ativos. | Revisao humana da apresentacao e aprovacoes externas continuam necessarias. | docs/operations | AT-335 auditada | 607 documentos e hygiene `local`. |
 | Perifericos de uso | Chromium desktop/mobile, teclado/semantica automatica e visual P0 foram exercitados localmente. | Leitor de tela/zoom, Edge, Windows/WSL, VPN/firewall, clipboard, suspend/resume e monitores reais nao executados. | qa + companion/ops | AT-312 manual, AT-318 wiring, AT-334 | Browser `local/fake`; validacao fisica/live ausente. |
 | Privacidade e governanca de dados | Inventario/RIPD documental e enforcement tenant-scoped de retencao/purge/direitos implementados localmente. | Aprovacao juridica/controlador e exercicio production-like continuam pendentes. | privacy + security | AT-327 legal; AT-328 production-like | Evidencia documental/local; nao libera dado real. |

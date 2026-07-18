@@ -22,6 +22,7 @@ Registrar procedimentos repetiveis que reduzem erro operacional.
 - `RUNBOOK-004-smartscript-local-companion.md`: operacao local do SmartScript Companion.
 - `RUNBOOK-005-caseflow-companion-recovery.md`: recuperacao, drift, update/rollback e restore do CaseFlow Companion.
 - `RUNBOOK-006-api-runtime-lifecycle.md`: probes, drain e shutdown gracioso da API.
+- `RUNBOOK-007-sac-scheduling-recurring-announcements.md`: Escalas SAC, Pausas subordinadas, extras/trocas e Avisos recorrentes.
 
 ## Catalogo operacional completo
 | Dominio | Procedimento canonico | Owner primario | Owner secundario | Revisao/exercicio |
@@ -32,6 +33,7 @@ Registrar procedimentos repetiveis que reduzem erro operacional.
 | SmartScript local | `RUNBOOK-004-smartscript-local-companion.md` | script-library-maintainers | platform-maintainers | trimestral e antes de rollout |
 | CaseFlow/Companion recovery | `RUNBOOK-005-caseflow-companion-recovery.md` | companion-maintainers | caseflow-maintainers | a cada versao e trimestral |
 | Lifecycle da API | `RUNBOOK-006-api-runtime-lifecycle.md` | platform-maintainers | api-maintainers | a cada release |
+| Escalas/Pausas/Avisos recorrentes | `RUNBOOK-007-sac-scheduling-recurring-announcements.md` | support-operations-maintainers | platform-maintainers | a cada mudanca de regra e antes do rollout |
 | Backup/restore principal | `../operations/backup-restore-runbook.md` | data-maintainers | platform-maintainers | restore mensal; RPO/RTO trimestral |
 | Backup/restore Companion | `../operations/companion-backup-restore-runbook.md` | companion-maintainers | caseflow-maintainers | trimestral |
 | Migration/rollback | `../operations/migration-rollback-runbook.md` | data-maintainers | api-maintainers | antes de migration produtiva |

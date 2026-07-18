@@ -46,3 +46,4 @@ Fixtures, paginas fake, seeds, testes offline, mocks e health fake nunca contam 
 - [AT-305 - Fase 4](TASK-AT-305-audit.md)
 - [AT-306 - Fase 5](TASK-AT-306-audit.md)
 - [AT-307 - readiness futura](TASK-AT-307-audit.md)
+- [AT-415 - Escalas, Pausas e Avisos recorrentes](TASK-AT-415-audit.md)

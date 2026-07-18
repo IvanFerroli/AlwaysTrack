@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: quality-maintainers
-- last-updated: 2026-06-19
+- last-updated: 2026-07-18
 - source-of-truth: docs/testing/strategy.md
 
 ## Objetivo
@@ -41,6 +41,7 @@ Artillery sera a ferramenta preferida de carga HTTP na `TASK-AT-051`. BullMQ nao
 - `npm run test:e2e:api`: roda os fluxos API pelo Playwright.
 - `npm run test:all`: roda `check` e docs TypeDoc.
 - `npm run coverage:html`: gera coverage HTML da API em `services/api/coverage/index.html`.
+- `npm run job:announcement-scheduler`: materializa/publica Avisos recorrentes; a segunda execucao sobre o mesmo horizonte deve ser idempotente.
 - `npm run check`: gate rapido atual de lint/typecheck/test.
 - `npm run check:docs`: gera TypeDoc e falha se a documentacao tecnica quebrar.
 - `npm run repo:hygiene`: verifica arquivos sensiveis, bancos locais, docs gerados e padroes obvios de segredo.
@@ -74,6 +75,8 @@ Coverage HTML da API e gerado por `npm run coverage:html` e aparece na bancada l
 5. Notificacoes: destinatario, dedupe, read/unread e link interno.
 6. Google login: estado OAuth, dominio permitido, sessao e fallback.
 7. Migration/rollback quando schema mudar.
+8. Escalas/Pausas: tenancy, jornada, cobertura, corrida, troca, extra, invalidacao e reagendamento explicito.
+9. Avisos recorrentes: timezone, 14/29, fevereiro `SKIP`, catch-up, versao futura e idempotencia do scheduler.
 
 ## Quando criar cada tipo
 - Unit: sempre que uma regra couber em funcao/service isolado.
@@ -90,6 +93,8 @@ Coverage HTML da API e gerado por `npm run coverage:html` e aparece na bancada l
 5. Nome do teste deve dizer o comportamento protegido.
 6. Snapshot so entra quando revisar diferenca for simples.
 7. Bug sem teste de regressao deve ser excecao, nao padrao.
+8. Escalas e Pausas devem ser validadas juntas quando uma mudanca de turno puder invalidar booking ou cobertura.
+9. Mocks e SQLite local nao promovem garantias de concorrencia; candidatura, troca e Pausa exigem PostgreSQL production-like antes de rollout.
 
 ## Proximas tasks conectadas
 - `TASK-AT-049`: ampliar o smoke Playwright para fluxos profundos de DANFE, Wiki, FAQ, notificacoes e usuarios.
