@@ -15,7 +15,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Nao aprova rollout externo ou uso de SQLite sob concorrencia real.
 - Escala nao e folha de ponto, controle de presenca ou calculo de pagamento.
 - Trocas e extras registram a decisao operacional; pagamento continua fora do produto.
-- O `GO` documentado cobre somente demo local do subconjunto implementado; nao cobre excecoes completas, resolver backend de notificacao, carga ou rollback production-like.
+- O `GO` documentado cobre somente demo local do subconjunto implementado; nao cobre excecoes completas, carga ou rollback production-like.
 
 ## Contrato operacional
 - `SupportShiftOccurrence` publicada e a fonte de verdade do turno efetivo.
@@ -27,7 +27,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Fevereiro sem dia 29 usa `SKIP`: nao antecipa nem desloca o aviso.
 - Troca de Pausa e troca de turno sao workflows distintos. A primeira reserva locks exclusivos para os dois bookings; a segunda segue a regra versionada de autoaprovacao/aprovacao gerencial.
 - KPIs de CSAT/SLA usam agregacao ponderada; Campanhas SAC consomem KPI aprovado, preservam publico/proveniencia e nao criam ranking nominal.
-- Notificacoes ainda persistem `entityType`, `entityId` e `href`. O fallback tipado atual e calculado na Web e nao prova existencia/autorizacao backend da entidade.
+- Notificacoes preservam `entityType`, `entityId` e `href` para legado, mas a acao usa target tipado resolvido no backend sob destinatario, tenant, role, escopo e estado atuais.
 
 ## Subida local reproduzivel
 1. Na raiz, rodar `npm run up`.
@@ -68,6 +68,10 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 6. Para encerrar a rotina, arquivar a serie. Nao excluir series, versoes ou ocorrencias.
 
 ## Scheduler e observabilidade
+- Horizonte de Escalas manual: `npm run job:support-schedule-horizon`.
+- Horizonte configuravel: `SUPPORT_SCHEDULE_HORIZON_DAYS`, inteiro de 1 a 61, default 30.
+- Frequencia de referencia do horizonte: diaria, conforme `deploy/cron.example`; qualquer equipe com falha torna a execucao nao-zero sem interromper as demais.
+- Sucesso do horizonte: evento `support_schedule.horizon.completed` com `failed: 0`; os metadados agregam contagens e codigos sem tenant/team/user IDs.
 - Execucao manual: `npm run job:announcement-scheduler`.
 - Frequencia de referencia: cinco minutos, conforme `deploy/cron.example`.
 - Sucesso: evento `announcement.scheduler.completed` com `failed: 0` e `maxLagMs` abaixo de 600000.
@@ -88,7 +92,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Repetir candidatura ja pendente/aprovada e idempotente e nao reabre notificacoes lidas da gestao.
 - Toda leitura/escrita de Escalas inclui `organizationId`; gestao informa equipe explicitamente e SAC permanece no proprio escopo.
 - Cada booking participa de no maximo um swap de Pausa pendente. Aceite usa compare-and-set, revalida os dois slots e turnos e libera os locks no mesmo resultado transacional.
-- Nao tratar o parser Web de notificacao como autorizacao. Ate existir resolver backend, entidade removida/arquivada/cross-tenant permanece lacuna de rollout.
+- Nao tratar o parser Web nem o href legado como autorizacao. Toda acao do sino/Perfil deve resolver o target no backend antes de marcar leitura ou navegar.
 
 ## Diagnostico rapido
 | Sintoma | Verificar | Curso de acao |
@@ -98,6 +102,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 | Pausa pede reagendamento | troca/extra cancelou a ocorrencia vinculada | escolher novo slot; a reserva anterior permanece no historico |
 | Troca nao aplica | aceite da contraparte, aprovacao gerencial e limites da regra | abrir a negociacao pelo deep link e decidir; nao alterar status no banco |
 | Troca de Pausa retorna conflito | locks dos dois bookings, status/slot atuais e turnos publicados dos dois operadores | atualizar a agenda e criar nova proposta; nao reutilizar swap stale |
+| Horizonte termina nao-zero | `failureCodes` do evento, ADMIN ativo e regra intersectando a janela por equipe | corrigir a equipe indicada pelos sinais internos e reexecutar o job; nao ampliar logs com IDs/PII |
 | Aviso futuro nao aparece | serie ativa, versao vigente, timezone e scheduler | executar job manual, inspecionar log e ocorrencias atrasadas |
 | Dia 29 nao aparece em fevereiro | politica `SKIP` | comportamento esperado; nao criar ocorrencia compensatoria |
 
@@ -123,6 +128,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Bursts de candidatura/recorrencia somente em banco descartavel: `NODE_ENV=test PERF_ALLOW_TEST_WRITES=true SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:claim-burst` e `npm run perf:support:recurrence`.
 - `npx playwright test --list`, `npx playwright test --project=api` e os specs `support-operations.desktop.spec.ts`/`support-operations.mobile.spec.ts`; se o browser do host nao iniciar, registrar a biblioteca de sistema ausente e nao converter teste listado em evidencia executada.
 - `npm run job:announcement-scheduler` duas vezes; a segunda deve criar zero duplicatas.
+- `npm run job:support-schedule-horizon` duas vezes; a segunda deve reutilizar snapshots sem duplicar ocorrencias.
 
 ## Gates ainda externos
 - Replay integral das migrations historicas, hoje bloqueado por migration antiga ja documentada.
@@ -133,6 +139,6 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 
 ## Lacunas internas conhecidas
 - Excecoes completas de folga/ausencia/ajuste e draft/diff/archive de regra.
-- Job automatico de horizonte de Escalas e flags independentes por frente.
-- Resolver backend/persistencia de targets tipados de notificacao.
-- Overlays restantes, seed integral e matriz E2E de SUPERVISOR/trocas/remarcacao/axe/visual.
+- Flags independentes por frente.
+- Propagacao completa de intents de Escalas/Pausas ate highlight/foco na UI.
+- Seed integral e matriz E2E de SUPERVISOR/trocas/remarcacao/axe/visual.

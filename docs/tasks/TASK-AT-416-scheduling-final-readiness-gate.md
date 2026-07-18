@@ -20,7 +20,7 @@ TASK-AT-390 fecha a transformacao SAC original. Este gate adiciona Escalas e rec
 - em aberto: tasks parciais e todas as evidencias production-like/humanas registradas em TASK-AT-415.
 
 ## Estado reconciliado em 2026-07-18
-- O `GO` vale apenas para demo local do subconjunto existente com seed ficticio. Nao autoriza alegar excecoes completas, resolver backend de notificacao, matriz E2E completa, carga, concorrencia PostgreSQL ou rollback ensaiado.
+- O `GO` vale apenas para demo local do subconjunto existente com seed ficticio. Nao autoriza alegar excecoes completas, matriz E2E executada em browser, carga, concorrencia PostgreSQL ou rollback ensaiado; o resolver backend possui somente evidencia local.
 
 ## Alvos explicitos
 1. Matriz requisito -> task -> teste -> evidencia -> owner.

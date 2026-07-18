@@ -1,7 +1,7 @@
 # TASK-AT-405 - Migracao de popovers, dropdowns e pesquisas
 
 ## Metadata
-- status: implemented-partial-local-validation
+- status: implemented-local-browser-evidence-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-405-migrate-popovers-dropdowns-search.md
@@ -17,10 +17,10 @@ Busca global, notificacoes, emoji, seletor de produtos e menus de navegacao apre
 
 ## Dependencias
 - satisfeitas: TASK-AT-398 e TASK-AT-404.
-- em aberto: migrar e validar ao menos emoji picker e `ProductQuantitySelector`; o inventario observado ainda encontra handlers locais nessas superficies.
+- em aberto: evidencia manual/Playwright de browser no host alvo; as superficies inventariadas foram migradas localmente.
 
 ## Estado reconciliado em 2026-07-18
-- NotificationCenter, busca global e menu superior usam a primitive compartilhada. A cobertura de todos os overlays, teclado especializado, mobile e screenshots prevista nesta task nao esta completa.
+- NotificationCenter, busca global, menu superior, emoji picker e `ProductQuantitySelector` usam a primitive compartilhada. Testes cobrem outside, blur, Escape, Tab, setas, Home/End, Enter e preservacao de foco; screenshots/browser real permanecem no gate da TASK-AT-411.
 
 ## Alvos explicitos
 1. NotificationCenter, busca global e menus de navegacao.

@@ -20,7 +20,7 @@ Gestao precisa configurar regras sem ler codigo; operadores precisam diagnostica
 - em aberto: matriz API/RBAC executavel, documentacao das lacunas parciais e resultados do rehearsal production-like da TASK-AT-415.
 
 ## Estado reconciliado em 2026-07-18
-- ADR, backlog, runbook e audit existem e sao atualizados por esta reconciliacao. A documentacao nao deve apresentar flags, resolver backend, E2E mobile, carga ou rehearsal como entregues porque esses artefatos/evidencias nao foram localizados.
+- ADR, backlog, runbook e audit existem e sao atualizados por esta reconciliacao. Resolver backend e targets tipados possuem implementacao/testes locais; a documentacao nao deve apresentar flags, matriz E2E executada em browser, carga real ou rehearsal como entregues porque essas evidencias nao foram produzidas.
 
 ## Alvos explicitos
 1. Arquitetura/domains e dicionario de estados/precedencia.

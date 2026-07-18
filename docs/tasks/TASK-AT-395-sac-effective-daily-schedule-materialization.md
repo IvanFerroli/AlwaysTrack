@@ -1,7 +1,7 @@
 # TASK-AT-395 - Materializacao da escala efetiva diaria
 
 ## Metadata
-- status: implemented-partial-local-validation
+- status: implemented-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-395-sac-effective-daily-schedule-materialization.md
@@ -17,10 +17,10 @@ Cobertura e Pausas precisam consultar um snapshot diario deterministico. Calcula
 
 ## Dependencias
 - satisfeitas: TASK-AT-394.
-- em aberto: automacao e horizonte operacional do job de Escalas; a materializacao atual e acionada por API/painel com intervalo explicito e `dryRun`.
+- em aberto: exercitar o job e a concorrencia em PostgreSQL production-like; a automacao local esta versionada.
 
 ## Estado reconciliado em 2026-07-18
-- O service materializa ocorrencias publicadas de forma idempotente, preserva snapshots e reporta conflitos. Nao ha cron/job versionado para manter o horizonte de Escalas automaticamente.
+- O service materializa ocorrencias publicadas de forma idempotente, preserva snapshots e reporta conflitos. O worker `support-schedule-horizon` descobre equipes ativas por tenant, seleciona um ADMIN ativo, calcula datas no timezone da regra e mantem o horizonte configuravel de 1 a 61 dias. Falhas por equipe sao isoladas, agregadas sem PII e tornam a execucao nao-zero.
 
 ## Alvos explicitos
 1. Compilador puro de escala efetiva.
@@ -45,7 +45,7 @@ Cobertura e Pausas precisam consultar um snapshot diario deterministico. Calcula
 4. Falha individual nao corrompe dias validos e fica observavel.
 
 ## Validacao
-- comandos/checks: golden cases, property tests, job idempotente, timezone/DST e integracao Postgres.
+- comandos/checks: golden cases, property tests, job idempotente, timezone/DST, `npm run job:support-schedule-horizon` e integracao Postgres.
 - revisao manual: materializar 30 dias, alterar versao futura e reconciliar delta.
 
 ## Riscos
