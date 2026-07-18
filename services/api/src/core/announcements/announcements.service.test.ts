@@ -34,7 +34,13 @@ function prismaMock() {
     announcement: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "ann-1", ...data, createdAt: new Date(), updatedAt: new Date() })),
-      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "ann-1", slug: "aviso", title: "Aviso", summary: null, content: "Texto", tagsJson: "[]", linksJson: "[]", targetRolesJson: "[\"VENDEDOR\"]", status: "PUBLISHED", priority: "HIGH", pinned: false, requiresAck: true, startsAt: null, expiresAt: null, publishedAt: new Date(), archivedAt: null, createdById: "admin-1", updatedById: "admin-1", createdAt: new Date(), updatedAt: new Date(), ...data })),
+      update: vi.fn().mockImplementation(({ data }) => Promise.resolve({
+        id: "ann-1", slug: "aviso", title: "Aviso", summary: null, content: "Texto", tagsJson: "[]", linksJson: "[]",
+        targetRolesJson: "[\"VENDEDOR\"]", status: "PUBLISHED", priority: "HIGH", pinned: false, requiresAck: true,
+        startsAt: null, expiresAt: null, publishedAt: new Date(), archivedAt: null, createdById: "admin-1", updatedById: "admin-1",
+        createdAt: new Date(), updatedAt: new Date(),
+        ...Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+      })),
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0)
     },
@@ -51,6 +57,7 @@ function prismaMock() {
       findMany: vi.fn().mockResolvedValue([{ id: "seller-1", name: "Seller", email: "seller@example.com", role: "VENDEDOR" }])
     },
     inAppNotification: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       upsert: vi.fn().mockResolvedValue({ id: "notif-1" })
     },
     $transaction: vi.fn().mockImplementation((operations: Array<Promise<unknown>>) => Promise.all(operations))
@@ -98,6 +105,7 @@ describe("announcements service", () => {
       createdById: "admin-1", updatedById: "admin-1", createdAt: new Date(), updatedAt: new Date()
     });
     prisma.announcementReadReceipt.deleteMany.mockResolvedValueOnce({ count: 3 });
+    prisma.inAppNotification.deleteMany.mockResolvedValueOnce({ count: 2 });
 
     await updateAnnouncement(prisma as never, admin, "ann-1", { content: "Conteúdo revisado" });
 
@@ -105,10 +113,25 @@ describe("announcements service", () => {
     expect(prisma.announcementReadReceipt.deleteMany).toHaveBeenCalledWith({
       where: { organizationId: "org-1", announcementId: "ann-1" }
     });
+    expect(prisma.inAppNotification.deleteMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org-1",
+        entityType: "Announcement",
+        entityId: "ann-1",
+        type: "announcement.acknowledgement.completed"
+      }
+    });
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         action: "announcement.update",
-        metadataJson: expect.stringContaining('"acknowledgementsReset":3')
+        metadataJson: expect.stringMatching(/"acknowledgementsReset":3.*"completionNotificationsCleared":2/)
+      })
+    }));
+    expect(prisma.inAppNotification.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        type: "announcement.acknowledgement.reset",
+        title: "Aviso atualizado: nova ciência necessária",
+        href: "/avisos/aviso"
       })
     }));
   });
@@ -125,6 +148,8 @@ describe("announcements service", () => {
     await updateAnnouncement(prisma as never, admin, "ann-1", { priority: "HIGH", pinned: true });
 
     expect(prisma.announcementReadReceipt.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.inAppNotification.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.inAppNotification.upsert).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

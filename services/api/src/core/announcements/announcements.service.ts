@@ -501,15 +501,25 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
   });
   let item: Awaited<typeof updateOperation>;
   let acknowledgementsReset = 0;
+  let completionNotificationsCleared = 0;
   if (acknowledgementContentChanged) {
-    const [updated, deleted] = await prisma.$transaction([
+    const [updated, deleted, clearedNotifications] = await prisma.$transaction([
       updateOperation,
       prisma.announcementReadReceipt.deleteMany({
         where: { organizationId: actor.organizationId, announcementId: current.id }
+      }),
+      prisma.inAppNotification.deleteMany({
+        where: {
+          organizationId: actor.organizationId,
+          entityType: "Announcement",
+          entityId: current.id,
+          type: "announcement.acknowledgement.completed"
+        }
       })
     ]);
     item = updated;
     acknowledgementsReset = deleted.count;
+    completionNotificationsCleared = clearedNotifications.count;
   } else {
     item = await updateOperation;
   }
@@ -519,8 +529,27 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
     action: "announcement.update",
     entityType: "Announcement",
     entityId: item.id,
-    metadata: { slug: item.slug, status: item.status, priority: item.priority, acknowledgementContentChanged, acknowledgementsReset }
+    metadata: {
+      slug: item.slug,
+      status: item.status,
+      priority: item.priority,
+      acknowledgementContentChanged,
+      acknowledgementsReset,
+      completionNotificationsCleared
+    }
   });
+  if (acknowledgementContentChanged && item.status === "PUBLISHED" && item.requiresAck) {
+    await emitInAppNotifications(prisma, actor.organizationId, {
+      recipientRoles: cleanRoles(parseJsonArray<unknown>(item.targetRolesJson)),
+      type: "announcement.acknowledgement.reset",
+      title: "Aviso atualizado: nova ciência necessária",
+      body: `O aviso "${item.title}" foi atualizado. Abra o conteúdo revisado e marque ciência novamente.`,
+      entityType: "Announcement",
+      entityId: item.id,
+      href: `/avisos/${item.slug}`,
+      dedupeKey: `announcement:${item.id}:acknowledgement:reset:${item.updatedAt.getTime()}`
+    });
+  }
   return { announcement: withAnnouncementFormat(item) };
 }
 
