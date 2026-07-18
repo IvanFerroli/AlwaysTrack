@@ -30,6 +30,26 @@ const admin: CurrentUser = {
   sectorScopeIds: []
 };
 
+function notificationJobFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "job-1",
+    organizationId: "org-1",
+    templateKey: "venc",
+    channel: "WHATSAPP",
+    recipientPhone: "+550000",
+    recipientEmail: null,
+    payloadJson: JSON.stringify({ professionalName: "Ana", expiresAt: "2026-05-29T00:00:00.000Z" }),
+    status: "PENDING",
+    scheduledFor: new Date("2026-04-29T00:00:00.000Z"),
+    processingAt: null,
+    nextRetryAt: null,
+    updatedAt: new Date("2026-04-29T00:00:00.000Z"),
+    attempts: 0,
+    maxAttempts: 3,
+    ...overrides
+  };
+}
+
 describe("notifications service", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -359,25 +379,22 @@ describe("notifications service", () => {
   it("processes pending jobs with provider and logs success", async () => {
     const prisma = {
       notificationJob: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            id: "job-1",
-            templateKey: "venc",
-            recipientPhone: "+550000",
-            payloadJson: JSON.stringify({ professionalName: "Ana", expiresAt: "2026-05-29T00:00:00.000Z" }),
-            attempts: 0,
-            maxAttempts: 3
-          }
-        ]),
-        update: vi
+        findMany: vi.fn().mockResolvedValue([notificationJobFixture()]),
+        updateMany: vi
           .fn()
-          .mockResolvedValueOnce({ id: "job-1", attempts: 1, maxAttempts: 3 })
-          .mockResolvedValueOnce({ id: "job-1", status: "SENT" })
+          .mockResolvedValueOnce({ count: 1 })
+          .mockResolvedValueOnce({ count: 1 })
       },
       notificationTemplate: {
         findFirst: vi
           .fn()
-          .mockResolvedValue({ key: "venc", metaTemplateName: "tpl_venc", language: "pt_BR", bodyPreview: "Ola {{professionalName}}, vence em {{expiresAt}}." })
+          .mockResolvedValue({
+            key: "venc",
+            channel: "WHATSAPP",
+            metaTemplateName: "tpl_venc",
+            language: "pt_BR",
+            bodyPreview: "Ola {{professionalName}}, vence em {{expiresAt}}."
+          })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
     };
@@ -391,7 +408,7 @@ describe("notifications service", () => {
       })
     );
 
-    expect(prisma.notificationJob.update).toHaveBeenLastCalledWith(
+    expect(prisma.notificationJob.updateMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SENT", providerMessageId: expect.stringMatching(/^fake_/) }) })
     );
     expect(prisma.notificationLog.create).toHaveBeenCalledWith(
@@ -402,23 +419,14 @@ describe("notifications service", () => {
   it("keeps failed provider sends retryable and logs sanitized provider response", async () => {
     const prisma = {
       notificationJob: {
-        findMany: vi.fn().mockResolvedValue([
-          {
-            id: "job-1",
-            templateKey: "venc",
-            recipientPhone: "+550000",
-            payloadJson: "{}",
-            attempts: 0,
-            maxAttempts: 3
-          }
-        ]),
-        update: vi
+        findMany: vi.fn().mockResolvedValue([notificationJobFixture({ payloadJson: "{}" })]),
+        updateMany: vi
           .fn()
-          .mockResolvedValueOnce({ id: "job-1", attempts: 1, maxAttempts: 3 })
-          .mockResolvedValueOnce({ id: "job-1", status: "FAILED" })
+          .mockResolvedValueOnce({ count: 1 })
+          .mockResolvedValueOnce({ count: 1 })
       },
       notificationTemplate: {
-        findFirst: vi.fn().mockResolvedValue({ key: "venc", metaTemplateName: "tpl_venc", language: "pt_BR" })
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel: "WHATSAPP", metaTemplateName: "tpl_venc", language: "pt_BR" })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
     };
@@ -428,7 +436,7 @@ describe("notifications service", () => {
 
     await processNotificationJobs(prisma as never, admin, provider);
 
-    expect(prisma.notificationJob.update).toHaveBeenLastCalledWith(
+    expect(prisma.notificationJob.updateMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: "FAILED",
@@ -447,11 +455,156 @@ describe("notifications service", () => {
     );
   });
 
+  it("claims a job once when two processors race on the same candidate", async () => {
+    let claimed = false;
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValue([notificationJobFixture()]),
+        updateMany: vi.fn().mockImplementation(({ data }) => {
+          if (data.status === "PROCESSING") {
+            if (claimed) return Promise.resolve({ count: 0 });
+            claimed = true;
+          }
+          return Promise.resolve({ count: 1 });
+        })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel: "WHATSAPP", metaTemplateName: "tpl_venc", language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+    const provider = { sendWhatsAppTemplate: vi.fn(new FakeNotificationProvider().sendWhatsAppTemplate) };
+
+    const results = await Promise.all([
+      processNotificationJobs(prisma as never, admin, provider),
+      processNotificationJobs(prisma as never, admin, provider)
+    ]);
+
+    expect(provider.sendWhatsAppTemplate).toHaveBeenCalledTimes(1);
+    expect(results.flatMap((result) => result.processed)).toHaveLength(1);
+    expect(prisma.notificationLog.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("reclaims an abandoned PROCESSING job only through its expired lease snapshot", async () => {
+    const abandonedAt = new Date("2026-04-29T10:00:00.000Z");
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValue([
+          notificationJobFixture({ status: "PROCESSING", processingAt: abandonedAt, attempts: 1 })
+        ]),
+        updateMany: vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel: "WHATSAPP", metaTemplateName: "tpl_venc", language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+    const provider = { sendWhatsAppTemplate: vi.fn(new FakeNotificationProvider().sendWhatsAppTemplate) };
+
+    await processNotificationJobs(prisma as never, admin, provider);
+
+    expect(prisma.notificationJob.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([expect.objectContaining({ status: "PROCESSING" })])
+        })
+      })
+    );
+    expect(prisma.notificationJob.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "PROCESSING", processingAt: abandonedAt, attempts: 1 }),
+        data: expect.objectContaining({ status: "PROCESSING", attempts: { increment: 1 } })
+      })
+    );
+    expect(provider.sendWhatsAppTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it("pages past exhausted jobs and honors a custom maxAttempts value", async () => {
+    const exhausted = Array.from({ length: 25 }, (_, index) =>
+      notificationJobFixture({ id: `exhausted-${String(index).padStart(2, "0")}`, status: "FAILED", attempts: 3, maxAttempts: 3 })
+    );
+    const customRetryJob = notificationJobFixture({ id: "custom-retry", status: "FAILED", attempts: 3, maxAttempts: 5 });
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValueOnce(exhausted).mockResolvedValueOnce([customRetryJob]),
+        updateMany: vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel: "WHATSAPP", metaTemplateName: "tpl_venc", language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+    const provider = { sendWhatsAppTemplate: vi.fn(new FakeNotificationProvider().sendWhatsAppTemplate) };
+
+    await processNotificationJobs(prisma as never, admin, provider, 1);
+
+    expect(prisma.notificationJob.findMany).toHaveBeenCalledTimes(2);
+    expect(prisma.notificationJob.findMany.mock.calls[0][0].where).not.toHaveProperty("attempts");
+    expect(prisma.notificationJob.findMany.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ cursor: { id: "exhausted-24" }, skip: 1 })
+    );
+    expect(prisma.notificationJob.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ where: expect.objectContaining({ id: "custom-retry", attempts: 3 }) })
+    );
+    expect(provider.sendWhatsAppTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["EMAIL", "DASHBOARD"])("never dispatches %s jobs through WhatsApp", async (channel) => {
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValue([notificationJobFixture({ channel })]),
+        updateMany: vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel, language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn() }
+    };
+    const provider = { sendWhatsAppTemplate: vi.fn() };
+
+    await processNotificationJobs(prisma as never, admin, provider);
+
+    expect(provider.sendWhatsAppTemplate).not.toHaveBeenCalled();
+    expect(prisma.notificationJob.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          attempts: 3,
+          errorMessage: "UNSUPPORTED_NOTIFICATION_CHANNEL",
+          nextRetryAt: null
+        })
+      })
+    );
+  });
+
+  it("rejects a template whose channel differs from the claimed job", async () => {
+    const prisma = {
+      notificationJob: {
+        findMany: vi.fn().mockResolvedValue([notificationJobFixture()]),
+        updateMany: vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 })
+      },
+      notificationTemplate: {
+        findFirst: vi.fn().mockResolvedValue({ key: "venc", channel: "EMAIL", language: "pt_BR" })
+      },
+      notificationLog: { create: vi.fn() }
+    };
+    const provider = { sendWhatsAppTemplate: vi.fn() };
+
+    await processNotificationJobs(prisma as never, admin, provider);
+
+    expect(provider.sendWhatsAppTemplate).not.toHaveBeenCalled();
+    expect(prisma.notificationJob.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ errorMessage: "TEMPLATE_CHANNEL_MISMATCH" }) })
+    );
+  });
+
   it("updates jobs from webhook events", async () => {
     const prisma = {
       notificationJob: {
-        findFirst: vi.fn().mockResolvedValue({ id: "job-1", provider: "meta-whatsapp" }),
-        update: vi.fn().mockResolvedValue({ id: "job-1", status: "DELIVERED" })
+        findUnique: vi.fn().mockResolvedValue({ id: "job-1", provider: "meta-whatsapp", status: "SENT" }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
     };
@@ -461,17 +614,65 @@ describe("notifications service", () => {
     }, undefined);
 
     expect(result.updated).toHaveLength(1);
-    expect(prisma.notificationJob.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: "DELIVERED", deliveredAt: expect.any(Date) }) })
+    expect(prisma.notificationJob.findUnique).toHaveBeenCalledWith({
+      where: { provider_providerMessageId: { provider: "meta-whatsapp", providerMessageId: "wamid.1" } }
+    });
+    expect(prisma.notificationJob.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ["PENDING", "PROCESSING", "SENT"] } }),
+        data: expect.objectContaining({ status: "DELIVERED", deliveredAt: expect.any(Date) })
+      })
     );
+  });
+
+  it("advances webhook state monotonically and ignores duplicate or out-of-order events", async () => {
+    let currentStatus = "SENT";
+    const prisma = {
+      notificationJob: {
+        findUnique: vi.fn().mockImplementation(() =>
+          Promise.resolve({ id: "job-1", provider: "meta-whatsapp", providerMessageId: "wamid.1", status: currentStatus })
+        ),
+        updateMany: vi.fn().mockImplementation(({ where, data }) => {
+          if (!where.status.in.includes(currentStatus)) return Promise.resolve({ count: 0 });
+          currentStatus = data.status;
+          return Promise.resolve({ count: 1 });
+        })
+      },
+      notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
+    };
+
+    const result = await handleMetaWebhook(prisma as never, {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                statuses: [
+                  { id: "wamid.1", status: "delivered" },
+                  { id: "wamid.1", status: "sent" },
+                  { id: "wamid.1", status: "delivered" },
+                  { id: "wamid.1", status: "read" },
+                  { id: "wamid.1", status: "failed" },
+                  { id: "wamid.1", status: "read" }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }, undefined);
+
+    expect(currentStatus).toBe("READ");
+    expect(result.updated.map((job) => job.status)).toEqual(["DELIVERED", "READ"]);
+    expect(prisma.notificationLog.create).toHaveBeenCalledTimes(2);
   });
 
   it("uses raw webhook body when validating Meta signatures", async () => {
     vi.stubEnv("META_APP_SECRET", "secret");
     const prisma = {
       notificationJob: {
-        findFirst: vi.fn().mockResolvedValue({ id: "job-1", provider: "meta-whatsapp" }),
-        update: vi.fn().mockResolvedValue({ id: "job-1", status: "READ" })
+        findUnique: vi.fn().mockResolvedValue({ id: "job-1", provider: "meta-whatsapp", status: "DELIVERED" }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) }
     };
@@ -491,8 +692,8 @@ describe("notifications service", () => {
     vi.stubEnv("META_APP_SECRET", "secret");
     const prisma = {
       notificationJob: {
-        findFirst: vi.fn(),
-        update: vi.fn()
+        findUnique: vi.fn(),
+        updateMany: vi.fn()
       },
       notificationLog: { create: vi.fn() }
     };
@@ -506,7 +707,7 @@ describe("notifications service", () => {
       )
     ).rejects.toThrow(new NotificationError("WEBHOOK_INVALID"));
 
-    expect(prisma.notificationJob.findFirst).not.toHaveBeenCalled();
+    expect(prisma.notificationJob.findUnique).not.toHaveBeenCalled();
     expect(prisma.notificationLog.create).not.toHaveBeenCalled();
   });
 

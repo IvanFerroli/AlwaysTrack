@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
-import { notificationChannels, notificationStatuses, type CurrentUser, type NotificationChannel } from "@alwaystrack/shared";
+import type { NotificationJob, Prisma, PrismaClient } from "@prisma/client";
+import { notificationChannels, type CurrentUser, type NotificationChannel } from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
@@ -684,8 +684,33 @@ export async function sendManualLicenseNotification(
   return { created, skipped, processed };
 }
 
-function nextRetryDate(attempts: number) {
-  return addDays(new Date(), Math.min(attempts, 6));
+const NOTIFICATION_JOB_LEASE_MS = 15 * 60 * 1_000;
+
+function nextRetryDate(attempts: number, from = new Date()) {
+  return addDays(from, Math.min(attempts, 6));
+}
+
+async function finishClaimedNotificationJob(
+  prisma: PrismaClient,
+  job: { id: string; organizationId: string; attempts: number },
+  claimedAt: Date,
+  data: Prisma.NotificationJobUpdateManyMutationInput
+) {
+  const result = await prisma.notificationJob.updateMany({
+    where: {
+      id: job.id,
+      organizationId: job.organizationId,
+      status: "PROCESSING",
+      processingAt: claimedAt
+    },
+    data
+  });
+  if (result.count === 0) return null;
+  return {
+    ...job,
+    ...data,
+    attempts: typeof data.attempts === "number" ? data.attempts : job.attempts + 1
+  };
 }
 
 export async function processNotificationJobs(
@@ -696,44 +721,88 @@ export async function processNotificationJobs(
   jobIds?: string[]
 ) {
   requireAdmin(actor);
-  const jobs = await prisma.notificationJob.findMany({
-    where: {
-      organizationId: actor.organizationId,
-      id: jobIds?.length ? { in: jobIds } : undefined,
-      status: { in: ["PENDING", "FAILED"] },
-      scheduledFor: { lte: new Date() },
-      OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],
-      attempts: { lt: 3 }
-    },
-    include: {
-      organization: true
-    },
-    orderBy: { scheduledFor: "asc" },
-    take: limit
-  });
+  if (limit <= 0) return { processed: [] };
+  const now = new Date();
+  const leaseExpiredBefore = new Date(now.getTime() - NOTIFICATION_JOB_LEASE_MS);
+  const jobs: NotificationJob[] = [];
+  const pageSize = Math.max(limit, 25);
+  let cursor: string | undefined;
+  while (jobs.length < limit) {
+    const page = await prisma.notificationJob.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        id: jobIds?.length ? { in: jobIds } : undefined,
+        scheduledFor: { lte: now },
+        OR: [
+          {
+            status: { in: ["PENDING", "FAILED"] },
+            OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }]
+          },
+          {
+            status: "PROCESSING",
+            OR: [{ processingAt: null }, { processingAt: { lte: leaseExpiredBefore } }]
+          }
+        ]
+      },
+      orderBy: [{ scheduledFor: "asc" }, { id: "asc" }],
+      take: pageSize,
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : undefined
+    });
+    jobs.push(...page.filter((job) => job.attempts < job.maxAttempts).slice(0, limit - jobs.length));
+    if (page.length < pageSize) break;
+    cursor = page[page.length - 1]?.id;
+    if (!cursor) break;
+  }
 
   const results = [];
   for (const job of jobs) {
-    const processing = await prisma.notificationJob.update({
-      where: { id: job.id },
-      data: { status: "PROCESSING", processingAt: new Date(), attempts: { increment: 1 } }
+    const claimedAt = new Date();
+    const claim = await prisma.notificationJob.updateMany({
+      where: {
+        id: job.id,
+        organizationId: actor.organizationId,
+        status: job.status,
+        attempts: job.attempts,
+        updatedAt: job.updatedAt,
+        ...(job.status === "PROCESSING" ? { processingAt: job.processingAt } : { nextRetryAt: job.nextRetryAt })
+      },
+      data: {
+        status: "PROCESSING",
+        processingAt: claimedAt,
+        attempts: { increment: 1 },
+        nextRetryAt: null,
+        errorMessage: null
+      }
     });
+    if (claim.count === 0) continue;
+
+    const claimedAttempts = job.attempts + 1;
     const template = await prisma.notificationTemplate.findFirst({
       where: { organizationId: actor.organizationId, key: job.templateKey, active: true }
     });
-    if (!template || !job.recipientPhone) {
-      const failed = await prisma.notificationJob.update({
-        where: { id: job.id },
-        data: {
-          status: "FAILED",
-          failedAt: new Date(),
-          errorMessage: "MISSING_TEMPLATE_OR_RECIPIENT",
-          nextRetryAt: processing.attempts + 1 >= processing.maxAttempts ? null : nextRetryDate(processing.attempts + 1)
-        }
+    const configurationError = !template
+      ? "MISSING_TEMPLATE"
+      : template.channel !== job.channel
+        ? "TEMPLATE_CHANNEL_MISMATCH"
+        : job.channel !== "WHATSAPP"
+          ? "UNSUPPORTED_NOTIFICATION_CHANNEL"
+          : !job.recipientPhone
+            ? "MISSING_WHATSAPP_RECIPIENT"
+            : null;
+    if (configurationError) {
+      const failed = await finishClaimedNotificationJob(prisma, job, claimedAt, {
+        status: "FAILED",
+        processingAt: null,
+        failedAt: new Date(),
+        attempts: job.maxAttempts,
+        errorMessage: configurationError,
+        nextRetryAt: null
       });
-      results.push(failed);
+      if (failed) results.push(failed);
       continue;
     }
+    if (!template || !job.recipientPhone) continue;
 
     try {
       const payload = JSON.parse(job.payloadJson) as Record<string, unknown>;
@@ -744,17 +813,16 @@ export async function processNotificationJobs(
         payload,
         bodyParameters: templateBodyParameters(template.bodyPreview, payload)
       });
-      const sent = await prisma.notificationJob.update({
-        where: { id: job.id },
-        data: {
-          status: "SENT",
-          sentAt: new Date(),
-          provider: sendResult.provider,
-          providerMessageId: sendResult.providerMessageId,
-          errorMessage: null,
-          nextRetryAt: null
-        }
+      const sent = await finishClaimedNotificationJob(prisma, job, claimedAt, {
+        status: "SENT",
+        processingAt: null,
+        sentAt: new Date(),
+        provider: sendResult.provider,
+        providerMessageId: sendResult.providerMessageId,
+        errorMessage: null,
+        nextRetryAt: null
       });
+      if (!sent) continue;
       await prisma.notificationLog.create({
         data: {
           notificationJobId: job.id,
@@ -767,17 +835,15 @@ export async function processNotificationJobs(
       });
       results.push(sent);
     } catch (error) {
-      const attempts = processing.attempts + 1;
       const rawResponse = error instanceof NotificationProviderError ? error.rawResponse : undefined;
-      const failed = await prisma.notificationJob.update({
-        where: { id: job.id },
-        data: {
-          status: "FAILED",
-          failedAt: new Date(),
-          errorMessage: error instanceof Error ? error.message : "PROVIDER_ERROR",
-          nextRetryAt: attempts >= processing.maxAttempts ? null : nextRetryDate(attempts)
-        }
+      const failed = await finishClaimedNotificationJob(prisma, job, claimedAt, {
+        status: "FAILED",
+        processingAt: null,
+        failedAt: new Date(),
+        errorMessage: error instanceof Error ? error.message : "PROVIDER_ERROR",
+        nextRetryAt: claimedAttempts >= job.maxAttempts ? null : nextRetryDate(claimedAttempts, claimedAt)
       });
+      if (!failed) continue;
       await prisma.notificationLog.create({
         data: {
           notificationJobId: job.id,
@@ -794,12 +860,20 @@ export async function processNotificationJobs(
 }
 
 function mapWebhookStatus(status: string) {
-  if (notificationStatuses.includes(status.toUpperCase() as never)) return status.toUpperCase();
-  if (status === "sent") return "SENT";
-  if (status === "delivered") return "DELIVERED";
-  if (status === "read") return "READ";
-  if (status === "failed") return "FAILED";
-  return undefined;
+  const mappedStatuses: Record<string, "SENT" | "DELIVERED" | "READ" | "FAILED"> = {
+    sent: "SENT",
+    delivered: "DELIVERED",
+    read: "READ",
+    failed: "FAILED"
+  };
+  return mappedStatuses[status.toLowerCase()];
+}
+
+function webhookPredecessorStatuses(status: "SENT" | "DELIVERED" | "READ" | "FAILED") {
+  if (status === "SENT") return ["PENDING", "PROCESSING"];
+  if (status === "DELIVERED") return ["PENDING", "PROCESSING", "SENT"];
+  if (status === "READ") return ["PENDING", "PROCESSING", "SENT", "DELIVERED"];
+  return ["PENDING", "PROCESSING", "SENT"];
 }
 
 export function verifyWebhookChallenge(query: Record<string, unknown>) {
@@ -828,15 +902,33 @@ export async function handleMetaWebhook(prisma: PrismaClient, body: unknown, sig
         if (!statusEvent.id || !statusEvent.status) continue;
         const status = mapWebhookStatus(statusEvent.status);
         if (!status) continue;
-        const job = await prisma.notificationJob.findFirst({ where: { providerMessageId: statusEvent.id } });
+        const job = await prisma.notificationJob.findUnique({
+          where: {
+            provider_providerMessageId: {
+              provider: "meta-whatsapp",
+              providerMessageId: statusEvent.id
+            }
+          }
+        });
         if (!job) continue;
+        const occurredAt = new Date();
         const data: Prisma.NotificationJobUpdateInput = {
           status,
-          deliveredAt: status === "DELIVERED" ? new Date() : undefined,
-          readAt: status === "READ" ? new Date() : undefined,
-          failedAt: status === "FAILED" ? new Date() : undefined
+          sentAt: status === "SENT" ? occurredAt : undefined,
+          deliveredAt: status === "DELIVERED" ? occurredAt : undefined,
+          readAt: status === "READ" ? occurredAt : undefined,
+          failedAt: status === "FAILED" ? occurredAt : undefined
         };
-        const updated = await prisma.notificationJob.update({ where: { id: job.id }, data });
+        const update = await prisma.notificationJob.updateMany({
+          where: {
+            id: job.id,
+            provider: "meta-whatsapp",
+            providerMessageId: statusEvent.id,
+            status: { in: webhookPredecessorStatuses(status) }
+          },
+          data
+        });
+        if (update.count === 0) continue;
         await prisma.notificationLog.create({
           data: {
             notificationJobId: job.id,
@@ -846,7 +938,7 @@ export async function handleMetaWebhook(prisma: PrismaClient, body: unknown, sig
             rawPayload: rawBody
           }
         });
-        results.push(updated);
+        results.push({ ...job, ...data });
       }
     }
   }

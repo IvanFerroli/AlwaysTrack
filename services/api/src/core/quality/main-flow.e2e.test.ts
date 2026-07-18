@@ -334,20 +334,29 @@ describe("main operational flow", () => {
         findMany: vi.fn().mockResolvedValue([
           {
             id: "job-1",
+            organizationId: "org-1",
             templateKey: "vencimento",
+            channel: "WHATSAPP",
             recipientPhone: "+550000",
             payloadJson: "{}",
+            status: "PENDING",
+            scheduledFor: new Date("2026-05-02T00:00:00.000Z"),
+            processingAt: null,
+            nextRetryAt: null,
+            updatedAt: new Date("2026-05-02T00:00:00.000Z"),
             attempts: 0,
             maxAttempts: 3
           }
         ]),
-        update: vi
-          .fn()
-          .mockResolvedValueOnce({ id: "job-1", attempts: 1, maxAttempts: 3 })
-          .mockResolvedValueOnce({ id: "job-1", status: "SENT" })
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
       },
       notificationTemplate: {
-        findFirst: vi.fn().mockResolvedValue({ key: "vencimento", language: "pt_BR", metaTemplateName: "vencimento_tpl" })
+        findFirst: vi.fn().mockResolvedValue({
+          key: "vencimento",
+          channel: "WHATSAPP",
+          language: "pt_BR",
+          metaTemplateName: "vencimento_tpl"
+        })
       },
       notificationLog: { create: vi.fn().mockResolvedValue({ id: "log-1" }) },
       uploadToken: {

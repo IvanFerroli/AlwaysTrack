@@ -1126,7 +1126,7 @@ model NotificationJob {
   @@index([periodKey])
   @@index([status])
   @@index([scheduledFor])
-  @@index([providerMessageId])
+  @@unique([provider, providerMessageId])
 }
 
 model NotificationLog {
