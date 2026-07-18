@@ -27,6 +27,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Fevereiro sem dia 29 usa `SKIP`: nao antecipa nem desloca o aviso.
 - Troca de Pausa e troca de turno sao workflows distintos. A primeira reserva locks exclusivos para os dois bookings; a segunda segue a regra versionada de autoaprovacao/aprovacao gerencial.
 - KPIs usam definicao, unidade, direcao e agregacao proprias; CSAT 1-5 nao e percentual e SLA temporal nao e taxa. Campanhas SAC consomem KPI aprovado compativel, preservam publico/proveniencia e nao criam ranking nominal.
+- Celula vazia, `-`, nao aplicavel e fonte invalida nunca viram zero. Cada registro preserva estado do dado, texto original aplicavel, timezone e ano de referencia; apenas `AVAILABLE` alimenta consolidado ou campanha.
 - Notificacoes preservam `entityType`, `entityId` e `href` para legado, mas a acao usa target tipado resolvido no backend sob destinatario, tenant, role, escopo e estado atuais.
 
 ## Subida local reproduzivel
@@ -61,6 +62,8 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 3. Nao combinar fechamento mensal com os intervalos reportados do mesmo mes nem expectativa com realizado.
 4. Em `Campanhas`, publicar a partir de metrica SAC e escopo explicito. Depois de ativa, nao alterar destrutivamente regra, publico ou proveniencia.
 5. Ao fechar a Campanha, conferir que o resultado usa KPIs aprovados do mesmo periodo/escopo, unidade, canal e granularidade.
+6. Se a fonte nao trouxer valor, escolher o estado correspondente; nao digitar `0` para preencher a lacuna.
+7. Informar ano de referencia e preservar o intervalo tal como reportado; nao renomear intervalo irregular como semana ISO.
 
 ## Avisos recorrentes
 1. Em `Avisos > Avisos recorrentes`, criar uma serie mensal.
@@ -106,6 +109,8 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 | Troca nao aplica | aceite da contraparte, aprovacao gerencial e limites da regra | abrir a negociacao pelo deep link e decidir; nao alterar status no banco |
 | Troca de Pausa retorna conflito | locks dos dois bookings, status/slot atuais e turnos publicados dos dois operadores | atualizar a agenda e criar nova proposta; nao reutilizar swap stale |
 | Horizonte termina nao-zero | `failureCodes` do evento, ADMIN ativo e regra intersectando a janela por equipe | corrigir a equipe indicada pelos sinais internos e reexecutar o job; nao ampliar logs com IDs/PII |
+| KPI aparece como zero sem fonte | estado do dado, valor original e versao da definicao | corrigir por nova revisao como `NOT_REPORTED`, `NOT_APPLICABLE` ou `INVALID_SOURCE`; nao apagar o registro aprovado |
+| Campanha diverge do indicador | realizado versus expectativa, canal, granularidade, periodo, escopo e audiencia congelada | alinhar a identidade da serie; nao misturar fechamento mensal com intervalos nem recomputar publico historico |
 | Aviso futuro nao aparece | serie ativa, versao vigente, timezone e scheduler | executar job manual, inspecionar log e ocorrencias atrasadas |
 | Dia 29 nao aparece em fevereiro | politica `SKIP` | comportamento esperado; nao criar ocorrencia compensatoria |
 

@@ -1,9 +1,9 @@
 # TASK-AT-379 - Ciclo de vida e segmentacao de Campanhas SAC
 
 ## Metadata
-- status: proposed
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-379-sac-campaign-lifecycle-targeting.md
 
 ## Modo
@@ -45,6 +45,12 @@ Campanha SAC deve orientar uma iniciativa operacional sem recriar ranking. Audie
 ## Validacao
 - comandos/checks: testes service/HTTP/RBAC/notificacao/Web e typecheck.
 - revisao manual: criar, publicar, pausar e encerrar por duas equipes.
+
+## Evidencia de implementacao parcial
+- CRUD e transicoes `DRAFT`, `ACTIVE`, `PAUSED` e `CLOSED` preservam versao, auditoria e bloqueio de edicao destrutiva.
+- Publicacao congela audiencia nominal por pessoa, time ou organizacao; resultado posterior reutiliza esse snapshot.
+- Comparacao nasce da direcao da metrica, permanece explicita e aceita somente definicoes atuais e serie realizada.
+- Permanecem nesta task: preview dedicado antes da publicacao e validacao manual completa com duas equipes reais.
 
 ## Riscos
 - Mudanca de membership durante campanha produzir audiencia ambigua.

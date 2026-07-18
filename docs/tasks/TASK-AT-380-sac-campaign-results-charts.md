@@ -1,9 +1,9 @@
 # TASK-AT-380 - Metas, resultados e graficos de Campanhas SAC
 
 ## Metadata
-- status: proposed
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-380-sac-campaign-results-charts.md
 
 ## Modo
@@ -45,6 +45,12 @@ Os graficos comerciais existentes podem fornecer estrutura responsiva, tooltip e
 ## Validacao
 - comandos/checks: golden cases, testes de snapshot/recalculo, componentes e screenshots.
 - revisao manual: campanha por CSAT, SLA, produtividade e ReclameAqui.
+
+## Evidencia de implementacao parcial
+- Resultado usa somente realizado `APPROVED` e disponivel na mesma serie, periodo e audiencia congelada da campanha.
+- Fechamento persiste snapshot reproduzivel; campanha ativa recalcula sem alterar Performance aprovada.
+- Interface mostra meta, realizado, progresso, tendencia, cobertura/reconciliacao e tabela sem ranking nominal.
+- Permanecem nesta task: screenshots dedicados e validacao com dados operacionais confirmados de CSAT, SLA, produtividade e ReclameAqui; o anexo atual confirma apenas a serie TikTok.
 
 ## Riscos
 - Reaproveitar componente com formatter monetario ou label comercial escondida.

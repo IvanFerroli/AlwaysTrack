@@ -1,9 +1,9 @@
 # TASK-AT-377 - Workspace e graficos de Performance SAC
 
 ## Metadata
-- status: correction-planned
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-377-sac-performance-workspace-charts.md
 
 ## Modo
@@ -45,6 +45,14 @@ A tela deve servir a trabalho repetido: filtros densos, estado de governanca e g
 ## Validacao
 - comandos/checks: testes de componente, acessibilidade, typecheck/build Web e screenshots desktop/mobile.
 - revisao manual: jornadas SAC, SUPERVISOR, GESTOR e ADMIN.
+
+## Evidencia de implementacao parcial
+- Workspace operacional possui filtros de periodo, metrica, canal, granularidade, tipo e agente autorizado, com resumo, tendencia curta e tabela equivalente.
+- Formulario usa nota 1-5, duracao humana, percentual ou inteiro conforme o dicionario; ausencia de fonte tem estado explicito e nao vira zero.
+- Historico mostra governanca, fonte, escopo, serie, revisao e definicoes legadas somente leitura.
+- Realizado e expectativa aparecem com contexto separado; campanhas nao oferecem expectativa como resultado.
+- Permanecem nesta task: persistir filtros na URL, exportacao sincronizada e capturas visuais desktop/mobile dedicadas.
+- Validado em 2026-07-18 por typecheck/build Web, 31 testes focais e coverage Web completa com 150 testes.
 
 ## Riscos
 - Reuso visual do ranking carregar semantica competitiva indevida.

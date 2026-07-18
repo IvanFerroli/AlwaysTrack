@@ -1,9 +1,9 @@
 # TASK-AT-376 - Agregacoes de Performance SAC
 
 ## Metadata
-- status: correction-planned
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-376-sac-performance-aggregations-api.md
 
 ## Modo
@@ -13,7 +13,7 @@
 Expor series e consolidados reconciliaveis por atendente, time e periodo usando somente versoes aprovadas.
 
 ## Contexto minimo
-Cada definicao exige agregacao propria: score 0-5 pode usar media ponderada por amostra, duracao usa media ponderada em segundos, percentual usa componentes quando disponiveis e contagem usa soma. Filtros nao podem alterar escopo autorizado nem misturar canal e atendente.
+Cada definicao exige agregacao propria: score 1-5 pode usar media ponderada por amostra, duracao usa media ponderada em segundos, percentual usa componentes quando disponiveis e contagem usa soma. Filtros nao podem alterar escopo autorizado nem misturar canal e atendente.
 
 ## Dependencias
 - satisfeitas: TASK-AT-375.
@@ -44,6 +44,14 @@ Cada definicao exige agregacao propria: score 0-5 pode usar media ponderada por 
 ## Validacao
 - comandos/checks: golden cases matematicos, anti-IDOR, query plan production-like e contract tests.
 - revisao manual: reconciliar API, exportacao e registros aprovados de duas equipes.
+
+## Evidencia de implementacao parcial
+- Summary agrupa somente registros aprovados e disponiveis pela identidade completa da serie: metrica, versao, unidade, canal, granularidade, tipo, escopo e competencia sobreposta.
+- Medias ponderadas e razoes usam apenas componentes conhecidos e informam reconciliacao parcial; valores sem componentes nunca recebem peso inventado.
+- Escopo de usuario captura membership da competencia e a leitura SAC limita dados a pessoa, organizacao e janelas historicas de seus times.
+- Campanhas consomem somente realizados aprovados, priorizam agregado oficial e congelam a audiencia usada no fallback nominal.
+- Permanecem nesta task: paginacao de verdade, exportacao CSV auditavel, evidencia de query plan production-like e rate limit dedicado de leitura.
+- Validado em 2026-07-18 por 50 testes de servico, 10 HTTP, duas migracoes focais e consulta autenticada no banco local.
 
 ## Riscos
 - Membership atual contaminar periodo historico.

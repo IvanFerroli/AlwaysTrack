@@ -1,9 +1,9 @@
 # TASK-AT-373 - Dicionario e modelo de Performance SAC
 
 ## Metadata
-- status: correction-in-progress
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-373-sac-performance-metric-dictionary-model.md
 
 ## Modo
@@ -13,7 +13,7 @@
 Definir e persistir metricas SAC sem perder unidade, sujeito, canal, granularidade temporal ou proveniencia do dado operacional real.
 
 ## Contexto minimo
-O exemplo operacional recebido em 2026-07-18 separa CSAT de atendente em escala 0-5, SLA de atendente como duracao e indicadores TikTok de satisfacao, resolucao em 24h e primeira resposta. O modelo inicial tratou CSAT/SLA como percentuais genericos e nao representa essa fonte com fidelidade.
+O exemplo operacional recebido em 2026-07-18 separa CSAT de atendente em escala 1-5, SLA de atendente como duracao e indicadores TikTok de satisfacao, resolucao em 24h e primeira resposta. O modelo inicial tratou CSAT/SLA como percentuais genericos e nao representa essa fonte com fidelidade.
 
 ## Dependencias
 - satisfeitas: TASK-AT-363 e TASK-AT-364.
@@ -47,6 +47,14 @@ O exemplo operacional recebido em 2026-07-18 separa CSAT de atendente em escala 
 ## Validacao
 - comandos/checks: testes de validadores/agregacao base, migration test e typecheck API/Shared.
 - revisao manual: CSAT 1-5, duracoes abaixo/acima de uma hora, percentuais de canal, alvo mensal, `-`, vazio e anotacao textual.
+
+## Evidencia de implementacao
+- Dicionario compartilhado v3 com unidade, direcao, agregador e estado de compatibilidade por metrica.
+- Registro versionado com estado do dado, timezone, ano de referencia, competencia e membership historica; migracao cobre datas SQLite em ISO e epoch.
+- Ausencia e fonte invalida persistem valor nulo e ficam fora de medias/campanhas; realizados e expectativas permanecem series distintas.
+- Duplicidade manual e referencia externa idempotente falham com conflito, sem reescrever o historico aprovado.
+- O modelo de lote citado originalmente fica integralmente rastreado pela `TASK-AT-374`, sem duplicacao de escopo nesta task.
+- Validado em 2026-07-18 por typecheck Shared/API/Web, 62 testes focais de API, migration test, banco vazio/semeado e coverage completa da API.
 
 ## Riscos
 - Chamar contagens diferentes de produtividade e mistura-las no mesmo grafico.
