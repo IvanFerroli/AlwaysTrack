@@ -137,6 +137,12 @@ describe("DashboardView SAC operational coverage", () => {
     expect(screen.getByText(/Na meta · atual 93%/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /SAC ativos: 3/ }));
+    await user.click(screen.getByRole("button", { name: /Pausas reservadas: 3/ }));
+    await user.click(screen.getByRole("button", { name: /Faixas críticas: 1/ }));
+    await user.click(screen.getByRole("button", { name: /Campanhas ativas: 1/ }));
+    await user.click(screen.getByRole("button", { name: /Avisos ativos: 1/ }));
+    await user.click(screen.getByRole("button", { name: "Gerenciar pausas" }));
+    await user.click(screen.getByRole("button", { name: /12:00 a 12:30: 2 de 2 em pausa/ }));
     await user.click(screen.getByRole("button", { name: "Abrir performance" }));
     await user.click(screen.getByRole("button", { name: /CSAT acima de 92/ }));
     await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));
@@ -153,6 +159,57 @@ describe("DashboardView SAC operational coverage", () => {
     expect(onOpen).toHaveBeenCalledWith("announcements", { announcements: { slug: "mudanca-critica" } });
     expect(onOpen).toHaveBeenCalledWith("wiki");
     expect(onOpen).toHaveBeenCalledWith("faq");
+  });
+
+  it("covers honest fallback labels for free slots, unknown metrics and incomplete campaigns", async () => {
+    const timeline = Array.from({ length: 10 }, (_, index) => ({
+      startsAt: new Date(Date.UTC(2026, 6, 17, 12, index * 15)).toISOString(),
+      endsAt: new Date(Date.UTC(2026, 6, 17, 12, (index + 1) * 15)).toISOString(),
+      pausedCount: 0,
+      availableCount: 3,
+      critical: false
+    }));
+    installSuccess({
+      dashboard: {
+        ...supportDashboard,
+        pauses: {
+          ...supportDashboard.pauses,
+          summary: { ...supportDashboard.pauses.summary, bookedPauses: 0, criticalIntervals: 0 },
+          timeline,
+          slots: [{ ...supportDashboard.pauses.slots[0], bookedCount: 0, remainingCapacity: 2, bookings: [] }]
+        },
+        performance: {
+          summary: [{ metric: "CUSTOM", latest: null, average: null, samples: 0, aggregation: "SIMPLE" }],
+          entries: []
+        },
+        campaigns: [
+          { ...supportDashboard.campaigns[0], id: "campaign-empty", metric: "CUSTOM", comparison: "LTE", result: { current: null, achieved: false, progressPercent: 0 } },
+          { ...supportDashboard.campaigns[0], id: "campaign-progress", name: "SLA em evolução", result: { current: 80, achieved: false, progressPercent: 87 } }
+        ]
+      },
+      knowledge: {
+        ...operationalKnowledge,
+        queues: {
+          ...operationalKnowledge.queues,
+          activeAnnouncements: [
+            { ...operationalKnowledge.queues.activeAnnouncements[0], id: "high", priority: "HIGH", pinned: false, summary: null, acknowledgement: null },
+            { ...operationalKnowledge.queues.activeAnnouncements[0], id: "normal", title: "Aviso informativo", priority: "NORMAL", pinned: false }
+          ]
+        }
+      }
+    });
+    const user = userEvent.setup();
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByText("Livre")).toBeInTheDocument();
+    expect(screen.getByText("CUSTOM")).toBeInTheDocument();
+    expect(screen.getAllByText("Sem lançamento").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /CSAT acima de 92: sem medição/ })).toHaveTextContent("≤");
+    expect(screen.getByRole("button", { name: /SLA em evolução: em evolução/ })).toBeInTheDocument();
+    expect(screen.getByText("Comunicado interno")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));
+    await user.click(screen.getByRole("button", { name: /Aviso informativo/ }));
+    await user.click(screen.getByRole("button", { name: /Aviso informativo/ }));
   });
 
   it("switches between pause and quality modes without shifting the controls", async () => {
