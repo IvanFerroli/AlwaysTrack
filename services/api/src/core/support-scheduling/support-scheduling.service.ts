@@ -2084,43 +2084,45 @@ export async function claimSupportExtraShiftSlot(
     result.slot.ruleVersion,
     result.slot.startsAt,
   );
-  await emitInAppNotifications(
-    prisma,
-    actor.organizationId,
-    result.pending
-      ? {
-          actorId: actor.id,
-          recipientRoles: ["ADMIN", "GESTOR"],
-          type: "support_schedule.extra_claim.pending",
-          title: "Slot extra aguardando decisão",
-          body: `Há uma solicitação de slot extra para ${localDate}.`,
-          entityType: "SupportExtraShiftClaim",
-          entityId: result.claim.id,
-          href: scheduleHref({
-            date: localDate,
-            teamId: result.slot.teamId,
-            claimId: result.claim.id,
-            startsAt: result.slot.startsAt,
-          }),
-          dedupeKey: `support-extra-claim:${result.claim.id}:pending`,
-        }
-      : {
-          actorId: actor.id,
-          recipientIds: [result.claim.userId],
-          type: "support_schedule.extra_claim.approved",
-          title: "Slot extra confirmado",
-          body: `Seu slot extra de ${localDate} foi confirmado.`,
-          entityType: "SupportExtraShiftClaim",
-          entityId: result.claim.id,
-          href: scheduleHref({
-            date: localDate,
-            teamId: result.slot.teamId,
-            claimId: result.claim.id,
-            startsAt: result.slot.startsAt,
-          }),
-          dedupeKey: `support-extra-claim:${result.claim.id}:approved`,
-        },
-  );
+  if (!result.idempotent) {
+    await emitInAppNotifications(
+      prisma,
+      actor.organizationId,
+      result.pending
+        ? {
+            actorId: actor.id,
+            recipientRoles: ["ADMIN", "GESTOR"],
+            type: "support_schedule.extra_claim.pending",
+            title: "Slot extra aguardando decisão",
+            body: `Há uma solicitação de slot extra para ${localDate}.`,
+            entityType: "SupportExtraShiftClaim",
+            entityId: result.claim.id,
+            href: scheduleHref({
+              date: localDate,
+              teamId: result.slot.teamId,
+              claimId: result.claim.id,
+              startsAt: result.slot.startsAt,
+            }),
+            dedupeKey: `support-extra-claim:${result.claim.id}:pending`,
+          }
+        : {
+            actorId: actor.id,
+            recipientIds: [result.claim.userId],
+            type: "support_schedule.extra_claim.approved",
+            title: "Slot extra confirmado",
+            body: `Seu slot extra de ${localDate} foi confirmado.`,
+            entityType: "SupportExtraShiftClaim",
+            entityId: result.claim.id,
+            href: scheduleHref({
+              date: localDate,
+              teamId: result.slot.teamId,
+              claimId: result.claim.id,
+              startsAt: result.slot.startsAt,
+            }),
+            dedupeKey: `support-extra-claim:${result.claim.id}:approved`,
+          },
+    );
+  }
   return {
     claim: result.claim,
     occurrence: result.occurrence,

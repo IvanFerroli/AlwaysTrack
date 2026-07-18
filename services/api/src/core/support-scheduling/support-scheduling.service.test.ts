@@ -818,6 +818,58 @@ describe("support extra shifts", () => {
     );
   });
 
+  it("keeps an idempotent pending claim from reopening manager notifications", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T12:00:00.000Z"));
+    const slotRule = rule({
+      effectiveFrom: new Date("2098-01-01T00:00:00.000Z"),
+      requireManagerExtraApproval: true,
+    });
+    const slot = {
+      id: "extra-slot-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      ruleVersionId: slotRule.id,
+      startsAt: new Date("2099-01-03T11:00:00.000Z"),
+      endsAt: new Date("2099-01-03T17:00:00.000Z"),
+      capacity: 1,
+      status: "OPEN",
+      ruleVersion: slotRule,
+    };
+    const pendingClaim = {
+      id: "claim-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      slotId: slot.id,
+      userId: sac.id,
+      status: "PENDING",
+      note: null,
+    };
+    const notificationUpsert = vi.fn();
+    const tx = {
+      supportExtraShiftSlot: { findFirst: vi.fn().mockResolvedValue(slot) },
+      user: {
+        findFirst: vi.fn().mockResolvedValue({ id: sac.id, name: sac.name }),
+        findMany: vi.fn().mockResolvedValue([{ id: admin.id }]),
+      },
+      supportTeamMembership: {
+        findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }),
+      },
+      supportExtraShiftClaim: {
+        findUnique: vi.fn().mockResolvedValue(pendingClaim),
+      },
+      inAppNotification: { upsert: notificationUpsert },
+      auditLog: auditMock(),
+    };
+    const prisma = transactionClient(tx);
+
+    await expect(
+      claimSupportExtraShiftSlot(prisma as never, sac, slot.id, {}),
+    ).resolves.toMatchObject({ claim: pendingClaim, idempotent: true });
+    expect(notificationUpsert).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
   it("requires a manager rejection reason and preserves a terminal rejected claim", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2099-01-01T12:00:00.000Z"));
