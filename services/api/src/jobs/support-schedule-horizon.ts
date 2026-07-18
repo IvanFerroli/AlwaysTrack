@@ -222,7 +222,7 @@ async function main() {
   const env = loadEnv();
   const result = await runSupportScheduleHorizonWorker(
     prisma,
-    env.supportScheduleHorizonDays,
+    env.supportScheduleHorizonDays ?? 30,
     new Date(startedAt)
   );
   logEvent(

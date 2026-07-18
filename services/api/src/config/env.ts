@@ -26,7 +26,7 @@ export interface ApiEnv {
   metaAppSecret?: string;
   supportPhone?: string;
   notificationJobLimit: number;
-  supportScheduleHorizonDays: number;
+  supportScheduleHorizonDays?: number;
   documentAiProvider: "fake" | "openai" | "gemini";
   documentAiModel: string;
   openAiApiKey?: string;
