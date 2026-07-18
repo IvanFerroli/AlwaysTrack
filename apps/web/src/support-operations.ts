@@ -36,6 +36,15 @@ export interface SupportPauseBooking {
   slotId: string;
   userId: string;
   status?: "BOOKED" | "CANCELLED";
+  overrideReason?: string | null;
+  coverageBefore?: number | null;
+  coverageAfter?: number | null;
+  minimumCoverage?: number | null;
+  overrideById?: string | null;
+  overrideAt?: string | null;
+  overrideRevokedById?: string | null;
+  overrideRevokedAt?: string | null;
+  overrideRevokeReason?: string | null;
   user: SupportAgent;
   createdAt?: string;
   updatedAt?: string;
@@ -64,7 +73,7 @@ export interface SupportPauseTimelineItem {
 
 export interface SupportPauseSwap {
   id: string;
-  status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
+  status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" | "EXPIRED";
   note: string | null;
   requestedById: string;
   requestedBy: SupportAgent;
@@ -73,6 +82,7 @@ export interface SupportPauseSwap {
   targetBooking: SupportPauseBooking & { slot: SupportPauseSlot };
   createdAt: string;
   updatedAt: string;
+  expiresAt: string | null;
 }
 
 export interface SupportPausesResponse {

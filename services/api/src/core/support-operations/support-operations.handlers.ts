@@ -5,6 +5,7 @@ import {
   SupportOperationsError,
   bookSupportPauseSlot,
   cancelSupportPauseBooking,
+  cancelSupportPauseSwap,
   createSupportCampaign,
   createSupportKpiEntry,
   createSupportPauseSlot,
@@ -68,7 +69,7 @@ export async function bookSupportPauseSlotHandler(request: Request, response: Re
 }
 
 export async function cancelSupportPauseBookingHandler(request: Request, response: Response) {
-  try { return sendOk(response, await cancelSupportPauseBooking(prisma, actor(request), param(request.params.bookingId))); } catch (error) { return failure(response, error); }
+  try { return sendOk(response, await cancelSupportPauseBooking(prisma, actor(request), param(request.params.bookingId), request.body)); } catch (error) { return failure(response, error); }
 }
 
 export async function requestSupportPauseSwapHandler(request: Request, response: Response) {
@@ -77,6 +78,10 @@ export async function requestSupportPauseSwapHandler(request: Request, response:
 
 export async function decideSupportPauseSwapHandler(request: Request, response: Response) {
   try { return sendOk(response, await decideSupportPauseSwap(prisma, actor(request), param(request.params.swapId), request.body)); } catch (error) { return failure(response, error); }
+}
+
+export async function cancelSupportPauseSwapHandler(request: Request, response: Response) {
+  try { return sendOk(response, await cancelSupportPauseSwap(prisma, actor(request), param(request.params.swapId))); } catch (error) { return failure(response, error); }
 }
 
 export async function listSupportPerformanceHandler(request: Request, response: Response) {

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, CalendarPlus, Check, RefreshCw, Save, X } from "lucide-react";
+import { ArrowLeftRight, CalendarPlus, Check, RefreshCw, Save, ShieldAlert, X } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
@@ -75,6 +75,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   const [policyDraft, setPolicyDraft] = useState<SupportPausePolicy | null>(null);
   const [slotDraft, setSlotDraft] = useState({ label: "", date, startsAt: "12:00", endsAt: "12:15", capacity: "1" });
   const [swapDraft, setSwapDraft] = useState({ requesterBookingId: "", targetBookingId: "", note: "" });
+  const [overrideDraft, setOverrideDraft] = useState({ slotId: "", userId: "", reason: "", confirmImpact: false });
 
   async function load(showLoading = true) {
     if (showLoading) setLoading(true);
@@ -133,10 +134,15 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
     );
   }
 
-  async function cancelBooking(bookingId: string) {
+  async function cancelBooking(bookingId: string, overrideReason?: string | null) {
+    const reason = overrideReason ? window.prompt("Motivo da revogação da exceção:") : null;
+    if (overrideReason && !reason?.trim()) return;
     await perform(
       `cancel-${bookingId}`,
-      () => api(`/v1/support/pauses/bookings/${bookingId}`, { method: "DELETE" }),
+      () => api(`/v1/support/pauses/bookings/${bookingId}`, {
+        method: "DELETE",
+        body: JSON.stringify(reason ? { reason: reason.trim() } : {})
+      }),
       "Pausa cancelada."
     );
   }
@@ -167,6 +173,33 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
       }),
       decision === "ACCEPTED" ? "Troca aceita." : "Troca recusada."
     );
+  }
+
+  async function cancelSwap(swapId: string) {
+    await perform(
+      `swap-${swapId}`,
+      () => api(`/v1/support/pauses/swaps/${swapId}`, { method: "DELETE" }),
+      "Solicitação cancelada."
+    );
+  }
+
+  async function createOverride(event: FormEvent) {
+    event.preventDefault();
+    if (!canManage) return;
+    const completed = await perform(
+      "override",
+      () => api(`/v1/support/pauses/slots/${overrideDraft.slotId}/book`, {
+        method: "POST",
+        body: JSON.stringify({
+          userId: overrideDraft.userId,
+          overrideCoverage: true,
+          overrideReason: overrideDraft.reason,
+          confirmImpact: overrideDraft.confirmImpact
+        })
+      }),
+      "Exceção registrada com impacto auditado."
+    );
+    if (completed) setOverrideDraft({ slotId: "", userId: "", reason: "", confirmImpact: false });
   }
 
   async function savePolicy(event: FormEvent) {
@@ -288,7 +321,28 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                     <p>{slot.bookedCount} de {slot.capacity} vaga(s) ocupada(s)</p>
                     {slot.bookings.length ? (
                       <ul className="support-person-list" aria-label="Reservas do slot">
-                        {slot.bookings.map((booking) => <li key={booking.id}>{booking.user.name}</li>)}
+                        {slot.bookings.map((booking) => (
+                          <li key={booking.id} className={booking.overrideReason ? "override" : ""}>
+                            <span>{booking.user.name}{booking.overrideReason ? " · exceção" : ""}</span>
+                            {canManage ? (
+                              <button
+                                className="support-inline-icon"
+                                type="button"
+                                aria-label={`Cancelar pausa de ${booking.user.name}`}
+                                title={booking.overrideReason ? "Revogar exceção" : "Cancelar pausa"}
+                                disabled={busyAction !== null}
+                                onClick={() => void cancelBooking(booking.id, booking.overrideReason)}
+                              >
+                                <X size={13} />
+                              </button>
+                            ) : null}
+                            {booking.overrideReason ? (
+                              <small title={booking.overrideReason}>
+                                Cobertura {booking.coverageBefore ?? "-"} para {booking.coverageAfter ?? "-"} · mínimo {booking.minimumCoverage ?? "-"}
+                              </small>
+                            ) : null}
+                          </li>
+                        ))}
                       </ul>
                     ) : <span className="muted">Sem reservas</span>}
                     {!canManage ? (
@@ -352,14 +406,16 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                   <thead><tr><th scope="col">Solicitante</th><th scope="col">Horário atual</th><th scope="col">Destino</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>
                   <tbody>
                     {data.swaps.map((swap) => {
-                      const canDecide = !canManage && swap.status === "PENDING" && swap.targetBooking.userId === user.id;
+                      const canDecide = swap.status === "PENDING" && (canManage || swap.targetBooking.userId === user.id);
+                      const canCancel = swap.status === "PENDING" && (canManage || swap.requestedById === user.id);
+                      const statusLabel = swap.status === "PENDING" ? "Pendente" : swap.status === "ACCEPTED" ? "Aceita" : swap.status === "DECLINED" ? "Recusada" : swap.status === "EXPIRED" ? "Expirada" : "Cancelada";
                       return (
                         <tr key={swap.id}>
                           <td><strong>{swap.requesterBooking.user.name}</strong>{swap.note ? <small>{swap.note}</small> : null}</td>
                           <td>{formatSupportTime(swap.requesterBooking.slot.startsAt)} - {formatSupportTime(swap.requesterBooking.slot.endsAt)}</td>
                           <td>{swap.targetBooking.user.name}<small>{formatSupportTime(swap.targetBooking.slot.startsAt)} - {formatSupportTime(swap.targetBooking.slot.endsAt)}</small></td>
-                          <td><span className={`support-status ${swap.status.toLowerCase()}`}>{swap.status === "PENDING" ? "Pendente" : swap.status === "ACCEPTED" ? "Aceita" : swap.status === "DECLINED" ? "Recusada" : "Cancelada"}</span></td>
-                          <td>{canDecide ? <div className="inline-actions"><button className="small" type="button" disabled={busyAction !== null} onClick={() => void decideSwap(swap.id, "ACCEPTED")}><Check size={15} /> Aceitar</button><button className="secondary small" type="button" disabled={busyAction !== null} onClick={() => void decideSwap(swap.id, "DECLINED")}><X size={15} /> Recusar</button></div> : "-"}</td>
+                          <td><span className={`support-status ${swap.status.toLowerCase()}`}>{statusLabel}</span>{swap.status === "PENDING" && swap.expiresAt ? <small>Expira {formatSupportTime(swap.expiresAt)}</small> : null}</td>
+                          <td>{canDecide || canCancel ? <div className="inline-actions">{canDecide ? <><button className="small" type="button" disabled={busyAction !== null} onClick={() => void decideSwap(swap.id, "ACCEPTED")}><Check size={15} /> Aceitar</button><button className="secondary small" type="button" disabled={busyAction !== null} onClick={() => void decideSwap(swap.id, "DECLINED")}><X size={15} /> Recusar</button></> : null}{canCancel ? <button className="secondary small" type="button" disabled={busyAction !== null} onClick={() => void cancelSwap(swap.id)}><X size={15} /> Cancelar</button> : null}</div> : "-"}</td>
                         </tr>
                       );
                     })}
@@ -392,6 +448,28 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
               <label>Início<input required type="time" value={slotDraft.startsAt} onChange={(event) => setSlotDraft((current) => ({ ...current, startsAt: event.target.value }))} /></label>
               <label>Fim<input required type="time" value={slotDraft.endsAt} onChange={(event) => setSlotDraft((current) => ({ ...current, endsAt: event.target.value }))} /></label>
               <div className="support-form-actions support-full-span"><button type="submit" disabled={busyAction !== null}><CalendarPlus size={16} /> Criar slot</button></div>
+            </form>
+          </section>
+          <section className="support-form-section support-full-span" aria-labelledby="support-override-title">
+            <div className="support-section-heading"><div><p className="eyebrow">Exceção auditada</p><h2 id="support-override-title">Autorizar pausa fora da política</h2></div><ShieldAlert size={20} aria-hidden="true" /></div>
+            <form className="support-form-grid" onSubmit={createOverride}>
+              <label>Atendente
+                <select required value={overrideDraft.userId} onChange={(event) => setOverrideDraft((current) => ({ ...current, userId: event.target.value }))}>
+                  <option value="">Selecione</option>
+                  {data.agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
+                </select>
+              </label>
+              <label>Slot
+                <select required value={overrideDraft.slotId} onChange={(event) => setOverrideDraft((current) => ({ ...current, slotId: event.target.value }))}>
+                  <option value="">Selecione</option>
+                  {data.slots.map((slot) => <option key={slot.id} value={slot.id}>{formatSupportTime(slot.startsAt)} - {formatSupportTime(slot.endsAt)} · {slot.bookedCount}/{slot.capacity}</option>)}
+                </select>
+              </label>
+              <label className="support-full-span">Motivo
+                <textarea required maxLength={300} rows={2} value={overrideDraft.reason} onChange={(event) => setOverrideDraft((current) => ({ ...current, reason: event.target.value }))} />
+              </label>
+              <label className="support-check support-full-span"><input required type="checkbox" checked={overrideDraft.confirmImpact} onChange={(event) => setOverrideDraft((current) => ({ ...current, confirmImpact: event.target.checked }))} /> Confirmo o impacto sobre capacidade ou cobertura mínima</label>
+              <div className="support-form-actions support-full-span"><button type="submit" disabled={!overrideDraft.slotId || !overrideDraft.userId || !overrideDraft.reason.trim() || !overrideDraft.confirmImpact || busyAction !== null}><ShieldAlert size={16} /> Registrar exceção</button></div>
             </form>
           </section>
         </div>

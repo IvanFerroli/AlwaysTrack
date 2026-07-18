@@ -3,12 +3,14 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import {
   SupportOperationsError,
   bookSupportPauseSlot,
+  cancelSupportPauseSwap,
   createSupportCampaign,
   createSupportKpiEntry,
   decideSupportPauseSwap,
   listSupportCampaigns,
   listSupportPauses,
   listSupportPerformance,
+  requestSupportPauseSwap,
   reviewSupportKpiEntry,
   submitSupportKpiEntry,
   updateSupportKpiEntry
@@ -89,9 +91,108 @@ describe("support operations service", () => {
     expect(blocked.supportPauseBooking.create).not.toHaveBeenCalled();
 
     const overridden = base();
-    await expect(bookSupportPauseSlot(overridden as never, admin, slot.id, { userId: "sac-1", overrideCoverage: true }))
+    await expect(bookSupportPauseSlot(overridden as never, admin, slot.id, {
+      userId: "sac-1",
+      overrideCoverage: true,
+      overrideReason: "Cobertura emergencial aprovada pela gestão",
+      confirmImpact: true
+    }))
       .resolves.toMatchObject({ booking: { id: "booking-1" } });
+    expect(overridden.supportPauseBooking.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        coverageBefore: 3,
+        coverageAfter: 2,
+        minimumCoverage: 3,
+        overrideById: "admin-1",
+        overrideReason: "Cobertura emergencial aprovada pela gestão"
+      })
+    });
     expect(overridden.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_pause.booking.override" }) }));
+  });
+
+  it("requires a reason and explicit impact confirmation for a manager override", async () => {
+    const prisma = { $transaction: vi.fn() };
+
+    await expect(bookSupportPauseSlot(prisma as never, admin, "slot-1", {
+      userId: "sac-1",
+      overrideCoverage: true,
+      overrideReason: ""
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(bookSupportPauseSlot(prisma as never, admin, "slot-1", {
+      userId: "sac-1",
+      overrideCoverage: true,
+      overrideReason: "Cobertura autorizada"
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("expires stale swaps while building the pause agenda", async () => {
+    const swap = {
+      id: "swap-expired",
+      status: "PENDING",
+      expiresAt: new Date("2025-01-01T00:00:00.000Z")
+    };
+    const prisma = {
+      supportTeam: { findMany: vi.fn().mockResolvedValue([]) },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+      supportPauseSlot: { findMany: vi.fn().mockResolvedValue([]) },
+      supportPauseSwap: {
+        findMany: vi.fn().mockResolvedValue([swap]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
+      },
+      auditLog: auditMock()
+    };
+
+    const result = await listSupportPauses(prisma as never, admin, "2026-07-17");
+
+    expect(result.swaps).toEqual([expect.objectContaining({ id: "swap-expired", status: "EXPIRED" })]);
+    expect(prisma.supportPauseSwap.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ["swap-expired"] }, status: "PENDING" }),
+      data: expect.objectContaining({ status: "EXPIRED" })
+    }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_pause.swap.expired", actorId: null })
+    }));
+  });
+
+  it("limits a swap request to 24 hours or the first pause and lets its owner cancel it", async () => {
+    const firstPause = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const prisma = {
+      supportPauseBooking: {
+        findFirst: vi.fn()
+          .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: firstPause } })
+          .mockResolvedValueOnce({ id: "booking-b", userId: "sac-2", slot: { startsAt: new Date(Date.now() + 3 * 60 * 60 * 1000) } })
+      },
+      supportPauseSwap: {
+        findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }),
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "swap-1", ...data })),
+        update: vi.fn().mockResolvedValue({ id: "swap-1", status: "CANCELLED" })
+      },
+      auditLog: auditMock()
+    };
+
+    const requested = await requestSupportPauseSwap(prisma as never, sac, {
+      requesterBookingId: "booking-a",
+      targetBookingId: "booking-b",
+      note: "Consulta médica"
+    });
+    expect(requested.swap.expiresAt?.getTime()).toBe(firstPause.getTime());
+
+    await expect(cancelSupportPauseSwap(prisma as never, sac, "swap-1"))
+      .resolves.toMatchObject({ swap: { status: "CANCELLED" } });
+    expect(prisma.auditLog.create).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_pause.swap.cancelled" })
+    }));
+  });
+
+  it("prevents another SAC agent from cancelling a peer swap", async () => {
+    const prisma = {
+      supportPauseSwap: { findFirst: vi.fn().mockResolvedValue({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }) }
+    };
+
+    await expect(cancelSupportPauseSwap(prisma as never, { ...sac, id: "sac-2" }, "swap-1"))
+      .rejects.toEqual(new SupportOperationsError("FORBIDDEN"));
   });
 
   it("accepts a peer swap atomically after checking both resulting schedules", async () => {

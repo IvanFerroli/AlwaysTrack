@@ -367,6 +367,30 @@
   padding: 3px 5px;
 }
 
+.support-person-list li.override {
+  background: var(--color-warning-soft);
+  border-color: #f2cc74;
+  color: var(--color-warning-dark);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.support-person-list li small {
+  font-size: 0.62rem;
+  font-weight: 700;
+  grid-column: 1 / -1;
+}
+
+.support-inline-icon {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: currentColor;
+  display: inline-flex;
+  min-height: 18px;
+  padding: 0;
+}
+
 .support-status {
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
@@ -395,6 +419,7 @@
 
 .support-status.declined,
 .support-status.cancelled,
+.support-status.expired,
 .support-status.closed {
   background: var(--color-danger-soft);
   border-color: #fda29b;

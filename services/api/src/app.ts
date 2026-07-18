@@ -160,6 +160,7 @@ import { operationalTodayHandler } from "./core/operations/operations.handlers.j
 import {
   bookSupportPauseSlotHandler,
   cancelSupportPauseBookingHandler,
+  cancelSupportPauseSwapHandler,
   createSupportCampaignHandler,
   createSupportKpiEntryHandler,
   createSupportPauseSlotHandler,
@@ -409,6 +410,7 @@ export function createApp() {
   app.delete("/v1/support/pauses/bookings/:bookingId", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, cancelSupportPauseBookingHandler);
   app.post("/v1/support/pauses/swaps", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, requestSupportPauseSwapHandler);
   app.post("/v1/support/pauses/swaps/:swapId/decision", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, decideSupportPauseSwapHandler);
+  app.delete("/v1/support/pauses/swaps/:swapId", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, cancelSupportPauseSwapHandler);
   app.get("/v1/support/performance", requireAuth, requireRole(supportOperationsRoles), listSupportPerformanceHandler);
   app.post("/v1/support/performance/entries", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportKpiEntryHandler);
   app.patch("/v1/support/performance/entries/:entryId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportKpiEntryHandler);

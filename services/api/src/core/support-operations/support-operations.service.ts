@@ -162,6 +162,22 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
     })
   ]);
   const policy = storedPolicy ?? policyDefaults(actor.organizationId);
+  const expiredSwapIds = swaps
+    .filter((swap) => swap.status === "PENDING" && swap.expiresAt && swap.expiresAt <= new Date())
+    .map((swap) => swap.id);
+  if (expiredSwapIds.length) {
+    await prisma.supportPauseSwap.updateMany({
+      where: { organizationId: actor.organizationId, id: { in: expiredSwapIds }, status: "PENDING" },
+      data: { status: "EXPIRED", decidedAt: new Date() }
+    });
+    await Promise.all(expiredSwapIds.map((swapId) => recordAuditLog(prisma, {
+      organizationId: actor.organizationId,
+      actorId: null,
+      action: "support_pause.swap.expired",
+      entityType: "SupportPauseSwap",
+      entityId: swapId
+    })));
+  }
   const relevantStarts = slots.map((slot) => slot.startsAt.getTime());
   const relevantEnds = slots.map((slot) => slot.endsAt.getTime());
   const timelineStart = relevantStarts.length ? Math.min(...relevantStarts) : start.getTime() + 8 * 60 * 60 * 1000;
@@ -204,7 +220,7 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
       remainingCapacity: Math.max(slot.capacity - slot.bookings.length, 0),
       myBooking: slot.bookings.find((booking) => booking.userId === actor.id) ?? null
     })),
-    swaps
+    swaps: swaps.map((swap) => expiredSwapIds.includes(swap.id) ? { ...swap, status: "EXPIRED" } : swap)
   };
 }
 
@@ -291,6 +307,8 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
   const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const requestedUserId = typeof body.userId === "string" ? body.userId : actor.id;
   const overrideCoverage = body.overrideCoverage === true;
+  const overrideReason = overrideCoverage ? requiredString(body.overrideReason, 300) : null;
+  if (overrideCoverage && body.confirmImpact !== true) throw new SupportOperationsError("INVALID_INPUT");
   if (requestedUserId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
   if (overrideCoverage && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -303,7 +321,7 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
         if (!slot) throw new SupportOperationsError("NOT_FOUND");
         if (slot.startsAt <= new Date()) throw new SupportOperationsError("CONFLICT");
         await ensureSupportAgent(tx, actor.organizationId, requestedUserId, slot.teamId, slot.startsAt);
-        if (slot.bookings.length >= slot.capacity) throw new SupportOperationsError("CONFLICT");
+        if (slot.bookings.length >= slot.capacity && !overrideCoverage) throw new SupportOperationsError("CONFLICT");
         const existingOverlap = await tx.supportPauseBooking.findFirst({
           where: {
             organizationId: actor.organizationId,
@@ -334,13 +352,39 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
         ]);
         const activeAgents = slot.teamId ? membershipCount.length : roleCount;
         const pausedUsers = new Set(overlappingBookings.map((booking) => booking.userId));
+        const coverageBefore = Math.max(activeAgents - pausedUsers.size, 0);
         pausedUsers.add(requestedUserId);
         const minimumCoverage = policy?.minimumCoverage ?? 2;
-        if (!overrideCoverage && activeAgents - pausedUsers.size < minimumCoverage) throw new SupportOperationsError("CONFLICT");
+        const coverageAfter = Math.max(activeAgents - pausedUsers.size, 0);
+        const exceedsSlotCapacity = slot.bookings.length >= slot.capacity;
+        const breachesCoverage = coverageAfter < minimumCoverage;
+        if (!overrideCoverage && breachesCoverage) throw new SupportOperationsError("CONFLICT");
+        if (overrideCoverage && !exceedsSlotCapacity && !breachesCoverage) throw new SupportOperationsError("INVALID_INPUT");
         const existing = await tx.supportPauseBooking.findUnique({ where: { slotId_userId: { slotId, userId: requestedUserId } } });
+        const overrideData = overrideCoverage ? {
+          overrideReason,
+          coverageBefore,
+          coverageAfter,
+          minimumCoverage,
+          overrideById: actor.id,
+          overrideAt: new Date(),
+          overrideRevokedById: null,
+          overrideRevokedAt: null,
+          overrideRevokeReason: null
+        } : {
+          overrideReason: null,
+          coverageBefore: null,
+          coverageAfter: null,
+          minimumCoverage: null,
+          overrideById: null,
+          overrideAt: null,
+          overrideRevokedById: null,
+          overrideRevokedAt: null,
+          overrideRevokeReason: null
+        };
         const booking = existing
-          ? await tx.supportPauseBooking.update({ where: { id: existing.id }, data: { status: "BOOKED" } })
-          : await tx.supportPauseBooking.create({ data: { organizationId: actor.organizationId, slotId, userId: requestedUserId } });
+          ? await tx.supportPauseBooking.update({ where: { id: existing.id }, data: { status: "BOOKED", ...overrideData } })
+          : await tx.supportPauseBooking.create({ data: { organizationId: actor.organizationId, slotId, userId: requestedUserId, ...overrideData } });
         await tx.auditLog.create({
           data: {
             organizationId: actor.organizationId,
@@ -348,7 +392,18 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
             action: overrideCoverage ? "support_pause.booking.override" : "support_pause.booking.create",
             entityType: "SupportPauseBooking",
             entityId: booking.id,
-            metadataJson: JSON.stringify({ slotId, userId: requestedUserId, overrideCoverage, teamId: slot.teamId })
+            metadataJson: JSON.stringify({
+              slotId,
+              userId: requestedUserId,
+              overrideCoverage,
+              overrideReason,
+              teamId: slot.teamId,
+              slotCapacity: slot.capacity,
+              bookedBefore: slot.bookings.length,
+              coverageBefore,
+              coverageAfter,
+              minimumCoverage
+            })
           }
         });
         return { booking };
@@ -362,23 +417,35 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
   throw new SupportOperationsError("CONFLICT");
 }
 
-export async function cancelSupportPauseBooking(prisma: PrismaClient, actor: CurrentUser, bookingId: string) {
+export async function cancelSupportPauseBooking(prisma: PrismaClient, actor: CurrentUser, bookingId: string, input?: unknown) {
   const booking = await prisma.supportPauseBooking.findFirst({ where: { id: bookingId, organizationId: actor.organizationId } });
   if (!booking) throw new SupportOperationsError("NOT_FOUND");
   if (booking.userId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+  const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const managerRevocation = booking.userId !== actor.id && isManager(actor) && Boolean(booking.overrideReason);
+  const revokeReason = managerRevocation ? requiredString(body.reason, 300) : optionalString(body.reason, 300);
   const updated = await prisma.$transaction(async (tx) => {
     await tx.supportPauseSwap.updateMany({
       where: { status: "PENDING", OR: [{ requesterBookingId: booking.id }, { targetBookingId: booking.id }] },
       data: { status: "CANCELLED", decidedById: actor.id, decidedAt: new Date() }
     });
-    return tx.supportPauseBooking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+    return tx.supportPauseBooking.update({
+      where: { id: booking.id },
+      data: {
+        status: "CANCELLED",
+        overrideRevokedById: booking.overrideReason ? actor.id : undefined,
+        overrideRevokedAt: booking.overrideReason ? new Date() : undefined,
+        overrideRevokeReason: booking.overrideReason ? revokeReason : undefined
+      }
+    });
   });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
     action: "support_pause.booking.cancel",
     entityType: "SupportPauseBooking",
-    entityId: booking.id
+    entityId: booking.id,
+    metadata: { overrideRevocation: Boolean(booking.overrideReason), reason: revokeReason }
   });
   return { booking: updated };
 }
@@ -390,8 +457,14 @@ export async function requestSupportPauseSwap(prisma: PrismaClient, actor: Curre
   const targetBookingId = requiredString(body.targetBookingId);
   if (requesterBookingId === targetBookingId) throw new SupportOperationsError("INVALID_INPUT");
   const [requesterBooking, targetBooking] = await Promise.all([
-    prisma.supportPauseBooking.findFirst({ where: { id: requesterBookingId, organizationId: actor.organizationId, status: "BOOKED" } }),
-    prisma.supportPauseBooking.findFirst({ where: { id: targetBookingId, organizationId: actor.organizationId, status: "BOOKED" } })
+    prisma.supportPauseBooking.findFirst({
+      where: { id: requesterBookingId, organizationId: actor.organizationId, status: "BOOKED" },
+      include: { slot: { select: { startsAt: true } } }
+    }),
+    prisma.supportPauseBooking.findFirst({
+      where: { id: targetBookingId, organizationId: actor.organizationId, status: "BOOKED" },
+      include: { slot: { select: { startsAt: true } } }
+    })
   ]);
   if (!requesterBooking || !targetBooking) throw new SupportOperationsError("NOT_FOUND");
   if (requesterBooking.userId !== actor.id || targetBooking.userId === actor.id) throw new SupportOperationsError("FORBIDDEN");
@@ -399,13 +472,20 @@ export async function requestSupportPauseSwap(prisma: PrismaClient, actor: Curre
     where: { organizationId: actor.organizationId, requesterBookingId, targetBookingId, status: "PENDING" }
   });
   if (pending) throw new SupportOperationsError("CONFLICT");
+  const expiresAt = new Date(Math.min(
+    Date.now() + 24 * 60 * 60 * 1000,
+    requesterBooking.slot.startsAt.getTime(),
+    targetBooking.slot.startsAt.getTime()
+  ));
+  if (expiresAt <= new Date()) throw new SupportOperationsError("CONFLICT");
   const swap = await prisma.supportPauseSwap.create({
     data: {
       organizationId: actor.organizationId,
       requesterBookingId,
       targetBookingId,
       requestedById: actor.id,
-      note: optionalString(body.note, 300)
+      note: optionalString(body.note, 300),
+      expiresAt
     }
   });
   await recordAuditLog(prisma, {
@@ -414,9 +494,29 @@ export async function requestSupportPauseSwap(prisma: PrismaClient, actor: Curre
     action: "support_pause.swap.request",
     entityType: "SupportPauseSwap",
     entityId: swap.id,
-    metadata: { requesterBookingId, targetBookingId }
+    metadata: { requesterBookingId, targetBookingId, expiresAt: swap.expiresAt }
   });
   return { swap };
+}
+
+export async function cancelSupportPauseSwap(prisma: PrismaClient, actor: CurrentUser, swapId: string) {
+  const swap = await prisma.supportPauseSwap.findFirst({
+    where: { id: swapId, organizationId: actor.organizationId, status: "PENDING" }
+  });
+  if (!swap) throw new SupportOperationsError("NOT_FOUND");
+  if (swap.requestedById !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+  const updated = await prisma.supportPauseSwap.update({
+    where: { id: swap.id },
+    data: { status: "CANCELLED", decidedById: actor.id, decidedAt: new Date() }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "support_pause.swap.cancelled",
+    entityType: "SupportPauseSwap",
+    entityId: swap.id
+  });
+  return { swap: updated };
 }
 
 export async function decideSupportPauseSwap(prisma: PrismaClient, actor: CurrentUser, swapId: string, input: unknown) {
@@ -427,7 +527,7 @@ export async function decideSupportPauseSwap(prisma: PrismaClient, actor: Curren
     try {
       return await prisma.$transaction(async (tx) => {
         const swap = await tx.supportPauseSwap.findFirst({
-          where: { id: swapId, organizationId: actor.organizationId, status: "PENDING" },
+          where: { id: swapId, organizationId: actor.organizationId, status: "PENDING", OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
           include: { requesterBooking: { include: { slot: true } }, targetBooking: { include: { slot: true } } }
         });
         if (!swap) throw new SupportOperationsError("NOT_FOUND");

@@ -198,17 +198,17 @@ model User {
   companionInstallations               CompanionInstallation[]        @relation("CompanionInstallationUser")
   connectorRuns                        ConnectorRun[]                 @relation("ConnectorRunUser")
   evidenceConflictsResolved            EvidenceConflict[]             @relation("EvidenceConflictResolvedBy")
-  supportPauseSlotsCreated             SupportPauseSlot[]              @relation("SupportPauseSlotCreator")
+  supportPauseSlotsCreated             SupportPauseSlot[]             @relation("SupportPauseSlotCreator")
   supportPauseBookings                 SupportPauseBooking[]
-  supportPauseSwapsRequested           SupportPauseSwap[]              @relation("SupportPauseSwapRequester")
-  supportPauseSwapsDecided             SupportPauseSwap[]              @relation("SupportPauseSwapDecider")
-  supportKpiEntriesTargeted             SupportKpiEntry[]               @relation("SupportKpiTarget")
-  supportKpiEntriesCreated              SupportKpiEntry[]               @relation("SupportKpiCreator")
-  supportKpiEntriesUpdated              SupportKpiEntry[]               @relation("SupportKpiUpdater")
-  supportCampaignsTargeted              SupportCampaign[]               @relation("SupportCampaignTarget")
-  supportCampaignsCreated               SupportCampaign[]               @relation("SupportCampaignCreator")
-  supportCampaignsUpdated               SupportCampaign[]               @relation("SupportCampaignUpdater")
-  supportTeamMemberships                SupportTeamMembership[]
+  supportPauseSwapsRequested           SupportPauseSwap[]             @relation("SupportPauseSwapRequester")
+  supportPauseSwapsDecided             SupportPauseSwap[]             @relation("SupportPauseSwapDecider")
+  supportKpiEntriesTargeted            SupportKpiEntry[]              @relation("SupportKpiTarget")
+  supportKpiEntriesCreated             SupportKpiEntry[]              @relation("SupportKpiCreator")
+  supportKpiEntriesUpdated             SupportKpiEntry[]              @relation("SupportKpiUpdater")
+  supportCampaignsTargeted             SupportCampaign[]              @relation("SupportCampaignTarget")
+  supportCampaignsCreated              SupportCampaign[]              @relation("SupportCampaignCreator")
+  supportCampaignsUpdated              SupportCampaign[]              @relation("SupportCampaignUpdater")
+  supportTeamMemberships               SupportTeamMembership[]
 
   @@index([organizationId])
   @@index([role])
@@ -405,7 +405,7 @@ model SupportTeam {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization           @relation(fields: [organizationId], references: [id])
+  organization Organization            @relation(fields: [organizationId], references: [id])
   memberships  SupportTeamMembership[]
   pauseSlots   SupportPauseSlot[]
   kpiEntries   SupportKpiEntry[]
@@ -459,17 +459,26 @@ model SupportPauseSlot {
 }
 
 model SupportPauseBooking {
-  id             String   @id @default(cuid())
-  organizationId String
-  slotId         String
-  userId         String
-  status         String   @default("BOOKED")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  organizationId       String
+  slotId               String
+  userId               String
+  status               String    @default("BOOKED")
+  overrideReason       String?
+  coverageBefore       Int?
+  coverageAfter        Int?
+  minimumCoverage      Int?
+  overrideById         String?
+  overrideAt           DateTime?
+  overrideRevokedById  String?
+  overrideRevokedAt    DateTime?
+  overrideRevokeReason String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  organization Organization       @relation(fields: [organizationId], references: [id])
-  slot         SupportPauseSlot   @relation(fields: [slotId], references: [id])
-  user         User               @relation(fields: [userId], references: [id])
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  slot           SupportPauseSlot   @relation(fields: [slotId], references: [id])
+  user           User               @relation(fields: [userId], references: [id])
   requestedSwaps SupportPauseSwap[] @relation("SupportPauseSwapRequesterBooking")
   targetSwaps    SupportPauseSwap[] @relation("SupportPauseSwapTargetBooking")
 
@@ -479,17 +488,18 @@ model SupportPauseBooking {
 }
 
 model SupportPauseSwap {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   organizationId     String
   requesterBookingId String
   targetBookingId    String
   requestedById      String
   decidedById        String?
-  status             String   @default("PENDING")
+  status             String    @default("PENDING")
   note               String?
   decidedAt          DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   organization     Organization        @relation(fields: [organizationId], references: [id])
   requesterBooking SupportPauseBooking @relation("SupportPauseSwapRequesterBooking", fields: [requesterBookingId], references: [id])
@@ -498,6 +508,7 @@ model SupportPauseSwap {
   decidedBy        User?               @relation("SupportPauseSwapDecider", fields: [decidedById], references: [id])
 
   @@index([organizationId, status])
+  @@index([organizationId, status, expiresAt])
   @@index([requestedById, status])
   @@index([targetBookingId, status])
 }

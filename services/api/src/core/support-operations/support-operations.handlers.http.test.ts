@@ -4,6 +4,7 @@ import { jsonEnvelope, requestHandler } from "../../test-support/http-handler-ha
 const service = vi.hoisted(() => ({
   bookSupportPauseSlot: vi.fn(),
   cancelSupportPauseBooking: vi.fn(),
+  cancelSupportPauseSwap: vi.fn(),
   createSupportCampaign: vi.fn(),
   createSupportKpiEntry: vi.fn(),
   createSupportPauseSlot: vi.fn(),
