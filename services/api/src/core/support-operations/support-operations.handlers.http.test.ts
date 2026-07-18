@@ -8,6 +8,7 @@ const service = vi.hoisted(() => ({
   createSupportCampaign: vi.fn(),
   createSupportKpiEntry: vi.fn(),
   createSupportPauseSlot: vi.fn(),
+  generateSupportPauseSlots: vi.fn(),
   decideSupportPauseSwap: vi.fn(),
   getSupportDashboard: vi.fn(),
   listSupportCampaigns: vi.fn(),

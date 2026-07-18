@@ -25,6 +25,12 @@ function errorMessage(caught: unknown, fallback: string) {
   return caught instanceof Error ? caught.message : fallback;
 }
 
+function addTimeMinutes(time: string, minutes: number) {
+  const [hour, minute] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
 function CoverageTimeline({ data }: { data: SupportPausesResponse }) {
   if (!data.timeline.length) {
     return <OperationalState state="empty" title="Sem intervalos para exibir" detail="Cadastre slots para formar a timeline do dia." />;
@@ -73,7 +79,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [policyDraft, setPolicyDraft] = useState<SupportPausePolicy | null>(null);
-  const [slotDraft, setSlotDraft] = useState({ label: "", date, startsAt: "12:00", endsAt: "12:15", capacity: "1" });
+  const [slotDraft, setSlotDraft] = useState({ label: "", date, startsAt: "12:00", endsAt: "13:15", capacity: "1" });
   const [swapDraft, setSwapDraft] = useState({ requesterBookingId: "", targetBookingId: "", note: "" });
   const [overrideDraft, setOverrideDraft] = useState({ slotId: "", userId: "", reason: "", confirmImpact: false });
 
@@ -84,7 +90,11 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
       const result = await api<SupportPausesResponse>(`/v1/support/pauses?date=${encodeURIComponent(date)}`);
       setData(result);
       setPolicyDraft(result.policy);
-      setSlotDraft((current) => ({ ...current, date: result.date }));
+      setSlotDraft((current) => ({
+        ...current,
+        date: result.date,
+        endsAt: addTimeMinutes(current.startsAt, result.policy.pauseDurationMinutes)
+      }));
     } catch (caught) {
       setError(errorMessage(caught, "Falha ao carregar a agenda de pausas."));
     } finally {
@@ -213,6 +223,10 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
           timezone: policyDraft.timezone,
           minimumCoverage: policyDraft.minimumCoverage,
           slotMinutes: policyDraft.slotMinutes,
+          pauseDurationMinutes: policyDraft.pauseDurationMinutes,
+          boundaryBufferMinutes: policyDraft.boundaryBufferMinutes,
+          shiftWindows: policyDraft.shiftWindows,
+          templateStarts: policyDraft.templateStarts,
           active: policyDraft.active
         })
       }),
@@ -237,6 +251,18 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
       "Slot criado."
     );
     if (completed) setSlotDraft((current) => ({ ...current, label: "" }));
+  }
+
+  async function generateSlots() {
+    if (!canManage) return;
+    await perform(
+      "generate-slots",
+      () => api("/v1/support/pauses/slots/generate", {
+        method: "POST",
+        body: JSON.stringify({ date: slotDraft.date, capacity: Number(slotDraft.capacity) })
+      }),
+      "Grade-base gerada sem duplicar horários existentes."
+    );
   }
 
   if (loading && !data) {
@@ -434,7 +460,14 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
             <form className="support-form-grid" onSubmit={savePolicy}>
               <label className="support-full-span">Fuso horário<input required value={policyDraft.timezone} onChange={(event) => setPolicyDraft((current) => current ? { ...current, timezone: event.target.value } : current)} /></label>
               <label>Cobertura mínima<input required min={1} max={500} type="number" value={policyDraft.minimumCoverage} onChange={(event) => setPolicyDraft((current) => current ? { ...current, minimumCoverage: Number(event.target.value) } : current)} /></label>
-              <label>Duração-base<input required min={5} max={120} step={5} type="number" value={policyDraft.slotMinutes} onChange={(event) => setPolicyDraft((current) => current ? { ...current, slotMinutes: Number(event.target.value) } : current)} /></label>
+              <label>Duração da pausa<input required min={15} max={180} step={5} type="number" value={policyDraft.pauseDurationMinutes} onChange={(event) => setPolicyDraft((current) => current ? { ...current, pauseDurationMinutes: Number(event.target.value) } : current)} /></label>
+              <label>Granularidade<input required min={5} max={60} step={5} type="number" value={policyDraft.slotMinutes} onChange={(event) => setPolicyDraft((current) => current ? { ...current, slotMinutes: Number(event.target.value) } : current)} /></label>
+              <label>Margem do turno<input required min={5} max={120} step={5} type="number" value={policyDraft.boundaryBufferMinutes} onChange={(event) => setPolicyDraft((current) => current ? { ...current, boundaryBufferMinutes: Number(event.target.value) } : current)} /></label>
+              {policyDraft.shiftWindows.map((window, index) => <div className="support-shift-fields" key={`${index}-${window.start}`}>
+                <label>Turno {index + 1} · início<input required type="time" value={window.start} onChange={(event) => setPolicyDraft((current) => current ? { ...current, shiftWindows: current.shiftWindows.map((item, itemIndex) => itemIndex === index ? { ...item, start: event.target.value } : item) } : current)} /></label>
+                <label>Turno {index + 1} · fim<input required type="time" value={window.end} onChange={(event) => setPolicyDraft((current) => current ? { ...current, shiftWindows: current.shiftWindows.map((item, itemIndex) => itemIndex === index ? { ...item, end: event.target.value } : item) } : current)} /></label>
+              </div>)}
+              <div className="support-full-span"><span className="support-field-label">Grade-base</span><ul className="support-template-times">{policyDraft.templateStarts.map((time) => <li key={time}>{time}</li>)}</ul></div>
               <label className="support-check support-full-span"><input type="checkbox" checked={policyDraft.active} onChange={(event) => setPolicyDraft((current) => current ? { ...current, active: event.target.checked } : current)} /> Política ativa</label>
               <div className="support-form-actions support-full-span"><button type="submit" disabled={busyAction !== null}><Save size={16} /> Salvar política</button></div>
             </form>
@@ -445,9 +478,9 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
               <label className="support-full-span">Identificação<input maxLength={80} placeholder="Ex.: almoço" value={slotDraft.label} onChange={(event) => setSlotDraft((current) => ({ ...current, label: event.target.value }))} /></label>
               <label>Data<input required type="date" value={slotDraft.date} onChange={(event) => setSlotDraft((current) => ({ ...current, date: event.target.value }))} /></label>
               <label>Capacidade<input required min={1} max={100} type="number" value={slotDraft.capacity} onChange={(event) => setSlotDraft((current) => ({ ...current, capacity: event.target.value }))} /></label>
-              <label>Início<input required type="time" value={slotDraft.startsAt} onChange={(event) => setSlotDraft((current) => ({ ...current, startsAt: event.target.value }))} /></label>
-              <label>Fim<input required type="time" value={slotDraft.endsAt} onChange={(event) => setSlotDraft((current) => ({ ...current, endsAt: event.target.value }))} /></label>
-              <div className="support-form-actions support-full-span"><button type="submit" disabled={busyAction !== null}><CalendarPlus size={16} /> Criar slot</button></div>
+              <label>Início<input required type="time" value={slotDraft.startsAt} onChange={(event) => setSlotDraft((current) => ({ ...current, startsAt: event.target.value, endsAt: addTimeMinutes(event.target.value, policyDraft.pauseDurationMinutes) }))} /></label>
+              <label>Fim<input readOnly type="time" value={slotDraft.endsAt} /></label>
+              <div className="support-form-actions support-full-span"><button className="secondary" type="button" disabled={busyAction !== null} onClick={() => void generateSlots()}><CalendarPlus size={16} /> Gerar grade-base</button><button type="submit" disabled={busyAction !== null}><CalendarPlus size={16} /> Criar slot</button></div>
             </form>
           </section>
           <section className="support-form-section support-full-span" aria-labelledby="support-override-title">

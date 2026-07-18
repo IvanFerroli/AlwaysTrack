@@ -1027,10 +1027,25 @@ async function main() {
     });
   }
 
+  const supportShiftWindows = [{ start: "08:00", end: "14:45" }, { start: "15:00", end: "22:00" }];
+  const supportPauseTemplateStarts = [
+    "09:45", "10:30", "10:45", "11:15", "11:30", "11:45", "12:15", "13:00",
+    "15:15", "17:15", "17:45", "18:15", "19:15", "19:45", "20:15"
+  ];
+  const supportPausePolicyData = {
+    timezone: "America/Sao_Paulo",
+    minimumCoverage: 2,
+    slotMinutes: 15,
+    pauseDurationMinutes: 75,
+    boundaryBufferMinutes: 15,
+    shiftWindowsJson: JSON.stringify(supportShiftWindows),
+    templateStartsJson: JSON.stringify(supportPauseTemplateStarts),
+    active: true
+  };
   await prisma.supportPausePolicy.upsert({
     where: { organizationId: organization.id },
-    update: { timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15, active: true },
-    create: { organizationId: organization.id, timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15 }
+    update: supportPausePolicyData,
+    create: { organizationId: organization.id, ...supportPausePolicyData }
   });
 
   function supportPauseTime(hour: number, minute: number) {
@@ -1039,17 +1054,33 @@ async function main() {
     return value;
   }
 
-  const supportSlotDefinitions = [
-    { label: "Pausa 19h", startsAt: supportPauseTime(19, 0), endsAt: supportPauseTime(19, 30), capacity: 2 },
-    { label: "Pausa 19h30", startsAt: supportPauseTime(19, 30), endsAt: supportPauseTime(20, 0), capacity: 1 },
-    { label: "Pausa 20h", startsAt: supportPauseTime(20, 0), endsAt: supportPauseTime(20, 30), capacity: 1 },
-    { label: "Pausa 20h30", startsAt: supportPauseTime(20, 30), endsAt: supportPauseTime(21, 0), capacity: 1 }
-  ];
+  const supportSlotDefinitions = supportPauseTemplateStarts.map((start) => {
+    const [hour, minute] = start.split(":").map(Number);
+    const startsAt = supportPauseTime(hour, minute);
+    return {
+      label: `Pausa ${start}`,
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 75 * 60_000),
+      capacity: 1,
+      policySnapshotJson: JSON.stringify({
+        ...supportPausePolicyData,
+        shiftWindows: supportShiftWindows,
+        templateStarts: supportPauseTemplateStarts
+      })
+    };
+  });
+  const supportPauseDayStart = supportPauseTime(0, 0);
+  const supportPauseDayEnd = new Date(supportPauseDayStart);
+  supportPauseDayEnd.setDate(supportPauseDayEnd.getDate() + 1);
+  await prisma.supportPauseSlot.updateMany({
+    where: { organizationId: organization.id, startsAt: { gte: supportPauseDayStart, lt: supportPauseDayEnd } },
+    data: { active: false }
+  });
   const supportSlots = [];
   for (const definition of supportSlotDefinitions) {
     supportSlots.push(await prisma.supportPauseSlot.upsert({
       where: { organizationId_startsAt_endsAt: { organizationId: organization.id, startsAt: definition.startsAt, endsAt: definition.endsAt } },
-      update: { label: definition.label, capacity: definition.capacity, active: true, teamId: supportTeam.id },
+      update: { label: definition.label, capacity: definition.capacity, active: true, teamId: supportTeam.id, policySnapshotJson: definition.policySnapshotJson },
       create: { organizationId: organization.id, createdById: admin.id, teamId: supportTeam.id, ...definition }
     }));
   }

@@ -10,6 +10,7 @@ import {
   createSupportKpiEntry,
   createSupportPauseSlot,
   decideSupportPauseSwap,
+  generateSupportPauseSlots,
   getSupportDashboard,
   listSupportCampaigns,
   listSupportPauses,
@@ -62,6 +63,10 @@ export async function updateSupportPausePolicyHandler(request: Request, response
 
 export async function createSupportPauseSlotHandler(request: Request, response: Response) {
   try { return sendOk(response, await createSupportPauseSlot(prisma, actor(request), request.body)); } catch (error) { return failure(response, error); }
+}
+
+export async function generateSupportPauseSlotsHandler(request: Request, response: Response) {
+  try { return sendOk(response, await generateSupportPauseSlots(prisma, actor(request), request.body)); } catch (error) { return failure(response, error); }
 }
 
 export async function bookSupportPauseSlotHandler(request: Request, response: Response) {

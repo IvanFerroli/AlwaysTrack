@@ -4,17 +4,20 @@ import {
   SupportOperationsError,
   bookSupportPauseSlot,
   cancelSupportPauseSwap,
+  createSupportPauseSlot,
   createSupportCampaign,
   createSupportKpiEntry,
   decideSupportPauseSwap,
   listSupportCampaigns,
   listSupportPauses,
   listSupportPerformance,
+  generateSupportPauseSlots,
   requestSupportPauseSwap,
   reviewSupportKpiEntry,
   submitSupportKpiEntry,
   updateSupportCampaign,
-  updateSupportKpiEntry
+  updateSupportKpiEntry,
+  updateSupportPausePolicy
 } from "./support-operations.service.js";
 
 const admin: CurrentUser = {
@@ -61,6 +64,87 @@ describe("support operations service", () => {
     expect(result.timeline).toHaveLength(2);
     expect(result.timeline[0]).toMatchObject({ pausedCount: 2, availableCount: 1, critical: true });
     expect(result.slots[0]).toMatchObject({ bookedCount: 2, remainingCapacity: 0 });
+  });
+
+  it("stores the 75-minute two-shift policy and rejects an invalid template boundary", async () => {
+    const prisma = {
+      supportPausePolicy: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn().mockImplementation(({ create }) => Promise.resolve({ id: "policy-1", ...create }))
+      },
+      auditLog: auditMock()
+    };
+    const input = {
+      timezone: "America/Sao_Paulo",
+      minimumCoverage: 2,
+      slotMinutes: 15,
+      pauseDurationMinutes: 75,
+      boundaryBufferMinutes: 15,
+      shiftWindows: [{ start: "08:00", end: "14:45" }, { start: "15:00", end: "22:00" }],
+      templateStarts: ["09:45", "15:15", "20:15"]
+    };
+
+    await expect(updateSupportPausePolicy(prisma as never, admin, input)).resolves.toMatchObject({
+      policy: { pauseDurationMinutes: 75, boundaryBufferMinutes: 15, shiftWindows: input.shiftWindows }
+    });
+    await expect(updateSupportPausePolicy(prisma as never, admin, { ...input, templateStarts: ["14:45"] }))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
+  it("accepts only 75-minute slots inside a shift and away from its boundaries", async () => {
+    const storedPolicy = {
+      id: "policy-1", organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15,
+      pauseDurationMinutes: 75, boundaryBufferMinutes: 15,
+      shiftWindowsJson: JSON.stringify([{ start: "08:00", end: "14:45" }, { start: "15:00", end: "22:00" }]),
+      templateStartsJson: JSON.stringify(["09:45", "15:15"]), active: true
+    };
+    const prisma = {
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(storedPolicy) },
+      supportTeam: { findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }) },
+      supportPauseSlot: { create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "slot-1", ...data })) },
+      auditLog: auditMock()
+    };
+
+    await expect(createSupportPauseSlot(prisma as never, admin, {
+      startsAt: "2099-07-17T12:45:00.000Z",
+      endsAt: "2099-07-17T14:00:00.000Z",
+      capacity: 1
+    })).resolves.toMatchObject({ slot: { id: "slot-1" } });
+    await expect(createSupportPauseSlot(prisma as never, admin, {
+      startsAt: "2099-07-17T17:45:00.000Z",
+      endsAt: "2099-07-17T19:00:00.000Z",
+      capacity: 1
+    })).rejects.toEqual(new SupportOperationsError("CONFLICT"));
+    await expect(createSupportPauseSlot(prisma as never, admin, {
+      startsAt: "2099-07-17T18:15:00.000Z",
+      endsAt: "2099-07-17T19:00:00.000Z",
+      capacity: 1
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
+  it("generates the valid name-free base grid idempotently", async () => {
+    const storedPolicy = {
+      id: "policy-1", organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15,
+      pauseDurationMinutes: 75, boundaryBufferMinutes: 15,
+      shiftWindowsJson: JSON.stringify([{ start: "08:00", end: "14:45" }, { start: "15:00", end: "22:00" }]),
+      templateStartsJson: JSON.stringify(["09:45", "15:15", "20:15"]), active: true
+    };
+    const slotCreate = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: `slot-${data.label}`, ...data }));
+    const prisma = {
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(storedPolicy) },
+      supportTeam: { findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }) },
+      supportPauseSlot: { findUnique: vi.fn().mockResolvedValue(null), create: slotCreate },
+      auditLog: auditMock()
+    };
+
+    const result = await generateSupportPauseSlots(prisma as never, admin, { date: "2099-07-17", capacity: 1 });
+
+    expect(result).toMatchObject({ createdCount: 3, reusedCount: 0 });
+    expect(slotCreate).toHaveBeenCalledTimes(3);
+    expect(slotCreate.mock.calls.map(([call]) => call.data.label)).toEqual(["Pausa 09:45", "Pausa 15:15", "Pausa 20:15"]);
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_pause.slots.generate" })
+    }));
   });
 
   it("blocks capacity violations for SAC and permits an audited manager override", async () => {

@@ -27,6 +27,10 @@ export interface SupportPausePolicy {
   timezone: string;
   minimumCoverage: number;
   slotMinutes: number;
+  pauseDurationMinutes: number;
+  boundaryBufferMinutes: number;
+  shiftWindows: Array<{ start: string; end: string }>;
+  templateStarts: string[];
   active: boolean;
 }
 

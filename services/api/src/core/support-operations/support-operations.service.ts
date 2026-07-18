@@ -81,15 +81,170 @@ function isRetryableTransactionError(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2034";
 }
 
-function policyDefaults(organizationId: string) {
+interface PauseShiftWindow {
+  start: string;
+  end: string;
+}
+
+const defaultPauseShiftWindows: PauseShiftWindow[] = [
+  { start: "08:00", end: "14:45" },
+  { start: "15:00", end: "22:00" }
+];
+const defaultPauseTemplateStarts = [
+  "09:45", "10:30", "10:45", "11:15", "11:30", "11:45", "12:15", "13:00",
+  "15:15", "17:15", "17:45", "18:15", "19:15", "19:45", "20:15"
+];
+
+function timeMinutes(value: unknown) {
+  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new SupportOperationsError("INVALID_INPUT");
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function normalizedShiftWindows(value: unknown, fallback = false): PauseShiftWindow[] {
+  if (!Array.isArray(value) || !value.length) {
+    if (fallback) return defaultPauseShiftWindows;
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  const windows = value.map((item) => {
+    if (!item || typeof item !== "object") throw new SupportOperationsError("INVALID_INPUT");
+    const record = item as Record<string, unknown>;
+    const start = requiredString(record.start, 5);
+    const end = requiredString(record.end, 5);
+    if (timeMinutes(end) <= timeMinutes(start)) throw new SupportOperationsError("INVALID_INPUT");
+    return { start, end };
+  }).sort((left, right) => timeMinutes(left.start) - timeMinutes(right.start));
+  for (let index = 1; index < windows.length; index += 1) {
+    if (timeMinutes(windows[index].start) < timeMinutes(windows[index - 1].end)) throw new SupportOperationsError("INVALID_INPUT");
+  }
+  return windows;
+}
+
+function pauseFitsWindow(start: number, end: number, windows: PauseShiftWindow[], boundaryBufferMinutes: number) {
+  return windows.some((window) => (
+    start >= timeMinutes(window.start) + boundaryBufferMinutes
+    && end <= timeMinutes(window.end) - boundaryBufferMinutes
+  ));
+}
+
+function normalizedTemplateStarts(
+  value: unknown,
+  windows: PauseShiftWindow[],
+  pauseDurationMinutes: number,
+  boundaryBufferMinutes: number,
+  slotMinutes: number,
+  fallback = false
+) {
+  if (!Array.isArray(value) || !value.length) {
+    if (fallback) return defaultPauseTemplateStarts;
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  const starts = [...new Set(value.map((item) => requiredString(item, 5)))].sort((left, right) => timeMinutes(left) - timeMinutes(right));
+  if (starts.some((start) => {
+    const minute = timeMinutes(start);
+    return minute % slotMinutes !== 0 || !pauseFitsWindow(minute, minute + pauseDurationMinutes, windows, boundaryBufferMinutes);
+  })) throw new SupportOperationsError("INVALID_INPUT");
+  return starts;
+}
+
+function pausePolicyView(policy: {
+  id?: string | null;
+  organizationId: string;
+  timezone?: string;
+  minimumCoverage?: number;
+  slotMinutes?: number;
+  pauseDurationMinutes?: number;
+  boundaryBufferMinutes?: number;
+  shiftWindowsJson?: string;
+  templateStartsJson?: string;
+  active?: boolean;
+}) {
+  const slotMinutes = policy.slotMinutes ?? 15;
+  const pauseDurationMinutes = policy.pauseDurationMinutes ?? 75;
+  const boundaryBufferMinutes = policy.boundaryBufferMinutes ?? 15;
+  let shiftWindows = defaultPauseShiftWindows;
+  let templateStarts = defaultPauseTemplateStarts;
+  try {
+    shiftWindows = normalizedShiftWindows(parseStoredJson<unknown>(policy.shiftWindowsJson) ?? defaultPauseShiftWindows, true);
+    templateStarts = normalizedTemplateStarts(
+      parseStoredJson<unknown>(policy.templateStartsJson) ?? defaultPauseTemplateStarts,
+      shiftWindows,
+      pauseDurationMinutes,
+      boundaryBufferMinutes,
+      slotMinutes,
+      true
+    );
+  } catch {
+    shiftWindows = defaultPauseShiftWindows;
+    templateStarts = defaultPauseTemplateStarts;
+  }
   return {
+    id: policy.id ?? null,
+    organizationId: policy.organizationId,
+    timezone: policy.timezone ?? "America/Sao_Paulo",
+    minimumCoverage: policy.minimumCoverage ?? 2,
+    slotMinutes,
+    pauseDurationMinutes,
+    boundaryBufferMinutes,
+    shiftWindows,
+    templateStarts,
+    active: policy.active !== false
+  };
+}
+
+function localDateMinute(value: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(value);
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    date: `${fields.year}-${fields.month}-${fields.day}`,
+    minute: Number(fields.hour) * 60 + Number(fields.minute)
+  };
+}
+
+function validatePauseSlotAgainstPolicy(startsAt: Date, endsAt: Date, policy: ReturnType<typeof pausePolicyView>) {
+  const durationMinutes = (endsAt.getTime() - startsAt.getTime()) / 60_000;
+  if (durationMinutes !== policy.pauseDurationMinutes) throw new SupportOperationsError("INVALID_INPUT");
+  const start = localDateMinute(startsAt, policy.timezone);
+  const end = localDateMinute(endsAt, policy.timezone);
+  if (start.date !== end.date || start.minute % policy.slotMinutes !== 0) throw new SupportOperationsError("INVALID_INPUT");
+  if (!pauseFitsWindow(start.minute, end.minute, policy.shiftWindows, policy.boundaryBufferMinutes)) {
+    throw new SupportOperationsError("CONFLICT");
+  }
+}
+
+function dateAtTimeInZone(date: string, time: string, timezone: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  const offsetName = new Intl.DateTimeFormat("en-US", { timeZone: timezone, timeZoneName: "longOffset" })
+    .formatToParts(utcGuess)
+    .find((part) => part.type === "timeZoneName")?.value ?? "GMT+00:00";
+  const match = offsetName.match(/^GMT([+-])(\d{2}):(\d{2})$/);
+  const offset = match ? (match[1] === "+" ? 1 : -1) * (Number(match[2]) * 60 + Number(match[3])) : 0;
+  return new Date(Date.UTC(year, month - 1, day, hour, minute) - offset * 60_000);
+}
+
+function policyDefaults(organizationId: string) {
+  return pausePolicyView({
     id: null,
     organizationId,
     timezone: "America/Sao_Paulo",
     minimumCoverage: 2,
     slotMinutes: 15,
+    pauseDurationMinutes: 75,
+    boundaryBufferMinutes: 15,
+    shiftWindowsJson: JSON.stringify(defaultPauseShiftWindows),
+    templateStartsJson: JSON.stringify(defaultPauseTemplateStarts),
     active: true
-  };
+  });
 }
 
 export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser, dateText?: string, requestedTeamId?: string) {
@@ -132,6 +287,7 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
     prisma.supportPauseSlot.findMany({
       where: {
         organizationId: actor.organizationId,
+        active: true,
         startsAt: { gte: start, lte: end },
         ...(teamId ? { OR: [{ teamId }, { teamId: null }] } : {})
       },
@@ -162,7 +318,7 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
       take: 50
     })
   ]);
-  const policy = storedPolicy ?? policyDefaults(actor.organizationId);
+  const policy = storedPolicy ? pausePolicyView(storedPolicy) : policyDefaults(actor.organizationId);
   const expiredSwapIds = swaps
     .filter((swap) => swap.status === "PENDING" && swap.expiresAt && swap.expiresAt <= new Date())
     .map((swap) => swap.id);
@@ -228,10 +384,35 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
 export async function updateSupportPausePolicy(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
   if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
   const body = input as Record<string, unknown>;
+  const existing = await prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } });
+  const timezone = optionalString(body.timezone, 80) ?? existing?.timezone ?? "America/Sao_Paulo";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+  } catch {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  const minimumCoverage = integerInRange(body.minimumCoverage ?? existing?.minimumCoverage ?? 2, 1, 500);
+  const slotMinutes = integerInRange(body.slotMinutes ?? existing?.slotMinutes ?? 15, 5, 60);
+  const pauseDurationMinutes = integerInRange(body.pauseDurationMinutes ?? existing?.pauseDurationMinutes ?? 75, 15, 180);
+  const boundaryBufferMinutes = integerInRange(body.boundaryBufferMinutes ?? existing?.boundaryBufferMinutes ?? 15, 1, 120);
+  const shiftWindows = normalizedShiftWindows(
+    body.shiftWindows ?? parseStoredJson<unknown>(existing?.shiftWindowsJson) ?? defaultPauseShiftWindows
+  );
+  const templateStarts = normalizedTemplateStarts(
+    body.templateStarts ?? parseStoredJson<unknown>(existing?.templateStartsJson) ?? defaultPauseTemplateStarts,
+    shiftWindows,
+    pauseDurationMinutes,
+    boundaryBufferMinutes,
+    slotMinutes
+  );
   const data = {
-    timezone: optionalString(body.timezone, 80) ?? "America/Sao_Paulo",
-    minimumCoverage: integerInRange(body.minimumCoverage, 1, 500),
-    slotMinutes: integerInRange(body.slotMinutes, 5, 120),
+    timezone,
+    minimumCoverage,
+    slotMinutes,
+    pauseDurationMinutes,
+    boundaryBufferMinutes,
+    shiftWindowsJson: JSON.stringify(shiftWindows),
+    templateStartsJson: JSON.stringify(templateStarts),
     active: body.active !== false
   };
   const policy = await prisma.supportPausePolicy.upsert({
@@ -247,7 +428,7 @@ export async function updateSupportPausePolicy(prisma: PrismaClient, actor: Curr
     entityId: policy.id,
     metadata: data
   });
-  return { policy };
+  return { policy: pausePolicyView(policy) };
 }
 
 export async function createSupportPauseSlot(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
@@ -256,6 +437,9 @@ export async function createSupportPauseSlot(prisma: PrismaClient, actor: Curren
   const startsAt = parseDateTime(body.startsAt);
   const endsAt = parseDateTime(body.endsAt);
   if (endsAt <= startsAt || endsAt.getTime() - startsAt.getTime() > 4 * 60 * 60 * 1000) throw new SupportOperationsError("INVALID_INPUT");
+  const storedPolicy = await prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } });
+  const policy = storedPolicy ? pausePolicyView(storedPolicy) : policyDefaults(actor.organizationId);
+  validatePauseSlotAgainstPolicy(startsAt, endsAt, policy);
   const teamId = body.teamId
     ? requiredString(body.teamId)
     : (await prisma.supportTeam.findFirst({
@@ -272,6 +456,7 @@ export async function createSupportPauseSlot(prisma: PrismaClient, actor: Curren
       endsAt,
       capacity: integerInRange(body.capacity ?? 1, 1, 100),
       teamId,
+      policySnapshotJson: JSON.stringify(policy),
       createdById: actor.id
     }
   }).catch(() => { throw new SupportOperationsError("CONFLICT"); });
@@ -281,9 +466,66 @@ export async function createSupportPauseSlot(prisma: PrismaClient, actor: Curren
     action: "support_pause.slot.create",
     entityType: "SupportPauseSlot",
     entityId: slot.id,
-    metadata: { startsAt, endsAt, capacity: slot.capacity }
+    metadata: { startsAt, endsAt, capacity: slot.capacity, pauseDurationMinutes: policy.pauseDurationMinutes, shiftWindows: policy.shiftWindows }
   });
   return { slot };
+}
+
+export async function generateSupportPauseSlots(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
+  if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
+  const body = input as Record<string, unknown>;
+  const date = requiredString(body.date, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new SupportOperationsError("INVALID_INPUT");
+  const capacity = integerInRange(body.capacity ?? 1, 1, 100);
+  const [storedPolicy, defaultTeam] = await Promise.all([
+    prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } }),
+    body.teamId ? Promise.resolve(null) : prisma.supportTeam.findFirst({
+      where: { organizationId: actor.organizationId, active: true },
+      select: { id: true },
+      orderBy: { name: "asc" }
+    })
+  ]);
+  const policy = storedPolicy ? pausePolicyView(storedPolicy) : policyDefaults(actor.organizationId);
+  const teamId = body.teamId ? requiredString(body.teamId) : defaultTeam?.id ?? null;
+  if (teamId) await ensureSupportTeam(prisma, actor.organizationId, teamId);
+  const slots = [];
+  let createdCount = 0;
+  let reusedCount = 0;
+  for (const startTime of policy.templateStarts) {
+    const startsAt = dateAtTimeInZone(date, startTime, policy.timezone);
+    const endsAt = new Date(startsAt.getTime() + policy.pauseDurationMinutes * 60_000);
+    validatePauseSlotAgainstPolicy(startsAt, endsAt, policy);
+    const existing = await prisma.supportPauseSlot.findUnique({
+      where: { organizationId_startsAt_endsAt: { organizationId: actor.organizationId, startsAt, endsAt } }
+    });
+    if (existing) {
+      slots.push(existing);
+      reusedCount += 1;
+      continue;
+    }
+    slots.push(await prisma.supportPauseSlot.create({
+      data: {
+        organizationId: actor.organizationId,
+        teamId,
+        label: `Pausa ${startTime}`,
+        startsAt,
+        endsAt,
+        capacity,
+        policySnapshotJson: JSON.stringify(policy),
+        createdById: actor.id
+      }
+    }));
+    createdCount += 1;
+  }
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "support_pause.slots.generate",
+    entityType: "SupportPauseSlot",
+    entityId: date,
+    metadata: { date, teamId, capacity, createdCount, reusedCount, templateStarts: policy.templateStarts }
+  });
+  return { slots, createdCount, reusedCount, policy };
 }
 
 async function ensureSupportAgent(prisma: PrismaClient | Prisma.TransactionClient, organizationId: string, userId: string, teamId?: string | null, at = new Date()) {

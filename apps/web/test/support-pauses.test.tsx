@@ -29,7 +29,12 @@ const pauseResponse = {
   teams: [],
   selectedTeamId: null,
   membershipMode: "ROLE_FALLBACK",
-  policy: { id: "policy-1", organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15, active: true },
+  policy: {
+    id: "policy-1", organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15,
+    pauseDurationMinutes: 75, boundaryBufferMinutes: 15,
+    shiftWindows: [{ start: "08:00", end: "14:45" }, { start: "15:00", end: "22:00" }],
+    templateStarts: ["09:45", "15:15", "20:15"], active: true
+  },
   agents: [agentAna, agentBruno, { id: "sac-3", name: "Carla", email: "carla@example.com" }],
   summary: { activeAgents: 3, minimumCoverage: 2, bookedPauses: 2, criticalIntervals: 1 },
   timeline: [{ startsAt: "2026-07-17T15:00:00.000Z", endsAt: "2026-07-17T15:15:00.000Z", pausedCount: 1, availableCount: 2, critical: true }],
@@ -107,6 +112,11 @@ describe("SupportPausesView", () => {
     await user.type(within(slot).getByLabelText("Identificação"), "Reforço tarde");
     await user.click(within(slot).getByRole("button", { name: "Criar slot" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/slots", expect.objectContaining({ method: "POST", body: expect.stringContaining('"label":"Reforço tarde"') })));
+    await user.click(within(slot).getByRole("button", { name: "Gerar grade-base" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/slots/generate", {
+      method: "POST",
+      body: JSON.stringify({ date: "2026-07-17", capacity: 1 })
+    }));
 
     const override = screen.getByRole("heading", { name: "Autorizar pausa fora da política" }).closest("section")!;
     await user.selectOptions(within(override).getByLabelText("Atendente"), "sac-2");
