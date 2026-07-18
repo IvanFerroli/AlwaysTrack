@@ -1,0 +1,99 @@
+config:
+  target: "http://127.0.0.1:3333"
+  processor: "./support-operations.processor.cjs"
+  phases:
+    - duration: 1
+      arrivalCount: 4
+      name: concurrent local recurrence materialization
+  http:
+    cookieJar: true
+    timeout: 20
+  defaults:
+    headers:
+      content-type: application/json
+  plugins:
+    ensure: {}
+  ensure:
+    maxErrorRate: 0.1
+    thresholds:
+      - http.response_time.p95: 3000
+      - http.response_time.p99: 5000
+before:
+  flow:
+    - function: prepareRecurrenceScenario
+    - post:
+        name: authenticate recurrence setup manager
+        url: "/v1/auth/login"
+        afterResponse: ensure2xx
+        json:
+          email: "{{ adminEmail }}"
+          password: "{{ adminPassword }}"
+    - post:
+        name: create controlled recurrence series
+        url: "/v1/announcements/series"
+        afterResponse: verifyCreatedRecurrenceSeries
+        json:
+          slug: "{{ recurrenceSlug }}"
+          effectiveFromDate: "{{ recurrenceFrom }}"
+          validFromDate: "{{ recurrenceFrom }}"
+          validToDate: "{{ recurrenceTo }}"
+          timezone: "America/Sao_Paulo"
+          localTime: "09:00"
+          recurrenceDays:
+            - 14
+            - 29
+          missingDayPolicy: "SKIP"
+          durationMinutes: 1440
+          title: "{{ recurrenceTitle }}"
+          summary: "Controlled local recurrence probe"
+          content: "Controlled local recurrence probe for idempotency validation."
+          targetRoles:
+            - "ADMIN"
+          priority: "NORMAL"
+          pinned: false
+          requiresAck: false
+        capture:
+          - json: "$.data.series.id"
+            as: "recurrenceSeriesId"
+          - json: "$.data.version.id"
+            as: "recurrenceVersionId"
+scenarios:
+  - name: concurrent scheduler-equivalent recurrence materialization
+    beforeScenario: prepareRecurrenceScenario
+    flow:
+      - post:
+          name: authenticate local seeded manager
+          url: "/v1/auth/login"
+          afterResponse: ensure2xx
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+      - post:
+          name: materialize controlled recurrence month
+          url: "/v1/announcements/materialize"
+          afterResponse: verifyRecurrenceMaterialization
+          json:
+            fromDate: "{{ recurrenceFrom }}"
+            toDate: "{{ recurrenceTo }}"
+            publishDue: false
+            dryRun: false
+after:
+  flow:
+    - function: prepareRecurrenceScenario
+    - post:
+        name: authenticate recurrence verification manager
+        url: "/v1/auth/login"
+        afterResponse: ensure2xx
+        json:
+          email: "{{ adminEmail }}"
+          password: "{{ adminPassword }}"
+    - get:
+        name: verify unique day 14 and 29 occurrences
+        url: "/v1/announcements/series?fromDate={{ recurrenceFrom }}&toDate={{ recurrenceTo }}"
+        afterResponse: verifyRecurrenceReadback
+    - post:
+        name: archive controlled recurrence series
+        url: "/v1/announcements/series/{{ recurrenceSeriesId }}/archive"
+        afterResponse: verifyArchivedRecurrenceSeries
+        json:
+          reason: "LOCAL_PERFORMANCE_CLEANUP"

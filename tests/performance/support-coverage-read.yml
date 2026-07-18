@@ -1,0 +1,44 @@
+config:
+  target: "http://127.0.0.1:3333"
+  processor: "./support-operations.processor.cjs"
+  phases:
+    - duration: 10
+      arrivalRate: 2
+      name: local coverage-read burst
+  http:
+    cookieJar: true
+    timeout: 10
+  defaults:
+    headers:
+      content-type: application/json
+  plugins:
+    ensure: {}
+  ensure:
+    maxErrorRate: 0.1
+    thresholds:
+      - http.response_time.p95: 1000
+      - http.response_time.p99: 2000
+scenarios:
+  - name: support coverage timeline and summary invariants
+    beforeScenario: prepareCoverageReadScenario
+    flow:
+      - post:
+          name: authenticate local seeded manager
+          url: "/v1/auth/login"
+          afterResponse: ensure2xx
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+      - get:
+          name: discover local support team
+          url: "/v1/support/pauses?date={{ supportDate }}"
+          afterResponse: verifySupportDiscovery
+          capture:
+            - json: "$.data.teams[0].id"
+              as: "supportTeamId"
+      - loop:
+          - get:
+              name: read support coverage timeline
+              url: "/v1/support/pauses?date={{ supportDate }}&teamId={{ supportTeamId }}"
+              afterResponse: verifyCoverageRead
+        count: 2

@@ -1,0 +1,84 @@
+config:
+  target: "http://127.0.0.1:3333"
+  processor: "./support-operations.processor.cjs"
+  phases:
+    - duration: 1
+      arrivalCount: 12
+      name: concurrent claims for one controlled slot
+  http:
+    cookieJar: true
+    timeout: 15
+  defaults:
+    headers:
+      content-type: application/json
+  plugins:
+    ensure: {}
+  ensure:
+    maxErrorRate: 0.1
+    thresholds:
+      - http.response_time.p95: 1500
+      - http.response_time.p99: 3000
+before:
+  flow:
+    - function: prepareClaimBurstScenario
+    - post:
+        name: authenticate claim setup manager
+        url: "/v1/auth/login"
+        afterResponse: ensure2xx
+        json:
+          email: "{{ adminEmail }}"
+          password: "{{ adminPassword }}"
+    - get:
+        name: discover seeded support team and user
+        url: "/v1/support/pauses?date={{ claimDate }}"
+        afterResponse: verifySupportDiscovery
+        capture:
+          - json: "$.data.teams[0].id"
+            as: "supportTeamId"
+          - json: "$.data.agents[0].id"
+            as: "supportUserId"
+    - post:
+        name: create isolated extra slot for claim burst
+        url: "/v1/support/schedules/extra-slots"
+        afterResponse: verifyCreatedClaimSlot
+        json:
+          teamId: "{{ supportTeamId }}"
+          startsAt: "{{ claimStartsAt }}"
+          endsAt: "{{ claimEndsAt }}"
+          capacity: 1
+          note: "{{ claimNote }}"
+        capture:
+          - json: "$.data.slot.id"
+            as: "claimSlotId"
+scenarios:
+  - name: idempotent concurrent claim burst
+    beforeScenario: prepareClaimBurstScenario
+    flow:
+      - post:
+          name: authenticate local seeded manager
+          url: "/v1/auth/login"
+          afterResponse: ensure2xx
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+      - post:
+          name: claim the same controlled extra slot
+          url: "/v1/support/schedules/extra-slots/{{ claimSlotId }}/claim"
+          afterResponse: verifyClaimBurstResponse
+          json:
+            userId: "{{ supportUserId }}"
+            note: "Concurrent local claim {{ $uuid }}"
+after:
+  flow:
+    - function: prepareClaimBurstScenario
+    - post:
+        name: authenticate claim readback manager
+        url: "/v1/auth/login"
+        afterResponse: ensure2xx
+        json:
+          email: "{{ adminEmail }}"
+          password: "{{ adminPassword }}"
+    - get:
+        name: verify one persisted claim after the burst
+        url: "/v1/support/schedules?from={{ claimDate }}&to={{ claimDate }}&scope=TEAM&teamId={{ supportTeamId }}"
+        afterResponse: verifyClaimBurstReadback
