@@ -3,11 +3,11 @@
 ## Metadata
 - status: active
 - owner: ops-builder
-- last-updated: 2026-06-04
+- last-updated: 2026-07-18
 - source-of-truth: docs/runbooks/RUNBOOK-002-deploy-producao-jobs.md
 
 ## Objetivo
-Publicar web, API, banco/storage persistentes, webhook Meta e job de notificacoes com custo baixo.
+Publicar web, API, banco/storage persistentes, webhook Meta, notificacoes e avisos recorrentes com custo baixo.
 
 ## Pre-condicoes
 - Host ou provider com Docker/Compose.
@@ -47,14 +47,22 @@ O template ainda usa Prisma com SQLite por padrao. Em producao, ha duas rotas ac
 - O comando previsivel é `npm run job:notifications --workspace @alwaystrack/api`.
 - Em Compose: `docker compose --env-file .env.production -f deploy/docker-compose.example.yml --profile jobs run --rm notification-job`.
 - Frequencia recomendada inicial: a cada 10 minutos.
+- O materializador de avisos recorrentes roda com `npm run job:announcement-scheduler` na raiz ou `npm run job:announcement-scheduler --workspace @alwaystrack/api`.
+- Em Compose: `docker compose --env-file .env.production -f deploy/docker-compose.example.yml --profile jobs run --rm announcement-scheduler`.
+- Frequencia recomendada inicial: a cada 5 minutos. O job e one-shot, idempotente e deve terminar antes da proxima execucao.
+- O dia 29 inexistente em fevereiro e ignorado; nao e antecipado nem deslocado. Cada ocorrencia publicada cria um Aviso normal, com destinatarios e ciencias proprios.
+- Alerta operacional: investigar `announcement.scheduler.failed`, qualquer `failedOccurrenceIds` ou `maxLagMs` acima de 600000 ms.
 
 ## Validacao
 - `curl https://<api-host>/health`
 - Login no web usando admin real.
 - `docker compose --env-file .env.production -f deploy/docker-compose.example.yml logs api --tail=100`
 - Executar job manual e verificar JSON com `scanned`, `skipped` e `processed`.
+- Executar o scheduler manual e verificar o evento `announcement.scheduler.completed`, sem falhas e com atraso dentro do limite.
 
 ## Rollback/contingencia
 1. Voltar imagem anterior do provider ou `docker compose --env-file .env.production -f deploy/docker-compose.example.yml down && docker compose --env-file .env.production -f deploy/docker-compose.example.yml up -d` com tag anterior.
 2. Desabilitar cron se houver envio indevido.
 3. Trocar `NOTIFICATION_PROVIDER=fake` para pausar envio real mantendo scanner seguro.
+4. Desabilitar somente o cron `announcement-scheduler` para impedir novas publicacoes recorrentes; avisos ja publicados continuam governados pelo fluxo normal de arquivamento.
+5. Arquivar uma serie interrompe ocorrencias futuras. Nao apagar series, versoes ou ocorrencias: esses registros sustentam auditoria e rollback.

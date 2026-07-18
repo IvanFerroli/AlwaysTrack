@@ -457,6 +457,60 @@ async function ensureAnnouncement(input: {
   });
 }
 
+async function ensureAnnouncementSeries(input: {
+  organizationId: string;
+  actorId: string;
+  slug: string;
+  title: string;
+  summary: string;
+  content: string;
+  targetRoles: string[];
+  localTime: string;
+}) {
+  const series = await prisma.announcementSeries.upsert({
+    where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
+    update: { status: "ACTIVE", archivedAt: null, updatedById: input.actorId },
+    create: {
+      organizationId: input.organizationId,
+      slug: input.slug,
+      status: "ACTIVE",
+      createdById: input.actorId,
+      updatedById: input.actorId
+    }
+  });
+  const existingVersion = await prisma.announcementSeriesVersion.findUnique({
+    where: { seriesId_version: { seriesId: series.id, version: 1 } }
+  });
+  if (!existingVersion) {
+    await prisma.announcementSeriesVersion.create({
+      data: {
+        organizationId: input.organizationId,
+        seriesId: series.id,
+        version: 1,
+        effectiveFromDate: "2026-01-01",
+        validFromDate: "2026-01-01",
+        recurrenceType: "MONTHLY_DAYS",
+        timezone: "America/Sao_Paulo",
+        localTime: input.localTime,
+        recurrenceDaysJson: JSON.stringify([14, 29]),
+        missingDayPolicy: "SKIP",
+        durationMinutes: 1440,
+        title: input.title,
+        summary: input.summary,
+        content: input.content,
+        tagsJson: JSON.stringify(["nf", "rotina", "sac"]),
+        linksJson: JSON.stringify([]),
+        targetRolesJson: JSON.stringify(input.targetRoles),
+        priority: "HIGH",
+        pinned: true,
+        requiresAck: true,
+        createdById: input.actorId
+      }
+    });
+  }
+  return series;
+}
+
 async function ensureScriptCategory(input: { organizationId: string; createdById: string; slug: string; name: string; description: string; order: number }) {
   return prisma.scriptCategory.upsert({
     where: { organizationId_slug: { organizationId: input.organizationId, slug: input.slug } },
@@ -1778,6 +1832,16 @@ async function main() {
     pinned: false,
     requiresAck: false,
     expiresAt: addDays(7)
+  });
+  await ensureAnnouncementSeries({
+    organizationId: organization.id,
+    actorId: admin.id,
+    slug: "lembrete-nf-dias-14-e-29",
+    title: "Lembrete de NF",
+    summary: "Rotina quinzenal de envio de NF para a operação SAC.",
+    content: "## Lembrete de NF\n\nHoje é dia de executar a rotina de NF e confirmar a conclusão conforme o procedimento interno.",
+    targetRoles: ["ADMIN", "GESTOR", "SAC"],
+    localTime: "09:00"
   });
   await ensureInAppNotification({
     organizationId: organization.id,

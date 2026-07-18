@@ -70,6 +70,7 @@
     "db:flush:demo": "node scripts/flush-local-demo.js",
     "demo:reset:local": "node scripts/reset-local-demo.js",
     "job:notifications": "npm run job:notifications --workspace @alwaystrack/api",
+    "job:announcement-scheduler": "npm run job:announcement-scheduler --workspace @alwaystrack/api",
     "job:ranking-snapshots": "npm run job:ranking-snapshots --workspace @alwaystrack/api",
     "smoke:whatsapp": "npm run smoke:whatsapp --workspace @alwaystrack/api",
     "smoke:google-sheets": "npm run smoke:google-sheets --workspace @alwaystrack/api",

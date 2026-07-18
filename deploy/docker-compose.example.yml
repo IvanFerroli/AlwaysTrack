@@ -54,6 +54,20 @@ services:
       - api-data:/app/services/api/prisma
       - api-storage:/app/services/api/.storage
 
+  announcement-scheduler:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    env_file:
+      - ../.env.production
+    command: ["node", "services/api/dist/src/jobs/announcement-scheduler.js"]
+    profiles:
+      - jobs
+    user: node
+    volumes:
+      - api-data:/app/services/api/prisma
+      - api-storage:/app/services/api/.storage
+
   ranking-snapshot-worker:
     build:
       context: ..

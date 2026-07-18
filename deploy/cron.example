@@ -1,2 +1,5 @@
 # Run every 10 minutes on the production host.
 */10 * * * * cd /opt/alwaystrack/deploy && docker compose --profile jobs run --rm notification-job >> /var/log/alwaystrack-notifications.log 2>&1
+
+# Materialize and publish recurring internal announcements with bounded lag.
+*/5 * * * * cd /opt/alwaystrack/deploy && docker compose --profile jobs run --rm announcement-scheduler >> /var/log/alwaystrack-announcement-scheduler.log 2>&1

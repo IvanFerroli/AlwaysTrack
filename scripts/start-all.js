@@ -322,6 +322,7 @@ async function prepareDatabase() {
     }
 
     await run("npm run prisma:seed", "Aplicando seed local");
+    await run("npm run job:announcement-scheduler", "Materializando avisos recorrentes locais");
   } finally {
     removeIfExists(fullSchemaSqlPath);
     removeIfExists(incrementalSchemaSqlPath);
