@@ -26,7 +26,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Regras, padroes e recorrencias sao versionados. Edicoes afetam somente o futuro.
 - Fevereiro sem dia 29 usa `SKIP`: nao antecipa nem desloca o aviso.
 - Troca de Pausa e troca de turno sao workflows distintos. A primeira reserva locks exclusivos para os dois bookings; a segunda segue a regra versionada de autoaprovacao/aprovacao gerencial.
-- KPIs de CSAT/SLA usam agregacao ponderada; Campanhas SAC consomem KPI aprovado, preservam publico/proveniencia e nao criam ranking nominal.
+- KPIs usam definicao, unidade, direcao e agregacao proprias; CSAT 1-5 nao e percentual e SLA temporal nao e taxa. Campanhas SAC consomem KPI aprovado compativel, preservam publico/proveniencia e nao criam ranking nominal.
 - Notificacoes preservam `entityType`, `entityId` e `href` para legado, mas a acao usa target tipado resolvido no backend sob destinatario, tenant, role, escopo e estado atuais.
 
 ## Subida local reproduzivel
@@ -34,8 +34,9 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 2. O setup alinha schema, aplica seed, cria turnos ficticios e materializa Avisos recorrentes.
 3. Entrar como `sac@example.com` para o calendario pessoal e como `admin@example.com` para o controle de gestao.
 4. Em `SAC > Escalas`, confirmar a semana, o indicador de atualizacao e os turnos publicados.
-5. Em `SAC > Pausas`, confirmar `Cobertura calculada por escala publicada` nos dias materializados.
-6. Em `SAC > Avisos`, o gestor encontra a serie `Lembrete de NF`, dias 14 e 29.
+5. No Dashboard SAC, confirmar a jornada de hoje; `folga` so pode aparecer quando a escala efetiva devolver o dia como `OFF`.
+6. Em `SAC > Pausas`, confirmar `Cobertura calculada por escala publicada` nos dias materializados.
+7. Em `SAC > Avisos`, o gestor encontra a serie `Lembrete de NF`, dias 14 e 29.
 
 ## Operacao do SAC
 1. Abrir `Escalas` e conferir o calendario pessoal.
@@ -47,17 +48,19 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 
 ## Operacao da gestao
 1. Selecionar equipe explicitamente; o sistema nao escolhe a primeira equipe em nome da gestao.
-2. Criar uma nova versao de regra com timezone, limites diarios/semanais, descanso, aviso previo e politica de aprovacao.
-3. Criar padrao recorrente, atribuir ao operador e materializar o intervalo futuro.
-4. Publicar slots extras conforme demanda e decidir candidaturas pendentes.
-5. Decidir trocas pendentes depois de revisar cobertura, sobreposicao, descanso e limite mensal.
-6. Conferir em `Pausas` os intervalos criticos e as reservas marcadas para reagendamento.
+2. Criar e salvar um rascunho de regra com timezone, limites diarios/semanais, descanso, aviso previo e politica de aprovacao.
+3. Gerar a previa, revisar diff e conflitos da janela e somente entao publicar; preview stale deve ser refeito.
+4. Criar padrao recorrente, atribuir ao operador e materializar o intervalo futuro.
+5. Publicar slots extras conforme demanda e decidir candidaturas pendentes.
+6. Decidir trocas pendentes depois de revisar cobertura, sobreposicao, descanso e limite mensal.
+7. Conferir em `Pausas` os intervalos criticos e as reservas marcadas para reagendamento.
 
 ## KPIs e Campanhas SAC
 1. Em `Performance`, publicar somente entradas revisadas; correcao de KPI aprovado cria nova revisao e preserva a anterior.
-2. Conferir CSAT/SLA pela amostra ponderada, nunca por media simples de percentuais.
-3. Em `Campanhas`, publicar a partir de metrica SAC e escopo explicito. Depois de ativa, nao alterar destrutivamente regra, publico ou proveniencia.
-4. Ao fechar a Campanha, conferir que o resultado usa KPIs aprovados do mesmo periodo/escopo.
+2. Conferir a unidade antes de comparar: CSAT e nota 1-5; SLA e duracao; satisfacao/resolucao de canal sao percentuais; primeira resposta e duracao.
+3. Nao combinar fechamento mensal com os intervalos reportados do mesmo mes nem expectativa com realizado.
+4. Em `Campanhas`, publicar a partir de metrica SAC e escopo explicito. Depois de ativa, nao alterar destrutivamente regra, publico ou proveniencia.
+5. Ao fechar a Campanha, conferir que o resultado usa KPIs aprovados do mesmo periodo/escopo, unidade, canal e granularidade.
 
 ## Avisos recorrentes
 1. Em `Avisos > Avisos recorrentes`, criar uma serie mensal.
@@ -92,7 +95,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Repetir candidatura ja pendente/aprovada e idempotente e nao reabre notificacoes lidas da gestao.
 - Toda leitura/escrita de Escalas inclui `organizationId`; gestao informa equipe explicitamente e SAC permanece no proprio escopo.
 - Cada booking participa de no maximo um swap de Pausa pendente. Aceite usa compare-and-set, revalida os dois slots e turnos e libera os locks no mesmo resultado transacional.
-- Nao tratar o parser Web nem o href legado como autorizacao. Toda acao do sino/Perfil deve resolver o target no backend antes de marcar leitura ou navegar.
+- Nao tratar o parser Web nem o href legado como autorizacao. Toda acao do sino deve resolver o target no backend antes de marcar leitura ou navegar; o Perfil nao lista notificacoes.
 
 ## Diagnostico rapido
 | Sintoma | Verificar | Curso de acao |
@@ -138,7 +141,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Carga real, stress/spike/soak, alertas exercitados e scheduler sustentado.
 
 ## Lacunas internas conhecidas
-- Excecoes completas de folga/ausencia/ajuste e draft/diff/archive de regra.
+- Excecoes completas de ausencia/ajuste alem da folga derivada do padrao.
 - Flags independentes por frente.
 - Propagacao completa de intents de Escalas/Pausas ate highlight/foco na UI.
 - Seed integral e matriz E2E de SUPERVISOR/trocas/remarcacao/axe/visual.
