@@ -150,6 +150,30 @@ describe("support operations service", () => {
     }));
   });
 
+  it("rejects a generated slot whose local time does not exist during a DST transition", async () => {
+    const prisma = {
+      supportPausePolicy: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "policy-1",
+          organizationId: "org-1",
+          timezone: "America/New_York",
+          minimumCoverage: 2,
+          slotMinutes: 15,
+          pauseDurationMinutes: 75,
+          boundaryBufferMinutes: 0,
+          shiftWindowsJson: JSON.stringify([{ start: "00:00", end: "05:00" }]),
+          templateStartsJson: JSON.stringify(["02:15"]),
+          active: true
+        })
+      }
+    };
+
+    await expect(generateSupportPauseSlots(prisma as never, admin, {
+      date: "2026-03-08",
+      capacity: 1
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
   it("blocks capacity violations for SAC and permits an audited manager override", async () => {
     const slot = {
       id: "slot-1",
@@ -370,6 +394,7 @@ describe("support operations service", () => {
       },
       user: { findFirst: vi.fn().mockResolvedValue({ id: sac.id }) },
       supportPauseSwap: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      supportPauseSwapBookingLock: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
       auditLog: auditMock()
     };
     const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
@@ -446,8 +471,12 @@ describe("support operations service", () => {
         findMany: vi.fn().mockResolvedValue([swap]),
         updateMany: vi.fn().mockResolvedValue({ count: 1 })
       },
+      supportPauseSwapBookingLock: { deleteMany: vi.fn().mockResolvedValue({ count: 2 }) },
       auditLog: auditMock()
     };
+    Object.assign(prisma, {
+      $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(prisma))
+    });
 
     const result = await listSupportPauses(prisma as never, admin, "2026-07-17");
 
@@ -478,6 +507,9 @@ describe("support operations service", () => {
 
     await listSupportPauses(prisma as never, sac, "2026-07-17");
 
+    expect(prisma.supportTeam.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ["team-1"] } })
+    }));
     expect(findManySwaps).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
         organizationId: "org-1",
@@ -493,6 +525,7 @@ describe("support operations service", () => {
 
   it("rejects a SAC pause agenda without an active team membership", async () => {
     const prisma = {
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
       supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC A" }]) },
       supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) }
     };
@@ -501,9 +534,41 @@ describe("support operations service", () => {
       .rejects.toEqual(new SupportOperationsError("FORBIDDEN"));
   });
 
+  it("builds a pause day from the policy timezone across a DST transition", async () => {
+    const slotFindMany = vi.fn().mockResolvedValue([]);
+    const prisma = {
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ organizationId: "org-1", timezone: "America/New_York" }) },
+      supportTeam: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { findMany: vi.fn().mockResolvedValue([]) },
+      supportPauseSlot: { findMany: slotFindMany },
+      supportPauseSwap: { findMany: vi.fn().mockResolvedValue([]) },
+      supportShiftOccurrence: { findMany: vi.fn().mockResolvedValue([]) }
+    };
+
+    await listSupportPauses(prisma as never, admin, "2026-03-08");
+
+    expect(slotFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        startsAt: {
+          gte: new Date("2026-03-08T05:00:00.000Z"),
+          lte: new Date("2026-03-09T03:59:59.999Z")
+        }
+      })
+    }));
+  });
+
+  it("rejects an invalid civil pause date", async () => {
+    const prisma = {
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ organizationId: "org-1", timezone: "Asia/Tokyo" }) }
+    };
+
+    await expect(listSupportPauses(prisma as never, admin, "2026-02-30"))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
   it("limits a swap request to 24 hours or the first pause and lets its owner cancel it", async () => {
     const firstPause = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    const prisma = {
+    const tx = {
       supportPauseBooking: {
         findFirst: vi.fn()
           .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: firstPause, teamId: "team-1" } })
@@ -512,12 +577,18 @@ describe("support operations service", () => {
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
       supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
       supportPauseSwap: {
-        findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }),
+        findFirst: vi.fn().mockResolvedValue({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }),
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "swap-1", ...data })),
-        update: vi.fn().mockResolvedValue({ id: "swap-1", status: "CANCELLED" })
+        updateMany: vi.fn().mockResolvedValue({ count: 1 })
+      },
+      supportPauseSwapBookingLock: {
+        createMany: vi.fn().mockResolvedValue({ count: 2 }),
+        deleteMany: vi.fn().mockResolvedValue({ count: 2 })
       },
       auditLog: auditMock()
     };
+    const prisma = { ...tx, $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
 
     const requested = await requestSupportPauseSwap(prisma as never, sac, {
       requesterBookingId: "booking-a",
@@ -534,13 +605,14 @@ describe("support operations service", () => {
   });
 
   it("rejects a pause swap across support teams", async () => {
-    const prisma = {
+    const tx = {
       supportPauseBooking: {
         findFirst: vi.fn()
           .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), teamId: "team-1" } })
           .mockResolvedValueOnce({ id: "booking-b", userId: "sac-2", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), teamId: "team-2" } })
       }
     };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
 
     await expect(requestSupportPauseSwap(prisma as never, sac, {
       requesterBookingId: "booking-a",
@@ -549,31 +621,38 @@ describe("support operations service", () => {
   });
 
   it("prevents another SAC agent from cancelling a peer swap", async () => {
-    const prisma = {
+    const tx = {
       supportPauseSwap: { findFirst: vi.fn().mockResolvedValue({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }) }
     };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
 
     await expect(cancelSupportPauseSwap(prisma as never, { ...sac, id: "sac-2" }, "swap-1"))
       .rejects.toEqual(new SupportOperationsError("FORBIDDEN"));
   });
 
   it("accepts a peer swap atomically after checking both resulting schedules", async () => {
-    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z"), teamId: "team-1" } };
-    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z"), teamId: "team-1" } };
-    const bookingUpdate = vi.fn().mockResolvedValue({});
-    const swapUpdate = vi.fn().mockResolvedValue({ id: "swap-1", status: "ACCEPTED" });
+    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z"), teamId: "team-1" } };
+    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z"), teamId: "team-1" } };
+    const bookingUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const swapUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
     const tx = {
       supportPauseSwap: {
-        findFirst: vi.fn().mockResolvedValue({ id: "swap-1", targetBooking, requesterBooking }),
-        update: swapUpdate
+        findFirst: vi.fn().mockResolvedValue({ id: "swap-1", status: "PENDING", expiresAt: null, targetBooking, requesterBooking }),
+        updateMany: swapUpdateMany
       },
       supportPauseBooking: {
         findFirst: vi.fn().mockResolvedValue(null),
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-        update: bookingUpdate
+        updateMany: bookingUpdateMany
+      },
+      supportShiftOccurrence: {
+        findFirst: vi.fn()
+          .mockResolvedValueOnce({ id: "occurrence-requester" })
+          .mockResolvedValueOnce({ id: "occurrence-target" })
       },
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
       supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
+      supportPauseSwapBookingLock: { deleteMany: vi.fn().mockResolvedValue({ count: 2 }) },
       auditLog: auditMock()
     };
     const prisma = {
@@ -583,9 +662,122 @@ describe("support operations service", () => {
 
     await expect(decideSupportPauseSwap(prisma as never, targetActor, "swap-1", { decision: "ACCEPTED" }))
       .resolves.toMatchObject({ swap: { status: "ACCEPTED" } });
-    expect(bookingUpdate).toHaveBeenNthCalledWith(1, { where: { id: "booking-a" }, data: { slotId: "slot-b" } });
-    expect(bookingUpdate).toHaveBeenNthCalledWith(2, { where: { id: "booking-b" }, data: { slotId: "slot-a" } });
+    expect(bookingUpdateMany).toHaveBeenNthCalledWith(1, {
+      where: expect.objectContaining({ id: "booking-a", slotId: "slot-a", status: "BOOKED" }),
+      data: expect.objectContaining({ slotId: "slot-b", shiftOccurrenceId: "occurrence-requester" })
+    });
+    expect(bookingUpdateMany).toHaveBeenNthCalledWith(2, {
+      where: expect.objectContaining({ id: "booking-b", slotId: "slot-b", status: "BOOKED" }),
+      data: expect.objectContaining({ slotId: "slot-a", shiftOccurrenceId: "occurrence-target" })
+    });
+    expect(tx.supportPauseSwapBookingLock.deleteMany).toHaveBeenCalledWith({ where: { swapId: "swap-1" } });
     expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_pause.swap.accepted" }) }));
+  });
+
+  it("rejects simulated concurrent swap requests that share a booking", async () => {
+    const future = new Date("2099-07-17T15:00:00.000Z");
+    const bookings = new Map([
+      ["booking-a", { id: "booking-a", userId: "sac-1", slot: { startsAt: future, teamId: "team-1" } }],
+      ["booking-b", { id: "booking-b", userId: "sac-2", slot: { startsAt: future, teamId: "team-1" } }],
+      ["booking-c", { id: "booking-c", userId: "sac-3", slot: { startsAt: future, teamId: "team-1" } }]
+    ]);
+    const locks = new Set<string>();
+    const createdSwaps: Array<Record<string, unknown>> = [];
+    let transactionNumber = 0;
+    const prisma = {
+      supportPauseSwap: {
+        findFirst: vi.fn(({ where }) => Promise.resolve(createdSwaps.find((swap) => (
+          swap.requesterBookingId === where.requesterBookingId
+          && swap.targetBookingId === where.targetBookingId
+          && swap.requestedById === where.requestedById
+        )) ?? null))
+      },
+      $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => {
+        const swapId = `swap-${++transactionNumber}`;
+        let pendingSwap: Record<string, unknown> | null = null;
+        const tx = {
+          supportPauseBooking: {
+            findFirst: vi.fn(({ where }) => Promise.resolve(bookings.get(where.id) ?? null))
+          },
+          user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
+          supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
+          supportPauseSwap: {
+            findMany: vi.fn().mockResolvedValue([]),
+            updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+            create: vi.fn(({ data }) => {
+              pendingSwap = { id: swapId, status: "PENDING", ...data };
+              return Promise.resolve(pendingSwap);
+            })
+          },
+          supportPauseSwapBookingLock: {
+            createMany: vi.fn(({ data }) => {
+              if (data.some(({ bookingId }: { bookingId: string }) => locks.has(bookingId))) {
+                return Promise.reject({ code: "P2002" });
+              }
+              data.forEach(({ bookingId }: { bookingId: string }) => locks.add(bookingId));
+              if (pendingSwap) createdSwaps.push(pendingSwap);
+              return Promise.resolve({ count: data.length });
+            }),
+            deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+          },
+          auditLog: auditMock()
+        };
+        return work(tx);
+      })
+    };
+
+    const results = await Promise.allSettled([
+      requestSupportPauseSwap(prisma as never, sac, { requesterBookingId: "booking-a", targetBookingId: "booking-b" }),
+      requestSupportPauseSwap(prisma as never, sac, { requesterBookingId: "booking-a", targetBookingId: "booking-c" })
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejection = results.find((result) => result.status === "rejected");
+    expect(rejection).toMatchObject({ status: "rejected", reason: new SupportOperationsError("CONFLICT") });
+    expect(locks.size).toBe(2);
+  });
+
+  it("rejects an accepted swap when a booking no longer occupies its expected slot", async () => {
+    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z"), teamId: "team-1" } };
+    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z"), teamId: "team-1" } };
+    const swapUpdateMany = vi.fn();
+    const tx = {
+      supportPauseSwap: { findFirst: vi.fn().mockResolvedValue({ id: "swap-1", status: "PENDING", expiresAt: null, requesterBooking, targetBooking }), updateMany: swapUpdateMany },
+      supportPauseBooking: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+        updateMany: vi.fn().mockResolvedValueOnce({ count: 0 })
+      },
+      supportShiftOccurrence: { findFirst: vi.fn().mockResolvedValue({ id: "occurrence-1" }) },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
+      auditLog: auditMock()
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(decideSupportPauseSwap(prisma as never, { ...sac, id: "sac-2" }, "swap-1", { decision: "ACCEPTED" }))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+    expect(swapUpdateMany).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an accepted swap outside either operator published shift", async () => {
+    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z"), teamId: "team-1" } };
+    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", status: "BOOKED", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z"), teamId: "team-1" } };
+    const bookingUpdateMany = vi.fn();
+    const tx = {
+      supportPauseSwap: { findFirst: vi.fn().mockResolvedValue({ id: "swap-1", status: "PENDING", expiresAt: null, requesterBooking, targetBooking }) },
+      supportPauseBooking: { findFirst: vi.fn().mockResolvedValue(null), deleteMany: vi.fn(), updateMany: bookingUpdateMany },
+      supportShiftOccurrence: { findFirst: vi.fn().mockResolvedValueOnce({ id: "occurrence-1" }).mockResolvedValueOnce(null) },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
+      auditLog: auditMock()
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(decideSupportPauseSwap(prisma as never, { ...sac, id: "sac-2" }, "swap-1", { decision: "ACCEPTED" }))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+    expect(bookingUpdateMany).not.toHaveBeenCalled();
   });
 
   it("weights CSAT and SLA by sample size instead of averaging percentages", async () => {
@@ -603,6 +795,48 @@ describe("support operations service", () => {
     const csat = result.summary.find((item) => item.metric === "CSAT");
 
     expect(csat).toEqual({ metric: "CSAT", latest: 100, average: 98, samples: 100, aggregation: "WEIGHTED" });
+  });
+
+  it("limits SAC team enumeration and KPI data to each membership window", async () => {
+    const validFrom = new Date("2026-07-10T00:00:00.000Z");
+    const validTo = new Date("2026-07-20T23:59:59.999Z");
+    const kpiFindMany = vi.fn().mockResolvedValue([]);
+    const campaignFindMany = vi.fn().mockResolvedValue([]);
+    const teamFindMany = vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC A" }]);
+    const prisma = {
+      supportTeamMembership: {
+        findMany: vi.fn()
+          .mockResolvedValueOnce([{ teamId: "team-1", validFrom, validTo }])
+          .mockResolvedValueOnce([])
+      },
+      supportTeam: { findMany: teamFindMany },
+      supportKpiEntry: { findMany: kpiFindMany },
+      supportCampaign: { findMany: campaignFindMany }
+    };
+
+    const result = await listSupportPerformance(prisma as never, sac, {
+      from: "2026-07-01T00:00:00.000Z",
+      to: "2026-07-31T23:59:59.999Z"
+    });
+
+    expect(result.teams).toEqual([{ id: "team-1", name: "SAC A" }]);
+    expect(teamFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ["team-1"] } })
+    }));
+    expect(kpiFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          expect.objectContaining({ teamId: "team-1", periodStart: { gte: validFrom }, periodEnd: { lte: validTo } })
+        ])
+      })
+    }));
+    expect(campaignFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          expect.objectContaining({ teamId: "team-1", startsAt: { gte: validFrom }, endsAt: { lte: validTo } })
+        ])
+      })
+    }));
   });
 
   it("validates KPI semantics and records governed manual input", async () => {
@@ -822,5 +1056,20 @@ describe("support operations service", () => {
     });
     expect(result.items[0]?.result.trend).toHaveLength(2);
     expect(result.items[0]?.result.provenance).toHaveLength(2);
+  });
+
+  it("does not enumerate support teams outside a SAC membership", async () => {
+    const prisma = {
+      supportTeamMembership: { findMany: vi.fn().mockResolvedValue([{ teamId: "team-1" }]) },
+      supportCampaign: { findMany: vi.fn().mockResolvedValue([]) },
+      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) }
+    };
+
+    const result = await listSupportCampaigns(prisma as never, sac);
+
+    expect(result.teams).toEqual([{ id: "team-1", name: "SAC Atendimento" }]);
+    expect(prisma.supportTeam.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: { in: ["team-1"] } })
+    }));
   });
 });

@@ -738,14 +738,15 @@ model SupportPauseBooking {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  organization    Organization            @relation(fields: [organizationId], references: [id])
-  slot            SupportPauseSlot        @relation(fields: [slotId], references: [id])
-  user            User                    @relation(fields: [userId], references: [id])
-  shiftOccurrence SupportShiftOccurrence? @relation(fields: [shiftOccurrenceId], references: [id])
-  rescheduledFrom SupportPauseBooking?    @relation("SupportPauseReschedule", fields: [rescheduledFromId], references: [id])
-  rescheduledTo   SupportPauseBooking[]   @relation("SupportPauseReschedule")
-  requestedSwaps  SupportPauseSwap[]      @relation("SupportPauseSwapRequesterBooking")
-  targetSwaps     SupportPauseSwap[]      @relation("SupportPauseSwapTargetBooking")
+  organization    Organization                  @relation(fields: [organizationId], references: [id])
+  slot            SupportPauseSlot              @relation(fields: [slotId], references: [id])
+  user            User                          @relation(fields: [userId], references: [id])
+  shiftOccurrence SupportShiftOccurrence?       @relation(fields: [shiftOccurrenceId], references: [id])
+  rescheduledFrom SupportPauseBooking?          @relation("SupportPauseReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo   SupportPauseBooking[]         @relation("SupportPauseReschedule")
+  requestedSwaps  SupportPauseSwap[]            @relation("SupportPauseSwapRequesterBooking")
+  targetSwaps     SupportPauseSwap[]            @relation("SupportPauseSwapTargetBooking")
+  swapLocks       SupportPauseSwapBookingLock[]
 
   @@unique([slotId, userId])
   @@index([organizationId, status])
@@ -768,16 +769,29 @@ model SupportPauseSwap {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  organization     Organization        @relation(fields: [organizationId], references: [id])
-  requesterBooking SupportPauseBooking @relation("SupportPauseSwapRequesterBooking", fields: [requesterBookingId], references: [id])
-  targetBooking    SupportPauseBooking @relation("SupportPauseSwapTargetBooking", fields: [targetBookingId], references: [id])
-  requestedBy      User                @relation("SupportPauseSwapRequester", fields: [requestedById], references: [id])
-  decidedBy        User?               @relation("SupportPauseSwapDecider", fields: [decidedById], references: [id])
+  organization     Organization                  @relation(fields: [organizationId], references: [id])
+  requesterBooking SupportPauseBooking           @relation("SupportPauseSwapRequesterBooking", fields: [requesterBookingId], references: [id])
+  targetBooking    SupportPauseBooking           @relation("SupportPauseSwapTargetBooking", fields: [targetBookingId], references: [id])
+  requestedBy      User                          @relation("SupportPauseSwapRequester", fields: [requestedById], references: [id])
+  decidedBy        User?                         @relation("SupportPauseSwapDecider", fields: [decidedById], references: [id])
+  bookingLocks     SupportPauseSwapBookingLock[]
 
   @@index([organizationId, status])
   @@index([organizationId, status, expiresAt])
   @@index([requestedById, status])
   @@index([targetBookingId, status])
+}
+
+model SupportPauseSwapBookingLock {
+  swapId    String
+  bookingId String   @unique
+  createdAt DateTime @default(now())
+
+  swap    SupportPauseSwap    @relation(fields: [swapId], references: [id], onDelete: Cascade)
+  booking SupportPauseBooking @relation(fields: [bookingId], references: [id])
+
+  @@id([swapId, bookingId])
+  @@index([swapId])
 }
 
 model SupportKpiEntry {
