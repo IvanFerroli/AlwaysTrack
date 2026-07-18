@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { OperationalState } from "../components/operational";
-import { formatSupportDate, formatSupportTime, supportDateInputValue } from "../support-operations";
+import { formatSupportDate, formatSupportTime, isSupportManager, supportDateInputValue } from "../support-operations";
 import "../support-dashboard.css";
 
 type DashboardTargetView = "announcements" | "faq" | "wiki" | "supportPauses" | "supportPerformance" | "supportCampaigns";
@@ -121,6 +121,7 @@ function MetricButton({ label, value, detail, onClick }: { label: string; value:
 }
 
 export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (view: DashboardTargetView, options?: DashboardIntent) => void }) {
+  const canManagePauses = isSupportManager(user);
   const [date, setDate] = useState(supportDateInputValue());
   const [mode, setMode] = useState<DashboardMode>("overview");
   const [dashboard, setDashboard] = useState<SupportDashboardData | null>(null);
@@ -149,8 +150,11 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
   }, [date]);
 
   const criticalSlots = useMemo(() => dashboard?.pauses.timeline.filter((point) => point.critical) ?? [], [dashboard]);
-  const showPauses = mode === "overview" || mode === "pauses";
+  const showPauses = canManagePauses && (mode === "overview" || mode === "pauses");
   const showQuality = mode === "overview" || mode === "quality";
+  const dashboardModes: Array<[DashboardMode, string]> = canManagePauses
+    ? [["overview", "Visão geral"], ["pauses", "Pausas"], ["quality", "Qualidade"]]
+    : [["overview", "Visão geral"], ["quality", "Qualidade"]];
 
   if (loading) return <OperationalState state="loading" title="Carregando operação SAC" detail="Consolidando cobertura, qualidade e comunicados." />;
   if (error || !dashboard) return <OperationalState state="error" title="Dashboard SAC indisponível" detail={error ?? "Dados operacionais não encontrados."} />;
@@ -160,9 +164,7 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
       <section className="panel support-dashboard-controls">
         <label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
         <div className="segmented-control" role="tablist" aria-label="Visão do dashboard">
-          {([[
-            "overview", "Visão geral"
-          ], ["pauses", "Pausas"], ["quality", "Qualidade"]] as Array<[DashboardMode, string]>).map(([key, label]) => (
+          {dashboardModes.map(([key, label]) => (
             <button key={key} type="button" role="tab" aria-selected={mode === key} className={mode === key ? "active" : ""} onClick={() => setMode(key)}>{label}</button>
           ))}
         </div>

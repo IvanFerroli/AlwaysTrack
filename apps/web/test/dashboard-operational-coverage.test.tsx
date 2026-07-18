@@ -17,6 +17,8 @@ const adminUser = {
   avatarUrl: null
 };
 
+const sacUser = { ...adminUser, id: "sac-1", name: "SAC Teste", email: "sac@example.test", role: "SAC" as const };
+
 const supportDashboard = {
   date: "2026-07-17",
   pauses: {
@@ -225,6 +227,17 @@ describe("DashboardView SAC operational coverage", () => {
     await user.click(within(tabs).getByRole("tab", { name: "Pausas" }));
     expect(screen.getByText("Overlap das pausas")).toBeInTheDocument();
     expect(screen.queryByText("Performance SAC")).not.toBeInTheDocument();
+  });
+
+  it("keeps pause overlap exclusive to management roles", async () => {
+    installSuccess();
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    const tabs = await screen.findByRole("tablist", { name: "Visão do dashboard" });
+    expect(within(tabs).queryByRole("tab", { name: "Pausas" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Overlap das pausas")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gerenciar pausas" })).not.toBeInTheDocument();
+    expect(screen.getByText("Performance SAC")).toBeInTheDocument();
   });
 
   it("reloads the SAC dashboard when the local operation date changes", async () => {
