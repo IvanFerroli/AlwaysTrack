@@ -6,6 +6,7 @@ import {
   type CurrentUser,
   type SupportMetricAggregation,
   type SupportMetricDefinition,
+  type SupportMetricDataState,
   type SupportMetricGranularity,
   type SupportMetricKey,
   type SupportMetricUnit,
@@ -16,6 +17,7 @@ import {
 export type {
   SupportMetricAggregation,
   SupportMetricDefinition,
+  SupportMetricDataState,
   SupportMetricGranularity,
   SupportMetricKey,
   SupportMetricUnit,
@@ -147,8 +149,9 @@ export interface SupportKpiEntry {
   granularity: SupportMetricGranularity;
   observationType: SupportObservationType;
   rawValue: string | null;
-  dataState: "AVAILABLE";
-  value: number;
+  dataState: SupportMetricDataState;
+  dataStateVersion: number;
+  value: number | null;
   numerator: number | null;
   denominator: number | null;
   scopeType: SupportScopeType;
@@ -157,9 +160,13 @@ export interface SupportKpiEntry {
   teamLabel: string | null;
   teamId: string | null;
   team: SupportTeam | null;
+  membershipId: string | null;
   periodStart: string;
   periodEnd: string;
+  timezone: string;
+  referenceYear: number;
   source: string | null;
+  externalReference: string | null;
   note: string | null;
   status: SupportKpiStatus;
   revision: number;
@@ -212,6 +219,9 @@ export interface SupportCampaign {
     average: number | null;
     samples: number;
     aggregation: SupportMetricAggregation;
+    componentEntries: number;
+    unweightedEntries: number;
+    reconciliation: "NO_DATA" | "NOT_APPLICABLE" | "COMPLETE_COMPONENTS" | "PARTIAL_COMPONENTS" | "UNWEIGHTED";
     achieved: boolean;
     progressPercent: number;
     frozenAt: string | null;
@@ -258,6 +268,9 @@ export interface SupportPerformanceResponse {
     average: number | null;
     samples: number;
     aggregation: SupportMetricAggregation;
+    componentEntries: number;
+    unweightedEntries: number;
+    reconciliation: "NO_DATA" | "NOT_APPLICABLE" | "COMPLETE_COMPONENTS" | "PARTIAL_COMPONENTS" | "UNWEIGHTED";
   }>;
   entries: SupportKpiEntry[];
   pendingReviewCount: number;
@@ -277,6 +290,7 @@ export interface SupportKpiDraft {
   metric: WritableSupportMetricKey;
   value: string;
   sampleSize: string;
+  dataState: SupportMetricDataState;
   channel: string;
   granularity: SupportMetricGranularity;
   observationType: SupportObservationType;
@@ -321,6 +335,13 @@ export const supportGranularityLabels: Record<SupportMetricGranularity, string> 
 export const supportObservationTypeLabels: Record<SupportObservationType, string> = {
   ACTUAL: "Realizado",
   EXPECTATION: "Expectativa"
+};
+
+export const supportDataStateLabels: Record<SupportMetricDataState, string> = {
+  AVAILABLE: "Disponível",
+  NOT_REPORTED: "Não informado",
+  NOT_APPLICABLE: "Não aplicável",
+  INVALID_SOURCE: "Fonte inválida"
 };
 
 export const supportScopeLabels: Record<SupportScopeType, string> = {
@@ -471,8 +492,8 @@ export function supportMetricInputHint(metric: string) {
 
 export function supportMetricDenominatorLabel(metric: string) {
   const definition = supportMetricDefinition(metric);
-  if (definition.aggregation === "SUM" || definition.aggregation === "LATEST") return null;
-  if (definition.unit === "SCORE_1_5" || definition.unit === "PERCENT") return "Respostas consideradas";
+  if (definition.aggregation !== "WEIGHTED_MEAN") return null;
+  if (definition.unit === "SCORE_1_5") return "Respostas consideradas";
   return "Atendimentos considerados";
 }
 
@@ -528,14 +549,17 @@ export function isSameSupportSeries(
 }
 
 export function supportAggregationDetail(
-  item: Pick<SupportPerformanceResponse["summary"][number], "aggregation" | "samples" | "unit">
+  item: Pick<SupportPerformanceResponse["summary"][number], "aggregation" | "samples" | "unit" | "reconciliation" | "unweightedEntries">
 ) {
   const count = item.samples.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   if (item.aggregation === "LATEST") return "Último lançamento aprovado";
   if (item.aggregation === "SUM") return `${count} lançamento(s) somado(s)`;
   if (item.aggregation === "RATIO") return item.samples ? `${count} respostas na taxa consolidada` : "Média simples dos lançamentos";
   if (item.aggregation === "WEIGHTED_MEAN") {
-    return `${count} ${item.unit === "SCORE_1_5" ? "respostas" : "atendimentos"} na média ponderada`;
+    const detail = `${count} ${item.unit === "SCORE_1_5" ? "respostas" : "atendimentos"} na média ponderada`;
+    return item.reconciliation === "PARTIAL_COMPONENTS"
+      ? `${detail} · ${item.unweightedEntries} lançamento(s) sem peso fora do consolidado`
+      : detail;
   }
   return `${count} lançamento(s) na média simples`;
 }
@@ -552,6 +576,7 @@ export function emptySupportKpiDraft(today = supportDateInputValue()): SupportKp
     metric: "CSAT_SCORE",
     value: "",
     sampleSize: "",
+    dataState: "AVAILABLE",
     channel: "",
     granularity: "REPORTED_INTERVAL",
     observationType: "ACTUAL",
@@ -572,8 +597,11 @@ export function supportKpiDraftFromEntry(entry: SupportKpiEntry): SupportKpiDraf
   return {
     id: entry.id,
     metric: entry.metric as WritableSupportMetricKey,
-    value: formatSupportMetricInput(entry.metric, entry.value, entry.unit),
-    sampleSize: entry.denominator == null ? "" : String(entry.denominator),
+    value: entry.dataState === "AVAILABLE" && entry.value !== null
+      ? formatSupportMetricInput(entry.metric, entry.value, entry.unit)
+      : entry.rawValue ?? "",
+    sampleSize: definition.aggregation === "RATIO" || entry.denominator == null ? "" : String(entry.denominator),
+    dataState: entry.dataState,
     channel: entry.channel ?? "",
     granularity: entry.granularity,
     observationType: entry.observationType,
@@ -589,15 +617,19 @@ export function supportKpiDraftFromEntry(entry: SupportKpiEntry): SupportKpiDraf
 }
 
 export function supportKpiPayloadFromDraft(draft: SupportKpiDraft) {
-  const value = parseSupportMetricValue(draft.metric, draft.value);
+  const available = draft.dataState === "AVAILABLE";
+  const value = available ? parseSupportMetricValue(draft.metric, draft.value) : null;
+  const sampleSize = available && draft.sampleSize ? Number(draft.sampleSize) : undefined;
+  const rawValue = draft.value.trim() || null;
   if (draft.id) {
     return {
       value,
-      sampleSize: draft.sampleSize ? Number(draft.sampleSize) : undefined,
+      sampleSize,
+      dataState: draft.dataState,
       channel: draft.channel.trim().toUpperCase() || null,
       granularity: draft.granularity,
       observationType: draft.observationType,
-      rawValue: draft.value.trim(),
+      rawValue,
       source: draft.source || null,
       note: draft.note || null
     };
@@ -605,11 +637,12 @@ export function supportKpiPayloadFromDraft(draft: SupportKpiDraft) {
   return {
     metric: draft.metric,
     value,
-    sampleSize: draft.sampleSize ? Number(draft.sampleSize) : undefined,
+    sampleSize,
+    dataState: draft.dataState,
     channel: draft.channel.trim().toUpperCase() || null,
     granularity: draft.granularity,
     observationType: draft.observationType,
-    rawValue: draft.value.trim(),
+    rawValue,
     scopeType: draft.scopeType,
     userId: draft.scopeType === "USER" ? draft.userId : undefined,
     teamLabel: draft.scopeType === "TEAM" ? draft.teamLabel : undefined,
@@ -654,7 +687,7 @@ export function supportCampaignDraftFromItem(item: SupportCampaign): SupportCamp
     comparison: item.comparison,
     channel: item.channel ?? "",
     granularity: item.granularity,
-    observationType: item.observationType,
+    observationType: "ACTUAL",
     scopeType: item.scopeType,
     userId: item.userId ?? "",
     teamLabel: item.teamLabel ?? "",
@@ -674,7 +707,7 @@ export function supportCampaignPayloadFromDraft(draft: SupportCampaignDraft) {
     comparison: draft.comparison,
     channel: draft.channel.trim().toUpperCase() || null,
     granularity: draft.granularity,
-    observationType: draft.observationType,
+    observationType: "ACTUAL",
     scopeType: draft.scopeType,
     userId: draft.scopeType === "USER" ? draft.userId : undefined,
     teamLabel: draft.scopeType === "TEAM" ? draft.teamLabel.trim() : undefined,

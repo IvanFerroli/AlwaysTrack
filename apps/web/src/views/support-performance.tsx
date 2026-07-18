@@ -13,6 +13,7 @@ import {
   shiftSupportDate,
   supportAggregationDetail,
   supportDateInputValue,
+  supportDataStateLabels,
   supportDayBoundaryIso,
   supportGranularityLabels,
   supportKpiDraftFromEntry,
@@ -44,7 +45,9 @@ function errorMessage(caught: unknown, fallback: string) {
 type SupportSummary = SupportPerformanceResponse["summary"][number];
 
 function MetricTrend({ series, entries }: { series: SupportSummary; entries: SupportKpiEntry[] }) {
-  const points = entries.filter((entry) => entry.status === "APPROVED" && isSameSupportSeries(entry, series)).slice(-12);
+  const points = entries.filter((entry): entry is SupportKpiEntry & { value: number } => (
+    entry.status === "APPROVED" && entry.dataState === "AVAILABLE" && entry.value !== null && isSameSupportSeries(entry, series)
+  )).slice(-12);
   if (!points.length) return <span className="support-trend-empty">Sem série</span>;
   const maximum = Math.max(...points.map((entry) => entry.value), 1);
   return (
@@ -282,8 +285,8 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
                   <tbody>{[...data.entries].reverse().map((entry) => (
                     <tr key={entry.id}>
                       <td>{formatSupportDate(entry.periodStart)}<small>até {formatSupportDate(entry.periodEnd)}</small></td>
-                      <td><strong>{supportMetricLabels[entry.metric]}</strong><small>{supportSeriesContext(entry)}{supportMetricDefinition(entry.metric, entry.unit).status === "LEGACY_READ_ONLY" ? " · somente leitura" : ""}</small></td>
-                      <td>{formatSupportMetricValue(entry.metric, entry.value, entry.unit)}{entry.denominator ? <small>{entry.denominator.toLocaleString("pt-BR")} {entry.unit === "DURATION_SECONDS" ? "atendimentos" : "respostas"}</small> : null}</td>
+                      <td><strong>{supportMetricLabels[entry.metric]}</strong><small>{supportSeriesContext(entry)}{supportMetricDefinition(entry.metric, entry.unit).status !== "CURRENT" ? " · somente leitura" : ""}</small></td>
+                      <td>{entry.dataState === "AVAILABLE" ? formatSupportMetricValue(entry.metric, entry.value, entry.unit) : supportDataStateLabels[entry.dataState]}{entry.denominator ? <small>{entry.denominator.toLocaleString("pt-BR")} {entry.unit === "DURATION_SECONDS" ? "atendimentos" : "respostas"}</small> : null}{entry.dataState !== "AVAILABLE" && entry.rawValue ? <small>Origem: {entry.rawValue}</small> : null}</td>
                       <td>{supportScopeLabel(entry)}</td>
                       <td>{entry.source || "-"}{entry.note ? <small>{entry.note}</small> : null}</td>
                       <td><span className={`support-review-status ${entry.status.toLowerCase()}`}>{reviewStatusLabel[entry.status]}</span><small>revisão {entry.revision}</small>{entry.reviewNote ? <small>{entry.reviewNote}</small> : null}</td>
@@ -317,12 +320,13 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
             </div>
             <form className="support-form-grid support-kpi-form" onSubmit={saveEntry}>
               <label>Métrica
-                <select disabled={Boolean(draft.id)} value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value as SupportKpiDraft["metric"], value: "", sampleSize: "" }))}>
+                <select disabled={Boolean(draft.id)} value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value as SupportKpiDraft["metric"], value: "", sampleSize: "", dataState: "AVAILABLE" }))}>
                   {writableSupportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
                 </select>
               </label>
-              <label>Valor<input required inputMode={draftDefinition.unit === "COUNT" ? "numeric" : "decimal"} placeholder={supportMetricInputHint(draft.metric)} type="text" value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} /></label>
-              {denominatorLabel ? <label>{denominatorLabel}<input min={1} step={1} type="number" value={draft.sampleSize} onChange={(event) => setDraft((current) => ({ ...current, sampleSize: event.target.value }))} /></label> : null}
+              <label>Estado do dado<select value={draft.dataState} onChange={(event) => setDraft((current) => ({ ...current, dataState: event.target.value as SupportKpiDraft["dataState"], value: "", sampleSize: "" }))}>{Object.entries(supportDataStateLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label>{draft.dataState === "AVAILABLE" ? "Valor" : "Valor recebido"}<input required={draft.dataState !== "NOT_REPORTED"} inputMode={draft.dataState === "AVAILABLE" && draftDefinition.unit === "COUNT" ? "numeric" : "text"} placeholder={draft.dataState === "AVAILABLE" ? supportMetricInputHint(draft.metric) : draft.dataState === "NOT_REPORTED" ? "Opcional: -" : "Texto preservado da fonte"} type="text" value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} /></label>
+              {draft.dataState === "AVAILABLE" && denominatorLabel ? <label>{denominatorLabel}<input min={1} step={1} type="number" value={draft.sampleSize} onChange={(event) => setDraft((current) => ({ ...current, sampleSize: event.target.value }))} /></label> : null}
               <label>Canal<input maxLength={40} placeholder="Ex.: TIKTOK" value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} /></label>
               <label>Período
                 <select value={draft.granularity} onChange={(event) => setDraft((current) => ({ ...current, granularity: event.target.value as SupportKpiDraft["granularity"] }))}>

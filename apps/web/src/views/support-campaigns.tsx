@@ -211,11 +211,6 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
                 {Object.entries(supportGranularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-            <label>Tipo
-              <select value={draft.observationType} onChange={(event) => setDraft((current) => ({ ...current, observationType: event.target.value as SupportCampaignDraft["observationType"] }))}>
-                {Object.entries(supportObservationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </label>
             <label>Escopo
               <select value={draft.scopeType} onChange={(event) => setDraft((current) => ({ ...current, scopeType: event.target.value as SupportCampaignDraft["scopeType"], userId: "", teamId: "", teamLabel: "" }))}>
                 {supportScopeTypes.map((scope) => <option key={scope} value={scope}>{supportScopeLabels[scope]}</option>)}
@@ -252,7 +247,7 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
               <tbody>{filteredItems.map((item) => (
                 <tr key={item.id}>
                   <td><strong>{item.name}</strong>{item.description ? <small>{item.description}</small> : null}</td>
-                  <td>{supportMetricLabels[item.metric]}<small>{supportSeriesContext(item)}{supportMetricDefinition(item.metric, item.unit).status === "LEGACY_READ_ONLY" ? " · somente leitura" : ""}</small></td>
+                  <td>{supportMetricLabels[item.metric]}<small>{supportSeriesContext(item)}{supportMetricDefinition(item.metric, item.unit).status !== "CURRENT" ? " · somente leitura" : ""}</small></td>
                   <td><strong>{item.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(item.metric, item.targetValue, item.unit)}</strong></td>
                   <td className="support-campaign-result">
                     <strong>{formatSupportMetricValue(item.metric, item.result.current, item.unit)}</strong>
@@ -273,7 +268,7 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
                     {item.status === "ACTIVE" && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <button className="secondary small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "PAUSED")}><Pause size={15} /> Pausar</button> : null}
                     {item.status === "PAUSED" && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Retomar</button> : null}
                     {(item.status === "ACTIVE" || item.status === "PAUSED") && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <ConfirmButton confirmLabel="Confirmar encerramento" disabled={saving} onConfirm={() => void transitionCampaign(item.id, "CLOSED")}><CircleStop size={15} /> Encerrar</ConfirmButton> : null}
-                    {supportMetricDefinition(item.metric, item.unit).status === "LEGACY_READ_ONLY" ? <span className="muted">Somente leitura</span> : null}
+                    {supportMetricDefinition(item.metric, item.unit).status !== "CURRENT" ? <span className="muted">Somente leitura</span> : null}
                     {item.status === "CLOSED" ? <span className="muted">Sem ações</span> : null}
                   </div></td> : null}
                 </tr>

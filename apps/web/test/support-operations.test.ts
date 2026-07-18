@@ -30,6 +30,7 @@ describe("support operations helpers", () => {
       metric: "CSAT_SCORE",
       value: "4,4",
       sampleSize: "80",
+      dataState: "AVAILABLE",
       channel: "",
       granularity: "REPORTED_INTERVAL",
       observationType: "ACTUAL",
@@ -59,6 +60,7 @@ describe("support operations helpers", () => {
       metric: "SLA_DURATION",
       value: "12min58s",
       sampleSize: "40",
+      dataState: "AVAILABLE",
       channel: "WHATSAPP",
       granularity: "REPORTED_INTERVAL",
       observationType: "ACTUAL",
@@ -73,6 +75,7 @@ describe("support operations helpers", () => {
     })).toEqual({
       value: 778,
       sampleSize: 40,
+      dataState: "AVAILABLE",
       channel: "WHATSAPP",
       granularity: "REPORTED_INTERVAL",
       observationType: "ACTUAL",
@@ -102,7 +105,7 @@ describe("support operations helpers", () => {
       comparison: "LTE",
       channel: "TIKTOK",
       granularity: "REPORTED_MONTH",
-      observationType: "EXPECTATION",
+      observationType: "ACTUAL",
       scopeType: "TEAM",
       teamLabel: "Retenção",
       teamId: "team-1",
@@ -120,5 +123,42 @@ describe("support operations helpers", () => {
     expect(formatSupportDuration(53)).toBe("53s");
     expect(parseSupportDuration("1h9min")).toBe(4140);
     expect(() => parseSupportDuration("12:58")).toThrow(/53s/);
+  });
+
+  it("preserves a missing source value without converting it to zero", () => {
+    expect(supportKpiPayloadFromDraft({
+      id: "",
+      metric: "CSAT_SCORE",
+      value: "",
+      sampleSize: "",
+      dataState: "NOT_REPORTED",
+      channel: "TIKTOK",
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL",
+      scopeType: "ORGANIZATION",
+      userId: "",
+      teamLabel: "",
+      teamId: "",
+      periodStart: "2026-07-01",
+      periodEnd: "2026-07-08",
+      source: "Planilha operacional",
+      note: ""
+    })).toEqual({
+      metric: "CSAT_SCORE",
+      value: null,
+      dataState: "NOT_REPORTED",
+      channel: "TIKTOK",
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL",
+      rawValue: null,
+      scopeType: "ORGANIZATION",
+      userId: undefined,
+      teamLabel: undefined,
+      teamId: undefined,
+      periodStart: "2026-07-01T03:00:00.000Z",
+      periodEnd: "2026-07-09T02:59:59.999Z",
+      source: "Planilha operacional",
+      note: null
+    });
   });
 });

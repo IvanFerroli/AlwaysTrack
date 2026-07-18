@@ -69,6 +69,9 @@ interface SupportDashboardData {
       average: number | null;
       samples: number;
       aggregation: SupportMetricAggregation;
+      componentEntries: number;
+      unweightedEntries: number;
+      reconciliation: "NO_DATA" | "NOT_APPLICABLE" | "COMPLETE_COMPONENTS" | "PARTIAL_COMPONENTS" | "UNWEIGHTED";
     }>;
     entries: Array<{
       id: string;

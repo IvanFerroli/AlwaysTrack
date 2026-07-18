@@ -103,7 +103,7 @@ describe("SupportPerformanceView", () => {
 
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/performance/entries", expect.objectContaining({
       method: "POST",
-      body: expect.stringContaining('"metric":"SLA_DURATION","value":778,"sampleSize":40,"channel":"WHATSAPP","granularity":"REPORTED_INTERVAL","observationType":"EXPECTATION","rawValue":"12min58s"')
+      body: expect.stringContaining('"metric":"SLA_DURATION","value":778,"sampleSize":40,"dataState":"AVAILABLE","channel":"WHATSAPP","granularity":"REPORTED_INTERVAL","observationType":"EXPECTATION","rawValue":"12min58s"')
     })));
   });
 
@@ -139,6 +139,7 @@ describe("SupportPerformanceView", () => {
       body: JSON.stringify({
         value: 4.8,
         sampleSize: 80,
+        dataState: "AVAILABLE",
         channel: null,
         granularity: "REPORTED_INTERVAL",
         observationType: "ACTUAL",
