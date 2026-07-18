@@ -87,6 +87,24 @@ describe("announcements service", () => {
     expect(() => parseAnnouncementInput({ tags: Array.from({ length: 31 }, (_, index) => `tag-${index}`) })).toThrow(InputValidationError);
   });
 
+  it("accepts only internal absolute paths and https URLs in related links", () => {
+    expect(
+      parseAnnouncementInput({
+        links: [
+          { type: "wiki", label: " Base interna ", href: " /wiki/base " },
+          { type: "URL", label: "Documentacao", href: "https://docs.example.com/avisos" }
+        ]
+      }).links
+    ).toEqual([
+      { type: "WIKI", label: "Base interna", href: "/wiki/base" },
+      { type: "URL", label: "Documentacao", href: "https://docs.example.com/avisos" }
+    ]);
+
+    for (const href of ["javascript:alert(1)", "data:text/html,test", "http://example.com", "ftp://example.com", "//example.com", "/\\example.com"]) {
+      expect(() => parseAnnouncementInput({ links: [{ type: "URL", label: "Inseguro", href }] })).toThrow("INVALID_INPUT");
+    }
+  });
+
   it("creates announcement with audit", async () => {
     const prisma = prismaMock();
     const result = await createAnnouncement(prisma as never, admin, { title: "Aviso", content: "Texto", targetRoles: ["VENDEDOR"], priority: "HIGH" });
@@ -172,6 +190,23 @@ describe("announcements service", () => {
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ targetRolesJson: { contains: "\"VENDEDOR\"" } }) }));
     expect(prisma.announcementReadReceipt.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ userId: "seller-1" }) }));
   });
+
+  it.each(["DRAFT", "SCHEDULED", "ARCHIVED"])(
+    "keeps non-manager listing restricted to PUBLISHED when status=%s is requested",
+    async (status) => {
+      const prisma = prismaMock();
+
+      await listAnnouncements(prisma as never, seller, { status });
+
+      const expectedScope = expect.objectContaining({
+        organizationId: "org-1",
+        status: "PUBLISHED",
+        targetRolesJson: { contains: '"VENDEDOR"' }
+      });
+      expect(prisma.announcement.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedScope }));
+      expect(prisma.announcement.count).toHaveBeenCalledWith({ where: expectedScope });
+    }
+  );
 
   it("exposes nominal acknowledgement compliance only to managers", async () => {
     const prisma = prismaMock();

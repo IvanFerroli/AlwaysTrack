@@ -3,7 +3,10 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { describe, expect, it, vi } from "vitest";
 import {
   createFutureAnnouncementSeriesVersion,
-  materializeAnnouncementOccurrences
+  expireElapsedAnnouncementOccurrences,
+  materializeAnnouncementOccurrences,
+  parseCreateAnnouncementSeriesInput,
+  publishDueAnnouncementOccurrences
 } from "./announcement-series.service.js";
 
 const manager: CurrentUser = {
@@ -132,10 +135,17 @@ function materializerPrisma(selectedVersionId = "version-1") {
     }),
     updateMany: vi.fn(async ({ where, data }) => {
       const item = occurrences.find((candidate) => candidate.id === where.id);
+      const expectedStatuses =
+        typeof where.status === "string" ? [where.status] : Array.isArray(where.status?.in) ? where.status.in : undefined;
+      const expectedLastAttemptAt = where.lastAttemptAt;
       if (
         !item ||
-        !where.status.in.includes(item.status) ||
-        item.cancelledAt !== null ||
+        (expectedStatuses && !expectedStatuses.includes(item.status)) ||
+        (where.cancelledAt === null && item.cancelledAt !== null) ||
+        (expectedLastAttemptAt !== undefined &&
+          (expectedLastAttemptAt === null
+            ? item.lastAttemptAt !== null
+            : item.lastAttemptAt?.getTime() !== expectedLastAttemptAt.getTime())) ||
         (where.scheduledFor && item.scheduledFor > where.scheduledFor.lte) ||
         (where.expiresAt?.lte && item.expiresAt > where.expiresAt.lte) ||
         (where.expiresAt?.gt && item.expiresAt <= where.expiresAt.gt)
@@ -173,6 +183,26 @@ function materializerPrisma(selectedVersionId = "version-1") {
 }
 
 describe("announcement occurrence materializer", () => {
+  it("accepts only internal absolute paths and https URLs in recurring related links", () => {
+    expect(
+      parseCreateAnnouncementSeriesInput({
+        links: [
+          { type: "FAQ", label: "Ajuda", href: "/faq/avisos" },
+          { type: "URL", label: "Referencia", href: "https://example.com/reference" }
+        ]
+      }).links
+    ).toEqual([
+      { type: "FAQ", label: "Ajuda", href: "/faq/avisos" },
+      { type: "URL", label: "Referencia", href: "https://example.com/reference" }
+    ]);
+
+    for (const href of ["javascript:alert(1)", "data:text/html,test", "http://example.com", "mailto:test@example.com"]) {
+      expect(() =>
+        parseCreateAnnouncementSeriesInput({ links: [{ type: "URL", label: "Inseguro", href }] })
+      ).toThrow("INVALID_INPUT");
+    }
+  });
+
   it("does not notify before local time and remains idempotent across repeated executions", async () => {
     const state = materializerPrisma();
     const common = { organizationId: "org-1", fromDate: "2026-07-14", toDate: "2026-07-14" };
@@ -226,6 +256,64 @@ describe("announcement occurrence materializer", () => {
     expect(result.staleCandidates).toEqual([{ seriesId: "series-1", versionId: "version-1", localDate: "2026-07-14" }]);
     expect(state.announcements).toHaveLength(0);
     expect(state.occurrences).toHaveLength(0);
+  });
+
+  it("does not publish or notify when an occurrence is superseded after its claim", async () => {
+    const state = materializerPrisma();
+    await materializeAnnouncementOccurrences(state.prisma, {
+      organizationId: "org-1",
+      fromDate: "2026-07-14",
+      toDate: "2026-07-14",
+      publishDue: false,
+      now: new Date("2026-07-14T12:00:00.000Z")
+    });
+    (state.prisma as any).$transaction = vi.fn(async (callback: (transaction: PrismaClient) => unknown) => {
+      Object.assign(state.occurrences[0], {
+        status: "CANCELLED",
+        cancelledAt: new Date("2026-07-14T12:30:00.000Z"),
+        cancellationReason: "SUPERSEDED_BY_VERSION:2"
+      });
+      return callback(state.prisma);
+    });
+
+    const result = await publishDueAnnouncementOccurrences(state.prisma, {
+      organizationId: "org-1",
+      now: new Date("2026-07-14T12:30:00.000Z")
+    });
+
+    expect(result.published).toEqual([]);
+    expect(result.failed).toEqual([]);
+    expect(state.occurrences[0].status).toBe("CANCELLED");
+    expect(state.announcements[0].status).toBe("SCHEDULED");
+    expect(state.notifications).toEqual([]);
+  });
+
+  it("does not expire linked content when an occurrence is cancelled after its claim", async () => {
+    const state = materializerPrisma();
+    await materializeAnnouncementOccurrences(state.prisma, {
+      organizationId: "org-1",
+      fromDate: "2026-07-14",
+      toDate: "2026-07-14",
+      publishDue: false,
+      now: new Date("2026-07-14T12:00:00.000Z")
+    });
+    (state.prisma as any).$transaction = vi.fn(async (callback: (transaction: PrismaClient) => unknown) => {
+      Object.assign(state.occurrences[0], {
+        status: "CANCELLED",
+        cancelledAt: new Date("2026-07-15T12:30:00.000Z"),
+        cancellationReason: "Cancelado pelo gestor"
+      });
+      return callback(state.prisma);
+    });
+
+    const result = await expireElapsedAnnouncementOccurrences(state.prisma, {
+      organizationId: "org-1",
+      now: new Date("2026-07-15T12:30:00.000Z")
+    });
+
+    expect(result.expired).toEqual([]);
+    expect(state.occurrences[0].status).toBe("CANCELLED");
+    expect(state.announcements[0].status).toBe("SCHEDULED");
   });
 });
 

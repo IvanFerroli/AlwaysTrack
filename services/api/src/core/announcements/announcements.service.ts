@@ -237,16 +237,38 @@ export async function getAnnouncementsAcknowledgementCompliance(
   );
 }
 
-function cleanLinks(values: unknown[] = []) {
+function allowedAnnouncementHref(value: string) {
+  if (/[\u0000-\u001f\u007f\\]/.test(value)) return false;
+  if (value.startsWith("/")) return !value.startsWith("//");
+  if (!/^https:\/\//i.test(value)) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeAnnouncementLinks(values: unknown[] = [], strict = false) {
   const links: AnnouncementLink[] = [];
   for (const value of values) {
-    if (!value || typeof value !== "object") continue;
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      if (strict) throw new AnnouncementError("INVALID_INPUT");
+      continue;
+    }
     const item = value as Record<string, unknown>;
     const type = cleanText(item.type)?.toUpperCase();
     const label = cleanText(item.label);
     const href = cleanText(item.href);
-    if (!type || !label || !href) continue;
-    if (!["WIKI", "FAQ", "ANNOUNCEMENT", "CAMPAIGN", "NOTE", "URL"].includes(type)) continue;
+    if (
+      !type ||
+      !label ||
+      !href ||
+      !["WIKI", "FAQ", "ANNOUNCEMENT", "CAMPAIGN", "NOTE", "URL"].includes(type) ||
+      !allowedAnnouncementHref(href)
+    ) {
+      if (strict) throw new AnnouncementError("INVALID_INPUT");
+      continue;
+    }
     links.push({ type: type as AnnouncementLink["type"], label: label.slice(0, 80), href: href.slice(0, 240) });
   }
   return links.slice(0, 12);
@@ -295,7 +317,7 @@ function withAnnouncementFormat<T extends { tagsJson?: string | null; linksJson?
     contentFormat,
     status: effectiveStatus(item),
     tags: tagsFromJson(item.tagsJson),
-    links: parseJsonArray<AnnouncementLink>(item.linksJson),
+    links: normalizeAnnouncementLinks(parseJsonArray<unknown>(item.linksJson)),
     targetRoles: parseJsonArray<UserRole>(item.targetRolesJson)
   };
 }
@@ -311,7 +333,7 @@ export function parseAnnouncementInput(payload: unknown): AnnouncementInput {
       summary: optionalString(input, "summary", { maxLength: 240, nullable: true }),
       content: optionalString(input, "content", { maxLength: 20_000 }),
       tags: tags ? normalizedTags(tags) : undefined,
-      links: links ? cleanLinks(links) : undefined,
+      links: links ? normalizeAnnouncementLinks(links, true) : undefined,
       targetRoles: targetRoles ? cleanRoles(targetRoles) : undefined,
       status: cleanStatus(optionalString(input, "status", { maxLength: 20 })),
       priority: cleanPriority(optionalString(input, "priority", { maxLength: 20 })),
@@ -354,7 +376,7 @@ export async function listAnnouncements(prisma: PrismaClient, actor: CurrentUser
   ].filter(Boolean) as Prisma.AnnouncementWhereInput[];
   const where: Prisma.AnnouncementWhereInput = {
     ...baseWhere,
-    status: filters.status ?? (filters.activeOnly ? "PUBLISHED" : undefined),
+    status: isManager(actor) ? filters.status ?? (filters.activeOnly ? "PUBLISHED" : undefined) : "PUBLISHED",
     priority: filters.priority,
     updatedAt: filters.recent ? { gte: recentSince(filters.recent) } : undefined,
     AND: andFilters.length ? andFilters : undefined
@@ -432,7 +454,7 @@ export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUse
       summary: input.summary ?? null,
       content: input.content,
       tagsJson: tagsJsonFor(input.tags),
-      linksJson: JSON.stringify(input.links ?? []),
+      linksJson: JSON.stringify(normalizeAnnouncementLinks(input.links ?? [], true)),
       targetRolesJson: JSON.stringify(input.targetRoles?.length ? input.targetRoles : commercialAllRoles),
       status,
       priority: input.priority ?? "NORMAL",
@@ -466,7 +488,8 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
     const existing = await prisma.announcement.findFirst({ where: { organizationId: actor.organizationId, slug: nextSlug, id: { not: current.id } } });
     if (existing) throw new AnnouncementError("SLUG_TAKEN");
   }
-  const nextLinksJson = input.links === undefined ? current.linksJson : JSON.stringify(input.links);
+  const nextLinksJson =
+    input.links === undefined ? current.linksJson : JSON.stringify(normalizeAnnouncementLinks(input.links, true));
   const nextTargetRolesJson = input.targetRoles === undefined
     ? current.targetRolesJson
     : JSON.stringify(input.targetRoles.length ? input.targetRoles : commercialAllRoles);

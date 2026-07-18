@@ -9,7 +9,11 @@ import {
   optionalString,
   parseObjectPayload
 } from "../validation/input-validation.js";
-import { AnnouncementError, type AnnouncementLink } from "./announcements.service.js";
+import {
+  AnnouncementError,
+  normalizeAnnouncementLinks,
+  type AnnouncementLink
+} from "./announcements.service.js";
 import {
   addLocalDays,
   buildRecurrenceCandidates,
@@ -143,20 +147,6 @@ function normalizeRoles(values: unknown[] = []) {
   return [...new Set(values.filter((value): value is UserRole => typeof value === "string" && allowed.has(value)))];
 }
 
-function normalizeLinks(values: unknown[] = []) {
-  const result: AnnouncementLink[] = [];
-  for (const value of values) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    const item = value as Record<string, unknown>;
-    const type = text(item.type)?.toUpperCase();
-    const label = text(item.label);
-    const href = text(item.href);
-    if (!type || !label || !href || !["WIKI", "FAQ", "ANNOUNCEMENT", "CAMPAIGN", "NOTE", "URL"].includes(type)) continue;
-    result.push({ type: type as AnnouncementLink["type"], label: label.slice(0, 80), href: href.slice(0, 240) });
-  }
-  return result.slice(0, 12);
-}
-
 function normalizeRecurrenceDays(values: unknown[] | undefined) {
   if (values === undefined) return undefined;
   const days = [...new Set(values.map(Number))].sort((left, right) => left - right);
@@ -205,7 +195,7 @@ export function parseCreateAnnouncementSeriesInput(payload: unknown): CreateAnno
       summary: optionalString(input, "summary", { maxLength: 240, nullable: true }),
       content: optionalString(input, "content", { maxLength: 20_000 }),
       tags: tags ? normalizeTags(tags) : undefined,
-      links: links ? normalizeLinks(links) : undefined,
+      links: links ? normalizeAnnouncementLinks(links, true) : undefined,
       targetRoles: roles ? normalizeRoles(roles) : undefined,
       priority: normalizedPriority(optionalString(input, "priority", { maxLength: 20 })),
       pinned: optionalBoolean(input, "pinned"),
@@ -262,7 +252,7 @@ function previousVersionInput(previous: AnnouncementSeriesVersion): NormalizedVe
     summary: previous.summary,
     content: previous.content,
     tags: normalizeTags(parseJsonArray(previous.tagsJson)),
-    links: normalizeLinks(parseJsonArray(previous.linksJson)),
+    links: normalizeAnnouncementLinks(parseJsonArray<unknown>(previous.linksJson)),
     targetRoles: normalizeRoles(parseJsonArray(previous.targetRolesJson)),
     priority: previous.priority,
     pinned: previous.pinned,
@@ -321,7 +311,7 @@ function normalizeVersion(input: AnnouncementSeriesVersionInput, previous?: Anno
     summary: input.summary === undefined ? (base?.summary ?? null) : input.summary,
     content,
     tags: input.tags ?? base?.tags ?? [],
-    links: input.links ?? base?.links ?? [],
+    links: input.links === undefined ? (base?.links ?? []) : normalizeAnnouncementLinks(input.links, true),
     targetRoles: input.targetRoles?.length ? input.targetRoles : (base?.targetRoles.length ? base.targetRoles : [...commercialAllRoles]),
     priority: input.priority ?? base?.priority ?? "NORMAL",
     pinned: input.pinned ?? base?.pinned ?? false,
@@ -365,7 +355,7 @@ function formatVersion<T extends AnnouncementSeriesVersion>(version: T) {
     ...version,
     recurrenceDays: recurrenceDays(version.recurrenceDaysJson),
     tags: normalizeTags(parseJsonArray(version.tagsJson)),
-    links: normalizeLinks(parseJsonArray(version.linksJson)),
+    links: normalizeAnnouncementLinks(parseJsonArray<unknown>(version.linksJson)),
     targetRoles: normalizeRoles(parseJsonArray(version.targetRolesJson))
   };
 }
@@ -743,10 +733,11 @@ async function markPublicationFailure(
     .replace(/Bearer\s+[0-9A-Za-z._-]+/gi, "Bearer [redacted]")
     .replace(/(token|secret|password|api[_-]?key)=([^\s&]+)/gi, "$1=[redacted]")
     .slice(0, 500);
-  await prisma.announcementOccurrence.update({
-    where: { id: occurrence.id },
+  const failed = await prisma.announcementOccurrence.updateMany({
+    where: { id: occurrence.id, status: "PROCESSING", cancelledAt: null, lastAttemptAt: now },
     data: { status: "FAILED", failureMessage, lastAttemptAt: now }
   });
+  if (failed.count !== 1) return null;
   await recordAuditLog(prisma, {
     organizationId: occurrence.organizationId,
     actorId,
@@ -803,31 +794,41 @@ export async function publishDueAnnouncementOccurrences(
     if (claim.count !== 1) continue;
     try {
       if (!occurrence.announcement) throw new Error("Occurrence has no linked announcement.");
-      const announcement = await prisma.announcement.update({
-        where: { id: occurrence.announcement.id },
-        data: {
-          status: "PUBLISHED",
-          publishedAt: occurrence.announcement.publishedAt ?? now,
-          archivedAt: null,
-          updatedById: occurrence.version.createdById
-        }
-      });
-      const targetRoles = normalizeRoles(parseJsonArray(occurrence.version.targetRolesJson));
-      await emitInAppNotifications(prisma, occurrence.organizationId, {
-        actorId: options.actorId ?? undefined,
-        recipientRoles: targetRoles.length ? targetRoles : [...commercialAllRoles],
-        type: "announcement.published",
-        title: announcement.priority === "CRITICAL" ? `Aviso critico: ${announcement.title}` : `Novo aviso: ${announcement.title}`,
-        body: announcement.summary,
-        entityType: "Announcement",
-        entityId: announcement.id,
-        href: `/avisos/${announcement.slug}`,
-        dedupeKey: `announcement-occurrence:${occurrence.id}:published`
-      });
-      await prisma.$transaction(async (transaction) => {
-        await transaction.announcementOccurrence.update({
-          where: { id: occurrence.id },
+      const announcement = await prisma.$transaction(async (transaction) => {
+        const finalized = await transaction.announcementOccurrence.updateMany({
+          where: {
+            id: occurrence.id,
+            status: "PROCESSING",
+            cancelledAt: null,
+            lastAttemptAt: now,
+            expiresAt: { gt: now }
+          },
           data: { status: "PUBLISHED", publishedAt: occurrence.publishedAt ?? now, failureMessage: null }
+        });
+        if (finalized.count !== 1) return null;
+        const publishedAnnouncement = await transaction.announcement.update({
+          where: { id: occurrence.announcement.id },
+          data: {
+            status: "PUBLISHED",
+            publishedAt: occurrence.announcement.publishedAt ?? now,
+            archivedAt: null,
+            updatedById: occurrence.version.createdById
+          }
+        });
+        const targetRoles = normalizeRoles(parseJsonArray(occurrence.version.targetRolesJson));
+        await emitInAppNotifications(transaction as PrismaClient, occurrence.organizationId, {
+          actorId: options.actorId ?? undefined,
+          recipientRoles: targetRoles.length ? targetRoles : [...commercialAllRoles],
+          type: "announcement.published",
+          title:
+            publishedAnnouncement.priority === "CRITICAL"
+              ? `Aviso critico: ${publishedAnnouncement.title}`
+              : `Novo aviso: ${publishedAnnouncement.title}`,
+          body: publishedAnnouncement.summary,
+          entityType: "Announcement",
+          entityId: publishedAnnouncement.id,
+          href: `/avisos/${publishedAnnouncement.slug}`,
+          dedupeKey: `announcement-occurrence:${occurrence.id}:published`
         });
         await recordAuditLog(transaction as PrismaClient, {
           organizationId: occurrence.organizationId,
@@ -835,15 +836,15 @@ export async function publishDueAnnouncementOccurrences(
           action: "announcement-occurrence.publish",
           entityType: "AnnouncementOccurrence",
           entityId: occurrence.id,
-          metadata: { announcementId: announcement.id, scheduledFor: occurrence.scheduledFor.toISOString() }
+          metadata: { announcementId: publishedAnnouncement.id, scheduledFor: occurrence.scheduledFor.toISOString() }
         });
+        return publishedAnnouncement;
       });
+      if (!announcement) continue;
       published.push(occurrence.id);
     } catch (error) {
-      failed.push({
-        id: occurrence.id,
-        error: await markPublicationFailure(prisma, occurrence, error, now, options.actorId ?? null)
-      });
+      const failureMessage = await markPublicationFailure(prisma, occurrence, error, now, options.actorId ?? null);
+      if (failureMessage) failed.push({ id: occurrence.id, error: failureMessage });
     }
   }
   const maxLagMs = due.reduce((maximum, occurrence) => Math.max(maximum, now.getTime() - occurrence.scheduledFor.getTime()), 0);
@@ -862,39 +863,63 @@ export async function expireElapsedAnnouncementOccurrences(
       cancelledAt: null,
       expiresAt: { lte: now }
     },
-    select: { id: true, organizationId: true, announcementId: true, status: true, scheduledFor: true, expiresAt: true }
+    select: {
+      id: true,
+      organizationId: true,
+      announcementId: true,
+      status: true,
+      scheduledFor: true,
+      expiresAt: true,
+      lastAttemptAt: true
+    }
   });
   const expired: string[] = [];
   for (const occurrence of elapsed) {
+    const claimTime = new Date(Math.max(now.getTime(), (occurrence.lastAttemptAt?.getTime() ?? -1) + 1));
     const claim = await prisma.announcementOccurrence.updateMany({
       where: {
         id: occurrence.id,
-        status: { in: ["SCHEDULED", "FAILED", "PROCESSING", "PUBLISHED"] },
+        status: occurrence.status,
         cancelledAt: null,
-        expiresAt: { lte: now }
+        expiresAt: { lte: now },
+        lastAttemptAt: occurrence.lastAttemptAt
       },
-      data: { status: "EXPIRED", failureMessage: null }
+      data: { status: "PROCESSING", lastAttemptAt: claimTime, failureMessage: null }
     });
     if (claim.count !== 1) continue;
-    if (occurrence.announcementId) {
-      await prisma.announcement.update({
-        where: { id: occurrence.announcementId },
-        data: { status: "EXPIRED" }
+    const finalized = await prisma.$transaction(async (transaction) => {
+      const result = await transaction.announcementOccurrence.updateMany({
+        where: {
+          id: occurrence.id,
+          status: "PROCESSING",
+          cancelledAt: null,
+          expiresAt: { lte: now },
+          lastAttemptAt: claimTime
+        },
+        data: { status: "EXPIRED", failureMessage: null }
       });
-    }
-    await recordAuditLog(prisma, {
-      organizationId: occurrence.organizationId,
-      actorId: options.actorId ?? null,
-      action: "announcement-occurrence.expire",
-      entityType: "AnnouncementOccurrence",
-      entityId: occurrence.id,
-      metadata: {
-        previousStatus: occurrence.status,
-        scheduledFor: occurrence.scheduledFor.toISOString(),
-        expiresAt: occurrence.expiresAt.toISOString()
+      if (result.count !== 1) return false;
+      if (occurrence.announcementId) {
+        await transaction.announcement.update({
+          where: { id: occurrence.announcementId },
+          data: { status: "EXPIRED" }
+        });
       }
+      await recordAuditLog(transaction as PrismaClient, {
+        organizationId: occurrence.organizationId,
+        actorId: options.actorId ?? null,
+        action: "announcement-occurrence.expire",
+        entityType: "AnnouncementOccurrence",
+        entityId: occurrence.id,
+        metadata: {
+          previousStatus: occurrence.status,
+          scheduledFor: occurrence.scheduledFor.toISOString(),
+          expiresAt: occurrence.expiresAt.toISOString()
+        }
+      });
+      return true;
     });
-    expired.push(occurrence.id);
+    if (finalized) expired.push(occurrence.id);
   }
   return { elapsed: elapsed.length, expired };
 }
