@@ -151,6 +151,8 @@ const planning = {
     effectiveFrom: "2099-07-01T03:00:00.000Z",
     effectiveTo: null
   }],
+  ruleDrafts: [],
+  archivedRuleVersions: [],
   patterns: [{
     id: "pattern-persisted",
     teamId: team.id,
@@ -177,6 +179,21 @@ describe("SupportSchedulesView", () => {
       if (path.startsWith("/v1/support/pauses?")) return Promise.resolve(roster);
       if (path.startsWith("/v1/support/schedules?") && !options) return Promise.resolve(response);
       if (path.startsWith("/v1/support/schedules/planning?")) return Promise.resolve(planning);
+      if (path === "/v1/support/schedules/rule-drafts") {
+        const body = JSON.parse(String(options?.body));
+        const draft = {
+          ...body,
+          id: "rule-draft-new",
+          status: "DRAFT",
+          revision: 1,
+          normalizedPayloadJson: JSON.stringify(body),
+          checksum: "a".repeat(64),
+          publishedVersionId: null,
+          archivedAt: null,
+          updatedAt: "2099-07-01T12:00:00.000Z"
+        };
+        return Promise.resolve({ draft, payload: body, checksum: draft.checksum });
+      }
       if (path === "/v1/support/schedules/patterns") {
         return Promise.resolve({ pattern: { id: "pattern-new", teamId: team.id, name: "Turno padrão", version: 1, startMinute: 480, endMinute: 1020 } });
       }
@@ -195,6 +212,7 @@ describe("SupportSchedulesView", () => {
     expect(await screen.findByRole("heading", { name: "Turnos da semana" })).toBeInTheDocument();
     expect(screen.getByText("Turno-base")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Planejamento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Governança de regras" })).not.toBeInTheDocument();
     expect(intervalSpy).toHaveBeenCalledWith(expect.any(Function), SUPPORT_SCHEDULE_POLL_INTERVAL_MS);
     expectNoCriticalAccessibilityViolations(container);
 
@@ -270,8 +288,9 @@ describe("SupportSchedulesView", () => {
     expect(await screen.findByRole("table", { name: "Padrões de turno persistidos" })).toHaveTextContent("Turno manhã");
     expect(screen.getByRole("option", { name: "Turno manhã · v2" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Criar regra" }));
-    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/schedules/rules", expect.objectContaining({ method: "POST", body: expect.stringContaining(`"teamId":"${team.id}"`) })));
+    await user.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/schedules/rule-drafts", expect.objectContaining({ method: "POST", body: expect.stringContaining(`"teamId":"${team.id}"`) })));
+    expect(apiMock.mock.calls.some(([path]) => path === "/v1/support/schedules/rules")).toBe(false);
 
     await user.click(screen.getByRole("button", { name: "Criar padrão" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/schedules/patterns", expect.objectContaining({ method: "POST" })));

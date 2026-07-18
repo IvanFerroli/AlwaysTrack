@@ -144,6 +144,73 @@ export interface SupportScheduleRuleVersion {
   effectiveTo: string | null;
 }
 
+export type SupportScheduleRuleDraftStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED" | string;
+
+export interface SupportScheduleRuleFields {
+  timezone: string;
+  maxDailyMinutes: number;
+  maxWeeklyMinutes: number;
+  minimumRestMinutes: number;
+  minimumNoticeMinutes: number;
+  maxMonthlyExchanges: number;
+  autoApproveEligibleSwaps: boolean;
+  requireManagerExtraApproval: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface SupportScheduleRuleDraft extends SupportScheduleRuleFields {
+  id: string;
+  teamId: string;
+  status: SupportScheduleRuleDraftStatus;
+  revision: number;
+  baseVersionId: string | null;
+  normalizedPayloadJson: string;
+  checksum: string;
+  publishedVersionId: string | null;
+  archivedAt: string | null;
+  updatedAt: string;
+}
+
+export type SupportScheduleRuleValue = string | number | boolean | null;
+
+export interface SupportScheduleRuleDiffSet {
+  versionId: string | null;
+  changedKeys: string[];
+  changes: Record<string, { before: SupportScheduleRuleValue; after: SupportScheduleRuleValue }>;
+}
+
+export interface SupportScheduleRulePreview {
+  draftId: string;
+  revision: number;
+  payload: SupportScheduleRuleFields;
+  normalizedPayloadJson: string;
+  checksum: string;
+  diff: {
+    base: SupportScheduleRuleDiffSet;
+    latest: SupportScheduleRuleDiffSet;
+  };
+  window: {
+    from: string;
+    to: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+  };
+  materialization: SupportMaterializationResult;
+}
+
+export interface SupportScheduleRuleDraftResult {
+  draft: SupportScheduleRuleDraft;
+  payload: SupportScheduleRuleFields;
+  checksum: string;
+}
+
+export interface SupportScheduleRulePublishResult extends SupportScheduleRuleDraftResult {
+  rule: SupportScheduleRuleVersion;
+  snapshot: SupportScheduleRuleFields & { id: string; teamId: string; version: number };
+  idempotent?: boolean;
+}
+
 export interface SupportPlanningPattern extends SupportCreatedPattern {
   weekdays: number[];
   timezone: string;
@@ -167,6 +234,8 @@ export interface SupportShiftAssignment {
 export interface SupportSchedulePlanningResponse {
   teamId: string;
   rules: SupportScheduleRuleVersion[];
+  ruleDrafts: SupportScheduleRuleDraft[];
+  archivedRuleVersions: SupportScheduleRuleVersion[];
   patterns: SupportPlanningPattern[];
   assignments: SupportShiftAssignment[];
 }
@@ -307,6 +376,20 @@ export function supportScheduleLocalDateTimeIso(value: string, timezone = SUPPOR
     instant = localAsUtc - timezoneOffsetMs(new Date(instant), timezone);
   }
   return new Date(instant).toISOString();
+}
+
+export function supportScheduleLocalDateTimeValue(value: string, timezone = SUPPORT_SCHEDULE_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date(value));
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}`;
 }
 
 export function supportMinutesFromTime(value: string) {

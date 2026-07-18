@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
-  Save,
   Send,
   ShieldCheck,
   UserPlus,
@@ -28,6 +27,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
 import { api } from "../api";
 import { ConfirmButton, OperationalState } from "../components/operational";
+import { SupportScheduleRuleGovernance } from "../components/support-schedule-rule-governance";
 import type { NotificationNavigationIntent } from "../notification-navigation";
 import {
   SUPPORT_SCHEDULE_POLL_INTERVAL_MS,
@@ -365,17 +365,6 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
   const [acceptOccurrenceIds, setAcceptOccurrenceIds] = useState<Record<string, string>>({});
   const [offerDraft, setOfferDraft] = useState({ occurrenceId: "", type: "SWAP" as "SWAP" | "OFFER", targetUserId: "", note: "" });
-  const [ruleDraft, setRuleDraft] = useState({
-    timezone: SUPPORT_SCHEDULE_TIMEZONE,
-    effectiveFrom: dateTimeDefault(nextDay),
-    maxDailyMinutes: "540",
-    maxWeeklyMinutes: "2700",
-    minimumRestMinutes: "660",
-    minimumNoticeMinutes: "120",
-    maxMonthlyExchanges: "8",
-    autoApproveEligibleSwaps: true,
-    requireManagerExtraApproval: true
-  });
   const [patternDraft, setPatternDraft] = useState({
     name: "Turno padrão",
     startsAt: "08:00",
@@ -392,6 +381,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
 
   const visibleTabs: ReadonlyArray<readonly [ScheduleTab, string]> = canManage ? managerTabs : sacTabs;
   const timezone = supportCalendarTimezone(calendar);
+  const planningTimezone = planning?.rules[0]?.timezone ?? SUPPORT_SCHEDULE_TIMEZONE;
   const weekDates = supportScheduleWeekDates(date);
   const pendingClaims = calendar?.extraSlots.flatMap((slot) => slot.claims
     .filter((claim) => claim.status === "PENDING")
@@ -692,31 +682,6 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
     );
   }
 
-  async function saveRule(event: FormEvent) {
-    event.preventDefault();
-    if (!teamId) return;
-    const completed = await perform(
-      "rule",
-      () => api("/v1/support/schedules/rules", {
-        method: "POST",
-        body: JSON.stringify({
-          teamId,
-          timezone: ruleDraft.timezone,
-          effectiveFrom: supportScheduleLocalDateTimeIso(ruleDraft.effectiveFrom, ruleDraft.timezone),
-          maxDailyMinutes: Number(ruleDraft.maxDailyMinutes),
-          maxWeeklyMinutes: Number(ruleDraft.maxWeeklyMinutes),
-          minimumRestMinutes: Number(ruleDraft.minimumRestMinutes),
-          minimumNoticeMinutes: Number(ruleDraft.minimumNoticeMinutes),
-          maxMonthlyExchanges: Number(ruleDraft.maxMonthlyExchanges),
-          autoApproveEligibleSwaps: ruleDraft.autoApproveEligibleSwaps,
-          requireManagerExtraApproval: ruleDraft.requireManagerExtraApproval
-        })
-      }),
-      "Nova versão da regra criada."
-    );
-    if (completed) await loadPlanning();
-  }
-
   async function savePattern(event: FormEvent) {
     event.preventDefault();
     if (!teamId) return;
@@ -732,8 +697,8 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
             startMinute: supportMinutesFromTime(patternDraft.startsAt),
             endMinute: supportMinutesFromTime(patternDraft.endsAt),
             weekdays: patternDraft.weekdays,
-            timezone: ruleDraft.timezone,
-            effectiveFrom: supportScheduleLocalDateTimeIso(patternDraft.effectiveFrom, ruleDraft.timezone)
+            timezone: planningTimezone,
+            effectiveFrom: supportScheduleLocalDateTimeIso(patternDraft.effectiveFrom, planningTimezone)
           })
         });
       },
@@ -758,8 +723,8 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
           teamId,
           userId: assignmentDraft.userId,
           patternVersionId: assignmentDraft.patternVersionId,
-          validFrom: supportScheduleLocalDateTimeIso(assignmentDraft.validFrom, ruleDraft.timezone),
-          validTo: assignmentDraft.validTo ? supportScheduleLocalDateTimeIso(assignmentDraft.validTo, ruleDraft.timezone) : null
+          validFrom: supportScheduleLocalDateTimeIso(assignmentDraft.validFrom, planningTimezone),
+          validTo: assignmentDraft.validTo ? supportScheduleLocalDateTimeIso(assignmentDraft.validTo, planningTimezone) : null
         })
       }),
       "Padrão atribuído ao atendente."
@@ -793,8 +758,8 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
         method: "POST",
         body: JSON.stringify({
           teamId,
-          startsAt: supportScheduleLocalDateTimeIso(`${extraDraft.date}T${extraDraft.startsAt}`, ruleDraft.timezone),
-          endsAt: supportScheduleLocalDateTimeIso(`${extraDraft.date}T${extraDraft.endsAt}`, ruleDraft.timezone),
+          startsAt: supportScheduleLocalDateTimeIso(`${extraDraft.date}T${extraDraft.startsAt}`, planningTimezone),
+          endsAt: supportScheduleLocalDateTimeIso(`${extraDraft.date}T${extraDraft.endsAt}`, planningTimezone),
           capacity: Number(extraDraft.capacity),
           note: extraDraft.note || null
         })
@@ -1205,21 +1170,12 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
                 ) : null}
               </section>
 
-              <section className="support-form-section" aria-labelledby="support-rule-title">
-                <div className="support-section-heading"><div><p className="eyebrow">Governança de jornada</p><h2 id="support-rule-title">Nova versão da regra</h2></div><span className="support-count">{selectedTeam?.name}</span></div>
-                <form className="support-form-grid support-rule-form" onSubmit={saveRule}>
-                  <label className="support-wide-field">Fuso horário<input required value={ruleDraft.timezone} onChange={(event) => setRuleDraft((current) => ({ ...current, timezone: event.target.value }))} /></label>
-                  <label className="support-wide-field">Vigência a partir de<input required type="datetime-local" value={ruleDraft.effectiveFrom} onChange={(event) => setRuleDraft((current) => ({ ...current, effectiveFrom: event.target.value }))} /></label>
-                  <label>Máximo diário (min)<input required min={60} max={1440} type="number" value={ruleDraft.maxDailyMinutes} onChange={(event) => setRuleDraft((current) => ({ ...current, maxDailyMinutes: event.target.value }))} /></label>
-                  <label>Máximo semanal (min)<input required min={60} max={10080} type="number" value={ruleDraft.maxWeeklyMinutes} onChange={(event) => setRuleDraft((current) => ({ ...current, maxWeeklyMinutes: event.target.value }))} /></label>
-                  <label>Descanso mínimo (min)<input required min={0} max={1440} type="number" value={ruleDraft.minimumRestMinutes} onChange={(event) => setRuleDraft((current) => ({ ...current, minimumRestMinutes: event.target.value }))} /></label>
-                  <label>Antecedência mínima (min)<input required min={0} max={43200} type="number" value={ruleDraft.minimumNoticeMinutes} onChange={(event) => setRuleDraft((current) => ({ ...current, minimumNoticeMinutes: event.target.value }))} /></label>
-                  <label>Trocas mensais<input required min={0} max={100} type="number" value={ruleDraft.maxMonthlyExchanges} onChange={(event) => setRuleDraft((current) => ({ ...current, maxMonthlyExchanges: event.target.value }))} /></label>
-                  <label className="support-check"><input type="checkbox" checked={ruleDraft.autoApproveEligibleSwaps} onChange={(event) => setRuleDraft((current) => ({ ...current, autoApproveEligibleSwaps: event.target.checked }))} /> Aprovar trocas elegíveis automaticamente</label>
-                  <label className="support-check support-wide-field"><input type="checkbox" checked={ruleDraft.requireManagerExtraApproval} onChange={(event) => setRuleDraft((current) => ({ ...current, requireManagerExtraApproval: event.target.checked }))} /> Exigir aprovação para turno extra</label>
-                  <div className="support-form-actions support-full-span"><button type="submit" disabled={busyAction !== null}><Save size={16} /> Criar regra</button></div>
-                </form>
-              </section>
+              <SupportScheduleRuleGovernance
+                teamId={teamId}
+                teamName={selectedTeam?.name}
+                planning={planning}
+                onPlanningChanged={loadPlanning}
+              />
 
               <section className="support-form-section" aria-labelledby="support-pattern-title">
                 <div className="support-section-heading"><div><p className="eyebrow">Turno-base</p><h2 id="support-pattern-title">Criar padrão</h2></div></div>
