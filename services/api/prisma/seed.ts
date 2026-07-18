@@ -1335,16 +1335,11 @@ async function main() {
     });
   }
 
-  const supportMetricSource = "Painel operacional demonstrativo";
-  const supportPeriodAnchor = new Date();
-  supportPeriodAnchor.setUTCHours(23, 59, 59, 999);
-  const supportPeriods = [21, 14, 7, 0].map((daysBack) => {
-    const periodEnd = new Date(supportPeriodAnchor);
-    periodEnd.setUTCDate(periodEnd.getUTCDate() - daysBack);
-    const periodStart = new Date(periodEnd);
-    periodStart.setUTCDate(periodStart.getUTCDate() - 6);
-    periodStart.setUTCHours(0, 0, 0, 0);
-    return { periodStart, periodEnd };
+  const supportMetricSource = "Exemplo operacional recebido em 2026-07-18";
+  const legacySupportMetricSource = "Painel operacional demonstrativo";
+  const sourcePeriod = (start: string, end: string) => ({
+    periodStart: new Date(`${start}T03:00:00.000Z`),
+    periodEnd: new Date(`${end}T02:59:59.999Z`)
   });
 
   // `npm run up` aligns an existing local database through a schema diff, which
@@ -1367,55 +1362,81 @@ async function main() {
     data: { metric: "SLA_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
   });
   await prisma.supportKpiEntry.updateMany({
-    where: { organizationId: organization.id, source: supportMetricSource, archivedAt: null },
+    where: {
+      organizationId: organization.id,
+      source: { in: [legacySupportMetricSource, supportMetricSource] },
+      archivedAt: null
+    },
     data: { archivedAt: new Date(), updatedById: admin.id }
   });
 
   const supportMetricSeries = [
-    { metric: "CSAT_SCORE", values: [4.25, 4.3, 4.4, 4.4], rawValues: ["4,25", "4,3", "4,4", "4,4"], channel: null, scopeType: "TEAM" },
-    { metric: "SLA_DURATION", values: [956, 564, 485, 778], rawValues: ["15min56s", "9min24s", "8min5s", "12min58s"], channel: null, scopeType: "TEAM" },
-    { metric: "PRODUCTIVITY", values: [72, 76, 79, 84], rawValues: null, channel: null, scopeType: "TEAM" },
-    { metric: "RECLAME_AQUI_OPEN", values: [6, 4, 3, 1], rawValues: null, channel: null, scopeType: "TEAM" },
-    { metric: "SATISFACTION_RATE", values: [77.5, 83, 79, 82.8], rawValues: ["77,50%", "83%", "79%", "82,80%"], channel: "TIKTOK", scopeType: "ORGANIZATION" },
-    { metric: "RESOLUTION_WITHIN_24H_RATE", values: [99.76, 99.8, 99.8, 99.51], rawValues: ["99,76%", "99,8%", "99,8%", "99,51%"], channel: "TIKTOK", scopeType: "ORGANIZATION" },
-    { metric: "FIRST_RESPONSE_TIME", values: [7500, 7200, 7440, 9300], rawValues: ["2h5min", "2h", "2h4min", "2h35min"], channel: "TIKTOK", scopeType: "ORGANIZATION" }
+    {
+      metric: "SATISFACTION_RATE",
+      observations: [
+        { ...sourcePeriod("2026-06-01", "2026-07-01"), value: 77.5, rawValue: "77,50%", granularity: "REPORTED_MONTH", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-01", "2026-08-01"), value: 83, rawValue: "83%", granularity: "REPORTED_MONTH", observationType: "EXPECTATION" },
+        { ...sourcePeriod("2026-07-01", "2026-07-09"), value: 79, rawValue: "79%", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-09", "2026-07-16"), value: 82.8, rawValue: "82,80%", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" }
+      ]
+    },
+    {
+      metric: "RESOLUTION_WITHIN_24H_RATE",
+      observations: [
+        { ...sourcePeriod("2026-06-01", "2026-07-01"), value: 99.76, rawValue: "99,76%", granularity: "REPORTED_MONTH", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-01", "2026-08-01"), value: 99.8, rawValue: "99,8%", granularity: "REPORTED_MONTH", observationType: "EXPECTATION" },
+        { ...sourcePeriod("2026-07-01", "2026-07-09"), value: 99.8, rawValue: "99,8%", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-09", "2026-07-16"), value: 99.51, rawValue: "99,51%", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" }
+      ]
+    },
+    {
+      metric: "FIRST_RESPONSE_TIME",
+      observations: [
+        { ...sourcePeriod("2026-06-01", "2026-07-01"), value: 7500, rawValue: "2h5min", granularity: "REPORTED_MONTH", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-01", "2026-08-01"), value: 7200, rawValue: "2h", granularity: "REPORTED_MONTH", observationType: "EXPECTATION" },
+        { ...sourcePeriod("2026-07-01", "2026-07-09"), value: 7440, rawValue: "2h4min", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" },
+        { ...sourcePeriod("2026-07-09", "2026-07-16"), value: 9300, rawValue: "2h35min", granularity: "REPORTED_INTERVAL", observationType: "ACTUAL" }
+      ]
+    }
   ] as const;
   for (const series of supportMetricSeries) {
     const definition = getSupportMetricDefinition(series.metric);
     if (!definition) throw new Error(`Missing support metric definition: ${series.metric}`);
-    for (const [index, period] of supportPeriods.entries()) {
+    for (const observation of series.observations) {
       const existing = await prisma.supportKpiEntry.findFirst({
         where: {
           organizationId: organization.id,
           metric: series.metric,
-          channel: series.channel,
-          periodStart: period.periodStart,
+          channel: "TIKTOK",
+          granularity: observation.granularity,
+          observationType: observation.observationType,
+          periodStart: observation.periodStart,
           source: supportMetricSource
         }
       });
       const data = {
         definitionVersion: definition.definitionVersion,
         unit: definition.unit,
-        value: series.values[index],
+        value: observation.value,
         numerator: null,
         denominator: null,
-        channel: series.channel,
-        granularity: "REPORTED_INTERVAL",
-        observationType: "ACTUAL",
-        rawValue: series.rawValues?.[index] ?? null,
+        channel: "TIKTOK",
+        granularity: observation.granularity,
+        observationType: observation.observationType,
+        rawValue: observation.rawValue,
         dataState: "AVAILABLE",
-        scopeType: series.scopeType,
-        teamId: series.scopeType === "TEAM" ? supportTeam.id : null,
-        teamLabel: series.scopeType === "TEAM" ? supportTeam.name : null,
-        periodEnd: period.periodEnd,
+        scopeType: "ORGANIZATION",
+        teamId: null,
+        teamLabel: null,
+        periodEnd: observation.periodEnd,
         source: supportMetricSource,
-        note: index === series.values.length - 1 ? "Último fechamento informado pela gestão." : null,
+        note: "Recorte fiel da série agregada TikTok; sem atribuição nominal a atendente.",
         updatedById: admin.id,
         status: "APPROVED",
-        submittedAt: period.periodEnd,
-        reviewedAt: period.periodEnd,
+        submittedAt: observation.periodEnd,
+        reviewedAt: observation.periodEnd,
         reviewedById: admin.id,
-        reviewNote: "Massa sintética aprovada para demonstração.",
+        reviewNote: "Valor preservado do exemplo operacional recebido.",
         archivedAt: null
       };
       if (existing) {
@@ -1425,7 +1446,7 @@ async function main() {
           data: {
             organizationId: organization.id,
             metric: series.metric,
-            periodStart: period.periodStart,
+            periodStart: observation.periodStart,
             createdById: admin.id,
             ...data
           }
@@ -1434,34 +1455,42 @@ async function main() {
     }
   }
 
-  const supportCampaignDefinitions = [
-    { name: "CSAT acima de 4,4", legacyName: "CSAT acima de 92", description: "Manter a qualidade percebida sem sacrificar o SLA.", metric: "CSAT_SCORE", targetValue: 4.4, comparison: "GTE" },
-    { name: "ReclameAqui sob controle", legacyName: null, description: "No máximo uma ocorrência aberta atribuída ao atendimento no período.", metric: "RECLAME_AQUI_OPEN", targetValue: 1, comparison: "LTE" }
-  ];
+  const supportCampaignDefinitions = [{
+    name: "Satisfação TikTok em 83%",
+    legacyNames: ["CSAT acima de 4,4", "CSAT acima de 92"],
+    description: "Acompanhar os realizados de julho contra a expectativa operacional informada.",
+    metric: "SATISFACTION_RATE",
+    targetValue: 83,
+    comparison: "GTE"
+  }];
+  await prisma.supportCampaign.updateMany({
+    where: { organizationId: organization.id, name: "ReclameAqui sob controle", status: { not: "CLOSED" } },
+    data: { status: "CLOSED", closedAt: new Date(), updatedById: admin.id }
+  });
   for (const definition of supportCampaignDefinitions) {
     const metricDefinition = getSupportMetricDefinition(definition.metric);
     if (!metricDefinition) throw new Error(`Missing support metric definition: ${definition.metric}`);
     const existing = await prisma.supportCampaign.findFirst({
       where: {
         organizationId: organization.id,
-        name: { in: [definition.name, definition.legacyName].filter((name): name is string => Boolean(name)) }
+        name: { in: [definition.name, ...definition.legacyNames] }
       },
       orderBy: { createdAt: "desc" }
     });
-    const { legacyName: _legacyName, ...campaignDefinition } = definition;
+    const { legacyNames: _legacyNames, ...campaignDefinition } = definition;
     const data = {
       ...campaignDefinition,
       definitionVersion: metricDefinition.definitionVersion,
       unit: metricDefinition.unit,
-      channel: null,
+      channel: "TIKTOK",
       granularity: "REPORTED_INTERVAL",
       observationType: "ACTUAL",
-      scopeType: "TEAM",
-      teamId: supportTeam.id,
-      teamLabel: supportTeam.name,
+      scopeType: "ORGANIZATION",
+      teamId: null,
+      teamLabel: null,
       status: "ACTIVE",
-      startsAt: daysAgo(7),
-      endsAt: addDays(21),
+      startsAt: new Date("2026-07-01T03:00:00.000Z"),
+      endsAt: new Date("2026-08-01T02:59:59.999Z"),
       lifecycleVersion: 2,
       audienceRule: "FIXED_AT_ACTIVATION",
       audienceSnapshotJson: JSON.stringify({
