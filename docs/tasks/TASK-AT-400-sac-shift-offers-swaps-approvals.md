@@ -1,7 +1,7 @@
 # TASK-AT-400 - Ofertas, trocas e aprovacoes de turno SAC
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-local-evidence-pending-external
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-400-sac-shift-offers-swaps-approvals.md
@@ -17,7 +17,10 @@ Troca de Pausa da TASK-AT-370 nao troca jornada. Escalas exigem workflow proprio
 
 ## Dependencias
 - satisfeitas: TASK-AT-392, TASK-AT-395, TASK-AT-396 e TASK-AT-397.
-- em aberto: quando aceite bilateral dispensa aprovacao gerencial.
+- em aberto: concorrencia/ordem de locks em PostgreSQL production-like; aceite bilateral autoaplica somente quando `autoApproveEligibleSwaps` da regra efetiva permite.
+
+## Estado reconciliado em 2026-07-18
+- Oferta/troca de turno possui state machine, revalidacao, snapshot, auditoria e notificacao deduplicada em transacao local. Esta atomicidade nao se confunde com a troca de Pausa da TASK-AT-370 e ainda nao possui evidencia PostgreSQL production-like.
 
 ## Alvos explicitos
 1. Schema/migracao e state machine de oferta/troca/aprovacao.

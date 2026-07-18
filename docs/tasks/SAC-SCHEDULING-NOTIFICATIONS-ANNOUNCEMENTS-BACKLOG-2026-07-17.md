@@ -1,7 +1,7 @@
 # Backlog de Escalas, Notificacoes e Avisos SAC - 2026-07-17
 
 ## Metadata
-- status: implemented-local-evidence-complete
+- status: implemented-partial-local-rollout-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/SAC-SCHEDULING-NOTIFICATIONS-ANNOUNCEMENTS-BACKLOG-2026-07-17.md
@@ -10,30 +10,34 @@
 Estender a transformacao operacional SAC com escalas efetivas, cobertura integrada a pausas, notificacoes resolviveis, overlays consistentes e Avisos recorrentes governados.
 
 ## Resultado da execucao local
-- TASK-AT-391 a TASK-AT-409 e TASK-AT-413/414: implementadas e validadas localmente.
-- TASK-AT-410: suites locais prontas; concorrencia PostgreSQL production-like permanece evidencia externa obrigatoria.
-- TASK-AT-411: componentes, acessibilidade e E2E versionados; execucao Playwright deste host bloqueada por biblioteca de sistema ausente.
-- TASK-AT-412: coverage verde e planos de carga seguros versionados; stress/spike/soak production-like ainda nao executados.
-- TASK-AT-415/416: demo local `GO`; rollout interno/externo `NO-GO` ate os gates do ledger de rollout.
+- Completas no recorte local implementado: TASK-AT-391, TASK-AT-399, TASK-AT-403, TASK-AT-404 e TASK-AT-406.
+- Parciais contra o contrato original: TASK-AT-392 a TASK-AT-398, TASK-AT-401/402, TASK-AT-405, TASK-AT-408 e TASK-AT-413/414.
+- TASK-AT-400, TASK-AT-407, TASK-AT-409 e TASK-AT-410 possuem implementacao/testes locais, mas concorrencia, scheduler e alertas production-like permanecem externos.
+- TASK-AT-411 possui suites Web e specs desktop/mobile para SAC, GESTOR e ADMIN; SUPERVISOR, workflows completos, axe/visual e a execucao de Chromium neste host permanecem pendentes.
+- TASK-AT-412 registra API 80,72% e Web 56,53% de linhas, mais cinco harnesses Artillery guardados para leitura, cobertura, idempotencia, claim burst e recorrencia; os planos concorrentes nao foram executados.
+- TASK-AT-415/416: demo local do subconjunto existente `GO`; rollout interno/externo `NO-GO`.
 
 ## Baseline reconciliada
 - `TASK-AT-363` criou a fronteira de times e membership historico SAC.
 - `TASK-AT-367` a `TASK-AT-372` definem pausas, capacidade, swaps, overrides e overlap, mas a baseline usa janelas de turno da politica e nao uma escala efetiva diaria completa.
+- `TASK-AT-373` a `TASK-AT-380` implementam KPIs ponderados e Campanhas SAC governadas. Esta frente deve preservar esses contratos e seus testes; nao os reimplementa nem os converte em ranking nominal.
 - `TASK-AT-044`, `TASK-AT-080` e `TASK-AT-085` entregaram notificacoes in-app, entidade/href e deep links; o fallback para entidade removida continua residual.
 - O Perfil atual concentra identidade e historico/filtros de notificacao; qualquer preferencia sem efeito real deve ser removida, nao simulada.
 - Popover de notificacoes, busca global, seletor de produtos, menu de emoji e menus de navegacao possuem comportamentos locais diferentes.
 - Avisos possuem `startsAt`/`expiresAt`, vigencia e ciencia, mas nao regra recorrente, ocorrencia materializada ou edicao futura versionada.
 
 ## Invariantes
-1. A escala efetiva diaria e a unica fonte de verdade para cobertura e elegibilidade de pausa.
+1. Quando equipe/data possui ocorrencia publicada, ela e a fonte de verdade para cobertura e elegibilidade de Pausa. O fallback por membership existe apenas na transicao de equipe/data sem ocorrencia publicada, deve ser identificado no payload e bloqueia declarar cutover concluido.
 2. Turno-base, regra, excecao e dobra nunca reescrevem historico publicado; mudancas futuras geram versao/ocorrencia nova.
 3. Pausa fora do turno efetivo e rejeitada no backend; conflito posterior exige remarcacao explicita e auditada.
-4. Troca/oferta de turno e atomica, tenant-scoped e subordinada a aprovacao configurada na versao da regra.
-5. Notificacao armazena alvo tipado; `href` derivado nao substitui autorizacao nem existencia da entidade.
-6. Entidade removida/arquivada abre fallback seguro e nao revela existencia cross-tenant.
-7. Escape fecha apenas a camada superior e restaura foco; click-outside nao dispara acao interna involuntaria.
-8. Regra recorrente e ocorrencia de Aviso sao separadas por chave idempotente e timezone IANA.
-9. Evidencia fake/local nao aprova concorrencia, carga, scheduler ou rollout live.
+4. Troca/oferta de turno e tenant-scoped e subordinada a aprovacao da regra; atomicidade production-like continua gate externo.
+5. Troca de Pausa e distinta de troca de turno: cada booking participa de no maximo um swap pendente por lock exclusivo, e aceite revalida ambos os slots/turnos na mesma transacao.
+6. Hoje a notificacao persiste `entityType`, `entityId` e `href`; o target tipado/fallback da Web nao substitui resolver backend, autorizacao nem verificacao de existencia.
+7. Entidade removida/arquivada so pode abrir fallback seguro apos resolucao tenant-scoped; esta parte do contrato permanece incompleta.
+8. Escape fecha apenas a camada superior e restaura foco; click-outside nao dispara acao interna involuntaria nas superficies ja migradas.
+9. Regra recorrente e ocorrencia de Aviso sao separadas por chave idempotente e timezone IANA.
+10. KPIs agregam numerador/denominador ou amostra ponderada; Campanhas usam apenas KPI aprovado e preservam snapshot de publico/proveniencia.
+11. Evidencia fake/local nao aprova concorrencia, carga, scheduler ou rollout live.
 
 ## Sequencia recomendada
 - Contrato, acesso e persistencia: TASK-AT-391 a TASK-AT-396.
@@ -84,3 +88,14 @@ Estender a transformacao operacional SAC com escalas efetivas, cobertura integra
 4. Troca pode ser autoaprovada pela regra; quando a regra exige gestao, aceite bilateral gera pendencia gerencial.
 5. Ocorrencias canceladas/expiradas permanecem auditaveis e nao sao apagadas.
 6. Perfil mantem historico clicavel de notificacoes e nao exibe preferencia sem efeito real.
+7. Materializacao de Escalas e manual por API/painel com intervalo e `dryRun`; somente Avisos possuem job/cron versionado.
+8. Troca de Pausa usa `SupportPauseSwapBookingLock` exclusivo por booking; conflito legado de migration exige nova confirmacao.
+9. A navegacao tipada de notificacao esta na Web; persistencia tipada e resolver API continuam pendentes.
+10. KPIs/Campanhas permanecem na baseline SAC e entram nesta frente somente como regressao operacional.
+
+## Lacunas que bloqueiam fechamento integral
+1. Excecoes completas de folga, ausencia, ajuste, revogacao e preview antes/depois.
+2. Draft/diff/archive de regra e automacao do horizonte de Escalas.
+3. Resolver backend tenant-scoped e persistencia de targets tipados de notificacao.
+4. Migracao dos overlays restantes, matriz E2E de SUPERVISOR/trocas/remarcacao/axe/visual e seed com todos os cenarios planejados.
+5. Flags independentes, carga/concorrencia PostgreSQL, alertas, backup/restore e rollback no ambiente alvo.

@@ -17,7 +17,10 @@ O calendario pessoal precisa mostrar o que vale de fato, distinguindo turno-base
 
 ## Dependencias
 - satisfeitas: TASK-AT-395, TASK-AT-396 e TASK-AT-397.
-- em aberto: n/a.
+- em aberto: excecoes completas da TASK-AT-396 e resolver backend da TASK-AT-397 nao fazem parte da evidencia local desta tela.
+
+## Estado reconciliado em 2026-07-18
+- O calendario self-scoped exibe ocorrencias publicadas, Pausas vinculadas/legadas, extras e negociacoes com polling de 45 segundos; nao enumera calendario nominal de outro atendente para SAC.
 
 ## Alvos explicitos
 1. API self-scoped por intervalo e timezone.

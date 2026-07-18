@@ -17,7 +17,10 @@ Announcement atual possui uma unica janela `startsAt`/`expiresAt`. Recorrencia m
 
 ## Dependencias
 - satisfeitas: TASK-AT-082, TASK-AT-098, TASK-AT-359, TASK-AT-391 e TASK-AT-392.
-- em aberto: comportamento do dia 29 em fevereiro nao bissexto.
+- em aberto: nenhuma decisao de calendario; fevereiro sem dia 29 usa `SKIP` e nao gera ocorrencia compensatoria.
+
+## Estado reconciliado em 2026-07-18
+- Serie, versao e ocorrencia sao entidades separadas; recorrencia mensal limitada, timezone IANA, vigencia e chave idempotente coexistem com Avisos unitarios legados.
 
 ## Alvos explicitos
 1. Schema/migracao aditiva de regra, versao e ocorrencia.

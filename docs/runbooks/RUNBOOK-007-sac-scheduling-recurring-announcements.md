@@ -15,6 +15,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Nao aprova rollout externo ou uso de SQLite sob concorrencia real.
 - Escala nao e folha de ponto, controle de presenca ou calculo de pagamento.
 - Trocas e extras registram a decisao operacional; pagamento continua fora do produto.
+- O `GO` documentado cobre somente demo local do subconjunto implementado; nao cobre excecoes completas, resolver backend de notificacao, carga ou rollback production-like.
 
 ## Contrato operacional
 - `SupportShiftOccurrence` publicada e a fonte de verdade do turno efetivo.
@@ -24,6 +25,9 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Mudanca de escala nunca move pausa silenciosamente. A reserva fica auditavel e exige escolha explicita de outro slot.
 - Regras, padroes e recorrencias sao versionados. Edicoes afetam somente o futuro.
 - Fevereiro sem dia 29 usa `SKIP`: nao antecipa nem desloca o aviso.
+- Troca de Pausa e troca de turno sao workflows distintos. A primeira reserva locks exclusivos para os dois bookings; a segunda segue a regra versionada de autoaprovacao/aprovacao gerencial.
+- KPIs de CSAT/SLA usam agregacao ponderada; Campanhas SAC consomem KPI aprovado, preservam publico/proveniencia e nao criam ranking nominal.
+- Notificacoes ainda persistem `entityType`, `entityId` e `href`. O fallback tipado atual e calculado na Web e nao prova existencia/autorizacao backend da entidade.
 
 ## Subida local reproduzivel
 1. Na raiz, rodar `npm run up`.
@@ -49,6 +53,12 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 5. Decidir trocas pendentes depois de revisar cobertura, sobreposicao, descanso e limite mensal.
 6. Conferir em `Pausas` os intervalos criticos e as reservas marcadas para reagendamento.
 
+## KPIs e Campanhas SAC
+1. Em `Performance`, publicar somente entradas revisadas; correcao de KPI aprovado cria nova revisao e preserva a anterior.
+2. Conferir CSAT/SLA pela amostra ponderada, nunca por media simples de percentuais.
+3. Em `Campanhas`, publicar a partir de metrica SAC e escopo explicito. Depois de ativa, nao alterar destrutivamente regra, publico ou proveniencia.
+4. Ao fechar a Campanha, conferir que o resultado usa KPIs aprovados do mesmo periodo/escopo.
+
 ## Avisos recorrentes
 1. Em `Avisos > Avisos recorrentes`, criar uma serie mensal.
 2. Defaults locais: dias 14 e 29, `America/Sao_Paulo`, 09:00 e politica `SKIP`.
@@ -64,12 +74,21 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Falha: `announcement.scheduler.failed`, `failedOccurrenceIds` ou ocorrencia `SCHEDULED` com horario passado.
 - Em `Administracao > Configuracoes > Saude operacional`, observar turnos publicados, trocas/extras pendentes, pausas para reagendar, series ativas, falhas e atrasos.
 
+## Entrega de notificacoes externas
+- `npm run job:notifications` percorre a organizacao de cada ADMIN ativo, sem limitar o job ao primeiro tenant encontrado.
+- Cada job e reclamado por compare-and-set. `PROCESSING` sem progresso por 15 minutos pode ser retomado e `maxAttempts` e respeitado por registro.
+- Somente `WHATSAPP` com template do mesmo canal e telefone pode chegar ao provider atual; `EMAIL`/`DASHBOARD`, template divergente ou destinatario ausente falham terminalmente sem envio indevido.
+- Webhooks Meta localizam o job pela chave unica `(provider, providerMessageId)` e ignoram evento repetido ou regressao de `READ`/`DELIVERED` para estado anterior.
+- Ainda existe uma janela externa entre o aceite do provider e a persistencia de `SENT`. Sem chave de idempotencia honrada pelo provider, crash nessa janela pode produzir reenvio apos o lease.
+
 ## Invariantes de seguranca
 - SAC recebe somente Avisos `PUBLISHED`; filtros de query nao ampliam a visibilidade para rascunhos, agendados ou arquivados.
 - Links de Avisos aceitam somente caminhos internos absolutos iniciados por `/` ou URLs `https://`. `http://`, `//`, `javascript:`, `data:` e caracteres de controle sao rejeitados.
 - Publicacao e expiracao recorrentes usam claim e compare-and-set. Cancelamento, arquivamento ou nova versao vencem uma execucao concorrente e nao podem ser ressuscitados pelo job.
 - Repetir candidatura ja pendente/aprovada e idempotente e nao reabre notificacoes lidas da gestao.
 - Toda leitura/escrita de Escalas inclui `organizationId`; gestao informa equipe explicitamente e SAC permanece no proprio escopo.
+- Cada booking participa de no maximo um swap de Pausa pendente. Aceite usa compare-and-set, revalida os dois slots e turnos e libera os locks no mesmo resultado transacional.
+- Nao tratar o parser Web de notificacao como autorizacao. Ate existir resolver backend, entidade removida/arquivada/cross-tenant permanece lacuna de rollout.
 
 ## Diagnostico rapido
 | Sintoma | Verificar | Curso de acao |
@@ -78,6 +97,7 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 | Pausa retorna conflito | turno cobrindo todo o slot, capacidade e cobertura minima | escolher outro slot ou revisar escala; override so com motivo e impacto confirmado |
 | Pausa pede reagendamento | troca/extra cancelou a ocorrencia vinculada | escolher novo slot; a reserva anterior permanece no historico |
 | Troca nao aplica | aceite da contraparte, aprovacao gerencial e limites da regra | abrir a negociacao pelo deep link e decidir; nao alterar status no banco |
+| Troca de Pausa retorna conflito | locks dos dois bookings, status/slot atuais e turnos publicados dos dois operadores | atualizar a agenda e criar nova proposta; nao reutilizar swap stale |
 | Aviso futuro nao aparece | serie ativa, versao vigente, timezone e scheduler | executar job manual, inspecionar log e ocorrencias atrasadas |
 | Dia 29 nao aparece em fevereiro | politica `SKIP` | comportamento esperado; nao criar ocorrencia compensatoria |
 
@@ -88,17 +108,20 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 4. Antes de desligar Escalas como fonte de Pausas, listar reservas com `shiftOccurrenceId` e `rescheduleRequiredAt` e reconciliar cada conflito.
 5. O fallback por membership existe somente para equipes/datas sem escala publicada. Nao cancelar ocorrencias para forcar fallback.
 6. Restaurar a imagem anterior e executar smoke por papel. Nao reverter migrations destrutivamente.
+7. Nao assumir feature flags: elas nao estao implementadas por frente. O disable atual depende de interromper mutacoes/cron e da coordenacao da imagem de aplicacao.
 
 ## Validacao minima
 - `npm run typecheck --workspace @alwaystrack/api`
 - `npm run typecheck --workspace @alwaystrack/web`
 - `npm test --workspace @alwaystrack/api -- --run src/core/support-scheduling/support-scheduling.service.test.ts src/core/support-scheduling/support-scheduling.handlers.http.test.ts src/core/support-operations/support-operations.service.test.ts src/core/announcements/announcement-series.service.test.ts src/core/announcements/announcement-series.handlers.http.test.ts`
-- `npm test --workspace @alwaystrack/web -- --run test/support-schedules.test.tsx test/support-pauses.test.tsx test/announcements.test.tsx test/notification-center.test.tsx`
+- `npm test --workspace @alwaystrack/web -- --run test/support-schedules.test.tsx test/support-pauses.test.tsx test/support-performance.test.tsx test/support-campaigns.test.tsx test/announcements.test.tsx test/notification-center.test.tsx test/notification-navigation.test.ts`
 - `npm run coverage --workspace @alwaystrack/api`
 - `npm run coverage --workspace @alwaystrack/web`
+- `npm run perf:support:validate`
 - `SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:read`
 - Escrita idempotente somente em banco descartavel: `NODE_ENV=test PERF_ALLOW_TEST_WRITES=true SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:idempotency`.
-- `npx playwright test tests/e2e/support-scheduling.desktop.spec.ts --project=desktop`; se o browser do host nao iniciar, registrar a biblioteca de sistema ausente e nao converter o teste listado em evidencia executada.
+- Bursts de candidatura/recorrencia somente em banco descartavel: `NODE_ENV=test PERF_ALLOW_TEST_WRITES=true SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:claim-burst` e `npm run perf:support:recurrence`.
+- `npx playwright test --list`, `npx playwright test --project=api` e os specs `support-operations.desktop.spec.ts`/`support-operations.mobile.spec.ts`; se o browser do host nao iniciar, registrar a biblioteca de sistema ausente e nao converter teste listado em evidencia executada.
 - `npm run job:announcement-scheduler` duas vezes; a segunda deve criar zero duplicatas.
 
 ## Gates ainda externos
@@ -106,3 +129,10 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Concorrencia e isolation em PostgreSQL production-like.
 - Rehearsal de backup/restore e rollback no ambiente alvo.
 - Leitor de tela, Edge e operacao sustentada com equipe real autorizada.
+- Carga real, stress/spike/soak, alertas exercitados e scheduler sustentado.
+
+## Lacunas internas conhecidas
+- Excecoes completas de folga/ausencia/ajuste e draft/diff/archive de regra.
+- Job automatico de horizonte de Escalas e flags independentes por frente.
+- Resolver backend/persistencia de targets tipados de notificacao.
+- Overlays restantes, seed integral e matriz E2E de SUPERVISOR/trocas/remarcacao/axe/visual.

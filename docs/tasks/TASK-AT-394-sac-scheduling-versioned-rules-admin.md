@@ -1,7 +1,7 @@
 # TASK-AT-394 - Regras versionadas e configuracao gerencial de Escalas
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-394-sac-scheduling-versioned-rules-admin.md
@@ -17,7 +17,10 @@ Regras facilmente configuraveis nao podem ser JSON livre nem edicao in-place. Du
 
 ## Dependencias
 - satisfeitas: TASK-AT-393.
-- em aberto: limites trabalhistas/operacionais e politica de aprovacao.
+- em aberto: workflow de draft/preview/diff/archive da regra; limites e politica de aprovacao ja sao campos versionados por equipe.
+
+## Estado reconciliado em 2026-07-18
+- API e painel criam diretamente a proxima versao imutavel com vigencia futura e fecham a janela anterior em transacao. Nao foram localizados draft persistido, diff entre versoes nem comando de arquivamento da regra.
 
 ## Alvos explicitos
 1. APIs draft/preview/publish/archive de regras.

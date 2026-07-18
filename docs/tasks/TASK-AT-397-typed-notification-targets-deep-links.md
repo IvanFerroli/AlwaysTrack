@@ -1,7 +1,7 @@
 # TASK-AT-397 - Alvos tipados e deep links de Notificacoes
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-397-typed-notification-targets-deep-links.md
@@ -17,7 +17,10 @@ Substituir navegacao baseada apenas em `href` por alvo tipado, resolucao autoriz
 
 ## Dependencias
 - satisfeitas: TASK-AT-044, TASK-AT-080, TASK-AT-085, TASK-AT-391 e TASK-AT-392.
-- em aberto: catalogo final de alvos de Escala e ocorrencia de Aviso.
+- em aberto: persistencia de target type/params/status, resolver API tenant-scoped, backfill e catalogo Shared. O catalogo atual existe somente no resolver Web.
+
+## Estado reconciliado em 2026-07-18
+- `InAppNotification` continua persistindo `entityType`, `entityId` e `href`; a Web deriva intent/fallback de rotas conhecidas. Nao existe verificacao backend da existencia/estado da entidade antes da navegacao, portanto fallback Web nao vale como prova anti-IDOR.
 
 ## Alvos explicitos
 1. Catalogo Shared de notification target type/params/fallback.

@@ -17,7 +17,10 @@ Ativar Escalas muda a fonte de elegibilidade de Pausa; ativar scheduler pode emi
 
 ## Dependencias
 - satisfeitas: TASK-AT-389 e TASK-AT-393 a TASK-AT-414.
-- em aberto: janela, owners e ambientes autorizados.
+- em aberto: flags independentes, janela, owners, ambiente autorizado, backup/restore, shadow diff e smoke por papel.
+
+## Estado reconciliado em 2026-07-18
+- Existe procedimento documental de disable/rollback e cron separado para Avisos, mas nao foram localizadas flags independentes para Escalas, Pausa efetiva, realtime, targets e recorrencia. Nenhum rehearsal production-like foi promovido como executado.
 
 ## Alvos explicitos
 1. Flags separadas de Escalas, Pausa efetiva, realtime, targets e recorrencia.

@@ -1,7 +1,7 @@
 # TASK-AT-401 - Painel gerencial de Escalas SAC
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-401-sac-manager-scheduling-panel.md
@@ -17,7 +17,10 @@ Gestao precisa comparar cobertura por time/data e agir sem editar entidades por 
 
 ## Dependencias
 - satisfeitas: TASK-AT-394, TASK-AT-396, TASK-AT-399 e TASK-AT-400.
-- em aberto: n/a.
+- em aberto: exportacao segura e visualizacao de folga/ausencia/ajuste dependem das lacunas da TASK-AT-396.
+
+## Estado reconciliado em 2026-07-18
+- O painel exige selecao explicita de equipe e mostra calendario, cobertura, regras, padroes, atribuicoes, extras e negociacoes persistidas. Nao foi localizada exportacao da escala nem uma fila completa de excecoes.
 
 ## Alvos explicitos
 1. View gerencial por time, data, atendente, estado e tipo.

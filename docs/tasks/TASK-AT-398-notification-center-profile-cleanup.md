@@ -1,7 +1,7 @@
 # TASK-AT-398 - Centro de Notificacoes e limpeza do Perfil
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-398-notification-center-profile-cleanup.md
@@ -17,7 +17,10 @@ O Perfil atual possui historico e filtros, nao um contrato real de preferencias 
 
 ## Dependencias
 - satisfeitas: TASK-AT-397 e TASK-AT-059.
-- em aberto: inventario final de preferencias mortas em branch de execucao.
+- em aberto: concluir o resolver backend da TASK-AT-397; o Perfil observado mantem historico/filtros e nao expoe preferencia de entrega inerte.
+
+## Estado reconciliado em 2026-07-18
+- Sino e Perfil usam o mesmo parser Web, preservam `readAt` e rejeitam destinos arbitrarios. Estados `ARCHIVED`/`REMOVED`/`FORBIDDEN_OR_MISSING` so produzem fallback quando chegam na entrada; a API atual nao os resolve.
 
 ## Alvos explicitos
 1. NotificationCenter e historico de Notificacoes no Perfil.

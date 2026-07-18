@@ -1,7 +1,7 @@
 # TASK-AT-416 - Gate final de Escalas, Notificacoes e Avisos
 
 ## Metadata
-- status: demo-go-rollout-no-go
+- status: demo-go-scope-limited-rollout-no-go
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-416-scheduling-final-readiness-gate.md
@@ -16,8 +16,11 @@ Emitir decisao reproduzivel de prontidao para demo, rollout interno e exposicao 
 TASK-AT-390 fecha a transformacao SAC original. Este gate adiciona Escalas e recorrencia sem promover screenshot, seed ou teste local a prova de concorrencia/scheduler live.
 
 ## Dependencias
-- satisfeitas: n/a.
-- em aberto: TASK-AT-390 e TASK-AT-391 a TASK-AT-415 com evidencias aplicaveis.
+- satisfeitas: demonstracao local basica de Escalas/Pausas/Avisos e regressao local de KPIs/Campanhas.
+- em aberto: tasks parciais e todas as evidencias production-like/humanas registradas em TASK-AT-415.
+
+## Estado reconciliado em 2026-07-18
+- O `GO` vale apenas para demo local do subconjunto existente com seed ficticio. Nao autoriza alegar excecoes completas, resolver backend de notificacao, matriz E2E completa, carga, concorrencia PostgreSQL ou rollback ensaiado.
 
 ## Alvos explicitos
 1. Matriz requisito -> task -> teste -> evidencia -> owner.

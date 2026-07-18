@@ -1,7 +1,7 @@
 # TASK-AT-414 - Documentacao de Escalas, Notificacoes e Avisos
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-414-scheduling-notification-announcement-docs.md
@@ -17,7 +17,10 @@ Gestao precisa configurar regras sem ler codigo; operadores precisam diagnostica
 
 ## Dependencias
 - satisfeitas: TASK-AT-388 e TASK-AT-391 a TASK-AT-413.
-- em aberto: resultados do rehearsal da TASK-AT-415.
+- em aberto: matriz API/RBAC executavel, documentacao das lacunas parciais e resultados do rehearsal production-like da TASK-AT-415.
+
+## Estado reconciliado em 2026-07-18
+- ADR, backlog, runbook e audit existem e sao atualizados por esta reconciliacao. A documentacao nao deve apresentar flags, resolver backend, E2E mobile, carga ou rehearsal como entregues porque esses artefatos/evidencias nao foram localizados.
 
 ## Alvos explicitos
 1. Arquitetura/domains e dicionario de estados/precedencia.

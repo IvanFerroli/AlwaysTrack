@@ -1,7 +1,7 @@
 # TASK-AT-392 - RBAC, tenancy e auditoria de Escalas SAC
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-392-sac-scheduling-rbac-tenancy-audit.md
@@ -17,7 +17,10 @@ TASK-AT-364 cobre Pausas, Performance e Campanhas. Escalas adicionam alteracao d
 
 ## Dependencias
 - satisfeitas: TASK-AT-364 e TASK-AT-391.
-- em aberto: politica de aprovacao de dobra e troca.
+- em aberto: consolidar a matriz canonica Shared/documental e anexar evidencia security production-like; a politica de aprovacao ja e versionada na regra da equipe.
+
+## Estado reconciliado em 2026-07-18
+- Rotas e services de Escalas aplicam role, `organizationId`, equipe explicita e escopo self/team, com testes negativos locais. A matriz Shared de permissoes granulares prevista nesta task nao foi localizada como artefato independente.
 
 ## Alvos explicitos
 1. Matriz canonica Shared e documentacao de seguranca.

@@ -1,7 +1,7 @@
 # TASK-AT-412 - Carga, coverage, contratos e gates
 
 ## Metadata
-- status: implemented-local-load-evidence-pending
+- status: implemented-partial-load-evidence-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-412-scheduling-load-coverage-contract-gates.md
@@ -17,7 +17,10 @@ Testes focados nao provam que novos modulos entram no gate raiz ou suportam vira
 
 ## Dependencias
 - satisfeitas: TASK-AT-386, TASK-AT-409, TASK-AT-410 e TASK-AT-411.
-- em aberto: ambiente production-like para load/soak.
+- em aberto: carga real, stress/spike/soak, burst de trocas/remarcacoes, contratos versionados completos e ambiente production-like.
+
+## Estado reconciliado em 2026-07-18
+- API passou 892 testes e coverage de 80,72% linhas, 66,99% branches e 81,20% funcoes; Web passou 115 testes e coverage de 56,53% linhas, 75,38% branches e 54,84% funcoes. Cinco planos Artillery locais cobrem leitura, invariantes de cobertura, materializacao idempotente, burst de 12 candidaturas e quatro materializadores de recorrencia. O gate estatico 8/8 integra `check:source`; nenhuma carga real foi executada e swaps, fan-out sustentado e recovery production-like continuam pendentes.
 
 ## Alvos explicitos
 1. Coverage por branch de risco em API/Shared/Web.

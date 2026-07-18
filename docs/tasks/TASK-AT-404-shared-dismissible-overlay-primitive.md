@@ -17,7 +17,10 @@ NotificationCenter trata Escape/foco, enquanto busca global, menu de emoji e sel
 
 ## Dependencias
 - satisfeitas: inventario da TASK-AT-391 e testes Web existentes.
-- em aberto: escolher helper interno ou primitive da biblioteca ja instalada, sem nova dependencia desnecessaria.
+- em aberto: nenhuma para a primitive; a migracao das superficies permanece na TASK-AT-405.
+
+## Estado reconciliado em 2026-07-18
+- `useDismissibleLayer` implementa stack, Escape somente na camada superior, outside por `pointerdown` e restauracao de foco, com testes isolados.
 
 ## Alvos explicitos
 1. Hook/component de dismissible layer e stack de overlays.

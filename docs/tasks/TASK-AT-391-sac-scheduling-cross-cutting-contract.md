@@ -16,8 +16,11 @@ Fixar fronteiras, invariantes e mapa de compatibilidade para Escalas, Pausas, No
 A politica atual de Pausas guarda janelas de turno em JSON e calcula capacidade por memberships ativos. Escala efetiva diaria exige fonte de verdade propria e nao pode ser apenas outro campo da pausa.
 
 ## Dependencias
-- satisfeitas: baseline documental TASK-AT-363, TASK-AT-367 a TASK-AT-372 e TASK-AT-383 a TASK-AT-390.
-- em aberto: reconciliar o status real de implementacao dessas baselines antes da execucao.
+- satisfeitas: baseline implementada localmente de TASK-AT-363, TASK-AT-367 a TASK-AT-380 e contrato aceito em `docs/adr/ADR-006-escala-efetiva-pausas-e-recorrencia.md`.
+- em aberto: evidencias production-like e humanas permanecem nos gates TASK-AT-410 a TASK-AT-416.
+
+## Estado reconciliado em 2026-07-18
+- O contrato separa membership, escala publicada, Pausa, troca de Pausa, troca de turno, KPI/Campanha e ocorrencia de Aviso; as limitacoes de cada implementacao ficam rastreadas nas tasks seguintes.
 
 ## Alvos explicitos
 1. ADR/delta de dominio e diagrama de fontes de verdade.

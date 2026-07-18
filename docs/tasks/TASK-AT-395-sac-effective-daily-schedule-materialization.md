@@ -1,7 +1,7 @@
 # TASK-AT-395 - Materializacao da escala efetiva diaria
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-395-sac-effective-daily-schedule-materialization.md
@@ -17,7 +17,10 @@ Cobertura e Pausas precisam consultar um snapshot diario deterministico. Calcula
 
 ## Dependencias
 - satisfeitas: TASK-AT-394.
-- em aberto: horizonte de materializacao e frequencia do job.
+- em aberto: automacao e horizonte operacional do job de Escalas; a materializacao atual e acionada por API/painel com intervalo explicito e `dryRun`.
+
+## Estado reconciliado em 2026-07-18
+- O service materializa ocorrencias publicadas de forma idempotente, preserva snapshots e reporta conflitos. Nao ha cron/job versionado para manter o horizonte de Escalas automaticamente.
 
 ## Alvos explicitos
 1. Compilador puro de escala efetiva.

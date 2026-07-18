@@ -1,7 +1,7 @@
 # TASK-AT-393 - Schema e migracoes aditivas de Escalas SAC
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-393-sac-scheduling-schema-migrations.md
@@ -17,7 +17,10 @@ Persistir turno-base recorrente, versao de regra, escala efetiva, excecao e inte
 
 ## Dependencias
 - satisfeitas: TASK-AT-363, TASK-AT-391 e TASK-AT-392.
-- em aberto: contrato de dobra/slot extra aprovado na TASK-AT-391.
+- em aberto: replay historico PostgreSQL e modelo/workflow explicito de folga, ausencia e ajuste; dobra/extra usa `SupportExtraShiftSlot` e `SupportShiftOccurrence.kind`.
+
+## Estado reconciliado em 2026-07-18
+- O schema aditivo persiste regra, padrao, atribuicao, ocorrencia, oferta, extra e vinculo opcional da Pausa. Nao existe entidade de excecao cobrindo toda a taxonomia originalmente prevista, e o replay integral de migrations continua externo.
 
 ## Alvos explicitos
 1. Schema Prisma e migracoes expand-only.

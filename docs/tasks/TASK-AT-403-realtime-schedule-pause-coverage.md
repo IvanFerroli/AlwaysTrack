@@ -17,7 +17,10 @@ TASK-AT-372 mostra overlap de Pausas. A nova leitura precisa incluir quem realme
 
 ## Dependencias
 - satisfeitas: TASK-AT-372, TASK-AT-400, TASK-AT-401 e TASK-AT-402.
-- em aberto: transporte e SLO de staleness definidos na TASK-AT-391.
+- em aberto: transporte push e operacao sustentada; a decisao local usa polling de 45 segundos, refresh manual e alvo documental de staleness de ate 60 segundos.
+
+## Estado reconciliado em 2026-07-18
+- Nao ha SSE/WebSocket nesta frente. O read model calcula cobertura por ocorrencias publicadas menos Pausas e identifica a fonte de transicao quando nao existe escala publicada.
 
 ## Alvos explicitos
 1. Read model/timeline de cobertura por time e intervalo.

@@ -1,7 +1,7 @@
 # TASK-AT-402 - Pausas subordinadas ao turno efetivo
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-transition-active
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-402-pause-effective-shift-subordination-reschedule.md
@@ -17,7 +17,10 @@ TASK-AT-367 a TASK-AT-371 usam politica, membership e janelas de turno. Com Esca
 
 ## Dependencias
 - satisfeitas: TASK-AT-369, TASK-AT-370, TASK-AT-371, TASK-AT-395 e TASK-AT-396.
-- em aberto: estrategia de transicao para bookings criados antes da escala efetiva.
+- em aberto: encerrar o dual-read somente apos reconciliar bookings legados e validar o cutover; o fallback por membership permanece para equipe/data sem ocorrencia publicada.
+
+## Estado reconciliado em 2026-07-18
+- Reserva e remarcacao ligam novos bookings a uma ocorrencia publicada e revalidam turno/cobertura em transacao. Troca de Pausa usa locks exclusivos por booking, compare-and-set e revalidacao dos dois turnos; a prova de concorrencia ainda e local/simulada, nao PostgreSQL production-like.
 
 ## Alvos explicitos
 1. Validadores/transacoes de SupportPauseBooking e Swap.

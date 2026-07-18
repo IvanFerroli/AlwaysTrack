@@ -1,7 +1,7 @@
 # TASK-AT-411 - Testes Web, E2E, acessibilidade e visual
 
 ## Metadata
-- status: implemented-local-browser-evidence-pending
+- status: implemented-partial-browser-evidence-pending
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-411-scheduling-web-e2e-accessibility-visual-tests.md
@@ -17,7 +17,10 @@ Calendarios, timelines, popovers e edicao futura podem passar no typecheck e ain
 
 ## Dependencias
 - satisfeitas: TASK-AT-385, TASK-AT-398 a TASK-AT-408 e TASK-AT-410.
-- em aberto: n/a.
+- em aberto: executar o Playwright de navegador e completar SUPERVISOR, workflows de troca/remarcacao, axe e baselines visuais.
+
+## Estado reconciliado em 2026-07-18
+- Testes Web de componentes cobrem as superficies principais. Dois specs novos adicionam quatro jornadas: SAC mobile em Escalas/Pausas/Performance/Campanhas, GESTOR no painel explicito de equipe e ciencia SAC visivel nominalmente ao ADMIN. Playwright descobriu 41 testes e o projeto API passou 13/13; os projetos de navegador nao iniciaram por falta de `libnspr4.so`.
 
 ## Alvos explicitos
 1. Testes de componentes Web.

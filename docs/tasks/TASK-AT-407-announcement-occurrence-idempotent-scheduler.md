@@ -1,7 +1,7 @@
 # TASK-AT-407 - Materializador idempotente de Avisos recorrentes
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-local-evidence-pending-external
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-407-announcement-occurrence-idempotent-scheduler.md
@@ -17,7 +17,10 @@ O `effectiveStatus` atual calcula vigencia em leitura, mas nao publica/notifica 
 
 ## Dependencias
 - satisfeitas: TASK-AT-397 e TASK-AT-406.
-- em aberto: infraestrutura de job/scheduler do ambiente de deploy.
+- em aberto: executar scheduler concorrente/catch-up no ambiente alvo e provar retomada sem duplicidade; cron de referencia e job local estao versionados.
+
+## Estado reconciliado em 2026-07-18
+- Materializacao, publicacao e expiracao usam chaves unicas, claim e compare-and-set. Retry local foi exercitado, mas exactly-once logico sob concorrencia PostgreSQL e falha parcial continua gate externo.
 
 ## Alvos explicitos
 1. Job/servico dry-run e materializacao por horizonte.

@@ -1,7 +1,7 @@
 # TASK-AT-409 - Observabilidade, SLOs e alertas da nova frente
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-409-scheduling-notification-announcement-observability.md
@@ -17,7 +17,10 @@ Falha de job, escala stale, cobertura atrasada ou notificacao sem alvo pode pare
 
 ## Dependencias
 - satisfeitas: TASK-AT-383 e TASK-AT-395 a TASK-AT-408.
-- em aberto: destino live de metricas/alertas.
+- em aberto: destino live, alertas exercitados e SLO sustentado no ambiente alvo.
+
+## Estado reconciliado em 2026-07-18
+- Saude operacional e eventos locais cobrem volume/atraso de escalas, trocas, pausas e series; isto nao demonstra entrega de alerta, cardinalidade ou redaction em producao.
 
 ## Alvos explicitos
 1. Metricas/logs/traces de Escalas, cobertura e scheduler.

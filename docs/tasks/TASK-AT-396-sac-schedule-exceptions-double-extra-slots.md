@@ -1,7 +1,7 @@
 # TASK-AT-396 - Excecoes, dobra e slot extra de Escalas SAC
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-396-sac-schedule-exceptions-double-extra-slots.md
@@ -17,7 +17,10 @@ Excecao nao deve editar turno-base nem substituir o dia inteiro sem provenance. 
 
 ## Dependencias
 - satisfeitas: TASK-AT-392 e TASK-AT-395.
-- em aberto: limites de horas/descanso e aprovadores autorizados.
+- em aberto: folga, ausencia, ajuste, revogacao e override como workflow de excecao; limites, descanso e aprovacao de extra ja sao revalidados pela regra efetiva.
+
+## Estado reconciliado em 2026-07-18
+- Slot extra e dobra sao representados por candidatura aprovada e ocorrencia `EXTRA`/`DOUBLE`, com snapshot e auditoria. A taxonomia completa de excecoes e o preview antes/depois nao foram implementados.
 
 ## Alvos explicitos
 1. APIs de solicitar, revisar, aprovar, rejeitar e revogar excecao.

@@ -17,7 +17,10 @@ Os riscos centrais sao precedencia temporal, reprocessamento, troca atomica, Pau
 
 ## Dependencias
 - satisfeitas: TASK-AT-384 e TASK-AT-393 a TASK-AT-409.
-- em aberto: ambiente Postgres production-like.
+- em aberto: replay/migrations e corridas reais em PostgreSQL production-like.
+
+## Estado reconciliado em 2026-07-18
+- Suites locais cobrem timezone/DST, tenancy, idempotencia, state machines, scheduler, claim atomico de notificacao e concorrencia simulada. Locks exclusivos de booking protegem troca de Pausa e o worker recupera lease stale; mocks/SQLite e planos Artillery nao executados nao provam isolamento, ordem de locks ou recovery PostgreSQL.
 
 ## Alvos explicitos
 1. Suites de compilador/materializador, workflows e coverage read model.

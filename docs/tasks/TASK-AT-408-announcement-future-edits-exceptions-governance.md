@@ -1,7 +1,7 @@
 # TASK-AT-408 - Edicao futura e governanca de Avisos recorrentes
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-408-announcement-future-edits-exceptions-governance.md
@@ -17,7 +17,10 @@ Editar o template de um Aviso recorrente nao pode mudar conteudo ja publicado, r
 
 ## Dependencias
 - satisfeitas: TASK-AT-404, TASK-AT-406 e TASK-AT-407.
-- em aberto: retencao/exibicao de ocorrencia cancelada.
+- em aberto: preview/diff formal entre versoes e conjunto afetado; ocorrencias canceladas permanecem retidas e auditaveis.
+
+## Estado reconciliado em 2026-07-18
+- Gestao cria versao futura, cancela ocorrencia com motivo e arquiva serie sem apagar historico. Nao foi localizado endpoint separado de preview/diff antes do commit.
 
 ## Alvos explicitos
 1. APIs `edit future`, `skip/cancel occurrence`, preview e audit history.

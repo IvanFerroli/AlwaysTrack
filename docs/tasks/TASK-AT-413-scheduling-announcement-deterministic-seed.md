@@ -1,7 +1,7 @@
 # TASK-AT-413 - Seed deterministico de Escalas e Avisos
 
 ## Metadata
-- status: completed-local-validation
+- status: implemented-partial-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-413-scheduling-announcement-deterministic-seed.md
@@ -17,7 +17,10 @@ Um unico turno sem conflito nao exercita excecao, dobra, remarcacao, fallback ou
 
 ## Dependencias
 - satisfeitas: TASK-AT-387 e TASK-AT-399 a TASK-AT-412.
-- em aberto: politica de fevereiro e relogio de referencia da demo.
+- em aberto: ampliar a massa para a matriz prevista; a politica de fevereiro esta fechada em `SKIP`, mas o seed ainda deriva datas de `now` local.
+
+## Estado reconciliado em 2026-07-18
+- O seed cria uma regra, uma equipe, dois padroes, tres atribuicoes, ocorrencias regulares, um slot extra, Pausas e uma serie 14/29. Nao cria duas versoes/dois times, excecoes, ofertas/trocas em varios estados, Pausa invalidada/remarcada nem ocorrencias recorrentes pre-materializadas.
 
 ## Alvos explicitos
 1. Seed Prisma/reset local idempotente.
