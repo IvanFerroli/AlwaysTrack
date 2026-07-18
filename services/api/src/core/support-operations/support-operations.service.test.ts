@@ -3,6 +3,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import {
   SupportOperationsError,
   bookSupportPauseSlot,
+  cancelSupportPauseBooking,
   cancelSupportPauseSwap,
   createSupportPauseSlot,
   createSupportCampaign,
@@ -208,6 +209,25 @@ describe("support operations service", () => {
       overrideCoverage: true,
       overrideReason: "Cobertura autorizada"
     })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps elapsed pause bookings immutable", async () => {
+    const prisma = {
+      supportPauseBooking: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "booking-1",
+          userId: sac.id,
+          overrideReason: null,
+          slot: { startsAt: new Date("2020-07-17T15:00:00.000Z") }
+        }),
+        update: vi.fn()
+      },
+      $transaction: vi.fn()
+    };
+
+    await expect(cancelSupportPauseBooking(prisma as never, sac, "booking-1"))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

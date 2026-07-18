@@ -1,4 +1,4 @@
-import { ArrowLeftRight, CalendarPlus, Check, RefreshCw, Save, ShieldAlert, X } from "lucide-react";
+import { ArrowLeftRight, CalendarPlus, Check, Clock3, RefreshCw, Save, ShieldAlert, X } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
@@ -333,15 +333,16 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
             </div>
             {data.slots.length ? (
               <div className="support-slot-grid">
-                {data.slots.map((slot) => (
-                  <article className={`support-slot-card ${slot.myBooking ? "selected" : ""}`} key={slot.id}>
+                {data.slots.map((slot) => {
+                  const slotStarted = new Date(slot.startsAt).getTime() <= Date.now();
+                  return <article className={`support-slot-card ${slot.myBooking ? "selected" : ""} ${slotStarted ? "elapsed" : ""}`} key={slot.id}>
                     <header>
                       <div>
                         <time dateTime={slot.startsAt}>{formatSupportTime(slot.startsAt, data.policy.timezone)}</time>
                         <span aria-hidden="true">-</span>
                         <time dateTime={slot.endsAt}>{formatSupportTime(slot.endsAt, data.policy.timezone)}</time>
                       </div>
-                      {slot.myBooking ? <span className="support-status active">Minha pausa</span> : null}
+                      {slot.myBooking ? <span className="support-status active">Minha pausa</span> : slotStarted ? <span className="support-status closed">Encerrado</span> : null}
                     </header>
                     <h3>{slot.label || "Pausa"}</h3>
                     <p>{slot.bookedCount} de {slot.capacity} vaga(s) ocupada(s)</p>
@@ -373,7 +374,11 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                     ) : <span className="muted">Sem reservas</span>}
                     {!canManage ? (
                       <footer>
-                        {slot.myBooking ? (
+                        {slotStarted ? (
+                          <button type="button" disabled title="Este horário já começou e permanece apenas como histórico.">
+                            <Clock3 size={16} /> Horário encerrado
+                          </button>
+                        ) : slot.myBooking ? (
                           <ConfirmButton
                             confirmLabel="Confirmar cancelamento"
                             disabled={busyAction !== null}
@@ -388,8 +393,8 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                         )}
                       </footer>
                     ) : null}
-                  </article>
-                ))}
+                  </article>;
+                })}
               </div>
             ) : <OperationalState state="empty" title="Nenhum slot cadastrado" detail={canManage ? "Use a configuração para criar os horários do dia." : "A gestão ainda não publicou horários para esta data."} />}
           </section>

@@ -20,8 +20,8 @@ const baseSlot = {
 };
 const bookingAna = { id: "booking-a", slotId: "slot-a", userId: "sac-1", status: "BOOKED", user: agentAna };
 const bookingBruno = { id: "booking-b", slotId: "slot-b", userId: "sac-2", status: "BOOKED", user: agentBruno };
-const slotA = { ...baseSlot, id: "slot-a", label: "Almoço", startsAt: "2026-07-17T15:00:00.000Z", endsAt: "2026-07-17T15:15:00.000Z", bookings: [bookingAna], myBooking: bookingAna };
-const slotB = { ...baseSlot, id: "slot-b", label: "Café", startsAt: "2026-07-17T15:30:00.000Z", endsAt: "2026-07-17T15:45:00.000Z", bookings: [bookingBruno], myBooking: null };
+const slotA = { ...baseSlot, id: "slot-a", label: "Almoço", startsAt: "2099-07-17T15:00:00.000Z", endsAt: "2099-07-17T16:15:00.000Z", bookings: [bookingAna], myBooking: bookingAna };
+const slotB = { ...baseSlot, id: "slot-b", label: "Café", startsAt: "2099-07-17T15:30:00.000Z", endsAt: "2099-07-17T16:45:00.000Z", bookings: [bookingBruno], myBooking: null };
 
 const pauseResponse = {
   date: "2026-07-17",
@@ -93,6 +93,18 @@ describe("SupportPausesView", () => {
 
     await user.click(within(table).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/swaps/swap-2", { method: "DELETE" }));
+  });
+
+  it("keeps elapsed slots as read-only history", async () => {
+    apiMock.mockResolvedValueOnce({
+      ...pauseResponse,
+      slots: [{ ...slotB, startsAt: "2020-07-17T15:30:00.000Z", endsAt: "2020-07-17T16:45:00.000Z" }]
+    });
+    render(<SupportPausesView user={sac} />);
+
+    expect(await screen.findByText("Encerrado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Horário encerrado" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Escolher pausa" })).not.toBeInTheDocument();
   });
 
   it("exposes policy and slot administration only to managers", async () => {

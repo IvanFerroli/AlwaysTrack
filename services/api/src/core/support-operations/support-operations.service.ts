@@ -661,9 +661,13 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
 }
 
 export async function cancelSupportPauseBooking(prisma: PrismaClient, actor: CurrentUser, bookingId: string, input?: unknown) {
-  const booking = await prisma.supportPauseBooking.findFirst({ where: { id: bookingId, organizationId: actor.organizationId } });
+  const booking = await prisma.supportPauseBooking.findFirst({
+    where: { id: bookingId, organizationId: actor.organizationId },
+    include: { slot: { select: { startsAt: true } } }
+  });
   if (!booking) throw new SupportOperationsError("NOT_FOUND");
   if (booking.userId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+  if (booking.slot.startsAt <= new Date()) throw new SupportOperationsError("CONFLICT");
   const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const managerRevocation = booking.userId !== actor.id && isManager(actor) && Boolean(booking.overrideReason);
   const revokeReason = managerRevocation ? requiredString(body.reason, 300) : optionalString(body.reason, 300);

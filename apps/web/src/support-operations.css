@@ -432,6 +432,14 @@
   color: #3538cd;
 }
 
+.support-slot-card.elapsed {
+  background: var(--color-surface-soft);
+}
+
+.support-slot-card.elapsed > :not(header) {
+  opacity: 0.72;
+}
+
 .support-notice,
 .support-attention,
 .support-operations > .error {
