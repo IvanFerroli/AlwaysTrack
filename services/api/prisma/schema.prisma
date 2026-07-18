@@ -79,6 +79,7 @@ model Organization {
   supportPauseSlots             SupportPauseSlot[]
   supportPauseBookings          SupportPauseBooking[]
   supportPauseSwaps             SupportPauseSwap[]
+  supportScheduleRuleDrafts     SupportScheduleRuleDraft[]
   supportScheduleRuleVersions   SupportScheduleRuleVersion[]
   supportShiftPatternVersions   SupportShiftPatternVersion[]
   supportShiftAssignments       SupportShiftAssignment[]
@@ -223,6 +224,9 @@ model User {
   supportCampaignsCreated              SupportCampaign[]              @relation("SupportCampaignCreator")
   supportCampaignsUpdated              SupportCampaign[]              @relation("SupportCampaignUpdater")
   supportTeamMemberships               SupportTeamMembership[]
+  supportScheduleRuleDraftsCreated     SupportScheduleRuleDraft[]     @relation("SupportScheduleRuleDraftCreator")
+  supportScheduleRuleDraftsUpdated     SupportScheduleRuleDraft[]     @relation("SupportScheduleRuleDraftUpdater")
+  supportScheduleRuleDraftsArchived    SupportScheduleRuleDraft[]     @relation("SupportScheduleRuleDraftArchiver")
   supportScheduleRulesCreated          SupportScheduleRuleVersion[]   @relation("SupportScheduleRuleCreator")
   supportShiftPatternsCreated          SupportShiftPatternVersion[]   @relation("SupportShiftPatternCreator")
   supportShiftAssignments              SupportShiftAssignment[]       @relation("SupportShiftAssignmentUser")
@@ -442,6 +446,7 @@ model SupportTeam {
   pauseSlots           SupportPauseSlot[]
   kpiEntries           SupportKpiEntry[]
   campaigns            SupportCampaign[]
+  scheduleRuleDrafts   SupportScheduleRuleDraft[]
   scheduleRuleVersions SupportScheduleRuleVersion[]
   shiftPatternVersions SupportShiftPatternVersion[]
   shiftAssignments     SupportShiftAssignment[]
@@ -477,6 +482,7 @@ model SupportScheduleRuleVersion {
   id                          String    @id @default(cuid())
   organizationId              String
   teamId                      String
+  sourceDraftId               String?   @unique
   version                     Int
   timezone                    String    @default("America/Sao_Paulo")
   maxDailyMinutes             Int       @default(840)
@@ -489,19 +495,68 @@ model SupportScheduleRuleVersion {
   active                      Boolean   @default(true)
   effectiveFrom               DateTime
   effectiveTo                 DateTime?
+  normalizedPayloadJson       String?
+  checksum                    String?
+  archivedAt                  DateTime?
   createdById                 String
   createdAt                   DateTime  @default(now())
 
-  organization Organization             @relation(fields: [organizationId], references: [id])
-  team         SupportTeam              @relation(fields: [teamId], references: [id])
-  createdBy    User                     @relation("SupportScheduleRuleCreator", fields: [createdById], references: [id])
-  occurrences  SupportShiftOccurrence[]
-  offers       SupportShiftOffer[]
-  extraSlots   SupportExtraShiftSlot[]
+  organization      Organization               @relation(fields: [organizationId], references: [id])
+  team              SupportTeam                @relation(fields: [teamId], references: [id])
+  sourceDraft       SupportScheduleRuleDraft?  @relation("SupportScheduleRuleVersionSourceDraft", fields: [sourceDraftId], references: [id], onDelete: Restrict)
+  draftsBasedOn     SupportScheduleRuleDraft[] @relation("SupportScheduleRuleDraftBaseVersion")
+  publishedForDraft SupportScheduleRuleDraft?  @relation("SupportScheduleRuleDraftPublishedVersion")
+  createdBy         User                       @relation("SupportScheduleRuleCreator", fields: [createdById], references: [id])
+  occurrences       SupportShiftOccurrence[]
+  offers            SupportShiftOffer[]
+  extraSlots        SupportExtraShiftSlot[]
 
   @@unique([teamId, version])
   @@index([organizationId, effectiveFrom, effectiveTo])
   @@index([teamId, active, effectiveFrom])
+  @@index([checksum])
+}
+
+model SupportScheduleRuleDraft {
+  id                          String    @id @default(cuid())
+  organizationId              String
+  teamId                      String
+  status                      String    @default("DRAFT")
+  revision                    Int       @default(1)
+  baseVersionId               String?
+  timezone                    String    @default("America/Sao_Paulo")
+  maxDailyMinutes             Int       @default(840)
+  maxWeeklyMinutes            Int       @default(3600)
+  minimumRestMinutes          Int       @default(600)
+  minimumNoticeMinutes        Int       @default(60)
+  maxMonthlyExchanges         Int       @default(8)
+  autoApproveEligibleSwaps    Boolean   @default(true)
+  requireManagerExtraApproval Boolean   @default(true)
+  effectiveFrom               DateTime
+  effectiveTo                 DateTime?
+  normalizedPayloadJson       String
+  checksum                    String
+  createdById                 String
+  updatedById                 String
+  publishedVersionId          String?   @unique
+  archivedAt                  DateTime?
+  archivedById                String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  organization     Organization                @relation(fields: [organizationId], references: [id])
+  team             SupportTeam                 @relation(fields: [teamId], references: [id])
+  baseVersion      SupportScheduleRuleVersion? @relation("SupportScheduleRuleDraftBaseVersion", fields: [baseVersionId], references: [id], onDelete: Restrict)
+  publishedVersion SupportScheduleRuleVersion? @relation("SupportScheduleRuleDraftPublishedVersion", fields: [publishedVersionId], references: [id], onDelete: Restrict)
+  sourcedVersion   SupportScheduleRuleVersion? @relation("SupportScheduleRuleVersionSourceDraft")
+  createdBy        User                        @relation("SupportScheduleRuleDraftCreator", fields: [createdById], references: [id])
+  updatedBy        User                        @relation("SupportScheduleRuleDraftUpdater", fields: [updatedById], references: [id])
+  archivedBy       User?                       @relation("SupportScheduleRuleDraftArchiver", fields: [archivedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, effectiveFrom])
+  @@index([teamId, status, effectiveFrom])
+  @@index([checksum])
+  @@index([baseVersionId])
 }
 
 model SupportShiftPatternVersion {
