@@ -38,6 +38,155 @@ function auditMock() {
   return { create: vi.fn().mockResolvedValue({ id: "audit-1" }) };
 }
 
+function pauseFlowHarness(options: { initialBooking?: boolean; peerBooking?: boolean; pendingSwap?: boolean } = {}) {
+  const slots = [
+    {
+      id: "slot-previous",
+      organizationId: "org-1",
+      teamId: null,
+      startsAt: new Date("2099-07-17T14:45:00.000Z"),
+      endsAt: new Date("2099-07-17T16:00:00.000Z"),
+      capacity: 1,
+      active: true
+    },
+    {
+      id: "slot-other",
+      organizationId: "org-1",
+      teamId: null,
+      startsAt: new Date("2099-07-17T17:00:00.000Z"),
+      endsAt: new Date("2099-07-17T18:15:00.000Z"),
+      capacity: 1,
+      active: true
+    }
+  ];
+  const bookings: Array<Record<string, unknown>> = [];
+  if (options.initialBooking !== false) {
+    bookings.push({
+      id: "booking-previous",
+      organizationId: "org-1",
+      slotId: "slot-previous",
+      userId: sac.id,
+      status: "BOOKED",
+      shiftOccurrenceId: null,
+      rescheduleRequiredAt: null,
+      overrideReason: null,
+      overrideRevokedById: null,
+      overrideRevokedAt: null,
+      overrideRevokeReason: null
+    });
+  }
+  if (options.peerBooking) {
+    bookings.push({
+      id: "booking-peer",
+      organizationId: "org-1",
+      slotId: "slot-previous",
+      userId: "sac-2",
+      status: "BOOKED",
+      shiftOccurrenceId: null,
+      rescheduleRequiredAt: null,
+      overrideReason: null
+    });
+  }
+  const swaps = options.pendingSwap ? [{
+    id: "swap-pending",
+    organizationId: "org-1",
+    requesterBookingId: "booking-previous",
+    targetBookingId: "booking-peer",
+    status: "PENDING"
+  }] : [];
+  const auditEntries: Array<Record<string, unknown>> = [];
+  let bookingSequence = 0;
+
+  const supportPauseBooking = {
+    findUnique: vi.fn(({ where }: { where: { slotId_userId: { slotId: string; userId: string } } }) => Promise.resolve(
+      bookings.find((booking) => (
+        booking.slotId === where.slotId_userId.slotId && booking.userId === where.slotId_userId.userId
+      )) ?? null
+    )),
+    findFirst: vi.fn(({ where }: { where: Record<string, unknown> }) => {
+      if (typeof where.id === "string") {
+        const booking = bookings.find((item) => item.id === where.id && item.organizationId === where.organizationId);
+        if (!booking) return Promise.resolve(null);
+        const slot = slots.find((item) => item.id === booking.slotId);
+        return Promise.resolve({ ...booking, slot: slot ? { startsAt: slot.startsAt } : null });
+      }
+      return Promise.resolve(null);
+    }),
+    findMany: vi.fn().mockResolvedValue([]),
+    create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
+      const booking = { id: `booking-new-${++bookingSequence}`, status: "BOOKED", ...data };
+      bookings.push(booking);
+      return Promise.resolve(booking);
+    }),
+    update: vi.fn(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+      const booking = bookings.find((item) => item.id === where.id);
+      if (!booking) throw new Error("booking missing");
+      Object.assign(booking, data);
+      return Promise.resolve({ ...booking });
+    }),
+    updateMany: vi.fn(({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+      const booking = bookings.find((item) => (
+        item.id === where.id
+        && item.organizationId === where.organizationId
+        && item.status === where.status
+      ));
+      if (!booking) return Promise.resolve({ count: 0 });
+      Object.assign(booking, data);
+      return Promise.resolve({ count: 1 });
+    })
+  };
+  const tx = {
+    supportPauseSlot: {
+      findFirst: vi.fn(({ where }: { where: { id: string; organizationId: string; active: boolean } }) => {
+        const slot = slots.find((item) => (
+          item.id === where.id && item.organizationId === where.organizationId && item.active === where.active
+        ));
+        return Promise.resolve(slot ? {
+          ...slot,
+          bookings: bookings.filter((booking) => booking.slotId === slot.id && booking.status === "BOOKED")
+        } : null);
+      })
+    },
+    supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+    supportShiftOccurrence: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([])
+    },
+    user: {
+      findFirst: vi.fn(({ where }: { where: { id: string } }) => Promise.resolve({ id: where.id })),
+      count: vi.fn().mockResolvedValue(3)
+    },
+    supportPauseBooking,
+    supportPauseSwap: {
+      findMany: vi.fn().mockImplementation(() => Promise.resolve(
+        swaps.filter((swap) => swap.status === "PENDING").map((swap) => ({ id: swap.id }))
+      )),
+      updateMany: vi.fn(({ where, data }: { where: { id: { in: string[] }; status: string }; data: Record<string, unknown> }) => {
+        const matching = swaps.filter((swap) => where.id.in.includes(swap.id) && swap.status === where.status);
+        matching.forEach((swap) => Object.assign(swap, data));
+        return Promise.resolve({ count: matching.length });
+      })
+    },
+    supportPauseSwapBookingLock: { deleteMany: vi.fn().mockResolvedValue({ count: options.pendingSwap ? 2 : 0 }) },
+    auditLog: {
+      create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
+        auditEntries.push(data);
+        return Promise.resolve({ id: `audit-${auditEntries.length}`, ...data });
+      })
+    }
+  };
+  let transactionQueue = Promise.resolve();
+  const prisma = {
+    $transaction: vi.fn((work: (client: typeof tx) => Promise<unknown>) => {
+      const result = transactionQueue.then(() => work(tx));
+      transactionQueue = result.then(() => undefined, () => undefined);
+      return result;
+    })
+  };
+  return { prisma, tx, slots, bookings, swaps, auditEntries };
+}
+
 describe("support operations service", () => {
   it("builds an overlap timeline from active SAC agents and booked slots", async () => {
     const prisma = {
@@ -263,6 +412,114 @@ describe("support operations service", () => {
     expect(tx.supportPauseBooking.update).not.toHaveBeenCalled();
   });
 
+  it("cancels a pause, releases its pending swap and books another eligible slot", async () => {
+    const harness = pauseFlowHarness({ pendingSwap: true });
+
+    await expect(cancelSupportPauseBooking(harness.prisma as never, sac, "booking-previous"))
+      .resolves.toMatchObject({ booking: { id: "booking-previous", status: "CANCELLED" } });
+    await expect(bookSupportPauseSlot(harness.prisma as never, sac, "slot-other", {}))
+      .resolves.toMatchObject({ booking: { slotId: "slot-other", status: "BOOKED" } });
+
+    expect(harness.bookings.find((booking) => booking.id === "booking-previous"))
+      .toMatchObject({ status: "CANCELLED", slotId: "slot-previous" });
+    expect(harness.bookings.find((booking) => booking.slotId === "slot-other"))
+      .toMatchObject({ status: "BOOKED", userId: sac.id });
+    expect(harness.tx.supportPauseBooking.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "booking-previous",
+        organizationId: sac.organizationId,
+        status: "BOOKED"
+      },
+      data: expect.objectContaining({ status: "CANCELLED" })
+    });
+    expect(harness.swaps).toEqual([expect.objectContaining({ id: "swap-pending", status: "CANCELLED" })]);
+    expect(harness.tx.supportPauseSwap.findMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ organizationId: sac.organizationId, status: "PENDING" }),
+      select: { id: true }
+    });
+    expect(harness.tx.supportPauseSwap.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ organizationId: sac.organizationId, status: "PENDING" }),
+      data: expect.objectContaining({ status: "CANCELLED", decidedById: sac.id })
+    });
+    expect(harness.tx.supportPauseSwapBookingLock.deleteMany).toHaveBeenCalledWith({
+      where: { swapId: { in: ["swap-pending"] } }
+    });
+    expect(harness.auditEntries.map((entry) => entry.action)).toEqual([
+      "support_pause.booking.cancel",
+      "support_pause.booking.create"
+    ]);
+    expect(harness.prisma.$transaction).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Function),
+      { isolationLevel: "Serializable" }
+    );
+  });
+
+  it("reactivates the same cancelled slot with an explicit audit trail", async () => {
+    const harness = pauseFlowHarness();
+
+    await cancelSupportPauseBooking(harness.prisma as never, sac, "booking-previous");
+    await expect(bookSupportPauseSlot(harness.prisma as never, sac, "slot-previous", {}))
+      .resolves.toMatchObject({ booking: { id: "booking-previous", status: "BOOKED" } });
+
+    expect(harness.tx.supportPauseBooking.create).not.toHaveBeenCalled();
+    expect(harness.auditEntries.map((entry) => entry.action)).toEqual([
+      "support_pause.booking.cancel",
+      "support_pause.booking.reactivate"
+    ]);
+    const reactivation = harness.auditEntries[1];
+    expect(JSON.parse(String(reactivation.metadataJson))).toMatchObject({
+      slotId: "slot-previous",
+      userId: sac.id,
+      previousStatus: "CANCELLED",
+      overrideCoverage: false
+    });
+  });
+
+  it("keeps a cancelled booking auditable when its former slot has reached capacity", async () => {
+    const harness = pauseFlowHarness({ peerBooking: true });
+
+    await cancelSupportPauseBooking(harness.prisma as never, sac, "booking-previous");
+    await expect(bookSupportPauseSlot(harness.prisma as never, sac, "slot-previous", {}))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+
+    expect(harness.bookings.find((booking) => booking.id === "booking-previous"))
+      .toMatchObject({ status: "CANCELLED" });
+    expect(harness.tx.supportPauseBooking.update).not.toHaveBeenCalled();
+    expect(harness.auditEntries.map((entry) => entry.action)).toEqual(["support_pause.booking.cancel"]);
+  });
+
+  it("allows only one winner when two agents concurrently book the last capacity", async () => {
+    const harness = pauseFlowHarness({ initialBooking: false });
+    const peer = { ...sac, id: "sac-2", email: "sac2@example.com" };
+
+    const results = await Promise.allSettled([
+      bookSupportPauseSlot(harness.prisma as never, sac, "slot-previous", {}),
+      bookSupportPauseSlot(harness.prisma as never, peer, "slot-previous", {})
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((result) => result.status === "rejected");
+    expect(rejected).toMatchObject({ reason: new SupportOperationsError("CONFLICT") });
+    expect(harness.bookings.filter((booking) => (
+      booking.slotId === "slot-previous" && booking.status === "BOOKED"
+    ))).toHaveLength(1);
+    expect(harness.auditEntries).toHaveLength(1);
+  });
+
+  it("does not reactivate a rescheduled booking and erase its audit chain", async () => {
+    const harness = pauseFlowHarness();
+    const previous = harness.bookings.find((booking) => booking.id === "booking-previous")!;
+    previous.status = "RESCHEDULED";
+
+    await expect(bookSupportPauseSlot(harness.prisma as never, sac, "slot-previous", {}))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+
+    expect(harness.tx.supportPauseBooking.update).not.toHaveBeenCalled();
+    expect(previous).toMatchObject({ status: "RESCHEDULED" });
+    expect(harness.auditEntries).toHaveLength(0);
+  });
+
   it("blocks a pause outside the operator published shift", async () => {
     const slot = {
       id: "slot-1",
@@ -437,22 +694,23 @@ describe("support operations service", () => {
   });
 
   it("keeps elapsed pause bookings immutable", async () => {
-    const prisma = {
+    const tx = {
       supportPauseBooking: {
         findFirst: vi.fn().mockResolvedValue({
           id: "booking-1",
           userId: sac.id,
+          status: "BOOKED",
           overrideReason: null,
           slot: { startsAt: new Date("2020-07-17T15:00:00.000Z") }
         }),
-        update: vi.fn()
-      },
-      $transaction: vi.fn()
+        updateMany: vi.fn()
+      }
     };
+    const prisma = { $transaction: vi.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)) };
 
     await expect(cancelSupportPauseBooking(prisma as never, sac, "booking-1"))
       .rejects.toEqual(new SupportOperationsError("CONFLICT"));
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.supportPauseBooking.updateMany).not.toHaveBeenCalled();
   });
 
   it("expires stale swaps while building the pause agenda", async () => {

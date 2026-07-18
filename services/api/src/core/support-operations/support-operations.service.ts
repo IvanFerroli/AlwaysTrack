@@ -664,6 +664,11 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
           && !existing.rescheduleRequiredAt
           && (!effectiveShift.scheduleMode || existing.shiftOccurrenceId === effectiveShift.occurrence?.id)
         ) return { booking: existing, idempotent: true };
+        if (existing && existing.status !== "BOOKED" && existing.status !== "CANCELLED") {
+          throw new SupportOperationsError("CONFLICT");
+        }
+        const previousStatus = existing?.status ?? null;
+        const reactivating = previousStatus === "CANCELLED";
         if (slot.bookings.length >= slot.capacity && !overrideCoverage) throw new SupportOperationsError("CONFLICT");
         const existingOverlap = await tx.supportPauseBooking.findFirst({
           where: {
@@ -764,12 +769,15 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
           data: {
             organizationId: actor.organizationId,
             actorId: actor.id,
-            action: overrideCoverage ? "support_pause.booking.override" : "support_pause.booking.create",
+            action: reactivating
+              ? "support_pause.booking.reactivate"
+              : overrideCoverage ? "support_pause.booking.override" : "support_pause.booking.create",
             entityType: "SupportPauseBooking",
             entityId: booking.id,
             metadataJson: JSON.stringify({
               slotId,
               userId: requestedUserId,
+              previousStatus: reactivating ? previousStatus : null,
               overrideCoverage,
               overrideReason,
               teamId: slot.teamId,
@@ -795,50 +803,87 @@ export async function bookSupportPauseSlot(prisma: PrismaClient, actor: CurrentU
 }
 
 export async function cancelSupportPauseBooking(prisma: PrismaClient, actor: CurrentUser, bookingId: string, input?: unknown) {
-  const booking = await prisma.supportPauseBooking.findFirst({
-    where: { id: bookingId, organizationId: actor.organizationId },
-    include: { slot: { select: { startsAt: true } } }
-  });
-  if (!booking) throw new SupportOperationsError("NOT_FOUND");
-  if (booking.userId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
-  if (booking.slot.startsAt <= new Date()) throw new SupportOperationsError("CONFLICT");
   const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
-  const managerRevocation = booking.userId !== actor.id && isManager(actor) && Boolean(booking.overrideReason);
-  const revokeReason = managerRevocation ? requiredString(body.reason, 300) : optionalString(body.reason, 300);
-  const updated = await prisma.$transaction(async (tx) => {
-    await tx.supportPauseSwap.updateMany({
-      where: { status: "PENDING", OR: [{ requesterBookingId: booking.id }, { targetBookingId: booking.id }] },
-      data: { status: "CANCELLED", decidedById: actor.id, decidedAt: new Date() }
-    });
-    await tx.supportPauseSwapBookingLock.deleteMany({
-      where: {
-        swap: {
-          is: {
-            status: "CANCELLED",
-            OR: [{ requesterBookingId: booking.id }, { targetBookingId: booking.id }]
-          }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const booking = await tx.supportPauseBooking.findFirst({
+          where: { id: bookingId, organizationId: actor.organizationId },
+          include: { slot: { select: { startsAt: true } } }
+        });
+        if (!booking) throw new SupportOperationsError("NOT_FOUND");
+        if (booking.userId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+        if (booking.slot.startsAt <= new Date()) throw new SupportOperationsError("CONFLICT");
+        if (booking.status !== "BOOKED" && booking.status !== "CANCELLED") {
+          throw new SupportOperationsError("CONFLICT");
         }
-      }
-    });
-    return tx.supportPauseBooking.update({
-      where: { id: booking.id },
-      data: {
-        status: "CANCELLED",
-        overrideRevokedById: booking.overrideReason ? actor.id : undefined,
-        overrideRevokedAt: booking.overrideReason ? new Date() : undefined,
-        overrideRevokeReason: booking.overrideReason ? revokeReason : undefined
-      }
-    });
-  });
-  await recordAuditLog(prisma, {
-    organizationId: actor.organizationId,
-    actorId: actor.id,
-    action: "support_pause.booking.cancel",
-    entityType: "SupportPauseBooking",
-    entityId: booking.id,
-    metadata: { overrideRevocation: Boolean(booking.overrideReason), reason: revokeReason }
-  });
-  return { booking: updated };
+        const managerRevocation = booking.userId !== actor.id && isManager(actor) && Boolean(booking.overrideReason);
+        const revokeReason = booking.status === "BOOKED"
+          ? managerRevocation ? requiredString(body.reason, 300) : optionalString(body.reason, 300)
+          : null;
+        const now = new Date();
+        const pendingSwaps = await tx.supportPauseSwap.findMany({
+          where: {
+            organizationId: actor.organizationId,
+            status: "PENDING",
+            OR: [{ requesterBookingId: booking.id }, { targetBookingId: booking.id }]
+          },
+          select: { id: true }
+        });
+        const pendingSwapIds = pendingSwaps.map((swap) => swap.id);
+        if (pendingSwapIds.length) {
+          const cancelledSwaps = await tx.supportPauseSwap.updateMany({
+            where: {
+              id: { in: pendingSwapIds },
+              organizationId: actor.organizationId,
+              status: "PENDING"
+            },
+            data: { status: "CANCELLED", decidedById: actor.id, decidedAt: now }
+          });
+          if (cancelledSwaps.count !== pendingSwapIds.length) throw new SupportOperationsError("CONFLICT");
+          await tx.supportPauseSwapBookingLock.deleteMany({ where: { swapId: { in: pendingSwapIds } } });
+        }
+        if (booking.status === "CANCELLED") return { booking, idempotent: true };
+
+        const changed = await tx.supportPauseBooking.updateMany({
+          where: { id: booking.id, organizationId: actor.organizationId, status: "BOOKED" },
+          data: {
+            status: "CANCELLED",
+            overrideRevokedById: booking.overrideReason ? actor.id : undefined,
+            overrideRevokedAt: booking.overrideReason ? now : undefined,
+            overrideRevokeReason: booking.overrideReason ? revokeReason : undefined
+          }
+        });
+        if (changed.count !== 1) throw new SupportOperationsError("CONFLICT");
+        const updated = {
+          ...booking,
+          status: "CANCELLED",
+          overrideRevokedById: booking.overrideReason ? actor.id : booking.overrideRevokedById,
+          overrideRevokedAt: booking.overrideReason ? now : booking.overrideRevokedAt,
+          overrideRevokeReason: booking.overrideReason ? revokeReason : booking.overrideRevokeReason
+        };
+        await tx.auditLog.create({
+          data: {
+            organizationId: actor.organizationId,
+            actorId: actor.id,
+            action: "support_pause.booking.cancel",
+            entityType: "SupportPauseBooking",
+            entityId: booking.id,
+            metadataJson: JSON.stringify({
+              overrideRevocation: Boolean(booking.overrideReason),
+              reason: revokeReason,
+              cancelledSwapIds: pendingSwapIds
+            })
+          }
+        });
+        return { booking: updated };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (isRetryableTransactionError(error) && attempt < 2) continue;
+      throw error;
+    }
+  }
+  throw new SupportOperationsError("CONFLICT");
 }
 
 export async function rescheduleSupportPauseBooking(

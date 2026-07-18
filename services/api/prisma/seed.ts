@@ -1088,7 +1088,7 @@ async function main() {
   ];
   const supportPausePolicyData = {
     timezone: "America/Sao_Paulo",
-    minimumCoverage: 2,
+    minimumCoverage: 1,
     slotMinutes: 15,
     pauseDurationMinutes: 75,
     boundaryBufferMinutes: 15,
@@ -1308,11 +1308,29 @@ async function main() {
       create: { organizationId: organization.id, createdById: admin.id, teamId: supportTeam.id, ...definition }
     }));
   }
-  for (const [slot, user] of [[supportSlots[0], sac], [supportSlots[0], sac2], [supportSlots[1], sac3]] as const) {
+  await prisma.supportPauseBooking.updateMany({
+    where: {
+      organizationId: organization.id,
+      userId: { in: [sac.id, sac2.id, sac3.id] },
+      slot: { startsAt: { gte: supportPauseDayStart, lt: supportPauseDayEnd } }
+    },
+    data: { status: "CANCELLED", rescheduleRequiredAt: null, rescheduleReason: null }
+  });
+  for (const [slot, user] of [[supportSlots[5], sac], [supportSlots[0], sac2]] as const) {
+    const shiftOccurrence = await prisma.supportShiftOccurrence.findFirstOrThrow({
+      where: {
+        organizationId: organization.id,
+        teamId: supportTeam.id,
+        userId: user.id,
+        status: "PUBLISHED",
+        startsAt: { lte: slot.startsAt },
+        endsAt: { gte: slot.endsAt }
+      }
+    });
     await prisma.supportPauseBooking.upsert({
       where: { slotId_userId: { slotId: slot.id, userId: user.id } },
-      update: { status: "BOOKED" },
-      create: { organizationId: organization.id, slotId: slot.id, userId: user.id }
+      update: { status: "BOOKED", shiftOccurrenceId: shiftOccurrence.id },
+      create: { organizationId: organization.id, slotId: slot.id, userId: user.id, shiftOccurrenceId: shiftOccurrence.id }
     });
   }
 
