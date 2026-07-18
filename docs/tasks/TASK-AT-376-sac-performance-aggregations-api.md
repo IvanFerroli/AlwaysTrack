@@ -1,7 +1,7 @@
 # TASK-AT-376 - Agregacoes de Performance SAC
 
 ## Metadata
-- status: proposed
+- status: correction-planned
 - owner: olympus_taskyfier
 - last-updated: 2026-07-17
 - source-of-truth: docs/tasks/TASK-AT-376-sac-performance-aggregations-api.md
@@ -13,7 +13,7 @@
 Expor series e consolidados reconciliaveis por atendente, time e periodo usando somente versoes aprovadas.
 
 ## Contexto minimo
-CSAT/SLA exigem soma de numeradores e denominadores; produtividade e ocorrencias possuem outras funcoes de agregacao. Filtros nao podem alterar escopo autorizado.
+Cada definicao exige agregacao propria: score 0-5 pode usar media ponderada por amostra, duracao usa media ponderada em segundos, percentual usa componentes quando disponiveis e contagem usa soma. Filtros nao podem alterar escopo autorizado nem misturar canal e atendente.
 
 ## Dependencias
 - satisfeitas: TASK-AT-375.
@@ -29,15 +29,15 @@ CSAT/SLA exigem soma de numeradores e denominadores; produtividade e ocorrencias
 - Ranking ou ordenacao competitiva nominal.
 
 ## Checklist
-1. Somar componentes antes de derivar CSAT/SLA.
-2. Aplicar formula versionada de produtividade e soma de ocorrencias.
+1. Aplicar agregador do dicionario: `WEIGHTED_MEAN`, `MEAN`, `RATIO` ou `SUM`, sem condicional generica por nome antigo.
+2. Calcular scores e duracoes na unidade canonica; percentuais com componentes usam razao das somas.
 3. Resolver membership pela competencia do registro.
 4. Distinguir zero, sem dado, pendente e rejeitado.
 5. Aplicar limites de periodo, paginacao, indices e rate limit.
 
 ## Acceptance Criteria
 1. Totais de time reconciliam com o detalhe aprovado do periodo.
-2. Media de percentuais nao ponderada nao e usada.
+2. CSAT 0-5, duracao e percentual nunca compartilham formatador ou formula por coincidencia de chave.
 3. SAC ve apenas escopo proprio; supervisao respeita time e competencia.
 4. CSV neutraliza formulas e registra exportacao auditavel.
 

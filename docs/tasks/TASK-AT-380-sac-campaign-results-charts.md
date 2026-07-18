@@ -31,9 +31,10 @@ Os graficos comerciais existentes podem fornecer estrutura responsiva, tooltip e
 ## Checklist
 1. Calcular resultado somente de registros APPROVED no periodo/audiencia.
 2. Mostrar meta, realizado, tendencia, denominador e cobertura.
-3. Versionar snapshot quando necessario para fechamento auditavel.
-4. Explicar recalculo causado por correcao aprovada.
-5. Oferecer tabela acessivel e estados sem dado/parcial.
+3. Formatar resultado pela definicao versionada e impedir campanha de combinar canal, sujeito, granularidade ou unidade incompativeis.
+4. Versionar snapshot quando necessario para fechamento auditavel.
+5. Explicar recalculo causado por correcao aprovada.
+6. Oferecer tabela acessivel e estados sem dado/parcial.
 
 ## Acceptance Criteria
 1. Resultado reconcilia com a API de Performance para os mesmos filtros.

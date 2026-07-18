@@ -31,9 +31,10 @@ Campanha SAC deve orientar uma iniciativa operacional sem recriar ranking. Audie
 ## Checklist
 1. Definir nome, objetivo, metrica, meta, periodo, time/audiencia e owner.
 2. Validar periodo contra definicao versionada da metrica.
-3. Congelar snapshot de audiencia ao publicar, com regra de novos membros explicita.
-4. Bloquear edicao destrutiva de campanha ativa/encerrada.
-5. Registrar transicoes e notificar audiencia de forma deduplicada.
+3. Derivar comparacao inicial da direcao da metrica: maior para score/percentual quando aplicavel e menor para duracao/ocorrencia quando aplicavel, sempre editavel e explicita.
+4. Congelar snapshot de audiencia ao publicar, com regra de novos membros explicita.
+5. Bloquear edicao destrutiva de campanha ativa/encerrada.
+6. Registrar transicoes e notificar audiencia de forma deduplicada.
 
 ## Acceptance Criteria
 1. Rascunho nao aparece para audiencia operacional.

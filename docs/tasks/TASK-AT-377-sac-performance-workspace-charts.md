@@ -1,7 +1,7 @@
 # TASK-AT-377 - Workspace e graficos de Performance SAC
 
 ## Metadata
-- status: proposed
+- status: correction-planned
 - owner: olympus_taskyfier
 - last-updated: 2026-07-17
 - source-of-truth: docs/tasks/TASK-AT-377-sac-performance-workspace-charts.md
@@ -30,10 +30,11 @@ A tela deve servir a trabalho repetido: filtros densos, estado de governanca e g
 
 ## Checklist
 1. Filtrar atendente/time/periodo/metrica com URL/estado previsivel.
-2. Exibir CSAT, produtividade, SLA e ReclameAqui com unidade e cobertura.
+2. Exibir CSAT 0-5, duracoes, percentuais de canal, produtividade e ReclameAqui com unidade, direcao, sujeito, canal e cobertura.
 3. Diferenciar draft, pendente, aprovado, rejeitado e superseded.
 4. Oferecer tabela acessivel equivalente aos graficos.
 5. Cobrir loading, vazio, erro, dado parcial e viewport mobile.
+6. Oferecer entrada humana coerente com a unidade: numero 0-5, duracao `h/min/s`, percentual ou inteiro; nunca pedir percentual para SLA temporal.
 
 ## Acceptance Criteria
 1. Cada numero mostra unidade, periodo, status e formula/denominador aplicavel.
