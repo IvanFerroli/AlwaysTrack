@@ -261,14 +261,55 @@ describe("support operations service", () => {
     }));
   });
 
+  it("scopes the SAC swap agenda to both bookings in the actor team", async () => {
+    const findManySwaps = vi.fn().mockResolvedValue([]);
+    const prisma = {
+      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC A" }]) },
+      supportTeamMembership: {
+        findMany: vi.fn()
+          .mockResolvedValueOnce([{ teamId: "team-1" }])
+          .mockResolvedValueOnce([{ user: { id: "sac-1", name: "SAC Demo", email: "sac@example.com" } }])
+      },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+      supportPauseSlot: { findMany: vi.fn().mockResolvedValue([]) },
+      supportPauseSwap: { findMany: findManySwaps }
+    };
+
+    await listSupportPauses(prisma as never, sac, "2026-07-17");
+
+    expect(findManySwaps).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        organizationId: "org-1",
+        AND: expect.arrayContaining([
+          expect.objectContaining({
+            requesterBooking: { slot: { teamId: "team-1" } },
+            targetBooking: { slot: { teamId: "team-1" } }
+          })
+        ])
+      })
+    }));
+  });
+
+  it("rejects a SAC pause agenda without an active team membership", async () => {
+    const prisma = {
+      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC A" }]) },
+      supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) }
+    };
+
+    await expect(listSupportPauses(prisma as never, sac, "2026-07-17"))
+      .rejects.toEqual(new SupportOperationsError("FORBIDDEN"));
+  });
+
   it("limits a swap request to 24 hours or the first pause and lets its owner cancel it", async () => {
     const firstPause = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const prisma = {
       supportPauseBooking: {
         findFirst: vi.fn()
-          .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: firstPause } })
-          .mockResolvedValueOnce({ id: "booking-b", userId: "sac-2", slot: { startsAt: new Date(Date.now() + 3 * 60 * 60 * 1000) } })
+          .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: firstPause, teamId: "team-1" } })
+          .mockResolvedValueOnce({ id: "booking-b", userId: "sac-2", slot: { startsAt: new Date(Date.now() + 3 * 60 * 60 * 1000), teamId: "team-1" } })
       },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
       supportPauseSwap: {
         findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }),
         create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "swap-1", ...data })),
@@ -291,6 +332,21 @@ describe("support operations service", () => {
     }));
   });
 
+  it("rejects a pause swap across support teams", async () => {
+    const prisma = {
+      supportPauseBooking: {
+        findFirst: vi.fn()
+          .mockResolvedValueOnce({ id: "booking-a", userId: "sac-1", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), teamId: "team-1" } })
+          .mockResolvedValueOnce({ id: "booking-b", userId: "sac-2", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), teamId: "team-2" } })
+      }
+    };
+
+    await expect(requestSupportPauseSwap(prisma as never, sac, {
+      requesterBookingId: "booking-a",
+      targetBookingId: "booking-b"
+    })).rejects.toEqual(new SupportOperationsError("CONFLICT"));
+  });
+
   it("prevents another SAC agent from cancelling a peer swap", async () => {
     const prisma = {
       supportPauseSwap: { findFirst: vi.fn().mockResolvedValue({ id: "swap-1", requestedById: "sac-1", status: "PENDING" }) }
@@ -301,8 +357,8 @@ describe("support operations service", () => {
   });
 
   it("accepts a peer swap atomically after checking both resulting schedules", async () => {
-    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z") } };
-    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z") } };
+    const requesterBooking = { id: "booking-a", slotId: "slot-a", userId: "sac-1", slot: { startsAt: new Date("2099-07-17T15:00:00.000Z"), endsAt: new Date("2099-07-17T15:30:00.000Z"), teamId: "team-1" } };
+    const targetBooking = { id: "booking-b", slotId: "slot-b", userId: "sac-2", slot: { startsAt: new Date("2099-07-17T16:00:00.000Z"), endsAt: new Date("2099-07-17T16:30:00.000Z"), teamId: "team-1" } };
     const bookingUpdate = vi.fn().mockResolvedValue({});
     const swapUpdate = vi.fn().mockResolvedValue({ id: "swap-1", status: "ACCEPTED" });
     const tx = {
@@ -315,6 +371,8 @@ describe("support operations service", () => {
         deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
         update: bookingUpdate
       },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac" }) },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
       auditLog: auditMock()
     };
     const prisma = {

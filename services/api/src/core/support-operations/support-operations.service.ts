@@ -266,6 +266,7 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
   const teamId = requestedTeamId
     ?? (actor.role === "SAC" ? actorMemberships[0]?.teamId : teams[0]?.id)
     ?? null;
+  if (actor.role === "SAC" && teams.length > 0 && !teamId) throw new SupportOperationsError("FORBIDDEN");
   const memberships = teamId
     ? await prisma.supportTeamMembership.findMany({
         where: { organizationId: actor.organizationId, teamId, user: { active: true, role: "SAC" }, ...activeMembership(start, end) },
@@ -303,9 +304,17 @@ export async function listSupportPauses(prisma: PrismaClient, actor: CurrentUser
     prisma.supportPauseSwap.findMany({
       where: {
         organizationId: actor.organizationId,
-        OR: [
-          { status: "PENDING" },
-          { updatedAt: { gte: start, lte: end } }
+        AND: [
+          {
+            OR: [
+              { status: "PENDING" },
+              { updatedAt: { gte: start, lte: end } }
+            ]
+          },
+          ...(actor.role === "SAC" && teamId ? [{
+            requesterBooking: { slot: { teamId } },
+            targetBooking: { slot: { teamId } }
+          }] : [])
         ]
       },
       include: {
@@ -706,15 +715,21 @@ export async function requestSupportPauseSwap(prisma: PrismaClient, actor: Curre
   const [requesterBooking, targetBooking] = await Promise.all([
     prisma.supportPauseBooking.findFirst({
       where: { id: requesterBookingId, organizationId: actor.organizationId, status: "BOOKED" },
-      include: { slot: { select: { startsAt: true } } }
+      include: { slot: { select: { startsAt: true, teamId: true } } }
     }),
     prisma.supportPauseBooking.findFirst({
       where: { id: targetBookingId, organizationId: actor.organizationId, status: "BOOKED" },
-      include: { slot: { select: { startsAt: true } } }
+      include: { slot: { select: { startsAt: true, teamId: true } } }
     })
   ]);
   if (!requesterBooking || !targetBooking) throw new SupportOperationsError("NOT_FOUND");
   if (requesterBooking.userId !== actor.id || targetBooking.userId === actor.id) throw new SupportOperationsError("FORBIDDEN");
+  const teamId = requesterBooking.slot.teamId;
+  if (!teamId || targetBooking.slot.teamId !== teamId) throw new SupportOperationsError("CONFLICT");
+  await Promise.all([
+    ensureSupportAgent(prisma, actor.organizationId, requesterBooking.userId, teamId, requesterBooking.slot.startsAt),
+    ensureSupportAgent(prisma, actor.organizationId, targetBooking.userId, teamId, targetBooking.slot.startsAt)
+  ]);
   const pending = await prisma.supportPauseSwap.findFirst({
     where: { organizationId: actor.organizationId, requesterBookingId, targetBookingId, status: "PENDING" }
   });
@@ -779,6 +794,12 @@ export async function decideSupportPauseSwap(prisma: PrismaClient, actor: Curren
         });
         if (!swap) throw new SupportOperationsError("NOT_FOUND");
         if (swap.targetBooking.userId !== actor.id && !isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+        const teamId = swap.requesterBooking.slot.teamId;
+        if (!teamId || swap.targetBooking.slot.teamId !== teamId) throw new SupportOperationsError("CONFLICT");
+        await Promise.all([
+          ensureSupportAgent(tx, actor.organizationId, swap.requesterBooking.userId, teamId, swap.requesterBooking.slot.startsAt),
+          ensureSupportAgent(tx, actor.organizationId, swap.targetBooking.userId, teamId, swap.targetBooking.slot.startsAt)
+        ]);
         if (decision === "ACCEPTED") {
           const [requesterConflict, targetConflict] = await Promise.all([
             tx.supportPauseBooking.findFirst({
