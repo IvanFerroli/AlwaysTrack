@@ -1335,10 +1335,15 @@ async function main() {
     });
   }
 
+  const supportMetricSource = "Painel operacional demonstrativo";
+  const supportPeriodAnchor = new Date();
+  supportPeriodAnchor.setUTCHours(23, 59, 59, 999);
   const supportPeriods = [21, 14, 7, 0].map((daysBack) => {
-    const periodEnd = daysAgo(daysBack);
+    const periodEnd = new Date(supportPeriodAnchor);
+    periodEnd.setUTCDate(periodEnd.getUTCDate() - daysBack);
     const periodStart = new Date(periodEnd);
     periodStart.setUTCDate(periodStart.getUTCDate() - 6);
+    periodStart.setUTCHours(0, 0, 0, 0);
     return { periodStart, periodEnd };
   });
 
@@ -1361,6 +1366,10 @@ async function main() {
     where: { organizationId: organization.id, metric: "SLA" },
     data: { metric: "SLA_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT" }
   });
+  await prisma.supportKpiEntry.updateMany({
+    where: { organizationId: organization.id, source: supportMetricSource, archivedAt: null },
+    data: { archivedAt: new Date(), updatedById: admin.id }
+  });
 
   const supportMetricSeries = [
     { metric: "CSAT_SCORE", values: [4.25, 4.3, 4.4, 4.4], rawValues: ["4,25", "4,3", "4,4", "4,4"], channel: null, scopeType: "TEAM" },
@@ -1376,7 +1385,13 @@ async function main() {
     if (!definition) throw new Error(`Missing support metric definition: ${series.metric}`);
     for (const [index, period] of supportPeriods.entries()) {
       const existing = await prisma.supportKpiEntry.findFirst({
-        where: { organizationId: organization.id, metric: series.metric, channel: series.channel, periodStart: period.periodStart }
+        where: {
+          organizationId: organization.id,
+          metric: series.metric,
+          channel: series.channel,
+          periodStart: period.periodStart,
+          source: supportMetricSource
+        }
       });
       const data = {
         definitionVersion: definition.definitionVersion,
@@ -1393,7 +1408,7 @@ async function main() {
         teamId: series.scopeType === "TEAM" ? supportTeam.id : null,
         teamLabel: series.scopeType === "TEAM" ? supportTeam.name : null,
         periodEnd: period.periodEnd,
-        source: "Painel operacional demonstrativo",
+        source: supportMetricSource,
         note: index === series.values.length - 1 ? "Último fechamento informado pela gestão." : null,
         updatedById: admin.id,
         status: "APPROVED",
