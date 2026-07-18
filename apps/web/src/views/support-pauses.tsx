@@ -73,6 +73,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   const canManage = isSupportManager(user);
   const [tab, setTab] = useState<PauseTab>("schedule");
   const [date, setDate] = useState(supportDateInputValue);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
   const [data, setData] = useState<SupportPausesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,12 +83,15 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   const [slotDraft, setSlotDraft] = useState({ label: "", date, startsAt: "12:00", endsAt: "13:15", capacity: "1" });
   const [swapDraft, setSwapDraft] = useState({ requesterBookingId: "", targetBookingId: "", note: "" });
   const [overrideDraft, setOverrideDraft] = useState({ slotId: "", userId: "", reason: "", confirmImpact: false });
+  const [rescheduleTargets, setRescheduleTargets] = useState<Record<string, string>>({});
 
   async function load(showLoading = true) {
     if (showLoading) setLoading(true);
     setError(null);
     try {
-      const result = await api<SupportPausesResponse>(`/v1/support/pauses?date=${encodeURIComponent(date)}`);
+      const query = new URLSearchParams({ date });
+      if (selectedTeamId) query.set("teamId", selectedTeamId);
+      const result = await api<SupportPausesResponse>(`/v1/support/pauses?${query.toString()}`);
       setData(result);
       setPolicyDraft(result.policy);
       setSlotDraft((current) => ({
@@ -104,7 +108,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
 
   useEffect(() => {
     void load();
-  }, [date]);
+  }, [date, selectedTeamId]);
 
   async function perform(actionKey: string, action: () => Promise<unknown>, success: string) {
     setBusyAction(actionKey);
@@ -131,6 +135,10 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
     () => data?.slots.flatMap((slot) => slot.bookings.filter((booking) => booking.userId !== user.id).map((booking) => ({ ...booking, slot }))) ?? [],
     [data, user.id]
   );
+  const rescheduleBookings = useMemo(
+    () => myBookings.filter((booking) => booking.requiresReschedule),
+    [myBookings]
+  );
   const incomingSwaps = data?.swaps.filter((swap) => swap.status === "PENDING" && swap.targetBooking.userId === user.id) ?? [];
   const visibleTabs: ReadonlyArray<readonly [PauseTab, string]> = canManage
     ? [...pauseTabs, ["management", "Configuração"] as const]
@@ -155,6 +163,24 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
       }),
       "Pausa cancelada."
     );
+  }
+
+  async function rescheduleBooking(bookingId: string) {
+    const targetSlotId = rescheduleTargets[bookingId];
+    if (!targetSlotId) return;
+    const completed = await perform(
+      `reschedule-${bookingId}`,
+      () => api(`/v1/support/pauses/bookings/${bookingId}/reschedule`, {
+        method: "POST",
+        body: JSON.stringify({ targetSlotId })
+      }),
+      "Pausa reagendada e vinculada ao turno atual."
+    );
+    if (completed) setRescheduleTargets((current) => {
+      const next = { ...current };
+      delete next[bookingId];
+      return next;
+    });
   }
 
   async function requestSwap(event: FormEvent) {
@@ -245,7 +271,8 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
           label: slotDraft.label || null,
           startsAt: supportSlotDateTimeIso(slotDraft.date, slotDraft.startsAt),
           endsAt: supportSlotDateTimeIso(slotDraft.date, slotDraft.endsAt),
-          capacity: Number(slotDraft.capacity)
+          capacity: Number(slotDraft.capacity),
+          teamId: selectedTeamId || null
         })
       }),
       "Slot criado."
@@ -259,7 +286,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
       "generate-slots",
       () => api("/v1/support/pauses/slots/generate", {
         method: "POST",
-        body: JSON.stringify({ date: slotDraft.date, capacity: Number(slotDraft.capacity) })
+        body: JSON.stringify({ date: slotDraft.date, capacity: Number(slotDraft.capacity), teamId: selectedTeamId || null })
       }),
       "Grade-base gerada sem duplicar horários existentes."
     );
@@ -281,6 +308,12 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
           <h1>Pausas e cobertura</h1>
         </div>
         <div className="support-date-control">
+          {canManage && data?.teams.length ? <label htmlFor="support-pause-team">Equipe
+            <select id="support-pause-team" value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)}>
+              <option value="">Visão geral</option>
+              {data.teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+            </select>
+          </label> : null}
           <label htmlFor="support-pause-date">Data</label>
           <input id="support-pause-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           <button className="secondary support-icon-button" type="button" aria-label="Atualizar agenda" title="Atualizar agenda" onClick={() => void load()}>
@@ -325,6 +358,32 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
             <div className="support-metric-card"><span>Pausas reservadas</span><strong>{data.summary.bookedPauses}</strong></div>
             <div className={`support-metric-card ${data.summary.criticalIntervals ? "critical" : ""}`}><span>Intervalos críticos</span><strong>{data.summary.criticalIntervals}</strong></div>
           </div>
+          <p className="muted">
+            Cobertura calculada por {data.coverageSource === "PUBLISHED_SCHEDULE" ? "escala publicada" : "membros ativos durante a transição"}.
+          </p>
+          {rescheduleBookings.map((booking) => {
+            const alternatives = data.slots.filter((slot) => (
+              slot.id !== booking.slot.id
+              && !slot.myBooking
+              && slot.remainingCapacity > 0
+              && new Date(slot.startsAt).getTime() > Date.now()
+            ));
+            return <section className="support-attention support-reschedule" key={booking.id} aria-labelledby={`reschedule-${booking.id}-title`}>
+              <div>
+                <h2 id={`reschedule-${booking.id}-title`}>Sua pausa precisa ser reagendada</h2>
+                <p>O turno mudou. A reserva anterior foi preservada no histórico e não será movida automaticamente.</p>
+              </div>
+              <label>Novo horário
+                <select value={rescheduleTargets[booking.id] ?? ""} onChange={(event) => setRescheduleTargets((current) => ({ ...current, [booking.id]: event.target.value }))}>
+                  <option value="">Selecione um slot compatível</option>
+                  {alternatives.map((slot) => <option key={slot.id} value={slot.id}>{formatSupportTime(slot.startsAt, data.policy.timezone)} - {formatSupportTime(slot.endsAt, data.policy.timezone)}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={!rescheduleTargets[booking.id] || busyAction !== null} onClick={() => void rescheduleBooking(booking.id)}>
+                <RefreshCw size={16} /> Reagendar pausa
+              </button>
+            </section>;
+          })}
           <CoverageTimeline data={data} />
           <section className="support-unframed-section" aria-labelledby="support-slots-title">
             <div className="support-section-heading">
@@ -342,7 +401,7 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                         <span aria-hidden="true">-</span>
                         <time dateTime={slot.endsAt}>{formatSupportTime(slot.endsAt, data.policy.timezone)}</time>
                       </div>
-                      {slot.myBooking ? <span className="support-status active">Minha pausa</span> : slotStarted ? <span className="support-status closed">Encerrado</span> : null}
+                      {slot.myBooking?.requiresReschedule ? <span className="support-status pending">Reagendar</span> : slot.myBooking ? <span className="support-status active">Minha pausa</span> : slotStarted ? <span className="support-status closed">Encerrado</span> : null}
                     </header>
                     <h3>{slot.label || "Pausa"}</h3>
                     <p>{slot.bookedCount} de {slot.capacity} vaga(s) ocupada(s)</p>

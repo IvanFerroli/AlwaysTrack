@@ -29,6 +29,7 @@ const pauseResponse = {
   teams: [],
   selectedTeamId: null,
   membershipMode: "ROLE_FALLBACK",
+  coverageSource: "LEGACY_MEMBERSHIP",
   policy: {
     id: "policy-1", organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15,
     pauseDurationMinutes: 75, boundaryBufferMinutes: 15,
@@ -37,7 +38,7 @@ const pauseResponse = {
   },
   agents: [agentAna, agentBruno, { id: "sac-3", name: "Carla", email: "carla@example.com" }],
   summary: { activeAgents: 3, minimumCoverage: 2, bookedPauses: 2, criticalIntervals: 1 },
-  timeline: [{ startsAt: "2026-07-17T15:00:00.000Z", endsAt: "2026-07-17T15:15:00.000Z", pausedCount: 1, availableCount: 2, critical: true }],
+  timeline: [{ startsAt: "2026-07-17T15:00:00.000Z", endsAt: "2026-07-17T15:15:00.000Z", activeCount: 3, pausedCount: 1, availableCount: 2, critical: true }],
   slots: [slotA, slotB],
   swaps: [
     {
@@ -95,6 +96,29 @@ describe("SupportPausesView", () => {
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/swaps/swap-2", { method: "DELETE" }));
   });
 
+  it("requires an explicit replacement when a shift change invalidates the pause", async () => {
+    const user = userEvent.setup();
+    apiMock.mockResolvedValueOnce({
+      ...pauseResponse,
+      membershipMode: "PUBLISHED_SCHEDULE",
+      coverageSource: "PUBLISHED_SCHEDULE",
+      slots: [
+        { ...slotA, bookings: [{ ...bookingAna, requiresReschedule: true }], myBooking: { ...bookingAna, requiresReschedule: true } },
+        slotB
+      ]
+    });
+    render(<SupportPausesView user={sac} />);
+
+    expect(await screen.findByRole("heading", { name: "Sua pausa precisa ser reagendada" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Novo horário"), "slot-b");
+    await user.click(screen.getByRole("button", { name: "Reagendar pausa" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/bookings/booking-a/reschedule", {
+      method: "POST",
+      body: JSON.stringify({ targetSlotId: "slot-b" })
+    }));
+  });
+
   it("keeps elapsed slots as read-only history", async () => {
     apiMock.mockResolvedValueOnce({
       ...pauseResponse,
@@ -127,7 +151,7 @@ describe("SupportPausesView", () => {
     await user.click(within(slot).getByRole("button", { name: "Gerar grade-base" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/pauses/slots/generate", {
       method: "POST",
-      body: JSON.stringify({ date: "2026-07-17", capacity: 1 })
+      body: JSON.stringify({ date: "2026-07-17", capacity: 1, teamId: null })
     }));
 
     const override = screen.getByRole("heading", { name: "Autorizar pausa fora da política" }).closest("section")!;

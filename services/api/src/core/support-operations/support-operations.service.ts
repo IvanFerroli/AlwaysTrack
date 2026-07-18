@@ -490,13 +490,7 @@ export async function createSupportPauseSlot(prisma: PrismaClient, actor: Curren
   const storedPolicy = await prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } });
   const policy = storedPolicy ? pausePolicyView(storedPolicy) : policyDefaults(actor.organizationId);
   validatePauseSlotAgainstPolicy(startsAt, endsAt, policy);
-  const teamId = body.teamId
-    ? requiredString(body.teamId)
-    : (await prisma.supportTeam.findFirst({
-        where: { organizationId: actor.organizationId, active: true },
-        select: { id: true },
-        orderBy: { name: "asc" }
-      }))?.id ?? null;
+  const teamId = body.teamId ? requiredString(body.teamId) : null;
   if (teamId) await ensureSupportTeam(prisma, actor.organizationId, teamId);
   const slot = await prisma.supportPauseSlot.create({
     data: {
@@ -527,16 +521,9 @@ export async function generateSupportPauseSlots(prisma: PrismaClient, actor: Cur
   const date = requiredString(body.date, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new SupportOperationsError("INVALID_INPUT");
   const capacity = integerInRange(body.capacity ?? 1, 1, 100);
-  const [storedPolicy, defaultTeam] = await Promise.all([
-    prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } }),
-    body.teamId ? Promise.resolve(null) : prisma.supportTeam.findFirst({
-      where: { organizationId: actor.organizationId, active: true },
-      select: { id: true },
-      orderBy: { name: "asc" }
-    })
-  ]);
+  const storedPolicy = await prisma.supportPausePolicy.findUnique({ where: { organizationId: actor.organizationId } });
   const policy = storedPolicy ? pausePolicyView(storedPolicy) : policyDefaults(actor.organizationId);
-  const teamId = body.teamId ? requiredString(body.teamId) : defaultTeam?.id ?? null;
+  const teamId = body.teamId ? requiredString(body.teamId) : null;
   if (teamId) await ensureSupportTeam(prisma, actor.organizationId, teamId);
   const slots = [];
   let createdCount = 0;

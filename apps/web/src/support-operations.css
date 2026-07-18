@@ -71,6 +71,7 @@
 }
 
 .support-date-control input,
+.support-date-control select,
 .support-inline-filters select,
 .support-filter-bar input,
 .support-filter-bar select,
@@ -81,6 +82,38 @@
   border: 1px solid var(--color-border);
   border-radius: 6px;
   color: var(--color-text);
+  min-height: 36px;
+  padding: 7px 9px;
+  width: 100%;
+}
+
+.support-reschedule {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.65fr) auto;
+}
+
+.support-reschedule p {
+  font-weight: 600;
+  margin: 3px 0 0;
+}
+
+.support-reschedule h2 {
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.support-reschedule label {
+  display: grid;
+  gap: 5px;
+}
+
+.support-reschedule select {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
   min-height: 36px;
   padding: 7px 9px;
   width: 100%;
@@ -829,6 +862,11 @@
 
   .support-split-layout,
   .support-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .support-reschedule {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 }

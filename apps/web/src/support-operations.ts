@@ -39,7 +39,12 @@ export interface SupportPauseBooking {
   organizationId?: string;
   slotId: string;
   userId: string;
-  status?: "BOOKED" | "CANCELLED";
+  status?: "BOOKED" | "CANCELLED" | "RESCHEDULED";
+  shiftOccurrenceId?: string | null;
+  rescheduledFromId?: string | null;
+  rescheduleRequiredAt?: string | null;
+  rescheduleReason?: string | null;
+  requiresReschedule?: boolean;
   overrideReason?: string | null;
   coverageBefore?: number | null;
   coverageAfter?: number | null;
@@ -70,6 +75,7 @@ export interface SupportPauseSlot {
 export interface SupportPauseTimelineItem {
   startsAt: string;
   endsAt: string;
+  activeCount: number;
   pausedCount: number;
   availableCount: number;
   critical: boolean;
@@ -94,7 +100,8 @@ export interface SupportPausesResponse {
   canManage: boolean;
   teams: SupportTeam[];
   selectedTeamId: string | null;
-  membershipMode: "DATED_MEMBERSHIP" | "ROLE_FALLBACK";
+  membershipMode: "PUBLISHED_SCHEDULE" | "DATED_MEMBERSHIP" | "ROLE_FALLBACK";
+  coverageSource: "PUBLISHED_SCHEDULE" | "LEGACY_MEMBERSHIP";
   policy: SupportPausePolicy;
   agents: SupportAgent[];
   summary: {
