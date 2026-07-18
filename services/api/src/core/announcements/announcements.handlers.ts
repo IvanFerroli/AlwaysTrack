@@ -30,6 +30,7 @@ function sendAnnouncementError(response: Response, error: unknown) {
     if (error.code === "FORBIDDEN") return sendError(response, 403, "FORBIDDEN", "Access denied.");
     if (error.code === "NOT_FOUND") return sendError(response, 404, "NOT_FOUND", "Announcement not found.");
     if (error.code === "SLUG_TAKEN") return sendError(response, 409, "SLUG_TAKEN", "Announcement slug already exists.");
+    if (error.code === "CONFLICT") return sendError(response, 409, "CONFLICT", "Announcement state conflicts with this operation.");
     return sendError(response, 400, "INVALID_INPUT", "Invalid announcement payload.");
   }
   throw error;

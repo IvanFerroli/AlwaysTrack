@@ -25,6 +25,9 @@ model Organization {
   notificationJobs              NotificationJob[]
   inAppNotifications            InAppNotification[]
   announcements                 Announcement[]
+  announcementSeries            AnnouncementSeries[]
+  announcementSeriesVersions    AnnouncementSeriesVersion[]
+  announcementOccurrences       AnnouncementOccurrence[]
   announcementReadReceipts      AnnouncementReadReceipt[]
   scriptCategories              ScriptCategory[]
   scriptPacks                   ScriptPack[]
@@ -175,6 +178,10 @@ model User {
   inAppNotifications                   InAppNotification[]            @relation("InAppNotificationRecipient")
   announcementsAuthored                Announcement[]                 @relation("AnnouncementAuthor")
   announcementsUpdated                 Announcement[]                 @relation("AnnouncementUpdatedBy")
+  announcementSeriesCreated            AnnouncementSeries[]           @relation("AnnouncementSeriesCreator")
+  announcementSeriesUpdated            AnnouncementSeries[]           @relation("AnnouncementSeriesUpdater")
+  announcementSeriesVersionsCreated    AnnouncementSeriesVersion[]    @relation("AnnouncementSeriesVersionCreator")
+  announcementOccurrencesCancelled     AnnouncementOccurrence[]       @relation("AnnouncementOccurrenceCanceller")
   announcementReadReceipts             AnnouncementReadReceipt[]      @relation("AnnouncementReadReceiptUser")
   scriptCategoriesCreated              ScriptCategory[]               @relation("ScriptCategoryCreatedBy")
   scriptPacksCreated                   ScriptPack[]                   @relation("ScriptPackCreatedBy")
@@ -1177,6 +1184,7 @@ model Announcement {
   createdBy    User                      @relation("AnnouncementAuthor", fields: [createdById], references: [id])
   updatedBy    User                      @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id])
   readReceipts AnnouncementReadReceipt[]
+  occurrence   AnnouncementOccurrence?
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -1186,6 +1194,96 @@ model Announcement {
   @@index([startsAt])
   @@index([expiresAt])
   @@index([publishedAt])
+}
+
+model AnnouncementSeries {
+  id             String    @id @default(cuid())
+  organizationId String
+  slug           String
+  status         String    @default("ACTIVE")
+  archivedAt     DateTime?
+  createdById    String
+  updatedById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization                @relation(fields: [organizationId], references: [id])
+  createdBy    User                        @relation("AnnouncementSeriesCreator", fields: [createdById], references: [id])
+  updatedBy    User                        @relation("AnnouncementSeriesUpdater", fields: [updatedById], references: [id])
+  versions     AnnouncementSeriesVersion[]
+  occurrences  AnnouncementOccurrence[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+}
+
+model AnnouncementSeriesVersion {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  seriesId           String
+  version            Int
+  effectiveFromDate  String
+  validFromDate      String
+  validToDate        String?
+  recurrenceType     String   @default("MONTHLY_DAYS")
+  timezone           String
+  localTime          String
+  recurrenceDaysJson String   @default("[14,29]")
+  missingDayPolicy   String   @default("SKIP")
+  durationMinutes    Int      @default(1440)
+  title              String
+  summary            String?
+  content            String
+  tagsJson           String?
+  linksJson          String?
+  targetRolesJson    String?
+  priority           String   @default("NORMAL")
+  pinned             Boolean  @default(false)
+  requiresAck        Boolean  @default(false)
+  createdById        String
+  createdAt          DateTime @default(now())
+
+  organization Organization             @relation(fields: [organizationId], references: [id])
+  series       AnnouncementSeries       @relation(fields: [seriesId], references: [id])
+  createdBy    User                     @relation("AnnouncementSeriesVersionCreator", fields: [createdById], references: [id])
+  occurrences  AnnouncementOccurrence[]
+
+  @@unique([seriesId, version])
+  @@index([organizationId, effectiveFromDate])
+  @@index([seriesId, validFromDate, validToDate])
+}
+
+model AnnouncementOccurrence {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  seriesId           String
+  versionId          String
+  announcementId     String    @unique
+  idempotencyKey     String    @unique
+  localDate          String
+  scheduledFor       DateTime
+  expiresAt          DateTime
+  status             String    @default("SCHEDULED")
+  materializedAt     DateTime  @default(now())
+  lastAttemptAt      DateTime?
+  publishedAt        DateTime?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  cancellationReason String?
+  failureMessage     String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  series       AnnouncementSeries        @relation(fields: [seriesId], references: [id])
+  version      AnnouncementSeriesVersion @relation(fields: [versionId], references: [id])
+  announcement Announcement              @relation(fields: [announcementId], references: [id])
+  cancelledBy  User?                     @relation("AnnouncementOccurrenceCanceller", fields: [cancelledById], references: [id])
+
+  @@unique([seriesId, versionId, localDate])
+  @@index([organizationId, status, scheduledFor])
+  @@index([seriesId, localDate])
+  @@index([versionId, localDate])
 }
 
 model AnnouncementReadReceipt {

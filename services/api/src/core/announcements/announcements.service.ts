@@ -5,7 +5,7 @@ import { emitInAppNotifications } from "../notifications/notifications.service.j
 import { optionalArray, optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
 
 export class AnnouncementError extends Error {
-  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN") {
+  constructor(public readonly code: "NOT_FOUND" | "INVALID_INPUT" | "FORBIDDEN" | "SLUG_TAKEN" | "CONFLICT") {
     super(code);
   }
 }

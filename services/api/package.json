@@ -14,6 +14,7 @@
     "coverage:html": "vitest run --coverage",
     "test:jobs:redis": "RUN_REDIS_JOBS_TESTS=true JOB_QUEUE_DRIVER=bullmq vitest run queue.redis.test.ts",
     "job:notifications": "tsx src/jobs/notifications.ts",
+    "job:announcement-scheduler": "tsx src/jobs/announcement-scheduler.ts",
     "job:ranking-snapshots": "tsx src/jobs/ranking-snapshots.ts",
     "smoke:whatsapp": "tsx src/scripts/smoke-whatsapp.ts",
     "smoke:google-sheets": "tsx src/scripts/smoke-google-sheets.ts",
