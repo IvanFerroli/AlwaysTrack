@@ -65,6 +65,17 @@ function announcement(readReceipts: Array<Record<string, unknown>> = [otherRecei
   };
 }
 
+const compliance = {
+  audienceCount: 3,
+  acknowledgedCount: 1,
+  openedCount: 2,
+  pendingCount: 2,
+  completed: false,
+  acknowledgedUsers: [{ id: "sac-other", name: "Outra pessoa", email: "other@example.invalid", role: "SAC" }],
+  openedWithoutAckUsers: [{ id: "sac-opened", name: "Pessoa que abriu", email: "opened@example.invalid", role: "SAC" }],
+  notOpenedUsers: [{ id: "sac-unopened", name: "Pessoa que não abriu", email: "unopened@example.invalid", role: "SAC" }]
+};
+
 describe("AnnouncementsView acknowledgement", () => {
   beforeEach(() => {
     apiMock.mockReset();
@@ -134,6 +145,7 @@ describe("AnnouncementsView acknowledgement", () => {
   it("shows managers the overall count while keeping their own acknowledgement pending", async () => {
     const item = announcement();
     item.targetRoles = ["SAC", "GESTOR"];
+    Object.assign(item, { acknowledgement: compliance });
     apiMock.mockResolvedValue({ items: [item], total: 1 });
 
     render(<AnnouncementsView user={users.manager} />);
@@ -141,5 +153,8 @@ describe("AnnouncementsView acknowledgement", () => {
     expect(await screen.findByRole("button", { name: "Marcar ciência" })).toBeInTheDocument();
     expect(screen.getByText("Pendente para você")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("1 registro(s)")).toBeInTheDocument());
+    expect(screen.getByText("Outra pessoa")).toBeInTheDocument();
+    expect(screen.getByText("Pessoa que abriu")).toBeInTheDocument();
+    expect(screen.getByText("Pessoa que não abriu")).toBeInTheDocument();
   });
 });

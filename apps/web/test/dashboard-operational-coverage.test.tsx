@@ -76,11 +76,12 @@ const operationalKnowledge = {
       acknowledgement: {
         audienceCount: 3,
         acknowledgedCount: 1,
+        openedCount: 2,
         pendingCount: 2,
         completed: false,
         acknowledgedUsers: [{ id: "sac-1", name: "Ana SAC", email: "ana@example.test", role: "SAC" }],
-        openedWithoutAckUsers: [],
-        notOpenedUsers: []
+        openedWithoutAckUsers: [{ id: "sac-2", name: "Bruno SAC", email: "bruno@example.test", role: "SAC" }],
+        notOpenedUsers: [{ id: "sac-3", name: "Carla SAC", email: "carla@example.test", role: "SAC" }]
       }
     }]
   }
@@ -140,6 +141,8 @@ describe("DashboardView SAC operational coverage", () => {
     await user.click(screen.getByRole("button", { name: /CSAT acima de 92/ }));
     await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));
     expect(screen.getByText("Ana SAC")).toBeInTheDocument();
+    expect(screen.getByText("Bruno SAC")).toBeInTheDocument();
+    expect(screen.getByText("Carla SAC")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Abrir aviso" }));
     await user.click(screen.getByRole("button", { name: /2 revisões da Wiki/ }));
     await user.click(screen.getByRole("button", { name: /1 perguntas sem resposta/ }));

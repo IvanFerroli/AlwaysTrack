@@ -38,6 +38,45 @@ interface AnnouncementItem {
     acknowledgedAt: string | null;
     user?: { id: string; name: string; email: string; role: string };
   }>;
+  acknowledgement?: AnnouncementAcknowledgementCompliance | null;
+}
+
+interface AnnouncementAcknowledgementPerson {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface AnnouncementAcknowledgementCompliance {
+  audienceCount: number;
+  acknowledgedCount: number;
+  openedCount: number;
+  pendingCount: number;
+  completed: boolean;
+  acknowledgedUsers: AnnouncementAcknowledgementPerson[];
+  openedWithoutAckUsers: AnnouncementAcknowledgementPerson[];
+  notOpenedUsers: AnnouncementAcknowledgementPerson[];
+}
+
+function AnnouncementCompliance({ compliance }: { compliance: AnnouncementAcknowledgementCompliance }) {
+  const groups = [
+    { label: `Cientes (${compliance.acknowledgedUsers.length})`, people: compliance.acknowledgedUsers, empty: "Nenhuma ciência registrada." },
+    { label: `Abriram sem ciência (${compliance.openedWithoutAckUsers.length})`, people: compliance.openedWithoutAckUsers, empty: "Ninguém aguardando confirmação após abrir." },
+    { label: `Não abriram (${compliance.notOpenedUsers.length})`, people: compliance.notOpenedUsers, empty: "Todos já abriram o aviso." }
+  ];
+  return <section className="announcement-detail-compliance" aria-labelledby="announcement-compliance-title">
+    <div className="table-panel-toolbar">
+      <div><strong id="announcement-compliance-title">Acompanhamento da ciência</strong><p className="muted">{compliance.acknowledgedCount} de {compliance.audienceCount} pessoas confirmaram.</p></div>
+      <span className={compliance.completed ? "status-badge published" : "status-badge pending"}>{compliance.completed ? "Todos cientes" : `${compliance.pendingCount} pendente(s)`}</span>
+    </div>
+    <div className="announcement-compliance-grid">
+      {groups.map((group) => <div className="announcement-compliance-people" key={group.label}>
+        <strong>{group.label}</strong>
+        {group.people.length ? <ul>{group.people.map((person) => <li key={person.id}><span>{person.name}</span><small>{person.role}</small></li>)}</ul> : <small>{group.empty}</small>}
+      </div>)}
+    </div>
+  </section>;
 }
 
 interface AnnouncementDraft {
@@ -414,7 +453,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                 </div>
               ) : null}
               {selected.requiresAck ? (
-                <div className="wiki-meta-grid">
+                <><div className="wiki-meta-grid">
                   {canManage ? (
                     <div>
                       <strong>Ciência</strong>
@@ -430,6 +469,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                     <p>{selected.requiresAck ? "Exige ciência" : "Leitura simples"}</p>
                   </div>
                 </div>
+                {canManage && selected.acknowledgement ? <AnnouncementCompliance compliance={selected.acknowledgement} /> : null}</>
               ) : null}
             </>
           ) : (

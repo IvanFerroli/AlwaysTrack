@@ -1842,6 +1842,14 @@ button .icon {
   justify-self: end;
 }
 
+.announcement-detail-compliance {
+  border-top: 1px solid var(--color-border-soft);
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
 .announcement-compliance-grid {
   display: grid;
   gap: 12px;

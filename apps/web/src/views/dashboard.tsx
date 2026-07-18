@@ -57,6 +57,7 @@ interface OperationalKnowledgeData {
       acknowledgement?: {
         audienceCount: number;
         acknowledgedCount: number;
+        openedCount: number;
         pendingCount: number;
         completed: boolean;
         acknowledgedUsers: Array<{ id: string; name: string; email: string; role: string }>;
@@ -238,10 +239,22 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
                         <strong>{announcement.pinned ? "Fixado · " : ""}{announcement.title}</strong>
                         <span>{announcement.summary ?? "Comunicado interno"}</span>
                         {compliance ? <small>{compliance.acknowledgedCount} cientes · {compliance.pendingCount} pendentes</small> : null}
+                        {compliance ? <span className="announcement-compliance-tooltip" role="tooltip">
+                          {compliance.acknowledgedCount} cientes · {compliance.openedWithoutAckUsers.length} abriram sem ciência · {compliance.notOpenedUsers.length} não abriram
+                        </span> : null}
                       </button>
                       {expanded ? (
                         <div className="announcement-compliance-detail">
-                          {compliance ? <p>{compliance.acknowledgedUsers.map((person) => person.name).join(", ") || "Nenhuma ciência registrada."}</p> : null}
+                          {compliance ? <div className="announcement-compliance-grid">
+                            {[
+                              { label: `Cientes (${compliance.acknowledgedUsers.length})`, people: compliance.acknowledgedUsers, empty: "Nenhuma ciência registrada." },
+                              { label: `Abriram sem ciência (${compliance.openedWithoutAckUsers.length})`, people: compliance.openedWithoutAckUsers, empty: "Ninguém aguardando confirmação após abrir." },
+                              { label: `Não abriram (${compliance.notOpenedUsers.length})`, people: compliance.notOpenedUsers, empty: "Todos já abriram o aviso." }
+                            ].map((group) => <div className="announcement-compliance-people" key={group.label}>
+                              <strong>{group.label}</strong>
+                              {group.people.length ? <ul>{group.people.map((person) => <li key={person.id}><span>{person.name}</span><small>{person.role}</small></li>)}</ul> : <small>{group.empty}</small>}
+                            </div>)}
+                          </div> : null}
                           <button className="secondary" type="button" onClick={() => onOpen("announcements", { announcements: { slug: announcement.slug } })}>Abrir aviso</button>
                         </div>
                       ) : null}

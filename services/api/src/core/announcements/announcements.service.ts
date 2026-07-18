@@ -373,7 +373,21 @@ export async function listAnnouncements(prisma: PrismaClient, actor: CurrentUser
     }),
     prisma.announcement.count({ where })
   ]);
-  return { items: items.map(withAnnouncementFormat), total };
+  const formattedItems = items.map(withAnnouncementFormat);
+  if (!isManager(actor)) return { items: formattedItems, total };
+
+  const complianceByAnnouncementId = await getAnnouncementsAcknowledgementCompliance(
+    prisma,
+    actor.organizationId,
+    items.filter((item) => item.requiresAck).map((item) => ({ id: item.id, targetRolesJson: item.targetRolesJson }))
+  );
+  return {
+    items: formattedItems.map((item) => ({
+      ...item,
+      acknowledgement: item.requiresAck ? (complianceByAnnouncementId.get(item.id) ?? null) : null
+    })),
+    total
+  };
 }
 
 export async function getAnnouncementBySlug(prisma: PrismaClient, actor: CurrentUser, slug: string) {
@@ -395,7 +409,12 @@ export async function getAnnouncementBySlug(prisma: PrismaClient, actor: Current
     create: { organizationId: actor.organizationId, announcementId: item.id, userId: actor.id, acknowledgedAt: item.requiresAck ? null : new Date() },
     update: item.requiresAck ? {} : { acknowledgedAt: new Date() }
   });
-  return { announcement: withAnnouncementFormat(item) };
+  const formatted = withAnnouncementFormat(item);
+  if (!isManager(actor) || !item.requiresAck) return { announcement: formatted };
+  const compliance = await getAnnouncementsAcknowledgementCompliance(prisma, actor.organizationId, [
+    { id: item.id, targetRolesJson: item.targetRolesJson }
+  ]);
+  return { announcement: { ...formatted, acknowledgement: compliance.get(item.id) ?? null } };
 }
 
 export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUser, input: AnnouncementInput) {
@@ -447,7 +466,19 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
     const existing = await prisma.announcement.findFirst({ where: { organizationId: actor.organizationId, slug: nextSlug, id: { not: current.id } } });
     if (existing) throw new AnnouncementError("SLUG_TAKEN");
   }
-  const item = await prisma.announcement.update({
+  const nextLinksJson = input.links === undefined ? current.linksJson : JSON.stringify(input.links);
+  const nextTargetRolesJson = input.targetRoles === undefined
+    ? current.targetRolesJson
+    : JSON.stringify(input.targetRoles.length ? input.targetRoles : commercialAllRoles);
+  const acknowledgementContentChanged = [
+    input.title !== undefined && input.title !== current.title,
+    input.summary !== undefined && input.summary !== current.summary,
+    input.content !== undefined && input.content !== current.content,
+    input.links !== undefined && nextLinksJson !== current.linksJson,
+    input.targetRoles !== undefined && nextTargetRolesJson !== current.targetRolesJson,
+    input.requiresAck !== undefined && input.requiresAck !== current.requiresAck
+  ].some(Boolean);
+  const updateOperation = prisma.announcement.update({
     where: { id: current.id },
     data: {
       slug: nextSlug,
@@ -455,8 +486,8 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
       summary: input.summary,
       content: input.content,
       tagsJson: input.tags ? tagsJsonFor(input.tags) : undefined,
-      linksJson: input.links ? JSON.stringify(input.links) : undefined,
-      targetRolesJson: input.targetRoles ? JSON.stringify(input.targetRoles.length ? input.targetRoles : commercialAllRoles) : undefined,
+      linksJson: input.links ? nextLinksJson : undefined,
+      targetRolesJson: input.targetRoles ? nextTargetRolesJson : undefined,
       status: input.status,
       priority: input.priority,
       pinned: input.pinned,
@@ -468,13 +499,27 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
       updatedById: actor.id
     }
   });
+  let item: Awaited<typeof updateOperation>;
+  let acknowledgementsReset = 0;
+  if (acknowledgementContentChanged) {
+    const [updated, deleted] = await prisma.$transaction([
+      updateOperation,
+      prisma.announcementReadReceipt.deleteMany({
+        where: { organizationId: actor.organizationId, announcementId: current.id }
+      })
+    ]);
+    item = updated;
+    acknowledgementsReset = deleted.count;
+  } else {
+    item = await updateOperation;
+  }
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
     action: "announcement.update",
     entityType: "Announcement",
     entityId: item.id,
-    metadata: { slug: item.slug, status: item.status, priority: item.priority }
+    metadata: { slug: item.slug, status: item.status, priority: item.priority, acknowledgementContentChanged, acknowledgementsReset }
   });
   return { announcement: withAnnouncementFormat(item) };
 }
@@ -551,7 +596,7 @@ export async function acknowledgeAnnouncement(prisma: PrismaClient, actor: Curre
         entityType: "Announcement",
         entityId: item.id,
         href: `/avisos/${item.slug}`,
-        dedupeKey: `announcement:${item.id}:acknowledgement:completed`
+        dedupeKey: `announcement:${item.id}:acknowledgement:completed:${item.updatedAt.getTime()}`
       });
     }
   }

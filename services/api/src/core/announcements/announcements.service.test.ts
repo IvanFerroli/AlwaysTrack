@@ -9,7 +9,8 @@ import {
   listAnnouncements,
   parseAnnouncementFilters,
   parseAnnouncementInput,
-  publishAnnouncement
+  publishAnnouncement,
+  updateAnnouncement
 } from "./announcements.service.js";
 
 const admin: CurrentUser = {
@@ -38,6 +39,7 @@ function prismaMock() {
       count: vi.fn().mockResolvedValue(0)
     },
     announcementReadReceipt: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
       upsert: vi.fn().mockResolvedValue({ id: "receipt-1", acknowledgedAt: new Date() })
@@ -50,7 +52,8 @@ function prismaMock() {
     },
     inAppNotification: {
       upsert: vi.fn().mockResolvedValue({ id: "notif-1" })
-    }
+    },
+    $transaction: vi.fn().mockImplementation((operations: Array<Promise<unknown>>) => Promise.all(operations))
   };
 }
 
@@ -86,6 +89,45 @@ describe("announcements service", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "announcement.create" }) }));
   });
 
+  it("invalidates previous acknowledgements when acknowledged content changes", async () => {
+    const prisma = prismaMock();
+    prisma.announcement.findFirst.mockResolvedValueOnce({
+      id: "ann-1", organizationId: "org-1", slug: "aviso", title: "Aviso", summary: "Antes", content: "Conteúdo antigo",
+      tagsJson: "[]", linksJson: "[]", targetRolesJson: '["SAC"]', status: "PUBLISHED", priority: "HIGH", pinned: false,
+      requiresAck: true, startsAt: null, expiresAt: null, publishedAt: new Date(), archivedAt: null,
+      createdById: "admin-1", updatedById: "admin-1", createdAt: new Date(), updatedAt: new Date()
+    });
+    prisma.announcementReadReceipt.deleteMany.mockResolvedValueOnce({ count: 3 });
+
+    await updateAnnouncement(prisma as never, admin, "ann-1", { content: "Conteúdo revisado" });
+
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(prisma.announcementReadReceipt.deleteMany).toHaveBeenCalledWith({
+      where: { organizationId: "org-1", announcementId: "ann-1" }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "announcement.update",
+        metadataJson: expect.stringContaining('"acknowledgementsReset":3')
+      })
+    }));
+  });
+
+  it("preserves acknowledgements for presentation-only changes", async () => {
+    const prisma = prismaMock();
+    prisma.announcement.findFirst.mockResolvedValueOnce({
+      id: "ann-1", organizationId: "org-1", slug: "aviso", title: "Aviso", summary: null, content: "Conteúdo",
+      tagsJson: "[]", linksJson: "[]", targetRolesJson: '["SAC"]', status: "PUBLISHED", priority: "NORMAL", pinned: false,
+      requiresAck: true, startsAt: null, expiresAt: null, publishedAt: new Date(), archivedAt: null,
+      createdById: "admin-1", updatedById: "admin-1", createdAt: new Date(), updatedAt: new Date()
+    });
+
+    await updateAnnouncement(prisma as never, admin, "ann-1", { priority: "HIGH", pinned: true });
+
+    expect(prisma.announcementReadReceipt.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it("publishes with deduped in-app notification", async () => {
     const prisma = prismaMock();
     prisma.announcement.findFirst.mockResolvedValueOnce({ id: "ann-1", slug: "aviso", title: "Aviso", summary: null, content: "Texto", tagsJson: "[]", linksJson: "[]", targetRolesJson: "[\"VENDEDOR\"]", status: "DRAFT", priority: "HIGH", pinned: false, requiresAck: true, startsAt: null, expiresAt: null, publishedAt: null });
@@ -104,6 +146,39 @@ describe("announcements service", () => {
 
     expect(prisma.announcement.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ targetRolesJson: { contains: "\"VENDEDOR\"" } }) }));
     expect(prisma.announcementReadReceipt.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ userId: "seller-1" }) }));
+  });
+
+  it("exposes nominal acknowledgement compliance only to managers", async () => {
+    const prisma = prismaMock();
+    prisma.announcement.findMany.mockResolvedValueOnce([{
+      id: "ann-1", organizationId: "org-1", slug: "aviso", title: "Aviso", summary: null, content: "Texto",
+      tagsJson: "[]", linksJson: "[]", targetRolesJson: '["VENDEDOR"]', status: "PUBLISHED", priority: "HIGH",
+      pinned: false, requiresAck: true, startsAt: null, expiresAt: null, publishedAt: new Date(), archivedAt: null,
+      createdById: "admin-1", updatedById: "admin-1", createdAt: new Date(), updatedAt: new Date(),
+      createdBy: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" },
+      updatedBy: { id: "admin-1", name: "Admin", email: "admin@example.com", role: "ADMIN" },
+      readReceipts: []
+    }]);
+    prisma.announcement.count.mockResolvedValueOnce(1);
+    prisma.user.findMany.mockResolvedValueOnce([
+      { id: "seller-1", name: "Ana", email: "ana@example.com", role: "VENDEDOR" },
+      { id: "seller-2", name: "Bruno", email: "bruno@example.com", role: "VENDEDOR" }
+    ]);
+    prisma.announcementReadReceipt.findMany.mockResolvedValueOnce([
+      { announcementId: "ann-1", userId: "seller-1", acknowledgedAt: new Date() }
+    ]);
+
+    const result = await listAnnouncements(prisma as never, admin);
+
+    expect(result.items[0]).toMatchObject({
+      acknowledgement: {
+        audienceCount: 2,
+        acknowledgedCount: 1,
+        pendingCount: 1,
+        acknowledgedUsers: [{ id: "seller-1", name: "Ana" }],
+        notOpenedUsers: [{ id: "seller-2", name: "Bruno" }]
+      }
+    });
   });
 
   it("rejects acknowledgement outside the published required target audience", async () => {
@@ -191,7 +266,8 @@ describe("announcements service", () => {
       status: "PUBLISHED",
       requiresAck: true,
       startsAt: null,
-      expiresAt: null
+      expiresAt: null,
+      updatedAt: new Date("2026-07-16T09:00:00.000Z")
     });
     prisma.user.findMany
       .mockResolvedValueOnce([{ id: "seller-1", name: "Seller", email: "seller@example.com", role: "VENDEDOR" }])
@@ -312,5 +388,10 @@ describe("announcements service", () => {
     expect(prisma.announcement.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       include: expect.objectContaining({ readReceipts: expect.objectContaining({ where: { userId: "seller-1" } }) })
     }));
+    expect(prisma.announcementReadReceipt.upsert).toHaveBeenCalledWith({
+      where: { announcementId_userId: { announcementId: "ann-1", userId: "seller-1" } },
+      create: { organizationId: "org-1", announcementId: "ann-1", userId: "seller-1", acknowledgedAt: null },
+      update: {}
+    });
   });
 });
