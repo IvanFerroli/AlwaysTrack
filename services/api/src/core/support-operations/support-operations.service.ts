@@ -239,7 +239,13 @@ export async function createSupportPauseSlot(prisma: PrismaClient, actor: Curren
   const startsAt = parseDateTime(body.startsAt);
   const endsAt = parseDateTime(body.endsAt);
   if (endsAt <= startsAt || endsAt.getTime() - startsAt.getTime() > 4 * 60 * 60 * 1000) throw new SupportOperationsError("INVALID_INPUT");
-  const teamId = body.teamId ? requiredString(body.teamId) : null;
+  const teamId = body.teamId
+    ? requiredString(body.teamId)
+    : (await prisma.supportTeam.findFirst({
+        where: { organizationId: actor.organizationId, active: true },
+        select: { id: true },
+        orderBy: { name: "asc" }
+      }))?.id ?? null;
   if (teamId) await ensureSupportTeam(prisma, actor.organizationId, teamId);
   const slot = await prisma.supportPauseSlot.create({
     data: {
@@ -519,6 +525,31 @@ function percentageWeight(metric: SupportMetricKey, value: number, body: Record<
     : { numerator: value * denominator / 100, denominator };
 }
 
+function aggregateMetricEntries(metric: SupportMetricKey, entries: Array<{ value: number; numerator: number | null; denominator: number | null }>) {
+  const canWeight = (metric === "CSAT" || metric === "SLA")
+    && entries.length > 0
+    && entries.every((entry) => entry.numerator !== null && entry.denominator !== null && entry.denominator > 0);
+  const denominator = canWeight ? entries.reduce((total, entry) => total + (entry.denominator ?? 0), 0) : null;
+  const average = canWeight && denominator
+    ? entries.reduce((total, entry) => total + (entry.numerator ?? 0), 0) / denominator * 100
+    : entries.length ? entries.reduce((total, entry) => total + entry.value, 0) / entries.length : null;
+  return {
+    average,
+    samples: denominator ?? entries.length,
+    aggregation: canWeight ? "WEIGHTED" as const : "SIMPLE" as const
+  };
+}
+
+function campaignProgress(comparison: string, targetValue: number, current: number | null) {
+  if (current === null) return { achieved: false, progressPercent: 0 };
+  const achieved = comparison === "LTE" ? current <= targetValue : current >= targetValue;
+  if (achieved) return { achieved, progressPercent: 100 };
+  if (comparison === "LTE") {
+    return { achieved, progressPercent: current > 0 ? Math.max(Math.min(targetValue / current * 100, 99), 0) : 0 };
+  }
+  return { achieved, progressPercent: targetValue > 0 ? Math.max(Math.min(current / targetValue * 100, 99), 0) : 0 };
+}
+
 export async function listSupportPerformance(prisma: PrismaClient, actor: CurrentUser, query: { from?: string; to?: string; metric?: string; userId?: string }) {
   const { where, from, to } = performanceWhere(actor, query);
   const [actorMemberships, allTeams] = await Promise.all([
@@ -585,19 +616,11 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
   const summary = supportMetricKeys.map((metric) => {
     const metricEntries = entries.filter((entry) => entry.metric === metric);
     const latest = metricEntries.at(-1) ?? null;
-    const canWeight = (metric === "CSAT" || metric === "SLA")
-      && metricEntries.length > 0
-      && metricEntries.every((entry) => entry.numerator !== null && entry.denominator !== null && entry.denominator > 0);
-    const denominator = canWeight ? metricEntries.reduce((total, entry) => total + (entry.denominator ?? 0), 0) : null;
-    const average = canWeight && denominator
-      ? metricEntries.reduce((total, entry) => total + (entry.numerator ?? 0), 0) / denominator * 100
-      : metricEntries.length ? metricEntries.reduce((total, entry) => total + entry.value, 0) / metricEntries.length : null;
+    const aggregate = aggregateMetricEntries(metric, metricEntries);
     return {
       metric,
       latest: latest?.value ?? null,
-      average,
-      samples: denominator ?? metricEntries.length,
-      aggregation: canWeight ? "WEIGHTED" : "SIMPLE"
+      ...aggregate
     };
   });
   return { canManage: isManager(actor), period: { from, to }, agents, teams: allTeams, summary, entries, campaigns };
@@ -705,7 +728,42 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
       orderBy: { name: "asc" }
     })
   ]);
-  return { canManage: isManager(actor), items, teams };
+  const periodStart = items.length ? new Date(Math.min(...items.map((item) => item.startsAt.getTime()))) : null;
+  const periodEnd = items.length ? new Date(Math.max(...items.map((item) => item.endsAt.getTime()))) : null;
+  const entries = periodStart && periodEnd
+    ? await prisma.supportKpiEntry.findMany({
+        where: {
+          organizationId: actor.organizationId,
+          archivedAt: null,
+          metric: { in: [...new Set(items.map((item) => item.metric))] },
+          periodStart: { lte: periodEnd },
+          periodEnd: { gte: periodStart }
+        },
+        orderBy: [{ periodEnd: "asc" }, { createdAt: "asc" }]
+      })
+    : [];
+  const evaluatedItems = items.map((campaign) => {
+    const metric = campaign.metric as SupportMetricKey;
+    const campaignEntries = entries.filter((entry) => {
+      if (entry.metric !== metric || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
+      if (campaign.scopeType === "USER") return entry.userId === campaign.userId;
+      if (campaign.scopeType === "TEAM") {
+        return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
+      }
+      return entry.scopeType === "ORGANIZATION";
+    });
+    const aggregate = aggregateMetricEntries(metric, campaignEntries);
+    const current = aggregate.average;
+    return {
+      ...campaign,
+      result: {
+        current,
+        ...aggregate,
+        ...campaignProgress(campaign.comparison, campaign.targetValue, current)
+      }
+    };
+  });
+  return { canManage: isManager(actor), items: evaluatedItems, teams };
 }
 
 function campaignData(actor: CurrentUser, body: Record<string, unknown>) {

@@ -6,6 +6,7 @@ import {
   createSupportCampaign,
   createSupportKpiEntry,
   decideSupportPauseSwap,
+  listSupportCampaigns,
   listSupportPauses,
   listSupportPerformance
 } from "./support-operations.service.js";
@@ -172,5 +173,46 @@ describe("support operations service", () => {
       endsAt: "2026-07-31T02:59:59.999Z"
     });
     expect(result.campaign).toMatchObject({ metric: "RECLAME_AQUI_OPEN", comparison: "LTE", targetValue: 0 });
+  });
+
+  it("evaluates campaign progress with the same weighted period aggregation as performance", async () => {
+    const prisma = {
+      supportCampaign: { findMany: vi.fn().mockResolvedValue([{
+        id: "campaign-1",
+        organizationId: "org-1",
+        name: "CSAT 95",
+        metric: "CSAT",
+        targetValue: 95,
+        comparison: "GTE",
+        scopeType: "TEAM",
+        teamId: "team-1",
+        teamLabel: "SAC Atendimento",
+        userId: null,
+        startsAt: new Date("2026-07-01T03:00:00.000Z"),
+        endsAt: new Date("2026-08-01T02:59:59.999Z")
+      }]) },
+      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
+      supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
+        {
+          metric: "CSAT", value: 80, numerator: 8, denominator: 10, scopeType: "TEAM", teamId: "team-1", teamLabel: "SAC Atendimento",
+          periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z")
+        },
+        {
+          metric: "CSAT", value: 100, numerator: 90, denominator: 90, scopeType: "TEAM", teamId: "team-1", teamLabel: "SAC Atendimento",
+          periodStart: new Date("2026-07-08T03:00:00.000Z"), periodEnd: new Date("2026-07-14T02:59:59.999Z")
+        }
+      ]) }
+    };
+
+    const result = await listSupportCampaigns(prisma as never, admin);
+
+    expect(result.items[0]?.result).toEqual({
+      current: 98,
+      average: 98,
+      samples: 100,
+      aggregation: "WEIGHTED",
+      achieved: true,
+      progressPercent: 100
+    });
   });
 });
