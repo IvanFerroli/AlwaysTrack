@@ -519,6 +519,13 @@ model SupportKpiEntry {
   note           String?
   createdById    String
   updatedById    String
+  status         String    @default("DRAFT")
+  revision       Int       @default(1)
+  supersedesId   String?
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewedById   String?
+  reviewNote     String?
   archivedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -533,6 +540,8 @@ model SupportKpiEntry {
   @@index([organizationId, scopeType])
   @@index([userId, periodStart])
   @@index([teamId, periodStart])
+  @@index([organizationId, status, periodStart])
+  @@index([supersedesId])
 }
 
 model SupportCampaign {

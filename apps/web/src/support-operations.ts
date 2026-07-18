@@ -8,6 +8,7 @@ export type SupportScopeType = (typeof supportScopeTypes)[number];
 
 export type SupportComparison = "GTE" | "LTE";
 export type SupportCampaignStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "CLOSED";
+export type SupportKpiStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "SUPERSEDED";
 
 export interface SupportAgent {
   id: string;
@@ -109,6 +110,13 @@ export interface SupportKpiEntry {
   periodEnd: string;
   source: string | null;
   note: string | null;
+  status: SupportKpiStatus;
+  revision: number;
+  supersedesId: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewedById: string | null;
+  reviewNote: string | null;
   createdBy?: Pick<SupportAgent, "id" | "name">;
   createdAt: string;
   updatedAt: string;
@@ -155,6 +163,7 @@ export interface SupportPerformanceResponse {
     aggregation: "WEIGHTED" | "SIMPLE";
   }>;
   entries: SupportKpiEntry[];
+  pendingReviewCount: number;
   campaigns: SupportCampaign[];
 }
 

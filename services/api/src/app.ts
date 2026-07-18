@@ -167,6 +167,8 @@ import {
   listSupportCampaignsHandler,
   listSupportPausesHandler,
   listSupportPerformanceHandler,
+  reviewSupportKpiEntryHandler,
+  submitSupportKpiEntryHandler,
   requestSupportPauseSwapHandler,
   supportDashboardHandler,
   updateSupportCampaignHandler,
@@ -410,6 +412,8 @@ export function createApp() {
   app.get("/v1/support/performance", requireAuth, requireRole(supportOperationsRoles), listSupportPerformanceHandler);
   app.post("/v1/support/performance/entries", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportKpiEntryHandler);
   app.patch("/v1/support/performance/entries/:entryId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportKpiEntryHandler);
+  app.post("/v1/support/performance/entries/:entryId/submit", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, submitSupportKpiEntryHandler);
+  app.post("/v1/support/performance/entries/:entryId/review", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, reviewSupportKpiEntryHandler);
   app.get("/v1/support/campaigns", requireAuth, requireRole(supportOperationsRoles), listSupportCampaignsHandler);
   app.post("/v1/support/campaigns", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportCampaignHandler);
   app.patch("/v1/support/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportCampaignHandler);

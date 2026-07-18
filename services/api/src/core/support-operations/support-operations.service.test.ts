@@ -8,7 +8,10 @@ import {
   decideSupportPauseSwap,
   listSupportCampaigns,
   listSupportPauses,
-  listSupportPerformance
+  listSupportPerformance,
+  reviewSupportKpiEntry,
+  submitSupportKpiEntry,
+  updateSupportKpiEntry
 } from "./support-operations.service.js";
 
 const admin: CurrentUser = {
@@ -125,8 +128,8 @@ describe("support operations service", () => {
       supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) },
       supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
       supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
-        { metric: "CSAT", value: 80, numerator: 8, denominator: 10 },
-        { metric: "CSAT", value: 100, numerator: 90, denominator: 90 }
+        { metric: "CSAT", value: 80, numerator: 8, denominator: 10, status: "APPROVED" },
+        { metric: "CSAT", value: 100, numerator: 90, denominator: 90, status: "APPROVED" }
       ]) },
       supportCampaign: { findMany: vi.fn().mockResolvedValue([]) }
     };
@@ -154,7 +157,63 @@ describe("support operations service", () => {
     };
     await expect(createSupportKpiEntry(prisma as never, admin, input)).resolves.toMatchObject({ entry: { metric: "CSAT", value: 94.5 } });
     await expect(createSupportKpiEntry(prisma as never, admin, { ...input, value: 140 })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
-    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.create" }) }));
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.draft.create" }) }));
+  });
+
+  it("submits a KPI draft and approves it atomically while superseding the previous version", async () => {
+    const submitted = {
+      id: "kpi-2", organizationId: "org-1", status: "SUBMITTED", revision: 2, supersedesId: "kpi-1"
+    };
+    const tx = {
+      supportKpiEntry: {
+        findFirst: vi.fn().mockResolvedValue(submitted),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        update: vi.fn().mockResolvedValue({ ...submitted, status: "APPROVED" })
+      },
+      auditLog: auditMock()
+    };
+    const submitPrisma = {
+      supportKpiEntry: {
+        findFirst: vi.fn().mockResolvedValue({ id: "kpi-2", organizationId: "org-1", status: "DRAFT", revision: 2, supersedesId: "kpi-1" }),
+        update: vi.fn().mockResolvedValue(submitted)
+      },
+      auditLog: auditMock()
+    };
+
+    await expect(submitSupportKpiEntry(submitPrisma as never, admin, "kpi-2")).resolves.toMatchObject({ entry: { status: "SUBMITTED" } });
+    expect(submitPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.submit" }) }));
+
+    const reviewPrisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+    await expect(reviewSupportKpiEntry(reviewPrisma as never, admin, "kpi-2", { decision: "APPROVED", reviewNote: "Conferido" }))
+      .resolves.toMatchObject({ entry: { status: "APPROVED" } });
+    expect(tx.supportKpiEntry.updateMany).toHaveBeenCalledWith({
+      where: { id: "kpi-1", organizationId: "org-1", status: "APPROVED" },
+      data: { status: "SUPERSEDED", updatedById: "admin-1" }
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.approved" }) }));
+  });
+
+  it("creates a draft revision instead of overwriting an approved KPI", async () => {
+    const existing = {
+      id: "kpi-1", organizationId: "org-1", metric: "CSAT", value: 90, numerator: 90, denominator: 100,
+      scopeType: "TEAM", userId: null, teamId: "team-1", teamLabel: "SAC Atendimento",
+      periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z"),
+      source: "Painel", note: null, status: "APPROVED", revision: 1, supersedesId: null
+    };
+    const prisma = {
+      supportKpiEntry: {
+        findFirst: vi.fn().mockResolvedValue(existing),
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-2", ...data })),
+        update: vi.fn()
+      },
+      auditLog: auditMock()
+    };
+
+    const result = await updateSupportKpiEntry(prisma as never, admin, "kpi-1", { value: 95, sampleSize: 120 });
+
+    expect(result.entry).toMatchObject({ id: "kpi-2", status: "DRAFT", revision: 2, supersedesId: "kpi-1", value: 95 });
+    expect(prisma.supportKpiEntry.update).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.revision.create" }) }));
   });
 
   it("creates a lower-is-better ReclameAqui campaign without sales dependencies", async () => {

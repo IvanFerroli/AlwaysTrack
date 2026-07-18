@@ -14,6 +14,8 @@ import {
   listSupportPauses,
   listSupportPerformance,
   requestSupportPauseSwap,
+  reviewSupportKpiEntry,
+  submitSupportKpiEntry,
   updateSupportCampaign,
   updateSupportKpiEntry,
   updateSupportPausePolicy
@@ -94,6 +96,14 @@ export async function createSupportKpiEntryHandler(request: Request, response: R
 
 export async function updateSupportKpiEntryHandler(request: Request, response: Response) {
   try { return sendOk(response, await updateSupportKpiEntry(prisma, actor(request), param(request.params.entryId), request.body)); } catch (error) { return failure(response, error); }
+}
+
+export async function submitSupportKpiEntryHandler(request: Request, response: Response) {
+  try { return sendOk(response, await submitSupportKpiEntry(prisma, actor(request), param(request.params.entryId))); } catch (error) { return failure(response, error); }
+}
+
+export async function reviewSupportKpiEntryHandler(request: Request, response: Response) {
+  try { return sendOk(response, await reviewSupportKpiEntry(prisma, actor(request), param(request.params.entryId), request.body)); } catch (error) { return failure(response, error); }
 }
 
 export async function listSupportCampaignsHandler(request: Request, response: Response) {

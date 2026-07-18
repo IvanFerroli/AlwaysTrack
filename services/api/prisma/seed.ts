@@ -1090,6 +1090,11 @@ async function main() {
         source: "Painel operacional demonstrativo",
         note: index === values.length - 1 ? "Último fechamento informado pela gestão." : null,
         updatedById: admin.id,
+        status: "APPROVED",
+        submittedAt: period.periodEnd,
+        reviewedAt: period.periodEnd,
+        reviewedById: admin.id,
+        reviewNote: "Massa sintética aprovada para demonstração.",
         archivedAt: null
       };
       if (existing) {

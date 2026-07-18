@@ -1,4 +1,4 @@
-import { BarChart3, Pencil, Plus, RefreshCw, Save, X } from "lucide-react";
+import { BarChart3, Check, Pencil, Plus, RefreshCw, Send, ThumbsDown, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
@@ -33,7 +33,7 @@ function errorMessage(caught: unknown, fallback: string) {
 }
 
 function MetricTrend({ metric, entries }: { metric: SupportMetricKey; entries: SupportKpiEntry[] }) {
-  const points = entries.filter((entry) => entry.metric === metric).slice(-12);
+  const points = entries.filter((entry) => entry.metric === metric && entry.status === "APPROVED").slice(-12);
   if (!points.length) return <span className="support-trend-empty">Sem série</span>;
   const maximum = Math.max(...points.map((entry) => entry.value), 1);
   return (
@@ -48,6 +48,14 @@ function MetricTrend({ metric, entries }: { metric: SupportMetricKey; entries: S
     </span>
   );
 }
+
+const reviewStatusLabel: Record<SupportKpiEntry["status"], string> = {
+  DRAFT: "Rascunho",
+  SUBMITTED: "Em revisão",
+  APPROVED: "Aprovado",
+  REJECTED: "Rejeitado",
+  SUPERSEDED: "Substituído"
+};
 
 export function SupportPerformanceView({ user }: { user: CurrentUser }) {
   const canManage = isSupportManager(user);
@@ -94,11 +102,45 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
         method: draft.id ? "PATCH" : "POST",
         body: JSON.stringify(supportKpiPayloadFromDraft(draft))
       });
-      setNotice(draft.id ? "Indicador atualizado." : "Indicador lançado.");
+      const existing = data?.entries.find((entry) => entry.id === draft.id);
+      setNotice(draft.id && existing?.status === "APPROVED" ? "Correção criada como novo rascunho." : draft.id ? "Rascunho atualizado." : "Rascunho criado.");
       setDraft(emptySupportKpiDraft(today));
       await load(false);
     } catch (caught) {
       setError(errorMessage(caught, "Falha ao salvar o indicador."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submitEntry(entry: SupportKpiEntry) {
+    setSaving(true);
+    setError(null);
+    try {
+      await api(`/v1/support/performance/entries/${entry.id}/submit`, { method: "POST" });
+      setNotice("Indicador enviado para revisão.");
+      await load(false);
+    } catch (caught) {
+      setError(errorMessage(caught, "Falha ao enviar o indicador para revisão."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reviewEntry(entry: SupportKpiEntry, decision: "APPROVED" | "REJECTED") {
+    const reviewNote = decision === "REJECTED" ? window.prompt("Motivo da rejeição")?.trim() : "Conferido na gestão SAC.";
+    if (decision === "REJECTED" && !reviewNote) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api(`/v1/support/performance/entries/${entry.id}/review`, {
+        method: "POST",
+        body: JSON.stringify({ decision, reviewNote })
+      });
+      setNotice(decision === "APPROVED" ? "Indicador aprovado e publicado." : "Indicador rejeitado para correção.");
+      await load(false);
+    } catch (caught) {
+      setError(errorMessage(caught, "Falha ao revisar o indicador."));
     } finally {
       setSaving(false);
     }
@@ -189,11 +231,11 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
           </div>
 
           <section className="support-table-section" aria-labelledby="support-entry-history-title">
-            <div className="support-section-heading"><div><p className="eyebrow">Série manual</p><h2 id="support-entry-history-title">Histórico de indicadores</h2></div><span className="support-count">{data.entries.length} registro(s)</span></div>
+            <div className="support-section-heading"><div><p className="eyebrow">Série governada</p><h2 id="support-entry-history-title">Histórico de indicadores</h2></div><span className="support-count">{data.pendingReviewCount} em revisão · {data.entries.length} registro(s)</span></div>
             {data.entries.length ? (
               <div className="table-scroll">
                 <table aria-label="Histórico de indicadores SAC">
-                  <thead><tr><th scope="col">Período</th><th scope="col">Métrica</th><th scope="col">Resultado</th><th scope="col">Escopo</th><th scope="col">Fonte</th>{canManage ? <th scope="col">Ações</th> : null}</tr></thead>
+                  <thead><tr><th scope="col">Período</th><th scope="col">Métrica</th><th scope="col">Resultado</th><th scope="col">Escopo</th><th scope="col">Fonte</th><th scope="col">Estado</th>{canManage ? <th scope="col">Ações</th> : null}</tr></thead>
                   <tbody>{[...data.entries].reverse().map((entry) => (
                     <tr key={entry.id}>
                       <td>{formatSupportDate(entry.periodStart)}<small>até {formatSupportDate(entry.periodEnd)}</small></td>
@@ -201,7 +243,12 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
                       <td>{formatSupportMetricValue(entry.metric, entry.value)}</td>
                       <td>{supportScopeLabel(entry)}</td>
                       <td>{entry.source || "-"}{entry.note ? <small>{entry.note}</small> : null}</td>
-                      {canManage ? <td><button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> Editar</button></td> : null}
+                      <td><span className={`support-review-status ${entry.status.toLowerCase()}`}>{reviewStatusLabel[entry.status]}</span><small>revisão {entry.revision}</small>{entry.reviewNote ? <small>{entry.reviewNote}</small> : null}</td>
+                      {canManage ? <td><div className="row-actions">
+                        {entry.status === "DRAFT" ? <><button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> Editar</button><button className="small" disabled={saving} type="button" onClick={() => void submitEntry(entry)}><Send size={15} /> Enviar</button></> : null}
+                        {entry.status === "SUBMITTED" ? <><button className="small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "APPROVED")}><Check size={15} /> Aprovar</button><button className="secondary small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "REJECTED")}><ThumbsDown size={15} /> Rejeitar</button></> : null}
+                        {entry.status === "APPROVED" || entry.status === "REJECTED" ? <button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> {entry.status === "APPROVED" ? "Criar correção" : "Corrigir"}</button> : null}
+                      </div></td> : null}
                     </tr>
                   ))}</tbody>
                 </table>
@@ -222,7 +269,7 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
         <div id="support-performance-entries-panel" role="tabpanel" aria-labelledby="support-performance-entries-tab" className="support-tab-panel">
           <section className="support-form-section" aria-labelledby="support-entry-form-title">
             <div className="support-section-heading">
-              <div><p className="eyebrow">{draft.id ? "Revisão manual" : "Entrada manual"}</p><h2 id="support-entry-form-title">{draft.id ? "Editar indicador" : "Lançar indicador"}</h2></div>
+              <div><p className="eyebrow">{draft.id ? "Correção manual" : "Entrada manual"}</p><h2 id="support-entry-form-title">{draft.id ? "Editar rascunho" : "Criar rascunho"}</h2></div>
               {draft.id ? <button className="secondary small" type="button" onClick={() => setDraft(emptySupportKpiDraft(today))}><X size={15} /> Cancelar edição</button> : null}
             </div>
             <form className="support-form-grid support-kpi-form" onSubmit={saveEntry}>
@@ -247,7 +294,7 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
               <label>Fim<input required disabled={Boolean(draft.id)} type="date" value={draft.periodEnd} onChange={(event) => setDraft((current) => ({ ...current, periodEnd: event.target.value }))} /></label>
               <label className="support-full-span">Fonte<input maxLength={160} placeholder="Ex.: relatório semanal" value={draft.source} onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))} /></label>
               <label className="support-full-span">Observação<textarea maxLength={1000} rows={3} value={draft.note} onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))} /></label>
-              <div className="support-form-actions support-full-span"><button type="submit" disabled={saving}>{draft.id ? <Save size={16} /> : <Plus size={16} />}{draft.id ? "Salvar alteração" : "Lançar indicador"}</button></div>
+              <div className="support-form-actions support-full-span"><button type="submit" disabled={saving}>{draft.id ? <Pencil size={16} /> : <Plus size={16} />}{draft.id ? "Salvar rascunho" : "Criar rascunho"}</button></div>
             </form>
           </section>
         </div>

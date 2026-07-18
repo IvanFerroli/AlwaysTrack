@@ -568,6 +568,7 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
   const actorTeamIds = actorMemberships.map((membership) => membership.teamId);
   if (!isManager(actor)) {
     where.OR = [{ userId: actor.id }, { scopeType: "ORGANIZATION" }, ...(actorTeamIds.length ? [{ teamId: { in: actorTeamIds } }] : [])];
+    where.status = "APPROVED";
   }
   const teamMemberships = await prisma.supportTeamMembership.findMany({
     where: {
@@ -613,8 +614,9 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
       orderBy: [{ endsAt: "asc" }, { name: "asc" }]
     })
   ]);
+  const approvedEntries = entries.filter((entry) => entry.status === "APPROVED");
   const summary = supportMetricKeys.map((metric) => {
-    const metricEntries = entries.filter((entry) => entry.metric === metric);
+    const metricEntries = approvedEntries.filter((entry) => entry.metric === metric);
     const latest = metricEntries.at(-1) ?? null;
     const aggregate = aggregateMetricEntries(metric, metricEntries);
     return {
@@ -623,7 +625,16 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
       ...aggregate
     };
   });
-  return { canManage: isManager(actor), period: { from, to }, agents, teams: allTeams, summary, entries, campaigns };
+  return {
+    canManage: isManager(actor),
+    period: { from, to },
+    agents,
+    teams: allTeams,
+    summary,
+    entries,
+    pendingReviewCount: entries.filter((entry) => entry.status === "SUBMITTED").length,
+    campaigns
+  };
 }
 
 export async function createSupportKpiEntry(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
@@ -653,14 +664,15 @@ export async function createSupportKpiEntry(prisma: PrismaClient, actor: Current
       source: optionalString(body.source, 160),
       note: optionalString(body.note, 1000),
       createdById: actor.id,
-      updatedById: actor.id
+      updatedById: actor.id,
+      status: "DRAFT"
     },
     include: { user: { select: { id: true, name: true, email: true } } }
   });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
-    action: "support_performance.entry.create",
+    action: "support_performance.entry.draft.create",
     entityType: "SupportKpiEntry",
     entityId: entry.id,
     metadata: { metric, scopeType: scope.scopeType, userId: scope.userId, periodStart, periodEnd }
@@ -676,25 +688,107 @@ export async function updateSupportKpiEntry(prisma: PrismaClient, actor: Current
   const metric = body.metric === undefined ? existing.metric as SupportMetricKey : parseMetric(body.metric);
   const value = body.value === undefined ? existing.value : validateMetricValue(metric, body.value);
   const weight = percentageWeight(metric, value, body, existing.denominator);
-  const entry = await prisma.supportKpiEntry.update({
-    where: { id: existing.id },
-    data: {
-      value,
-      ...weight,
-      source: body.source === undefined ? existing.source : optionalString(body.source, 160),
-      note: body.note === undefined ? existing.note : optionalString(body.note, 1000),
-      archivedAt: body.archived === true ? new Date() : undefined,
-      updatedById: actor.id
-    }
-  });
+  if (existing.status === "SUBMITTED" || existing.status === "SUPERSEDED") throw new SupportOperationsError("CONFLICT");
+  if (body.archived === true && existing.status === "APPROVED") throw new SupportOperationsError("CONFLICT");
+  const data = {
+    value,
+    ...weight,
+    source: body.source === undefined ? existing.source : optionalString(body.source, 160),
+    note: body.note === undefined ? existing.note : optionalString(body.note, 1000),
+    updatedById: actor.id
+  };
+  const createsRevision = existing.status === "APPROVED" || existing.status === "REJECTED";
+  const entry = createsRevision
+    ? await prisma.supportKpiEntry.create({
+        data: {
+          organizationId: existing.organizationId,
+          metric,
+          ...data,
+          scopeType: existing.scopeType,
+          userId: existing.userId,
+          teamLabel: existing.teamLabel,
+          teamId: existing.teamId,
+          periodStart: existing.periodStart,
+          periodEnd: existing.periodEnd,
+          createdById: actor.id,
+          status: "DRAFT",
+          revision: existing.revision + 1,
+          supersedesId: existing.supersedesId ?? existing.id
+        }
+      })
+    : await prisma.supportKpiEntry.update({
+        where: { id: existing.id },
+        data: { ...data, archivedAt: body.archived === true ? new Date() : undefined }
+      });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
-    action: body.archived === true ? "support_performance.entry.archive" : "support_performance.entry.update",
+    action: body.archived === true
+      ? "support_performance.entry.archive"
+      : createsRevision ? "support_performance.entry.revision.create" : "support_performance.entry.draft.update",
     entityType: "SupportKpiEntry",
     entityId: entry.id
   });
   return { entry };
+}
+
+export async function submitSupportKpiEntry(prisma: PrismaClient, actor: CurrentUser, entryId: string) {
+  if (!isManager(actor)) throw new SupportOperationsError("FORBIDDEN");
+  const existing = await prisma.supportKpiEntry.findFirst({
+    where: { id: entryId, organizationId: actor.organizationId, archivedAt: null }
+  });
+  if (!existing) throw new SupportOperationsError("NOT_FOUND");
+  if (existing.status !== "DRAFT") throw new SupportOperationsError("CONFLICT");
+  const entry = await prisma.supportKpiEntry.update({
+    where: { id: existing.id },
+    data: { status: "SUBMITTED", submittedAt: new Date(), reviewedAt: null, reviewedById: null, reviewNote: null, updatedById: actor.id }
+  });
+  await recordAuditLog(prisma, {
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    action: "support_performance.entry.submit",
+    entityType: "SupportKpiEntry",
+    entityId: entry.id,
+    metadata: { revision: entry.revision, supersedesId: entry.supersedesId }
+  });
+  return { entry };
+}
+
+export async function reviewSupportKpiEntry(prisma: PrismaClient, actor: CurrentUser, entryId: string, input: unknown) {
+  if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
+  const body = input as Record<string, unknown>;
+  const decision = requiredString(body.decision, 20).toUpperCase();
+  if (decision !== "APPROVED" && decision !== "REJECTED") throw new SupportOperationsError("INVALID_INPUT");
+  const reviewNote = optionalString(body.reviewNote, 1000);
+  if (decision === "REJECTED" && !reviewNote) throw new SupportOperationsError("INVALID_INPUT");
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.supportKpiEntry.findFirst({
+      where: { id: entryId, organizationId: actor.organizationId, archivedAt: null, status: "SUBMITTED" }
+    });
+    if (!existing) throw new SupportOperationsError("CONFLICT");
+    if (decision === "APPROVED" && existing.supersedesId) {
+      await tx.supportKpiEntry.updateMany({
+        where: { id: existing.supersedesId, organizationId: actor.organizationId, status: "APPROVED" },
+        data: { status: "SUPERSEDED", updatedById: actor.id }
+      });
+    }
+    const entry = await tx.supportKpiEntry.update({
+      where: { id: existing.id },
+      data: { status: decision, reviewedAt: new Date(), reviewedById: actor.id, reviewNote, updatedById: actor.id }
+    });
+    await tx.auditLog.create({
+      data: {
+        organizationId: actor.organizationId,
+        actorId: actor.id,
+        action: `support_performance.entry.${decision.toLowerCase()}`,
+        entityType: "SupportKpiEntry",
+        entityId: entry.id,
+        metadataJson: JSON.stringify({ revision: entry.revision, supersedesId: entry.supersedesId, reviewNote })
+      }
+    });
+    return { entry };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentUser) {
@@ -735,6 +829,7 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
         where: {
           organizationId: actor.organizationId,
           archivedAt: null,
+          status: "APPROVED",
           metric: { in: [...new Set(items.map((item) => item.metric))] },
           periodStart: { lte: periodEnd },
           periodEnd: { gte: periodStart }
@@ -857,7 +952,7 @@ export async function getSupportDashboard(prisma: PrismaClient, actor: CurrentUs
   return {
     date,
     pauses: { summary: pauses.summary, timeline: pauses.timeline, slots: pauses.slots },
-    performance: { summary: performance.summary, entries: performance.entries.slice(-40) },
+    performance: { summary: performance.summary, entries: performance.entries.filter((entry) => entry.status === "APPROVED").slice(-40) },
     campaigns: campaigns.items.filter((campaign) => campaign.status === "ACTIVE")
   };
 }
