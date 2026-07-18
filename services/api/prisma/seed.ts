@@ -1048,6 +1048,176 @@ async function main() {
     create: { organizationId: organization.id, ...supportPausePolicyData }
   });
 
+  const supportScheduleEffectiveFrom = new Date("2026-01-01T03:00:00.000Z");
+  const supportScheduleRule = await prisma.supportScheduleRuleVersion.upsert({
+    where: { teamId_version: { teamId: supportTeam.id, version: 1 } },
+    update: {
+      timezone: "America/Sao_Paulo",
+      maxDailyMinutes: 840,
+      maxWeeklyMinutes: 3600,
+      minimumRestMinutes: 600,
+      minimumNoticeMinutes: 60,
+      maxMonthlyExchanges: 8,
+      autoApproveEligibleSwaps: true,
+      requireManagerExtraApproval: true,
+      active: true,
+      effectiveFrom: supportScheduleEffectiveFrom,
+      effectiveTo: null
+    },
+    create: {
+      organizationId: organization.id,
+      teamId: supportTeam.id,
+      version: 1,
+      timezone: "America/Sao_Paulo",
+      maxDailyMinutes: 840,
+      maxWeeklyMinutes: 3600,
+      minimumRestMinutes: 600,
+      minimumNoticeMinutes: 60,
+      maxMonthlyExchanges: 8,
+      autoApproveEligibleSwaps: true,
+      requireManagerExtraApproval: true,
+      effectiveFrom: supportScheduleEffectiveFrom,
+      createdById: admin.id
+    }
+  });
+  const supportPatternDefinitions = [
+    { name: "Turno da manhã", startMinute: 8 * 60, endMinute: 14 * 60 + 45 },
+    { name: "Turno da tarde", startMinute: 15 * 60, endMinute: 22 * 60 }
+  ];
+  const supportPatterns = [];
+  for (const definition of supportPatternDefinitions) {
+    supportPatterns.push(await prisma.supportShiftPatternVersion.upsert({
+      where: { teamId_name_version: { teamId: supportTeam.id, name: definition.name, version: 1 } },
+      update: {
+        ...definition,
+        weekdaysJson: JSON.stringify([0, 1, 2, 3, 4, 5, 6]),
+        timezone: "America/Sao_Paulo",
+        active: true,
+        effectiveFrom: supportScheduleEffectiveFrom,
+        effectiveTo: null
+      },
+      create: {
+        organizationId: organization.id,
+        teamId: supportTeam.id,
+        version: 1,
+        ...definition,
+        weekdaysJson: JSON.stringify([0, 1, 2, 3, 4, 5, 6]),
+        timezone: "America/Sao_Paulo",
+        effectiveFrom: supportScheduleEffectiveFrom,
+        createdById: admin.id
+      }
+    }));
+  }
+  const supportAssignmentDefinitions = [
+    { user: sac, pattern: supportPatterns[0] },
+    { user: sac2, pattern: supportPatterns[0] },
+    { user: sac3, pattern: supportPatterns[1] }
+  ];
+  const supportAssignments = [];
+  for (const definition of supportAssignmentDefinitions) {
+    const existing = await prisma.supportShiftAssignment.findFirst({
+      where: {
+        organizationId: organization.id,
+        teamId: supportTeam.id,
+        userId: definition.user.id,
+        patternVersionId: definition.pattern.id,
+        validFrom: supportScheduleEffectiveFrom
+      }
+    });
+    const assignmentData = {
+      organizationId: organization.id,
+      teamId: supportTeam.id,
+      userId: definition.user.id,
+      patternVersionId: definition.pattern.id,
+      validFrom: supportScheduleEffectiveFrom,
+      validTo: null,
+      active: true,
+      updatedById: admin.id
+    };
+    supportAssignments.push(existing
+      ? await prisma.supportShiftAssignment.update({ where: { id: existing.id }, data: assignmentData })
+      : await prisma.supportShiftAssignment.create({ data: { ...assignmentData, createdById: admin.id } }));
+  }
+
+  function supportScheduleTime(dayOffset: number, minute: number) {
+    const value = new Date(now);
+    value.setDate(value.getDate() + dayOffset);
+    value.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+    return value;
+  }
+  function supportLocalDate(value: Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  }
+  const supportRuleSnapshotJson = JSON.stringify({
+    version: supportScheduleRule.version,
+    timezone: supportScheduleRule.timezone,
+    maxDailyMinutes: supportScheduleRule.maxDailyMinutes,
+    maxWeeklyMinutes: supportScheduleRule.maxWeeklyMinutes,
+    minimumRestMinutes: supportScheduleRule.minimumRestMinutes,
+    minimumNoticeMinutes: supportScheduleRule.minimumNoticeMinutes,
+    maxMonthlyExchanges: supportScheduleRule.maxMonthlyExchanges,
+    autoApproveEligibleSwaps: supportScheduleRule.autoApproveEligibleSwaps,
+    requireManagerExtraApproval: supportScheduleRule.requireManagerExtraApproval
+  });
+  for (let dayOffset = -2; dayOffset <= 14; dayOffset += 1) {
+    for (const assignment of supportAssignments) {
+      const pattern = supportPatterns.find((item) => item.id === assignment.patternVersionId)!;
+      const startsAt = supportScheduleTime(dayOffset, pattern.startMinute);
+      const endsAt = supportScheduleTime(dayOffset, pattern.endMinute);
+      await prisma.supportShiftOccurrence.upsert({
+        where: { assignmentId_localDate: { assignmentId: assignment.id, localDate: supportLocalDate(startsAt) } },
+        update: {
+          teamId: supportTeam.id,
+          userId: assignment.userId,
+          patternVersionId: pattern.id,
+          ruleVersionId: supportScheduleRule.id,
+          startsAt,
+          endsAt,
+          kind: "REGULAR",
+          status: "PUBLISHED",
+          sourceType: "SEED_MATERIALIZED",
+          ruleSnapshotJson: supportRuleSnapshotJson,
+          cancelledAt: null,
+          cancellationReason: null,
+          updatedById: admin.id
+        },
+        create: {
+          organizationId: organization.id,
+          teamId: supportTeam.id,
+          userId: assignment.userId,
+          assignmentId: assignment.id,
+          patternVersionId: pattern.id,
+          ruleVersionId: supportScheduleRule.id,
+          localDate: supportLocalDate(startsAt),
+          startsAt,
+          endsAt,
+          kind: "REGULAR",
+          sourceType: "SEED_MATERIALIZED",
+          ruleSnapshotJson: supportRuleSnapshotJson,
+          createdById: admin.id,
+          updatedById: admin.id
+        }
+      });
+    }
+  }
+  const supportExtraStartsAt = supportScheduleTime(1, 15 * 60);
+  const supportExtraEndsAt = supportScheduleTime(1, 22 * 60);
+  await prisma.supportExtraShiftSlot.upsert({
+    where: { teamId_startsAt_endsAt: { teamId: supportTeam.id, startsAt: supportExtraStartsAt, endsAt: supportExtraEndsAt } },
+    update: { capacity: 1, status: "OPEN", note: "Reforço demonstrativo liberado pela gestão.", policySnapshotJson: supportRuleSnapshotJson },
+    create: {
+      organizationId: organization.id,
+      teamId: supportTeam.id,
+      ruleVersionId: supportScheduleRule.id,
+      startsAt: supportExtraStartsAt,
+      endsAt: supportExtraEndsAt,
+      capacity: 1,
+      note: "Reforço demonstrativo liberado pela gestão.",
+      policySnapshotJson: supportRuleSnapshotJson,
+      createdById: admin.id
+    }
+  });
+
   function supportPauseTime(hour: number, minute: number) {
     const value = new Date(now);
     value.setHours(hour, minute, 0, 0);
