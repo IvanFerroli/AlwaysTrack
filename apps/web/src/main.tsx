@@ -4265,17 +4265,18 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
   const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
   const startsInAnnouncements = window.location.pathname === "/avisos" || window.location.pathname.startsWith("/avisos/");
-  const initialScheduleNavigation = window.location.pathname === "/escalas"
+  const initialSupportNavigation = window.location.pathname === "/escalas" || window.location.pathname === "/pausas"
     ? resolveNotificationNavigation({ href: `${window.location.pathname}${window.location.search}` })
     : null;
-  const startsInSchedules = initialScheduleNavigation?.view === "supportSchedules" && visibleNavByKey.has("supportSchedules");
-  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInSchedules ? "supportSchedules" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
+  const startsInSchedules = initialSupportNavigation?.view === "supportSchedules" && visibleNavByKey.has("supportSchedules");
+  const startsInPauses = initialSupportNavigation?.view === "supportPauses" && visibleNavByKey.has("supportPauses");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInSchedules ? "supportSchedules" : startsInPauses ? "supportPauses" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
   const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
-  const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules ? initialScheduleNavigation?.intent as ViewIntent : {});
+  const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules || startsInPauses ? initialSupportNavigation?.intent as ViewIntent : {});
   const topNavRef = useRef<HTMLElement>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
@@ -4320,12 +4321,15 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       window.history.replaceState(null, "", "/avisos");
     } else if (key === "supportSchedules") {
       window.history.replaceState(null, "", "/escalas");
+    } else if (key === "supportPauses") {
+      window.history.replaceState(null, "", "/pausas");
     } else if (
       window.location.pathname === "/wiki" ||
       window.location.pathname.startsWith("/wiki/") ||
       window.location.pathname === "/avisos" ||
       window.location.pathname.startsWith("/avisos/") ||
-      window.location.pathname === "/escalas"
+      window.location.pathname === "/escalas" ||
+      window.location.pathname === "/pausas"
     ) {
       window.history.replaceState(null, "", "/");
     }
@@ -4599,7 +4603,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         {activeItem.key === "supportSchedules" ? (
           <SupportSchedulesView user={user} initialIntent={viewIntent.supportSchedules} />
         ) : activeItem.key === "supportPauses" ? (
-          <SupportPausesView user={user} />
+          <SupportPausesView user={user} initialIntent={viewIntent.supportPauses} />
         ) : activeItem.key === "supportPerformance" ? (
           <SupportPerformanceView user={user} />
         ) : activeItem.key === "supportCampaigns" ? (

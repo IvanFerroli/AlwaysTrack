@@ -15,6 +15,7 @@ const manager: CurrentUser = { ...sac, id: "manager-1", name: "Gestora", role: "
 
 const agentAna = { id: "sac-1", name: "Ana", email: "ana@example.com" };
 const agentBruno = { id: "sac-2", name: "Bruno", email: "bruno@example.com" };
+const team = { id: "team-1", name: "Atendimento" };
 const baseSlot = {
   organizationId: "org-1", label: "Pausa", capacity: 2, active: true, bookedCount: 1, remainingCapacity: 1
 };
@@ -56,6 +57,8 @@ const pauseResponse = {
 
 describe("SupportPausesView", () => {
   beforeEach(() => {
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    apiMock.mockReset();
     apiMock.mockImplementation((path: string) => Promise.resolve(path.startsWith("/v1/support/pauses?") ? pauseResponse : {}));
   });
 
@@ -169,5 +172,47 @@ describe("SupportPausesView", () => {
         confirmImpact: true
       })
     }));
+  });
+
+  it("selects and focuses loaded booking and slot intents for SAC", async () => {
+    const { rerender } = render(<SupportPausesView user={sac} initialIntent={{ date: "2026-07-17", bookingId: bookingAna.id, tab: "schedule" }} />);
+
+    expect(await screen.findByRole("tab", { name: "Agenda" })).toHaveAttribute("aria-selected", "true");
+    const booking = document.getElementById("support-pause-booking-booking-a")!;
+    await waitFor(() => expect(booking).toHaveFocus());
+    expect(booking).toHaveClass("support-highlight-row");
+
+    rerender(<SupportPausesView user={sac} initialIntent={{ date: "2026-07-17", slotId: slotB.id }} />);
+    const slot = await waitFor(() => {
+      const target = document.getElementById("support-pause-slot-slot-b");
+      expect(target).toHaveFocus();
+      return target!;
+    });
+    expect(slot).toHaveClass("support-highlight-row");
+  });
+
+  it("maps the legacy pause swap tab for SAC and focuses only a loaded swap", async () => {
+    render(<SupportPausesView user={sac} initialIntent={{ date: "2026-07-17", swapId: "swap-1", tab: "trocas" }} />);
+
+    expect(await screen.findByRole("tab", { name: "Trocas" })).toHaveAttribute("aria-selected", "true");
+    const swap = document.getElementById("support-pause-swap-swap-1")!;
+    await waitFor(() => expect(swap).toHaveFocus());
+    expect(swap).toHaveClass("support-highlight-row");
+  });
+
+  it("honors a manager team and canonical swap tab from a deep link", async () => {
+    apiMock.mockImplementation((path: string) => Promise.resolve(path.startsWith("/v1/support/pauses?") ? {
+      ...pauseResponse,
+      canManage: true,
+      teams: [team],
+      selectedTeamId: team.id
+    } : {}));
+    render(<SupportPausesView user={manager} initialIntent={{ date: "2026-07-17", teamId: team.id, swapId: "swap-2", tab: "swaps" }} />);
+
+    expect(await screen.findByRole("tab", { name: "Trocas" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Equipe")).toHaveValue(team.id);
+    const swap = document.getElementById("support-pause-swap-swap-2")!;
+    await waitFor(() => expect(swap).toHaveFocus());
+    expect(screen.getByRole("tab", { name: "Configuração" })).toBeInTheDocument();
   });
 });

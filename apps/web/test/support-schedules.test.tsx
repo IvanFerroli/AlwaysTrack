@@ -291,13 +291,51 @@ describe("SupportSchedulesView", () => {
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/schedules/extra-slots", expect.objectContaining({ method: "POST", body: expect.stringContaining(`"teamId":"${team.id}"`) })));
   });
 
-  it("opens an offer deep link on the correct tab and restores focus to its row", async () => {
+  it("maps a canonical offer tab for managers and restores focus to the loaded row", async () => {
     response = managerCalendar;
-    render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15", teamId: team.id, offerId: managerPendingOffer.id }} />);
+    render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15", teamId: team.id, offerId: managerPendingOffer.id, tab: "offers" }} />);
 
     const pendingTab = await screen.findByRole("tab", { name: /Pendências/ });
     expect(pendingTab).toHaveAttribute("aria-selected", "true");
     const row = await screen.findByText("com Ana");
     await waitFor(() => expect(row.closest("tr")).toHaveFocus());
+  });
+
+  it("maps claim deep links to manager pending and only highlights a claim from the payload", async () => {
+    response = managerCalendar;
+    render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15", teamId: team.id, claimId: "claim-1", tab: "claims" }} />);
+
+    expect(await screen.findByRole("tab", { name: /Pendências/ })).toHaveAttribute("aria-selected", "true");
+    const claimRow = document.getElementById("support-schedule-claim-claim-1")!;
+    await waitFor(() => expect(claimRow).toHaveFocus());
+    expect(claimRow).toHaveClass("support-highlight-row");
+  });
+
+  it("maps offer and occurrence targets to the visible SAC tabs", async () => {
+    const { rerender } = render(<SupportSchedulesView user={sac} initialIntent={{ date: "2099-07-15", offerId: incomingOffer.id, tab: "trocas" }} />);
+
+    expect(await screen.findByRole("tab", { name: "Trocas" })).toHaveAttribute("aria-selected", "true");
+    const offerRow = document.getElementById("support-schedule-offer-offer-incoming")!;
+    await waitFor(() => expect(offerRow).toHaveFocus());
+
+    rerender(<SupportSchedulesView user={sac} initialIntent={{ at: "2099-07-15T12:00:00.000Z", occurrenceId: anaOccurrence.id, tab: "occurrences" }} />);
+    expect(await screen.findByRole("tab", { name: "Minha semana" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Semana de")).toHaveValue("2099-07-15");
+    const occurrence = await waitFor(() => {
+      const target = document.getElementById("support-schedule-occurrence-occ-ana");
+      expect(target).toHaveFocus();
+      return target!;
+    });
+    expect(occurrence).toHaveClass("support-highlight-row");
+  });
+
+  it("maps occurrence targets to manager coverage without exposing a hidden SAC tab", async () => {
+    response = managerCalendar;
+    render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15", teamId: team.id, occurrenceId: anaOccurrence.id, tab: "occurrences" }} />);
+
+    expect(await screen.findByRole("tab", { name: "Cobertura" })).toHaveAttribute("aria-selected", "true");
+    const coverage = document.getElementById("support-schedules-coverage-panel")!;
+    await waitFor(() => expect(coverage).toHaveFocus());
+    expect(screen.queryByRole("tab", { name: "Minha semana" })).not.toBeInTheDocument();
   });
 });

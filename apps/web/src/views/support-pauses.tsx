@@ -1,9 +1,10 @@
 import { ArrowLeftRight, CalendarPlus, Check, Clock3, RefreshCw, Save, ShieldAlert, X } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
 import { api } from "../api";
 import { ConfirmButton, OperationalState } from "../components/operational";
+import type { NotificationNavigationIntent } from "../notification-navigation";
 import {
   formatSupportTime,
   isSupportManager,
@@ -15,11 +16,45 @@ import {
 import "../support-operations.css";
 
 type PauseTab = "schedule" | "swaps" | "management";
+type SupportPauseIntent = NonNullable<NotificationNavigationIntent["supportPauses"]>;
+type PauseEntityIntent = Pick<SupportPauseIntent, "slotId" | "bookingId" | "swapId">;
+interface ResolvedPauseIds {
+  slotId?: string;
+  bookingId?: string;
+  bookingSlotId?: string;
+  swapId?: string;
+}
 
 const pauseTabs = [
   ["schedule", "Agenda"],
   ["swaps", "Trocas"]
 ] as const;
+
+const managerPauseTabs = [...pauseTabs, ["management", "Configuração"] as const] as const;
+const emptyPauseEntityIntent: PauseEntityIntent = {};
+
+function pauseTabFromIntent(intent: SupportPauseIntent | undefined, canManage: boolean): PauseTab {
+  const requested = intent?.tab?.trim().toLocaleLowerCase("pt-BR");
+  const normalized = requested === "trocas" ? "swaps" : requested;
+  const visibleTabs = canManage ? managerPauseTabs : pauseTabs;
+  const visibleRequested = visibleTabs.find(([key]) => key === normalized)?.[0];
+  if (visibleRequested) return visibleRequested;
+  if (intent?.swapId) return "swaps";
+  return "schedule";
+}
+
+function pauseEntityIntent(intent: SupportPauseIntent | undefined): PauseEntityIntent {
+  return intent ? { slotId: intent.slotId, bookingId: intent.bookingId, swapId: intent.swapId } : emptyPauseEntityIntent;
+}
+
+function pauseViewHref(intent: SupportPauseIntent) {
+  const query = new URLSearchParams();
+  for (const key of ["date", "teamId", "slotId", "bookingId", "swapId", "tab"] as const) {
+    const value = intent[key];
+    if (value) query.set(key, value);
+  }
+  return query.size ? `/pausas?${query.toString()}` : "/pausas";
+}
 
 function errorMessage(caught: unknown, fallback: string) {
   return caught instanceof Error ? caught.message : fallback;
@@ -69,11 +104,12 @@ function CoverageTimeline({ data }: { data: SupportPausesResponse }) {
   );
 }
 
-export function SupportPausesView({ user }: { user: CurrentUser }) {
+export function SupportPausesView({ user, initialIntent }: { user: CurrentUser; initialIntent?: SupportPauseIntent }) {
   const canManage = isSupportManager(user);
-  const [tab, setTab] = useState<PauseTab>("schedule");
-  const [date, setDate] = useState(supportDateInputValue);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [tab, setTab] = useState<PauseTab>(() => pauseTabFromIntent(initialIntent, canManage));
+  const [date, setDate] = useState(() => initialIntent?.date ?? supportDateInputValue());
+  const [selectedTeamId, setSelectedTeamId] = useState(() => canManage ? initialIntent?.teamId ?? "" : "");
+  const [requestedEntityIntent, setRequestedEntityIntent] = useState<PauseEntityIntent>(() => pauseEntityIntent(initialIntent));
   const [data, setData] = useState<SupportPausesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,14 +120,19 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   const [swapDraft, setSwapDraft] = useState({ requesterBookingId: "", targetBookingId: "", note: "" });
   const [overrideDraft, setOverrideDraft] = useState({ slotId: "", userId: "", reason: "", confirmImpact: false });
   const [rescheduleTargets, setRescheduleTargets] = useState<Record<string, string>>({});
+  const requestSequence = useRef(0);
+  const lastIntent = useRef<SupportPauseIntent | undefined>(undefined);
+  const lastFocusedTarget = useRef("");
 
   async function load(showLoading = true) {
+    const sequence = ++requestSequence.current;
     if (showLoading) setLoading(true);
     setError(null);
     try {
       const query = new URLSearchParams({ date });
-      if (selectedTeamId) query.set("teamId", selectedTeamId);
+      if (canManage && selectedTeamId) query.set("teamId", selectedTeamId);
       const result = await api<SupportPausesResponse>(`/v1/support/pauses?${query.toString()}`);
+      if (sequence !== requestSequence.current) return;
       setData(result);
       setPolicyDraft(result.policy);
       setSlotDraft((current) => ({
@@ -100,15 +141,26 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
         endsAt: addTimeMinutes(current.startsAt, result.policy.pauseDurationMinutes)
       }));
     } catch (caught) {
-      setError(errorMessage(caught, "Falha ao carregar a agenda de pausas."));
+      if (sequence === requestSequence.current) setError(errorMessage(caught, "Falha ao carregar a agenda de pausas."));
     } finally {
-      if (showLoading) setLoading(false);
+      if (showLoading && sequence === requestSequence.current) setLoading(false);
     }
   }
 
   useEffect(() => {
+    if (!initialIntent) return;
+    if (initialIntent === lastIntent.current) return;
+    lastIntent.current = initialIntent;
+    lastFocusedTarget.current = "";
+    setDate(initialIntent.date ?? supportDateInputValue());
+    setSelectedTeamId(canManage ? initialIntent.teamId ?? "" : "");
+    setRequestedEntityIntent(pauseEntityIntent(initialIntent));
+    setTab(pauseTabFromIntent(initialIntent, canManage));
+  }, [canManage, initialIntent]);
+
+  useEffect(() => {
     void load();
-  }, [date, selectedTeamId]);
+  }, [canManage, date, selectedTeamId]);
 
   async function perform(actionKey: string, action: () => Promise<unknown>, success: string) {
     setBusyAction(actionKey);
@@ -141,8 +193,77 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
   );
   const incomingSwaps = data?.swaps.filter((swap) => swap.status === "PENDING" && swap.targetBooking.userId === user.id) ?? [];
   const visibleTabs: ReadonlyArray<readonly [PauseTab, string]> = canManage
-    ? [...pauseTabs, ["management", "Configuração"] as const]
+    ? managerPauseTabs
     : pauseTabs;
+  const resolvedPauseIds = useMemo<ResolvedPauseIds>(() => {
+    const dataMatchesSelection = Boolean(
+      data
+      && data.date === date
+      && (!canManage || (data.selectedTeamId ?? "") === selectedTeamId)
+    );
+    if (!data || !dataMatchesSelection) return {};
+    const slot = requestedEntityIntent.slotId
+      ? data.slots.find((item) => item.id === requestedEntityIntent.slotId)
+      : undefined;
+    const bookingMatch = requestedEntityIntent.bookingId
+      ? data.slots.flatMap((item) => item.bookings.map((booking) => ({ booking, slot: item })))
+        .find(({ booking }) => booking.id === requestedEntityIntent.bookingId)
+      : undefined;
+    const swap = requestedEntityIntent.swapId
+      ? data.swaps.find((item) => item.id === requestedEntityIntent.swapId)
+      : undefined;
+    return {
+      slotId: slot?.id,
+      bookingId: bookingMatch?.booking.id,
+      bookingSlotId: bookingMatch?.slot.id,
+      swapId: swap?.id
+    };
+  }, [canManage, data, date, requestedEntityIntent, selectedTeamId]);
+  const highlightedSlotId = resolvedPauseIds.slotId ?? resolvedPauseIds.bookingSlotId;
+  const focusElementId = resolvedPauseIds.swapId
+    ? `support-pause-swap-${resolvedPauseIds.swapId}`
+    : resolvedPauseIds.bookingId
+      ? `support-pause-booking-${resolvedPauseIds.bookingId}`
+      : highlightedSlotId
+        ? `support-pause-slot-${highlightedSlotId}`
+        : null;
+
+  useEffect(() => {
+    if (window.location.pathname !== "/pausas") return;
+    const hasRequestedEntity = Boolean(requestedEntityIntent.slotId || requestedEntityIntent.bookingId || requestedEntityIntent.swapId);
+    const dataMatchesSelection = Boolean(
+      data
+      && data.date === date
+      && (!canManage || (data.selectedTeamId ?? "") === selectedTeamId)
+    );
+    if (hasRequestedEntity && !dataMatchesSelection) return;
+    window.history.replaceState(null, "", pauseViewHref({
+      date,
+      teamId: canManage && selectedTeamId ? selectedTeamId : undefined,
+      slotId: resolvedPauseIds.slotId,
+      bookingId: resolvedPauseIds.bookingId,
+      swapId: resolvedPauseIds.swapId,
+      tab
+    }));
+  }, [canManage, data, date, requestedEntityIntent, resolvedPauseIds, selectedTeamId, tab]);
+
+  useEffect(() => {
+    if (!focusElementId) return;
+    const focusKey = `${JSON.stringify(requestedEntityIntent)}:${tab}:${focusElementId}`;
+    if (focusKey === lastFocusedTarget.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(focusElementId);
+      if (!target) return;
+      lastFocusedTarget.current = focusKey;
+      target.focus();
+      target.scrollIntoView({ block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [data, focusElementId, requestedEntityIntent, tab]);
+
+  function clearEntityIntent() {
+    setRequestedEntityIntent(emptyPauseEntityIntent);
+  }
 
   async function bookSlot(slotId: string) {
     await perform(
@@ -309,13 +430,13 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
         </div>
         <div className="support-date-control">
           {canManage && data?.teams.length ? <label htmlFor="support-pause-team">Equipe
-            <select id="support-pause-team" value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)}>
+            <select id="support-pause-team" value={selectedTeamId} onChange={(event) => { setSelectedTeamId(event.target.value); clearEntityIntent(); }}>
               <option value="">Visão geral</option>
               {data.teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
           </label> : null}
           <label htmlFor="support-pause-date">Data</label>
-          <input id="support-pause-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          <input id="support-pause-date" type="date" value={date} onChange={(event) => { setDate(event.target.value); clearEntityIntent(); }} />
           <button className="secondary support-icon-button" type="button" aria-label="Atualizar agenda" title="Atualizar agenda" onClick={() => void load()}>
             <RefreshCw size={17} />
           </button>
@@ -394,7 +515,13 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
               <div className="support-slot-grid">
                 {data.slots.map((slot) => {
                   const slotStarted = new Date(slot.startsAt).getTime() <= Date.now();
-                  return <article className={`support-slot-card ${slot.myBooking ? "selected" : ""} ${slotStarted ? "elapsed" : ""}`} key={slot.id}>
+                  const highlighted = highlightedSlotId === slot.id;
+                  return <article
+                    id={`support-pause-slot-${slot.id}`}
+                    className={`support-slot-card ${slot.myBooking ? "selected" : ""} ${slotStarted ? "elapsed" : ""}${highlighted ? " support-highlight-row" : ""}`}
+                    key={slot.id}
+                    tabIndex={highlighted ? -1 : undefined}
+                  >
                     <header>
                       <div>
                         <time dateTime={slot.startsAt}>{formatSupportTime(slot.startsAt, data.policy.timezone)}</time>
@@ -408,7 +535,12 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                     {slot.bookings.length ? (
                       <ul className="support-person-list" aria-label="Reservas do slot">
                         {slot.bookings.map((booking) => (
-                          <li key={booking.id} className={booking.overrideReason ? "override" : ""}>
+                          <li
+                            id={`support-pause-booking-${booking.id}`}
+                            key={booking.id}
+                            className={`${booking.overrideReason ? "override" : ""}${resolvedPauseIds.bookingId === booking.id ? " support-highlight-row" : ""}`}
+                            tabIndex={resolvedPauseIds.bookingId === booking.id ? -1 : undefined}
+                          >
                             <span>{booking.user.name}{booking.overrideReason ? " · exceção" : ""}</span>
                             {canManage ? (
                               <button
@@ -500,7 +632,12 @@ export function SupportPausesView({ user }: { user: CurrentUser }) {
                       const canCancel = swap.status === "PENDING" && (canManage || swap.requestedById === user.id);
                       const statusLabel = swap.status === "PENDING" ? "Pendente" : swap.status === "ACCEPTED" ? "Aceita" : swap.status === "DECLINED" ? "Recusada" : swap.status === "EXPIRED" ? "Expirada" : "Cancelada";
                       return (
-                        <tr key={swap.id}>
+                        <tr
+                          id={`support-pause-swap-${swap.id}`}
+                          className={resolvedPauseIds.swapId === swap.id ? "support-highlight-row" : ""}
+                          key={swap.id}
+                          tabIndex={resolvedPauseIds.swapId === swap.id ? -1 : undefined}
+                        >
                           <td><strong>{swap.requesterBooking.user.name}</strong>{swap.note ? <small>{swap.note}</small> : null}</td>
                           <td>{formatSupportTime(swap.requesterBooking.slot.startsAt)} - {formatSupportTime(swap.requesterBooking.slot.endsAt)}</td>
                           <td>{swap.targetBooking.user.name}<small>{formatSupportTime(swap.targetBooking.slot.startsAt)} - {formatSupportTime(swap.targetBooking.slot.endsAt)}</small></td>

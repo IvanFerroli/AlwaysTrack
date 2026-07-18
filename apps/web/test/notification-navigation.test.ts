@@ -3,13 +3,34 @@ import { resolveNotificationNavigation } from "../src/notification-navigation";
 
 describe("notification navigation resolver", () => {
   it("preserves pause query parameters in href and typed intent", () => {
-    const result = resolveNotificationNavigation({ href: "/pausas?date=2026-07-17&teamId=team%201&slotId=slot-7" });
+    const result = resolveNotificationNavigation({ href: "/pausas?date=2026-07-17&teamId=team%201&slotId=slot-7&bookingId=booking-2&swapId=swap-3&tab=swaps" });
 
     expect(result).toMatchObject({
       state: "READY",
-      href: "/pausas?date=2026-07-17&teamId=team%201&slotId=slot-7",
+      href: "/pausas?date=2026-07-17&teamId=team%201&slotId=slot-7&bookingId=booking-2&swapId=swap-3&tab=swaps",
       view: "supportPauses",
-      intent: { supportPauses: { date: "2026-07-17", teamId: "team 1", slotId: "slot-7" } }
+      intent: { supportPauses: { date: "2026-07-17", teamId: "team 1", slotId: "slot-7", bookingId: "booking-2", swapId: "swap-3", tab: "swaps" } }
+    });
+  });
+
+  it("parses every schedule target parameter", () => {
+    expect(resolveNotificationNavigation({ href: "/escalas/assignment-1?date=2026-07-18&teamId=team-2&userId=user-3&occurrenceId=occurrence-4&slotId=slot-5&claimId=claim-6&offerId=offer-7&at=2026-07-18T12%3A00%3A00.000Z&tab=claims" })).toMatchObject({
+      state: "READY",
+      view: "supportSchedules",
+      intent: {
+        supportSchedules: {
+          date: "2026-07-18",
+          teamId: "team-2",
+          userId: "user-3",
+          scheduleId: "assignment-1",
+          occurrenceId: "occurrence-4",
+          slotId: "slot-5",
+          claimId: "claim-6",
+          offerId: "offer-7",
+          at: "2026-07-18T12:00:00.000Z",
+          tab: "claims"
+        }
+      }
     });
   });
 
@@ -40,6 +61,22 @@ describe("notification navigation resolver", () => {
       href: "/avisos/mudan%C3%A7a%20cr%C3%ADtica?occurrenceId=occ-29",
       view: "announcements",
       intent: { announcements: { slug: "mudança crítica", occurrenceId: "occ-29" } }
+    });
+  });
+
+  it.each([
+    ["claim", { claimId: "claim-1", tab: "claims" }, "/escalas?claimId=claim-1&tab=claims", "supportSchedules"],
+    ["offer", { offerId: "offer-1", tab: "offers" }, "/escalas?offerId=offer-1&tab=offers", "supportSchedules"],
+    ["occurrence", { occurrenceId: "occurrence-1", tab: "occurrences" }, "/escalas?occurrenceId=occurrence-1&tab=occurrences", "supportSchedules"],
+    ["pause booking", { bookingId: "booking-1", tab: "schedule" }, "/pausas?bookingId=booking-1&tab=schedule", "supportPauses"],
+    ["pause swap", { swapId: "swap-1", tab: "swaps" }, "/pausas?swapId=swap-1&tab=swaps", "supportPauses"]
+  ])("derives a ready navigation for %s targets", (_label, params, href, view) => {
+    const type = view === "supportPauses" ? "SUPPORT_PAUSE" : "SUPPORT_SCHEDULE";
+    expect(resolveNotificationNavigation({ target: { type, status: "AVAILABLE", params } })).toMatchObject({
+      state: "READY",
+      href,
+      view,
+      intent: view === "supportPauses" ? { supportPauses: params } : { supportSchedules: params }
     });
   });
 

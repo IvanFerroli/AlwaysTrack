@@ -26,7 +26,19 @@ export type NotificationView =
 
 export interface NotificationNavigationIntent {
   query: Record<string, string>;
-  supportSchedules?: { date?: string; teamId?: string; userId?: string; scheduleId?: string; offerId?: string; swapId?: string; tab?: string };
+  supportSchedules?: {
+    date?: string;
+    teamId?: string;
+    userId?: string;
+    scheduleId?: string;
+    occurrenceId?: string;
+    slotId?: string;
+    claimId?: string;
+    offerId?: string;
+    at?: string;
+    swapId?: string;
+    tab?: string;
+  };
   supportPauses?: { date?: string; teamId?: string; slotId?: string; bookingId?: string; swapId?: string; tab?: string };
   announcements?: { slug?: string; occurrenceId?: string };
   wiki?: { slug?: string };
@@ -123,7 +135,11 @@ function knownRoute(value: string | null | undefined): KnownRoute | null {
           teamId: queryValue(url.searchParams, "teamId"),
           userId: queryValue(url.searchParams, "userId"),
           scheduleId: decodeSegment(scheduleMatch[1]) ?? queryValue(url.searchParams, "scheduleId"),
+          occurrenceId: queryValue(url.searchParams, "occurrenceId"),
+          slotId: queryValue(url.searchParams, "slotId"),
+          claimId: queryValue(url.searchParams, "claimId"),
           offerId: queryValue(url.searchParams, "offerId"),
+          at: queryValue(url.searchParams, "at"),
           swapId: queryValue(url.searchParams, "swapId"),
           tab: queryValue(url.searchParams, "tab")
         }

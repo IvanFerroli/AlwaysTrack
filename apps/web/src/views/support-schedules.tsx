@@ -28,6 +28,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { keyboardTabIndex } from "../accessibility/tabs";
 import { api } from "../api";
 import { ConfirmButton, OperationalState } from "../components/operational";
+import type { NotificationNavigationIntent } from "../notification-navigation";
 import {
   SUPPORT_SCHEDULE_POLL_INTERVAL_MS,
   SUPPORT_SCHEDULE_TIMEZONE,
@@ -42,7 +43,6 @@ import {
   supportMinutesFromTime,
   supportOfferStatusLabels,
   supportScheduleDate,
-  supportScheduleHref,
   supportScheduleLocalDateTimeIso,
   supportScheduleQuery,
   supportScheduleWeekDates,
@@ -52,7 +52,6 @@ import {
   type SupportExtraShiftClaim,
   type SupportMaterializationResult,
   type SupportScheduleCalendarResponse,
-  type SupportScheduleIntent,
   type SupportSchedulePlanningResponse,
   type SupportScheduleRosterResponse,
   type SupportShiftOccurrence,
@@ -63,6 +62,20 @@ import "../support-scheduling.css";
 type SacTab = "week" | "extras" | "exchanges";
 type ManagerTab = "coverage" | "pending" | "management";
 type ScheduleTab = SacTab | ManagerTab;
+type SupportSchedulesIntent = NonNullable<NotificationNavigationIntent["supportSchedules"]>;
+type ScheduleEntityIntent = Pick<
+  SupportSchedulesIntent,
+  "scheduleId" | "occurrenceId" | "slotId" | "claimId" | "offerId" | "swapId" | "at"
+>;
+interface ResolvedScheduleIds {
+  scheduleId?: string;
+  scheduleOccurrenceId?: string;
+  occurrenceId?: string;
+  slotId?: string;
+  claimId?: string;
+  claimSlotId?: string;
+  offerId?: string;
+}
 
 const sacTabs = [
   ["week", "Minha semana"],
@@ -75,6 +88,56 @@ const managerTabs = [
   ["pending", "Pendências"],
   ["management", "Planejamento"]
 ] as const;
+
+const emptyScheduleEntityIntent: ScheduleEntityIntent = {};
+
+function scheduleDateFromIntent(intent: SupportSchedulesIntent | undefined, fallback: string) {
+  if (intent?.date) return intent.date;
+  if (!intent?.at) return fallback;
+  const instant = new Date(intent.at);
+  return Number.isNaN(instant.getTime()) ? fallback : supportScheduleDate(instant);
+}
+
+function scheduleTabFromIntent(intent: SupportSchedulesIntent | undefined, canManage: boolean): ScheduleTab {
+  const defaultTab: ScheduleTab = canManage ? "coverage" : "week";
+  const calendarTab: ScheduleTab = canManage ? "coverage" : "week";
+  const extrasTab: ScheduleTab = canManage ? "pending" : "extras";
+  const offersTab: ScheduleTab = canManage ? "pending" : "exchanges";
+  const requested = intent?.tab?.trim().toLocaleLowerCase("pt-BR");
+
+  if (["extras", "extra", "claims", "claim"].includes(requested ?? "")) return extrasTab;
+  if (["offers", "offer", "trocas"].includes(requested ?? "")) return offersTab;
+  if (["occurrences", "occurrence", "assignments", "assignment", "calendario"].includes(requested ?? "")) return calendarTab;
+
+  const visibleTabs = canManage ? managerTabs : sacTabs;
+  const visibleRequested = visibleTabs.find(([key]) => key === requested)?.[0];
+  if (visibleRequested) return visibleRequested;
+  if (intent?.claimId || intent?.slotId) return extrasTab;
+  if (intent?.offerId || intent?.swapId) return offersTab;
+  if (intent?.occurrenceId || intent?.scheduleId) return calendarTab;
+  return defaultTab;
+}
+
+function scheduleEntityIntent(intent: SupportSchedulesIntent | undefined): ScheduleEntityIntent {
+  if (!intent) return emptyScheduleEntityIntent;
+  return {
+    scheduleId: intent.scheduleId,
+    occurrenceId: intent.occurrenceId,
+    slotId: intent.slotId,
+    claimId: intent.claimId,
+    offerId: intent.offerId ?? intent.swapId,
+    at: intent.at
+  };
+}
+
+function scheduleViewHref(intent: SupportSchedulesIntent) {
+  const query = new URLSearchParams();
+  for (const key of ["date", "teamId", "userId", "scheduleId", "occurrenceId", "slotId", "claimId", "offerId", "at", "tab"] as const) {
+    const value = intent[key];
+    if (value) query.set(key, value);
+  }
+  return query.size ? `/escalas?${query.toString()}` : "/escalas";
+}
 
 const weekdayOptions = [
   [1, "Seg"],
@@ -122,12 +185,14 @@ function ScheduleWeek({
   offers,
   timezone,
   canExchange,
+  highlightedOccurrenceId,
   onExchange
 }: {
   occurrences: SupportShiftOccurrence[];
   offers: SupportShiftOffer[];
   timezone: string;
   canExchange: boolean;
+  highlightedOccurrenceId?: string;
   onExchange: (occurrenceId: string) => void;
 }) {
   const dates = supportScheduleWeekDates(occurrences[0]?.localDate ?? supportScheduleDate());
@@ -155,8 +220,14 @@ function ScheduleWeek({
               {dayOccurrences.length ? dayOccurrences.map((occurrence) => {
                 const activeOffer = activeOfferForOccurrence(offers, occurrence.id);
                 const future = new Date(occurrence.startsAt).getTime() > Date.now();
+                const highlighted = highlightedOccurrenceId === occurrence.id;
                 return (
-                  <article className={`support-shift-block ${occurrence.kind.toLowerCase()}`} key={occurrence.id}>
+                  <article
+                    id={`support-schedule-occurrence-${occurrence.id}`}
+                    className={`support-shift-block ${occurrence.kind.toLowerCase()}${highlighted ? " support-highlight-row" : ""}`}
+                    key={occurrence.id}
+                    tabIndex={highlighted ? -1 : undefined}
+                  >
                     <span className="support-shift-kind">{supportShiftKindLabels[occurrence.kind] ?? occurrence.kind}</span>
                     <strong>
                       <time dateTime={occurrence.startsAt}>{formatSupportScheduleTime(occurrence.startsAt, timezone)}</time>
@@ -267,15 +338,16 @@ function CoverageView({ calendar, timezone }: { calendar: SupportScheduleCalenda
   );
 }
 
-export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUser; initialIntent?: SupportScheduleIntent }) {
+export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUser; initialIntent?: SupportSchedulesIntent }) {
   const canManage = isSupportScheduleManager(user);
   const today = supportScheduleDate();
   const nextDay = shiftSupportScheduleDate(today, 1);
-  const initialDate = initialIntent?.date || today;
-  const [tab, setTab] = useState<ScheduleTab>(() => initialIntent?.offerId ? (canManage ? "pending" : "exchanges") : canManage ? "coverage" : "week");
+  const initialDate = scheduleDateFromIntent(initialIntent, today);
+  const [tab, setTab] = useState<ScheduleTab>(() => scheduleTabFromIntent(initialIntent, canManage));
   const [date, setDate] = useState(initialDate);
   const [teamId, setTeamId] = useState(initialIntent?.teamId ?? "");
   const [userId, setUserId] = useState(initialIntent?.userId ?? "");
+  const [requestedEntityIntent, setRequestedEntityIntent] = useState<ScheduleEntityIntent>(() => scheduleEntityIntent(initialIntent));
   const [calendar, setCalendar] = useState<SupportScheduleCalendarResponse | null>(null);
   const [planning, setPlanning] = useState<SupportSchedulePlanningResponse | null>(null);
   const [roster, setRoster] = useState<SupportScheduleRosterResponse>({ teams: [], agents: [], selectedTeamId: null });
@@ -288,7 +360,6 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   const [planningError, setPlanningError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [highlightedOfferId, setHighlightedOfferId] = useState(initialIntent?.offerId ?? "");
   const [createdPatterns, setCreatedPatterns] = useState<SupportCreatedPattern[]>([]);
   const [materialization, setMaterialization] = useState<SupportMaterializationResult | null>(null);
   const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
@@ -316,7 +387,8 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   const [materializeDraft, setMaterializeDraft] = useState({ from: supportScheduleWeekDates(initialDate)[0], to: supportScheduleWeekDates(initialDate)[6] });
   const [extraDraft, setExtraDraft] = useState({ date: laterDate(initialDate, nextDay), startsAt: "18:00", endsAt: "22:00", capacity: "1", note: "" });
   const requestSequence = useRef(0);
-  const lastIntent = useRef("");
+  const lastIntent = useRef<SupportSchedulesIntent | undefined>(undefined);
+  const lastFocusedTarget = useRef("");
 
   const visibleTabs: ReadonlyArray<readonly [ScheduleTab, string]> = canManage ? managerTabs : sacTabs;
   const timezone = supportCalendarTimezone(calendar);
@@ -325,6 +397,60 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
     .filter((claim) => claim.status === "PENDING")
     .map((claim) => ({ claim, slot }))) ?? [];
   const pendingOffers = calendar?.offers.filter((offer) => offer.status === "MANAGER_PENDING") ?? [];
+  const resolvedScheduleIds = useMemo<ResolvedScheduleIds>(() => {
+    const calendarMatchesSelection = Boolean(
+      calendar
+      && date >= calendar.from
+      && date <= calendar.to
+      && (!canManage || calendar.teamId === teamId)
+      && (!canManage || calendar.userId === (userId || null))
+    );
+    if (!calendar || !calendarMatchesSelection) return {};
+    const scheduleOccurrence = requestedEntityIntent.scheduleId
+      ? calendar.occurrences.find((occurrence) => occurrence.assignmentId === requestedEntityIntent.scheduleId)
+      : undefined;
+    const occurrence = requestedEntityIntent.occurrenceId
+      ? calendar.occurrences.find((item) => item.id === requestedEntityIntent.occurrenceId)
+      : undefined;
+    const slot = requestedEntityIntent.slotId
+      ? calendar.extraSlots.find((item) => item.id === requestedEntityIntent.slotId)
+      : undefined;
+    const claimMatch = requestedEntityIntent.claimId
+      ? calendar.extraSlots.flatMap((item) => item.claims.map((claim) => ({ claim, slot: item })))
+        .find(({ claim }) => claim.id === requestedEntityIntent.claimId)
+      : undefined;
+    const offer = requestedEntityIntent.offerId
+      ? calendar.offers.find((item) => item.id === requestedEntityIntent.offerId)
+      : undefined;
+    const planningAssignment = requestedEntityIntent.scheduleId
+      ? planning?.assignments.find((assignment) => assignment.id === requestedEntityIntent.scheduleId)
+      : undefined;
+
+    return {
+      scheduleId: scheduleOccurrence || planningAssignment ? requestedEntityIntent.scheduleId : undefined,
+      scheduleOccurrenceId: scheduleOccurrence?.id,
+      occurrenceId: occurrence?.id,
+      slotId: slot?.id,
+      claimId: claimMatch?.claim.id,
+      claimSlotId: claimMatch?.slot.id,
+      offerId: offer?.id
+    };
+  }, [calendar, canManage, date, planning?.assignments, requestedEntityIntent, teamId, userId]);
+  const highlightedOccurrenceId = resolvedScheduleIds.occurrenceId ?? resolvedScheduleIds.scheduleOccurrenceId;
+  const highlightedSlotId = resolvedScheduleIds.slotId ?? resolvedScheduleIds.claimSlotId;
+  const highlightedClaimId = resolvedScheduleIds.claimId;
+  const highlightedOfferId = resolvedScheduleIds.offerId;
+  const focusElementId = highlightedClaimId
+    ? canManage ? `support-schedule-claim-${highlightedClaimId}` : highlightedSlotId ? `support-schedule-slot-${highlightedSlotId}` : null
+    : highlightedOfferId
+      ? `support-schedule-offer-${highlightedOfferId}`
+      : highlightedOccurrenceId
+        ? canManage ? "support-schedules-coverage-panel" : `support-schedule-occurrence-${highlightedOccurrenceId}`
+        : resolvedScheduleIds.scheduleId && canManage
+          ? "support-schedules-coverage-panel"
+          : highlightedSlotId
+            ? canManage ? "support-schedules-pending-panel" : `support-schedule-slot-${highlightedSlotId}`
+            : null;
 
   const loadRoster = useCallback(async () => {
     setRosterLoading(true);
@@ -406,40 +532,59 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
 
   useEffect(() => {
     if (!initialIntent) return;
-    const intentKey = JSON.stringify(initialIntent);
-    if (intentKey === lastIntent.current) return;
-    lastIntent.current = intentKey;
-    if (initialIntent.date) setDate(initialIntent.date);
-    if (initialIntent.teamId) setTeamId(initialIntent.teamId);
-    if (canManage && initialIntent.userId) setUserId(initialIntent.userId);
-    if (initialIntent.offerId) {
-      setHighlightedOfferId(initialIntent.offerId);
-      setTab(canManage ? "pending" : "exchanges");
-    }
-    const requestedTab = visibleTabs.find(([key]) => key === initialIntent.tab)?.[0];
-    if (requestedTab) setTab(requestedTab);
-  }, [canManage, initialIntent, visibleTabs]);
+    if (initialIntent === lastIntent.current) return;
+    lastIntent.current = initialIntent;
+    lastFocusedTarget.current = "";
+    setDate(scheduleDateFromIntent(initialIntent, today));
+    setTeamId(initialIntent.teamId ?? "");
+    setUserId(canManage ? initialIntent.userId ?? "" : "");
+    setRequestedEntityIntent(scheduleEntityIntent(initialIntent));
+    setTab(scheduleTabFromIntent(initialIntent, canManage));
+  }, [canManage, initialIntent, today]);
 
   useEffect(() => {
     if (window.location.pathname !== "/escalas") return;
-    window.history.replaceState(null, "", supportScheduleHref({
+    const hasRequestedEntity = Boolean(
+      requestedEntityIntent.scheduleId
+      || requestedEntityIntent.occurrenceId
+      || requestedEntityIntent.slotId
+      || requestedEntityIntent.claimId
+      || requestedEntityIntent.offerId
+    );
+    const calendarMatchesSelection = Boolean(
+      calendar
+      && date >= calendar.from
+      && date <= calendar.to
+      && (!canManage || calendar.teamId === teamId)
+    );
+    if (hasRequestedEntity && !calendarMatchesSelection) return;
+    window.history.replaceState(null, "", scheduleViewHref({
       date,
       teamId: teamId || undefined,
       userId: canManage && userId ? userId : undefined,
-      offerId: highlightedOfferId || undefined,
+      scheduleId: resolvedScheduleIds.scheduleId,
+      occurrenceId: resolvedScheduleIds.occurrenceId,
+      slotId: resolvedScheduleIds.slotId,
+      claimId: resolvedScheduleIds.claimId,
+      offerId: resolvedScheduleIds.offerId,
+      at: requestedEntityIntent.at,
       tab
     }));
-  }, [canManage, date, highlightedOfferId, tab, teamId, userId]);
+  }, [calendar, canManage, date, requestedEntityIntent, resolvedScheduleIds, tab, teamId, userId]);
 
   useEffect(() => {
-    if (!highlightedOfferId || !calendar?.offers.some((offer) => offer.id === highlightedOfferId)) return;
+    if (!focusElementId) return;
+    const focusKey = `${JSON.stringify(requestedEntityIntent)}:${tab}:${focusElementId}`;
+    if (focusKey === lastFocusedTarget.current) return;
     const frame = window.requestAnimationFrame(() => {
-      const row = document.getElementById(`support-schedule-offer-${highlightedOfferId}`);
-      row?.focus();
-      row?.scrollIntoView({ block: "center" });
+      const target = document.getElementById(focusElementId);
+      if (!target) return;
+      lastFocusedTarget.current = focusKey;
+      target.focus();
+      target.scrollIntoView({ block: "center" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [calendar, highlightedOfferId, tab]);
+  }, [calendar, focusElementId, requestedEntityIntent, tab]);
 
   async function perform(actionKey: string, action: () => Promise<unknown>, success: string, reload = true) {
     setBusyAction(actionKey);
@@ -458,12 +603,17 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
     }
   }
 
+  function clearEntityIntent() {
+    setRequestedEntityIntent(emptyScheduleEntityIntent);
+  }
+
   function moveWeek(days: number) {
     setDate((current) => shiftSupportScheduleDate(current, days));
-    setHighlightedOfferId("");
+    clearEntityIntent();
   }
 
   function startExchange(occurrenceId: string) {
+    clearEntityIntent();
     setOfferDraft((current) => ({ ...current, occurrenceId }));
     setTab("exchanges");
     window.requestAnimationFrame(() => document.getElementById("support-offer-source")?.focus());
@@ -696,7 +846,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
             <ChevronLeft size={17} />
           </button>
           <label htmlFor="support-schedule-date">Semana de
-            <input id="support-schedule-date" type="date" value={date} onChange={(event) => { setDate(event.target.value); setHighlightedOfferId(""); }} />
+            <input id="support-schedule-date" type="date" value={date} onChange={(event) => { setDate(event.target.value); clearEntityIntent(); }} />
           </label>
           <button className="secondary support-icon-button" type="button" aria-label="Próxima semana" title="Próxima semana" onClick={() => moveWeek(7)}>
             <ChevronRight size={17} />
@@ -722,7 +872,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
                 setUserId("");
                 setCalendar(null);
                 setMaterialization(null);
-                setHighlightedOfferId("");
+                clearEntityIntent();
               }}
             >
               <option value="">Selecione uma equipe</option>
@@ -730,7 +880,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
             </select>
           </label>
           <label>Atendente
-            <select disabled={!teamId || rosterLoading} value={userId} onChange={(event) => setUserId(event.target.value)}>
+            <select disabled={!teamId || rosterLoading} value={userId} onChange={(event) => { setUserId(event.target.value); clearEntityIntent(); }}>
               <option value="">Toda a equipe</option>
               {roster.agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
             </select>
@@ -794,7 +944,14 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
                 <div className="support-metric-card"><span>Trocas em aberto</span><strong>{calendar.offers.filter((item) => item.status === "OPEN" || item.status === "MANAGER_PENDING").length}</strong></div>
               </div>
               {calendar.occurrences.length ? (
-                <ScheduleWeek occurrences={calendar.occurrences} offers={calendar.offers} timezone={timezone} canExchange onExchange={startExchange} />
+                <ScheduleWeek
+                  occurrences={calendar.occurrences}
+                  offers={calendar.offers}
+                  timezone={timezone}
+                  canExchange
+                  highlightedOccurrenceId={highlightedOccurrenceId}
+                  onExchange={startExchange}
+                />
               ) : (
                 <OperationalState state="empty" title="Nenhum turno publicado" detail="Sua gestão ainda não materializou turnos para esta semana." />
               )}
@@ -814,7 +971,12 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
                       const myClaim = slot.claims.find((claim) => claim.userId === user.id);
                       const available = slot.status === "OPEN" && new Date(slot.startsAt).getTime() > Date.now();
                       return (
-                        <article className="support-slot-card support-extra-card" key={slot.id}>
+                        <article
+                          id={`support-schedule-slot-${slot.id}`}
+                          className={`support-slot-card support-extra-card${highlightedSlotId === slot.id ? " support-highlight-row" : ""}`}
+                          key={slot.id}
+                          tabIndex={highlightedSlotId === slot.id ? -1 : undefined}
+                        >
                           <header>
                             <div><Clock3 size={15} /><time dateTime={slot.startsAt}>{formatSupportScheduleDay(supportScheduleDate(new Date(slot.startsAt), timezone), { compact: true })}</time></div>
                             <span className={`support-status ${available ? "active" : "closed"}`}>{available ? "Aberto" : "Encerrado"}</span>
@@ -918,7 +1080,13 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
           ) : null}
 
           {tab === "coverage" && canManage ? (
-            <div id="support-schedules-coverage-panel" role="tabpanel" aria-labelledby="support-schedules-coverage-tab" className="support-tab-panel">
+            <div
+              id="support-schedules-coverage-panel"
+              role="tabpanel"
+              aria-labelledby="support-schedules-coverage-tab"
+              className={`support-tab-panel${highlightedOccurrenceId || resolvedScheduleIds.scheduleId ? " support-highlight-row" : ""}`}
+              tabIndex={highlightedOccurrenceId || resolvedScheduleIds.scheduleId ? -1 : undefined}
+            >
               <div className="support-metrics-grid">
                 <div className="support-metric-card"><span>Atendentes escalados</span><strong>{uniqueAgents}</strong></div>
                 <div className="support-metric-card"><span>Turnos publicados</span><strong>{calendar.occurrences.length}</strong></div>
@@ -930,7 +1098,13 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
           ) : null}
 
           {tab === "pending" && canManage ? (
-            <div id="support-schedules-pending-panel" role="tabpanel" aria-labelledby="support-schedules-pending-tab" className="support-tab-panel">
+            <div
+              id="support-schedules-pending-panel"
+              role="tabpanel"
+              aria-labelledby="support-schedules-pending-tab"
+              className={`support-tab-panel${resolvedScheduleIds.slotId && !highlightedClaimId ? " support-highlight-row" : ""}`}
+              tabIndex={resolvedScheduleIds.slotId && !highlightedClaimId ? -1 : undefined}
+            >
               <section className="support-table-section" aria-labelledby="support-pending-claims-title">
                 <div className="support-section-heading"><div><p className="eyebrow">Turnos extras</p><h2 id="support-pending-claims-title">Candidaturas pendentes</h2></div><span className="support-count">{pendingClaims.length}</span></div>
                 {pendingClaims.length ? (
@@ -938,7 +1112,12 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
                     <table aria-label="Candidaturas a turnos extras">
                       <thead><tr><th scope="col">Atendente</th><th scope="col">Horário</th><th scope="col">Motivo da decisão</th><th scope="col">Ações</th></tr></thead>
                       <tbody>{pendingClaims.map(({ claim, slot }) => (
-                        <tr key={claim.id}>
+                        <tr
+                          id={`support-schedule-claim-${claim.id}`}
+                          className={highlightedClaimId === claim.id ? "support-highlight-row" : ""}
+                          key={claim.id}
+                          tabIndex={highlightedClaimId === claim.id ? -1 : undefined}
+                        >
                           <td><strong>{claim.user?.name ?? claim.userId}</strong>{claim.note ? <small>{claim.note}</small> : null}</td>
                           <td>{formatSupportScheduleDay(supportScheduleDate(new Date(slot.startsAt), timezone), { compact: true })}<small>{formatSupportScheduleTime(slot.startsAt, timezone)} - {formatSupportScheduleTime(slot.endsAt, timezone)}</small></td>
                           <td><label className="sr-only" htmlFor={`support-claim-reason-${claim.id}`}>Motivo da decisão para {claim.user?.name ?? claim.userId}</label><input id={`support-claim-reason-${claim.id}`} maxLength={300} placeholder="Obrigatório ao recusar" value={decisionReasons[claim.id] ?? ""} onChange={(event) => setDecisionReasons((current) => ({ ...current, [claim.id]: event.target.value }))} /></td>

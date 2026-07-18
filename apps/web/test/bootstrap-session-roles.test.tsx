@@ -26,7 +26,11 @@ vi.mock("../src/views/script-library", () => ({ ScriptLibraryView: () => <div>Sc
 vi.mock("../src/views/service-flows", () => ({ ServiceFlowsView: () => <div>Fluxos operacionais</div> }));
 vi.mock("../src/views/settings", () => ({ SettingsView: () => <div>Configurações operacionais</div> }));
 vi.mock("../src/views/statements", () => ({ StatementsView: () => <div>Extratos operacionais</div> }));
-vi.mock("../src/views/support-pauses", () => ({ SupportPausesView: () => <div>Pausas SAC operacional</div> }));
+vi.mock("../src/views/support-pauses", () => ({
+  SupportPausesView: ({ initialIntent }: { initialIntent?: Record<string, string> }) => (
+    <div>Pausas SAC operacional<output data-testid="support-pauses-intent">{JSON.stringify(initialIntent ?? {})}</output></div>
+  )
+}));
 vi.mock("../src/views/support-performance", () => ({ SupportPerformanceView: () => <div>Performance SAC operacional</div> }));
 vi.mock("../src/views/support-campaigns", () => ({ SupportCampaignsView: () => <div>Campanhas SAC operacionais</div> }));
 vi.mock("../src/views/users-teams", () => ({ UsersTeamsView: () => <div>Usuários operacionais</div> }));
@@ -176,5 +180,33 @@ describe("Web bootstrap, session and role matrix", () => {
     fireEvent.click(primaryNav.getByRole("button", { name: /Avisos/ }));
     expect(await screen.findByText("Avisos operacionais")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/avisos");
+  });
+
+  it("starts directly in an allowed pause deep link and preserves pause route transitions", async () => {
+    window.history.replaceState(null, "", "/pausas?date=2026-07-17&bookingId=booking-a&tab=schedule");
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/auth/me") return Promise.resolve({ user: userFor("SAC") });
+      if (path.startsWith("/v1/search")) return Promise.resolve({ groups: [] });
+      if (path === "/v1/auth/logout") return Promise.resolve({});
+      return Promise.resolve({ configured: false });
+    });
+
+    await import("../src/main");
+    expect(await screen.findByText("Pausas SAC operacional")).toBeInTheDocument();
+    expect(screen.getByTestId("support-pauses-intent")).toHaveTextContent(JSON.stringify({
+      date: "2026-07-17",
+      bookingId: "booking-a",
+      tab: "schedule"
+    }));
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/pausas?date=2026-07-17&bookingId=booking-a&tab=schedule");
+
+    const navigation = within(screen.getByRole("navigation", { name: "Navegação principal" }));
+    fireEvent.click(navigation.getByRole("button", { name: /^Dashboard/ }));
+    expect(window.location.pathname).toBe("/");
+
+    const supportGroup = navigation.getByRole("button", { name: /^SAC/ });
+    if (supportGroup.getAttribute("aria-expanded") !== "true") fireEvent.click(supportGroup);
+    fireEvent.click(navigation.getByRole("button", { name: /^Pausas$/ }));
+    expect(window.location.pathname).toBe("/pausas");
   });
 });
