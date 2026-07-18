@@ -52,10 +52,16 @@ function approvedMetricEntry(overrides: Record<string, unknown> = {}) {
     observationType: "ACTUAL",
     rawValue: null,
     dataState: "AVAILABLE",
+    dataStateVersion: 1,
+    timezone: "America/Sao_Paulo",
+    referenceYear: 2026,
     scopeType: "TEAM",
     userId: null,
     teamId: "team-1",
     teamLabel: "SAC Atendimento",
+    membershipId: null,
+    externalReference: null,
+    dedupeKey: null,
     periodStart: new Date("2026-07-01T03:00:00.000Z"),
     periodEnd: new Date("2026-07-07T02:59:59.999Z"),
     createdAt: new Date("2026-07-07T03:00:00.000Z"),
@@ -1178,6 +1184,8 @@ describe("support operations service", () => {
         channel: "TIKTOK",
         granularity: "REPORTED_INTERVAL",
         observationType: "ACTUAL",
+        periodStart: { lte: new Date("2026-07-31T23:59:59.999Z") },
+        periodEnd: { gte: new Date("2026-07-01T00:00:00.000Z") },
         OR: expect.arrayContaining([
           expect.objectContaining({ teamId: "team-1", periodStart: { gte: validFrom }, periodEnd: { lte: validTo } })
         ])
@@ -1195,7 +1203,11 @@ describe("support operations service", () => {
   it("persists CSAT 4.4, SLA 778 seconds and TikTok as a normalized dimension", async () => {
     const prisma = {
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }) },
-      supportKpiEntry: { create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-1", ...data })) },
+      supportTeamMembership: { findMany: vi.fn().mockResolvedValue([]) },
+      supportKpiEntry: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-1", ...data }))
+      },
       auditLog: auditMock()
     };
     const input = {
@@ -1236,9 +1248,129 @@ describe("support operations service", () => {
     expect(prisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "support_performance.entry.draft.create" }) }));
   });
 
+  it("rejects empty numeric strings and persists source absence without converting it to zero", async () => {
+    const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-absence", ...data }));
+    const prisma = {
+      supportKpiEntry: { findFirst: vi.fn().mockResolvedValue(null), create },
+      auditLog: auditMock()
+    };
+    const base = {
+      metric: "SLA_DURATION",
+      scopeType: "ORGANIZATION",
+      periodStart: "2026-07-01T03:00:00.000Z",
+      periodEnd: "2026-07-07T02:59:59.999Z",
+      timezone: "America/Sao_Paulo",
+      referenceYear: 2026
+    };
+
+    await expect(createSupportKpiEntry(prisma as never, admin, { ...base, value: "" }))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(createSupportKpiEntry(prisma as never, admin, {
+      ...base,
+      value: null,
+      dataState: "NOT_REPORTED"
+    })).resolves.toMatchObject({
+      entry: { value: null, numerator: null, denominator: null, dataState: "NOT_REPORTED", dataStateVersion: 1, rawValue: null }
+    });
+    await expect(createSupportKpiEntry(prisma as never, admin, {
+      ...base,
+      value: 0,
+      dataState: "NOT_APPLICABLE",
+      rawValue: "Backoffice"
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires explicit ratio components and preserves known weights in a mixed series", async () => {
+    const createPrisma = {
+      supportKpiEntry: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn() }
+    };
+    await expect(createSupportKpiEntry(createPrisma as never, admin, {
+      metric: "SATISFACTION_RATE",
+      value: 82.8,
+      denominator: 100,
+      scopeType: "ORGANIZATION",
+      periodStart: "2026-07-01T03:00:00.000Z",
+      periodEnd: "2026-07-07T02:59:59.999Z"
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+
+    const prisma = performanceListPrisma([
+      approvedMetricEntry({ id: "weighted", value: 4, numerator: 40, denominator: 10 }),
+      approvedMetricEntry({ id: "unweighted", value: 1, periodStart: new Date("2026-07-08T03:00:00.000Z") })
+    ]);
+    const result = await listSupportPerformance(prisma as never, admin, {});
+    expect(result.summary[0]).toMatchObject({
+      average: 4,
+      samples: 10,
+      aggregation: "WEIGHTED_MEAN",
+      componentEntries: 1,
+      unweightedEntries: 1,
+      reconciliation: "PARTIAL_COMPONENTS"
+    });
+  });
+
+  it("snapshots the historical team membership resolved for the observation period", async () => {
+    const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "kpi-history", ...data }));
+    const prisma = {
+      user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }) },
+      supportTeam: { findFirst: vi.fn().mockResolvedValue({ id: "team-old", name: "SAC Histórico" }) },
+      supportTeamMembership: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: "membership-old",
+          validFrom: new Date("2026-01-01T00:00:00.000Z"),
+          team: { id: "team-old", name: "SAC Histórico" }
+        }])
+      },
+      supportKpiEntry: { findFirst: vi.fn().mockResolvedValue(null), create },
+      auditLog: auditMock()
+    };
+
+    await expect(createSupportKpiEntry(prisma as never, admin, {
+      metric: "CSAT_SCORE",
+      value: 4.4,
+      scopeType: "USER",
+      userId: "sac-1",
+      membershipId: "membership-old",
+      periodStart: "2026-02-01T03:00:00.000Z",
+      periodEnd: "2026-02-07T02:59:59.999Z",
+      timezone: "America/Sao_Paulo",
+      referenceYear: 2026
+    })).resolves.toMatchObject({
+      entry: { membershipId: "membership-old", teamId: "team-old", teamLabel: "SAC Histórico", referenceYear: 2026 }
+    });
+    expect(prisma.supportTeamMembership.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: "membership-old", userId: "sac-1" })
+    }));
+  });
+
+  it("blocks exact manual retries and maps external-reference uniqueness races to conflict", async () => {
+    const base = {
+      metric: "CSAT_SCORE",
+      value: 4.4,
+      scopeType: "ORGANIZATION",
+      periodStart: "2026-07-01T03:00:00.000Z",
+      periodEnd: "2026-07-07T02:59:59.999Z"
+    };
+    const duplicatePrisma = {
+      supportKpiEntry: { findFirst: vi.fn().mockResolvedValue({ id: "existing" }), create: vi.fn() }
+    };
+    await expect(createSupportKpiEntry(duplicatePrisma as never, admin, base))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+    expect(duplicatePrisma.supportKpiEntry.create).not.toHaveBeenCalled();
+
+    const racedPrisma = {
+      supportKpiEntry: { findFirst: vi.fn(), create: vi.fn().mockRejectedValue({ code: "P2002" }) }
+    };
+    await expect(createSupportKpiEntry(racedPrisma as never, admin, {
+      ...base,
+      source: "planilha-sac",
+      externalReference: "linha-42"
+    })).rejects.toEqual(new SupportOperationsError("CONFLICT"));
+  });
+
   it("submits a KPI draft and approves it atomically while superseding the previous version", async () => {
     const submitted = {
-      id: "kpi-2", organizationId: "org-1", status: "SUBMITTED", revision: 2, supersedesId: "kpi-1"
+      id: "kpi-2", organizationId: "org-1", metric: "CSAT_SCORE", status: "SUBMITTED", revision: 2, supersedesId: "kpi-1"
     };
     const tx = {
       supportKpiEntry: {
@@ -1250,7 +1382,7 @@ describe("support operations service", () => {
     };
     const submitPrisma = {
       supportKpiEntry: {
-        findFirst: vi.fn().mockResolvedValue({ id: "kpi-2", organizationId: "org-1", status: "DRAFT", revision: 2, supersedesId: "kpi-1" }),
+        findFirst: vi.fn().mockResolvedValue({ id: "kpi-2", organizationId: "org-1", metric: "CSAT_SCORE", status: "DRAFT", revision: 2, supersedesId: "kpi-1" }),
         update: vi.fn().mockResolvedValue(submitted)
       },
       auditLog: auditMock()
@@ -1305,6 +1437,25 @@ describe("support operations service", () => {
       .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
   });
 
+  it("keeps non-current KPI and campaign definitions read-only through lifecycle mutations", async () => {
+    const legacyKpi = approvedMetricEntry({ metric: "CSAT_LEGACY_PERCENT", definitionVersion: 1, unit: "PERCENT", status: "DRAFT" });
+    const submitPrisma = { supportKpiEntry: { findFirst: vi.fn().mockResolvedValue(legacyKpi) } };
+    await expect(submitSupportKpiEntry(submitPrisma as never, admin, "legacy-kpi"))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+
+    const reviewTx = { supportKpiEntry: { findFirst: vi.fn().mockResolvedValue({ ...legacyKpi, status: "SUBMITTED" }) } };
+    const reviewPrisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(reviewTx)) };
+    await expect(reviewSupportKpiEntry(reviewPrisma as never, admin, "legacy-kpi", { decision: "APPROVED" }))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+
+    const campaignTx = {
+      supportCampaign: { findFirst: vi.fn().mockResolvedValue({ id: "legacy-campaign", organizationId: "org-1", metric: "SLA_LEGACY_PERCENT" }) }
+    };
+    const campaignPrisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(campaignTx)) };
+    await expect(updateSupportCampaign(campaignPrisma as never, admin, "legacy-campaign", { status: "ACTIVE" }))
+      .rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
   it("creates a lower-is-better ReclameAqui campaign without sales dependencies", async () => {
     const prisma = {
       supportCampaign: { create: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "campaign-1", ...data })) },
@@ -1334,6 +1485,15 @@ describe("support operations service", () => {
       targetValue: 4.4,
       scopeType: "ORGANIZATION",
       status: "ACTIVE",
+      startsAt: "2026-07-17T03:00:00.000Z",
+      endsAt: "2026-07-31T02:59:59.999Z"
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+    await expect(createSupportCampaign(prisma as never, admin, {
+      name: "Meta não operacional",
+      metric: "CSAT_SCORE",
+      observationType: "EXPECTATION",
+      targetValue: 4.4,
+      scopeType: "ORGANIZATION",
       startsAt: "2026-07-17T03:00:00.000Z",
       endsAt: "2026-07-31T02:59:59.999Z"
     })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
@@ -1480,6 +1640,58 @@ describe("support operations service", () => {
     });
     expect(result.items[0]?.result.trend).toHaveLength(2);
     expect(result.items[0]?.result.provenance).toHaveLength(2);
+  });
+
+  it("uses the frozen campaign audience when only user observations feed a team result", async () => {
+    const campaign = {
+      id: "campaign-fixed-audience",
+      organizationId: "org-1",
+      name: "CSAT do time publicado",
+      metric: "CSAT_SCORE",
+      definitionVersion: 2,
+      unit: "SCORE_1_5",
+      channel: null,
+      granularity: "REPORTED_INTERVAL",
+      observationType: "ACTUAL",
+      targetValue: 4.5,
+      comparison: "GTE",
+      scopeType: "TEAM",
+      userId: null,
+      teamId: "team-1",
+      teamLabel: "SAC Atendimento",
+      status: "ACTIVE",
+      startsAt: new Date("2026-07-01T03:00:00.000Z"),
+      endsAt: new Date("2026-08-01T02:59:59.999Z"),
+      audienceSnapshotJson: JSON.stringify({ rule: "FIXED_AT_ACTIVATION", members: [{ id: "sac-1", name: "Ana" }] }),
+      resultSnapshotJson: null,
+      resultSnapshotAt: null
+    };
+    const userEntry = (id: string, userId: string, value: number, denominator: number) => ({
+      ...approvedMetricEntry({
+        id,
+        scopeType: "USER",
+        userId,
+        teamId: "team-1",
+        teamLabel: "SAC Atendimento",
+        value,
+        numerator: value * denominator,
+        denominator
+      })
+    });
+    const prisma = {
+      supportCampaign: { findMany: vi.fn().mockResolvedValue([campaign]) },
+      supportTeam: { findMany: vi.fn().mockResolvedValue([{ id: "team-1", name: "SAC Atendimento" }]) },
+      supportKpiEntry: { findMany: vi.fn().mockResolvedValue([
+        userEntry("included", "sac-1", 4, 10),
+        userEntry("joined-later", "sac-2", 5, 90)
+      ]) }
+    };
+
+    const result = await listSupportCampaigns(prisma as never, admin);
+
+    expect(result.items[0]?.result).toMatchObject({ current: 4, samples: 10, achieved: false });
+    expect(result.items[0]?.result.trend).toHaveLength(1);
+    expect(result.items[0]?.result.trend[0]).toMatchObject({ entryId: "included" });
   });
 
   it("evaluates a campaign only against its exact channel and reporting series", async () => {

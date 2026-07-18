@@ -469,9 +469,10 @@ model SupportTeamMembership {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  team         SupportTeam  @relation(fields: [teamId], references: [id])
-  user         User         @relation(fields: [userId], references: [id])
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  team         SupportTeam       @relation(fields: [teamId], references: [id])
+  user         User              @relation(fields: [userId], references: [id])
+  kpiEntries   SupportKpiEntry[] @relation("SupportKpiMembership")
 
   @@unique([teamId, userId, validFrom])
   @@index([organizationId, validFrom, validTo])
@@ -855,7 +856,7 @@ model SupportKpiEntry {
   metric            String
   definitionVersion Int       @default(2)
   unit              String    @default("COUNT")
-  value             Float
+  value             Float?
   numerator         Float?
   denominator       Float?
   channel           String?
@@ -863,13 +864,19 @@ model SupportKpiEntry {
   observationType   String    @default("ACTUAL")
   rawValue          String?
   dataState         String    @default("AVAILABLE")
+  dataStateVersion  Int       @default(1)
   scopeType         String
   userId            String?
   teamLabel         String?
   teamId            String?
+  membershipId      String?
   periodStart       DateTime
   periodEnd         DateTime
+  timezone          String    @default("America/Sao_Paulo")
+  referenceYear     Int
   source            String?
+  externalReference String?
+  dedupeKey         String?
   note              String?
   createdById       String
   updatedById       String
@@ -884,18 +891,22 @@ model SupportKpiEntry {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  user         User?        @relation("SupportKpiTarget", fields: [userId], references: [id])
-  team         SupportTeam? @relation(fields: [teamId], references: [id])
-  createdBy    User         @relation("SupportKpiCreator", fields: [createdById], references: [id])
-  updatedBy    User         @relation("SupportKpiUpdater", fields: [updatedById], references: [id])
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  user         User?                  @relation("SupportKpiTarget", fields: [userId], references: [id])
+  team         SupportTeam?           @relation(fields: [teamId], references: [id])
+  membership   SupportTeamMembership? @relation("SupportKpiMembership", fields: [membershipId], references: [id], onDelete: SetNull)
+  createdBy    User                   @relation("SupportKpiCreator", fields: [createdById], references: [id])
+  updatedBy    User                   @relation("SupportKpiUpdater", fields: [updatedById], references: [id])
 
+  @@unique([organizationId, source, externalReference])
+  @@unique([organizationId, dedupeKey])
   @@index([organizationId, metric, periodStart])
   @@index([organizationId, scopeType])
   @@index([userId, periodStart])
   @@index([teamId, periodStart])
   @@index([organizationId, status, periodStart])
   @@index([organizationId, metric, channel, granularity, observationType, periodStart])
+  @@index([membershipId, periodStart])
   @@index([supersedesId])
 }
 

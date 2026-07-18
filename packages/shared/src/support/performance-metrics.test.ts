@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   SUPPORT_PERFORMANCE_DICTIONARY_VERSION,
+  SUPPORT_METRIC_DATA_STATE_VERSION,
   getSupportMetricDefinition,
+  isWritableSupportMetricDefinition,
+  supportMetricDataStates,
   supportMetricDefinitions,
   writableSupportMetricKeys
 } from "./performance-metrics.js";
 
 describe("support performance metric dictionary", () => {
   it("keeps current score, duration, percentage and count semantics explicit", () => {
-    expect(SUPPORT_PERFORMANCE_DICTIONARY_VERSION).toBe(2);
+    expect(SUPPORT_PERFORMANCE_DICTIONARY_VERSION).toBe(3);
+    expect(SUPPORT_METRIC_DATA_STATE_VERSION).toBe(1);
+    expect(supportMetricDataStates).toEqual(["AVAILABLE", "NOT_REPORTED", "NOT_APPLICABLE", "INVALID_SOURCE"]);
     expect(getSupportMetricDefinition("CSAT_SCORE")).toMatchObject({
       label: "CSAT",
       unit: "SCORE_1_5",
@@ -50,5 +55,20 @@ describe("support performance metric dictionary", () => {
     expect(writableSupportMetricKeys).not.toContain("CSAT_LEGACY_PERCENT");
     expect(writableSupportMetricKeys).not.toContain("SLA_LEGACY_PERCENT");
     expect(new Set(supportMetricDefinitions.map((definition) => definition.key)).size).toBe(supportMetricDefinitions.length);
+  });
+
+  it("supports provisional read-only definitions without making them writable", () => {
+    const provisional = {
+      key: "FUTURE_METRIC",
+      definitionVersion: 3,
+      label: "Métrica futura",
+      unit: "COUNT",
+      direction: "HIGHER_IS_BETTER",
+      aggregation: "SUM",
+      status: "PROVISIONAL_READ_ONLY"
+    } as const;
+
+    expect(isWritableSupportMetricDefinition(provisional)).toBe(false);
+    expect(isWritableSupportMetricDefinition(getSupportMetricDefinition("PRODUCTIVITY")!)).toBe(true);
   });
 });

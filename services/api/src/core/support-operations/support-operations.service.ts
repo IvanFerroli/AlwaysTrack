@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import {
   SUPPORT_PERFORMANCE_DICTIONARY_VERSION,
+  SUPPORT_METRIC_DATA_STATE_VERSION,
   getSupportMetricDefinition,
   supportMetricDataStates,
   supportMetricDefinitions,
@@ -53,6 +55,8 @@ function optionalString(value: unknown, max = 1000) {
 }
 
 function numberInRange(value: unknown, minimum: number, maximum: number) {
+  if (typeof value === "string" && value.trim() === "") throw new SupportOperationsError("INVALID_INPUT");
+  if (typeof value !== "number" && typeof value !== "string") throw new SupportOperationsError("INVALID_INPUT");
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed) || parsed < minimum || parsed > maximum) throw new SupportOperationsError("INVALID_INPUT");
   return parsed;
@@ -1402,6 +1406,14 @@ interface SeriesDimensions {
   observationType: (typeof supportObservationTypes)[number];
 }
 
+interface ObservationContext {
+  rawValue: string | null;
+  dataState: (typeof supportMetricDataStates)[number];
+  dataStateVersion: number;
+  timezone: string;
+  referenceYear: number;
+}
+
 function normalizedChannel(value: unknown) {
   const channel = optionalString(value, 40)?.toUpperCase() ?? null;
   if (channel && !/^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(channel)) throw new SupportOperationsError("INVALID_INPUT");
@@ -1417,14 +1429,51 @@ function seriesDimensions(body: Record<string, unknown>, fallback?: Partial<Seri
   };
 }
 
-function observationData(
+function normalizedTimezone(value: unknown, fallback = "America/Sao_Paulo") {
+  const timezone = requiredString(value ?? fallback, 80);
+  if (timezone !== "UTC" && !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+$/.test(timezone)) {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date(0));
+  } catch {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  return timezone;
+}
+
+function yearInTimezone(value: Date, timezone: string) {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric" }).format(value));
+}
+
+function observationContext(
   body: Record<string, unknown>,
-  fallback?: Partial<SeriesDimensions & { rawValue: string | null; dataState: (typeof supportMetricDataStates)[number] }>
-) {
+  periodStart: Date,
+  periodEnd: Date,
+  granularity: SeriesDimensions["granularity"],
+  fallback?: Partial<ObservationContext>
+): ObservationContext {
+  const timezone = normalizedTimezone(body.timezone, fallback?.timezone);
+  const startYear = yearInTimezone(periodStart, timezone);
+  const endYear = yearInTimezone(periodEnd, timezone);
+  const referenceYear = body.referenceYear === undefined
+    ? fallback?.referenceYear ?? startYear
+    : integerInRange(body.referenceYear, 2000, 2100);
+  const crossesSupportedBoundary = granularity === "REPORTED_INTERVAL" && endYear === referenceYear + 1;
+  if (referenceYear !== startYear || (endYear !== referenceYear && !crossesSupportedBoundary)) {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  const rawValue = body.rawValue === undefined ? fallback?.rawValue ?? null : optionalString(body.rawValue, 160);
+  const dataState = choice(body.dataState, supportMetricDataStates, fallback?.dataState ?? "AVAILABLE");
+  if ((dataState === "NOT_APPLICABLE" || dataState === "INVALID_SOURCE") && !rawValue) {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
   return {
-    ...seriesDimensions(body, fallback),
-    rawValue: body.rawValue === undefined ? fallback?.rawValue ?? null : optionalString(body.rawValue, 160),
-    dataState: choice(body.dataState, supportMetricDataStates, fallback?.dataState ?? "AVAILABLE")
+    rawValue,
+    dataState,
+    dataStateVersion: SUPPORT_METRIC_DATA_STATE_VERSION,
+    timezone,
+    referenceYear
   };
 }
 
@@ -1435,7 +1484,7 @@ function parseScope(body: Record<string, unknown>) {
   const teamId = scopeType === "TEAM" ? optionalString(body.teamId, 160) : null;
   const teamLabel = scopeType === "TEAM" ? optionalString(body.teamLabel, 80) : null;
   if (scopeType === "TEAM" && !teamId && !teamLabel) throw new SupportOperationsError("INVALID_INPUT");
-  return { scopeType, userId, teamId, teamLabel };
+  return { scopeType, userId, teamId, teamLabel, membershipId: null as string | null };
 }
 
 function validateMetricValue(definition: SupportMetricDefinition, value: unknown) {
@@ -1443,6 +1492,89 @@ function validateMetricValue(definition: SupportMetricDefinition, value: unknown
   if (definition.unit === "DURATION_SECONDS") return integerInRange(value, 0, 31_536_000);
   if (definition.unit === "PERCENT") return numberInRange(value, 0, 100);
   return integerInRange(value, 0, 1_000_000_000);
+}
+
+async function resolveHistoricalUserScope(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  organizationId: string,
+  scope: ReturnType<typeof parseScope>,
+  periodStart: Date,
+  periodEnd: Date,
+  requestedMembershipId: unknown
+) {
+  if (scope.scopeType !== "USER" || !scope.userId) {
+    if (requestedMembershipId !== undefined && requestedMembershipId !== null) throw new SupportOperationsError("INVALID_INPUT");
+    return scope;
+  }
+  const membershipId = requestedMembershipId === undefined || requestedMembershipId === null
+    ? undefined
+    : requiredString(requestedMembershipId);
+  const memberships = await prisma.supportTeamMembership.findMany({
+    where: {
+      organizationId,
+      userId: scope.userId,
+      id: membershipId,
+      validFrom: { lte: periodStart },
+      OR: [{ validTo: null }, { validTo: { gte: periodEnd } }]
+    },
+    include: { team: { select: { id: true, name: true } } },
+    orderBy: { validFrom: "desc" },
+    take: 2
+  });
+  if (membershipId && memberships.length !== 1) throw new SupportOperationsError("INVALID_INPUT");
+  if (!membershipId && memberships.length > 1) throw new SupportOperationsError("CONFLICT");
+  const membership = memberships[0];
+  return membership
+    ? { ...scope, membershipId: membership.id, teamId: membership.team.id, teamLabel: membership.team.name }
+    : scope;
+}
+
+function normalizedObservationValue(
+  definition: SupportMetricDefinition,
+  body: Record<string, unknown>,
+  context: ObservationContext,
+  fallback?: { value: number | null; numerator: number | null; denominator: number | null }
+) {
+  if (context.dataState !== "AVAILABLE") {
+    if (body.value !== undefined && body.value !== null) throw new SupportOperationsError("INVALID_INPUT");
+    if (["numerator", "denominator", "sampleSize"].some((key) => body[key] !== undefined && body[key] !== null)) {
+      throw new SupportOperationsError("INVALID_INPUT");
+    }
+    return { value: null, numerator: null, denominator: null };
+  }
+  const candidate = body.value === undefined ? fallback?.value : body.value;
+  if (candidate === null || candidate === undefined) throw new SupportOperationsError("INVALID_INPUT");
+  const value = validateMetricValue(definition, candidate);
+  return { value, ...metricComponents(definition, value, body, fallback) };
+}
+
+function observationDedupeKey(input: {
+  metric: string;
+  definitionVersion: number;
+  unit: string;
+  channel: string | null;
+  granularity: string;
+  observationType: string;
+  scopeType: string;
+  userId: string | null;
+  teamId: string | null;
+  teamLabel: string | null;
+  periodStart: Date;
+  periodEnd: Date;
+}) {
+  return createHash("sha256").update(JSON.stringify([
+    input.metric,
+    input.definitionVersion,
+    input.unit,
+    input.channel,
+    input.granularity,
+    input.observationType,
+    input.scopeType,
+    input.userId,
+    input.teamId ?? input.teamLabel,
+    input.periodStart.toISOString(),
+    input.periodEnd.toISOString()
+  ])).digest("hex");
 }
 
 export interface SupportPerformanceQuery {
@@ -1474,7 +1606,8 @@ function performanceWhere(actor: CurrentUser, query: SupportPerformanceQuery) {
     granularity,
     observationType,
     userId: isManager(actor) ? query.userId || undefined : undefined,
-    periodStart: { gte: from, lte: to },
+    periodStart: { lte: to },
+    periodEnd: { gte: from },
     OR: isManager(actor) ? undefined : [{ userId: actor.id }, { scopeType: "ORGANIZATION" }]
   };
   return { where, from, to };
@@ -1490,14 +1623,24 @@ function metricComponents(
   body: Record<string, unknown>,
   fallback: { numerator: number | null; denominator: number | null } = { numerator: null, denominator: null }
 ) {
-  const hasInput = ["numerator", "denominator", "sampleSize"].some((key) => key in body);
+  const componentFieldsPresent = ["numerator", "denominator", "sampleSize"].some((key) => key in body);
+  const hasInput = ["numerator", "denominator", "sampleSize"].some((key) => body[key] !== undefined && body[key] !== null);
   if (definition.aggregation === "SUM" || definition.aggregation === "LATEST") {
     if (hasInput) throw new SupportOperationsError("INVALID_INPUT");
     return { numerator: null, denominator: null };
   }
+  if (!componentFieldsPresent) return fallback;
+  if (!hasInput) return { numerator: null, denominator: null };
 
-  if (body.denominator !== undefined && body.sampleSize !== undefined
-    && Number(body.denominator) !== Number(body.sampleSize)) throw new SupportOperationsError("INVALID_INPUT");
+  const explicitDenominator = body.denominator === undefined || body.denominator === null
+    ? null
+    : numberInRange(body.denominator, 1, 1_000_000_000);
+  const explicitSampleSize = body.sampleSize === undefined || body.sampleSize === null
+    ? null
+    : numberInRange(body.sampleSize, 1, 1_000_000_000);
+  if (explicitDenominator !== null && explicitSampleSize !== null && explicitDenominator !== explicitSampleSize) {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
   const suppliedDenominator = body.denominator ?? body.sampleSize;
   const denominator = hasInput
     ? suppliedDenominator === null || suppliedDenominator === undefined ? null : numberInRange(suppliedDenominator, 1, 1_000_000_000)
@@ -1507,9 +1650,10 @@ function metricComponents(
     return { numerator: null, denominator: null };
   }
 
-  const expectedNumerator = definition.aggregation === "RATIO"
-    ? value * denominator / 100
-    : value * denominator;
+  if (definition.aggregation === "RATIO" && (body.numerator === undefined || body.numerator === null)) {
+    throw new SupportOperationsError("INVALID_INPUT");
+  }
+  const expectedNumerator = definition.aggregation === "RATIO" ? value * denominator / 100 : value * denominator;
   const numerator = body.numerator === undefined || body.numerator === null
     ? expectedNumerator
     : numberInRange(body.numerator, 0, Number.MAX_SAFE_INTEGER);
@@ -1524,33 +1668,57 @@ interface AggregationEntry {
 }
 
 function aggregateMetricEntries(definition: SupportMetricDefinition, entries: AggregationEntry[]) {
-  if (!entries.length) return { average: null, samples: 0, aggregation: definition.aggregation };
+  if (!entries.length) return {
+    average: null,
+    samples: 0,
+    aggregation: definition.aggregation,
+    componentEntries: 0,
+    unweightedEntries: 0,
+    reconciliation: "NO_DATA" as const
+  };
   if (definition.aggregation === "LATEST") {
-    return { average: entries[entries.length - 1].value, samples: 1, aggregation: "LATEST" as const };
+    return {
+      average: entries[entries.length - 1].value,
+      samples: 1,
+      aggregation: "LATEST" as const,
+      componentEntries: 0,
+      unweightedEntries: entries.length,
+      reconciliation: "NOT_APPLICABLE" as const
+    };
   }
   if (definition.aggregation === "SUM") {
     return {
       average: entries.reduce((total, entry) => total + entry.value, 0),
       samples: entries.length,
-      aggregation: "SUM" as const
+      aggregation: "SUM" as const,
+      componentEntries: 0,
+      unweightedEntries: entries.length,
+      reconciliation: "NOT_APPLICABLE" as const
     };
   }
-  const hasCompleteComponents = entries.every((entry) => (
+  const componentEntries = entries.filter((entry) => (
     entry.numerator !== null && entry.denominator !== null && entry.denominator > 0
   ));
-  if (hasCompleteComponents) {
-    const denominator = entries.reduce((total, entry) => total + (entry.denominator ?? 0), 0);
-    const numerator = entries.reduce((total, entry) => total + (entry.numerator ?? 0), 0);
+  const unweightedEntries = entries.length - componentEntries.length;
+  if (componentEntries.length) {
+    const denominator = componentEntries.reduce((total, entry) => total + (entry.denominator ?? 0), 0);
+    const numerator = componentEntries.reduce((total, entry) => total + (entry.numerator ?? 0), 0);
     return {
       average: definition.aggregation === "RATIO" ? numerator / denominator * 100 : numerator / denominator,
       samples: denominator,
-      aggregation: definition.aggregation
+      aggregation: definition.aggregation,
+      componentEntries: componentEntries.length,
+      unweightedEntries,
+      reconciliation: unweightedEntries ? "PARTIAL_COMPONENTS" as const : "COMPLETE_COMPONENTS" as const
     };
   }
   return {
     average: entries.reduce((total, entry) => total + entry.value, 0) / entries.length,
     samples: entries.length,
-    aggregation: "MEAN" as const
+    aggregation: "MEAN" as const,
+    componentEntries: 0,
+    unweightedEntries: entries.length,
+    reconciliation: "UNWEIGHTED" as const
   };
 }
 
@@ -1582,7 +1750,8 @@ interface CampaignResultEntry {
   channel?: string | null;
   granularity?: string;
   observationType?: string;
-  value: number;
+  value: number | null;
+  dataState?: string;
   numerator: number | null;
   denominator: number | null;
   scopeType: string;
@@ -1645,13 +1814,31 @@ function entriesForCampaign(
     startsAt: Date;
     endsAt: Date;
   },
-  entries: CampaignResultEntry[]
+  entries: CampaignResultEntry[],
+  audience?: CampaignAudienceSnapshot | null
 ) {
-  return entries.filter((entry) => {
+  const candidates = entries.filter((entry) => {
+    if ((entry.dataState ?? "AVAILABLE") !== "AVAILABLE" || entry.value === null) return false;
+    if ((entry.observationType ?? "ACTUAL") !== "ACTUAL") return false;
+    if ((campaign.observationType ?? "ACTUAL") !== "ACTUAL") return false;
     if (!sameMetricSeries(entry, campaign) || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
-    if (campaign.scopeType === "USER") return entry.userId === campaign.userId;
-    if (campaign.scopeType === "TEAM") return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
-    return entry.scopeType === "ORGANIZATION";
+    return true;
+  });
+  if (campaign.scopeType === "USER") return candidates.filter((entry) => entry.userId === campaign.userId);
+
+  const aggregateScope = campaign.scopeType === "TEAM" ? "TEAM" : "ORGANIZATION";
+  const aggregateEntries = candidates.filter((entry) => {
+    if (entry.scopeType !== aggregateScope) return false;
+    if (aggregateScope === "ORGANIZATION") return true;
+    return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
+  });
+  if (aggregateEntries.length) return aggregateEntries;
+
+  const audienceIds = audience ? new Set(audience.members.map((member) => member.id)) : null;
+  return candidates.filter((entry) => {
+    if (entry.scopeType !== "USER" || !entry.userId || (audienceIds && !audienceIds.has(entry.userId))) return false;
+    if (campaign.scopeType === "ORGANIZATION") return true;
+    return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
   });
 }
 
@@ -1660,14 +1847,17 @@ function evaluatedCampaignResult(
   entries: CampaignResultEntry[],
   frozenAt: Date | null = null
 ) {
-  const aggregate = aggregateMetricEntries(metricDefinition(campaign.metric), entries);
+  const availableEntries = entries.filter((entry): entry is CampaignResultEntry & { value: number } => (
+    (entry.dataState ?? "AVAILABLE") === "AVAILABLE" && entry.value !== null
+  ));
+  const aggregate = aggregateMetricEntries(metricDefinition(campaign.metric), availableEntries);
   const current = aggregate.average;
   return {
     current,
     ...aggregate,
     ...campaignProgress(campaign.comparison, campaign.targetValue, current),
     frozenAt,
-    trend: entries.map((entry) => ({
+    trend: availableEntries.map((entry) => ({
       entryId: entry.id ?? null,
       revision: entry.revision ?? 1,
       periodStart: entry.periodStart,
@@ -1678,7 +1868,7 @@ function evaluatedCampaignResult(
       granularity: entry.granularity ?? "REPORTED_INTERVAL",
       observationType: entry.observationType ?? "ACTUAL"
     })),
-    provenance: entries.map((entry) => ({
+    provenance: availableEntries.map((entry) => ({
       entryId: entry.id ?? null,
       revision: entry.revision ?? 1,
       source: entry.source ?? null,
@@ -1797,7 +1987,9 @@ export async function listSupportPerformance(prisma: PrismaClient, actor: Curren
       orderBy: [{ endsAt: "asc" }, { name: "asc" }]
     })
   ]);
-  const approvedEntries = entries.filter((entry) => entry.status === "APPROVED");
+  const approvedEntries = entries.filter((entry): entry is typeof entry & { value: number } => (
+    entry.status === "APPROVED" && entry.dataState === "AVAILABLE" && entry.value !== null
+  ));
   const seriesGroups = new Map<string, {
     series: ReturnType<typeof resolvedMetricSeries>;
     scope: { scopeType: string; userId: string | null; teamId: string | null; teamLabel: string | null };
@@ -1861,38 +2053,70 @@ export async function createSupportKpiEntry(prisma: PrismaClient, actor: Current
   const body = input as Record<string, unknown>;
   const metric = parseWritableMetric(body.metric);
   const definition = metricDefinition(metric);
-  const observation = observationData(body);
-  const scope = parseScope(body);
+  const dimensions = seriesDimensions(body);
+  let scope = parseScope(body);
   const periodStart = parseDateTime(body.periodStart);
   const periodEnd = parseDateTime(body.periodEnd);
   if (periodEnd < periodStart) throw new SupportOperationsError("INVALID_INPUT");
   if (scope.userId) await ensureSupportAgent(prisma, actor.organizationId, scope.userId);
+  scope = await resolveHistoricalUserScope(prisma, actor.organizationId, scope, periodStart, periodEnd, body.membershipId);
   if (scope.teamId) {
     const team = await ensureSupportTeam(prisma, actor.organizationId, scope.teamId);
     scope.teamLabel ??= team.name;
   }
-  const value = validateMetricValue(definition, body.value);
-  const components = metricComponents(definition, value, body);
-  const entry = await prisma.supportKpiEntry.create({
-    data: {
-      organizationId: actor.organizationId,
-      metric,
-      definitionVersion: definition.definitionVersion,
-      unit: definition.unit,
-      value,
-      ...components,
-      ...observation,
-      ...scope,
-      periodStart,
-      periodEnd,
-      source: optionalString(body.source, 160),
-      note: optionalString(body.note, 1000),
-      createdById: actor.id,
-      updatedById: actor.id,
-      status: "DRAFT"
-    },
-    include: { user: { select: { id: true, name: true, email: true } } }
-  });
+  const context = observationContext(body, periodStart, periodEnd, dimensions.granularity);
+  const observation = normalizedObservationValue(definition, body, context);
+  const source = optionalString(body.source, 160);
+  const externalReference = optionalString(body.externalReference, 200);
+  if (externalReference && !source) throw new SupportOperationsError("INVALID_INPUT");
+  const identity = {
+    metric,
+    definitionVersion: definition.definitionVersion,
+    unit: definition.unit,
+    ...dimensions,
+    scopeType: scope.scopeType,
+    userId: scope.userId,
+    teamId: scope.teamId,
+    teamLabel: scope.teamLabel,
+    periodStart,
+    periodEnd
+  };
+  const dedupeKey = externalReference ? null : observationDedupeKey(identity);
+  if (!externalReference) {
+    const duplicate = await prisma.supportKpiEntry.findFirst({
+      where: {
+        organizationId: actor.organizationId,
+        archivedAt: null,
+        status: { not: "SUPERSEDED" },
+        ...identity
+      },
+      select: { id: true }
+    });
+    if (duplicate) throw new SupportOperationsError("CONFLICT");
+  }
+  let entry;
+  try {
+    entry = await prisma.supportKpiEntry.create({
+      data: {
+        organizationId: actor.organizationId,
+        ...identity,
+        ...observation,
+        ...context,
+        ...scope,
+        source,
+        externalReference,
+        dedupeKey,
+        note: optionalString(body.note, 1000),
+        createdById: actor.id,
+        updatedById: actor.id,
+        status: "DRAFT"
+      },
+      include: { user: { select: { id: true, name: true, email: true } } }
+    });
+  } catch (error) {
+    if (isPrismaErrorCode(error, "P2002")) throw new SupportOperationsError("CONFLICT");
+    throw error;
+  }
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
@@ -1903,9 +2127,12 @@ export async function createSupportKpiEntry(prisma: PrismaClient, actor: Current
       metric,
       definitionVersion: definition.definitionVersion,
       unit: definition.unit,
-      channel: observation.channel,
-      granularity: observation.granularity,
-      observationType: observation.observationType,
+      channel: dimensions.channel,
+      granularity: dimensions.granularity,
+      observationType: dimensions.observationType,
+      dataState: context.dataState,
+      timezone: context.timezone,
+      referenceYear: context.referenceYear,
       scopeType: scope.scopeType,
       userId: scope.userId,
       periodStart,
@@ -1923,52 +2150,82 @@ export async function updateSupportKpiEntry(prisma: PrismaClient, actor: Current
   if (metricDefinition(existing.metric).status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
   const metric = body.metric === undefined ? existing.metric as WritableSupportMetricKey : parseWritableMetric(body.metric);
   const definition = metricDefinition(metric);
-  const value = validateMetricValue(definition, body.value === undefined ? existing.value : body.value);
-  const components = metricComponents(definition, value, body, metric === existing.metric
-    ? { numerator: existing.numerator, denominator: existing.denominator }
-    : undefined);
-  const observation = observationData(body, {
+  const dimensions = seriesDimensions(body, {
     channel: existing.channel,
     granularity: existing.granularity as SeriesDimensions["granularity"],
-    observationType: existing.observationType as SeriesDimensions["observationType"],
-    rawValue: existing.rawValue,
-    dataState: existing.dataState as (typeof supportMetricDataStates)[number]
+    observationType: existing.observationType as SeriesDimensions["observationType"]
   });
+  const context = observationContext(body, existing.periodStart, existing.periodEnd, dimensions.granularity, {
+    rawValue: existing.rawValue,
+    dataState: existing.dataState as (typeof supportMetricDataStates)[number],
+    dataStateVersion: existing.dataStateVersion,
+    timezone: existing.timezone,
+    referenceYear: existing.referenceYear
+  });
+  const observation = normalizedObservationValue(definition, body, context, metric === existing.metric
+    ? { value: existing.value, numerator: existing.numerator, denominator: existing.denominator }
+    : undefined);
   if (existing.status === "SUBMITTED" || existing.status === "SUPERSEDED") throw new SupportOperationsError("CONFLICT");
   if (body.archived === true && existing.status === "APPROVED") throw new SupportOperationsError("CONFLICT");
-  const data = {
+  const source = body.source === undefined ? existing.source : optionalString(body.source, 160);
+  const requestedExternalReference = body.externalReference === undefined
+    ? existing.externalReference
+    : optionalString(body.externalReference, 200);
+  if (requestedExternalReference && !source) throw new SupportOperationsError("INVALID_INPUT");
+  const identity = {
     metric,
     definitionVersion: definition.definitionVersion,
     unit: definition.unit,
-    value,
-    ...components,
+    ...dimensions,
+    scopeType: existing.scopeType,
+    userId: existing.userId,
+    teamId: existing.teamId,
+    teamLabel: existing.teamLabel,
+    periodStart: existing.periodStart,
+    periodEnd: existing.periodEnd
+  };
+  const data = {
+    ...identity,
     ...observation,
-    source: body.source === undefined ? existing.source : optionalString(body.source, 160),
+    ...context,
+    source,
     note: body.note === undefined ? existing.note : optionalString(body.note, 1000),
     updatedById: actor.id
   };
   const createsRevision = existing.status === "APPROVED" || existing.status === "REJECTED";
-  const entry = createsRevision
-    ? await prisma.supportKpiEntry.create({
-        data: {
-          organizationId: existing.organizationId,
-          ...data,
-          scopeType: existing.scopeType,
-          userId: existing.userId,
-          teamLabel: existing.teamLabel,
-          teamId: existing.teamId,
-          periodStart: existing.periodStart,
-          periodEnd: existing.periodEnd,
-          createdById: actor.id,
-          status: "DRAFT",
-          revision: existing.revision + 1,
-          supersedesId: existing.supersedesId ?? existing.id
-        }
-      })
-    : await prisma.supportKpiEntry.update({
-        where: { id: existing.id },
-        data: { ...data, archivedAt: body.archived === true ? new Date() : undefined }
-      });
+  const externalReference = createsRevision ? null : requestedExternalReference;
+  const dedupeKey = createsRevision || externalReference || body.archived === true ? null : observationDedupeKey(identity);
+  if (!createsRevision && !externalReference && body.archived !== true) {
+    const duplicate = await prisma.supportKpiEntry.findFirst({
+      where: { organizationId: actor.organizationId, archivedAt: null, status: { not: "SUPERSEDED" }, id: { not: existing.id }, ...identity },
+      select: { id: true }
+    });
+    if (duplicate) throw new SupportOperationsError("CONFLICT");
+  }
+  let entry;
+  try {
+    entry = createsRevision
+      ? await prisma.supportKpiEntry.create({
+          data: {
+            organizationId: existing.organizationId,
+            ...data,
+            membershipId: existing.membershipId,
+            externalReference,
+            dedupeKey,
+            createdById: actor.id,
+            status: "DRAFT",
+            revision: existing.revision + 1,
+            supersedesId: existing.supersedesId ?? existing.id
+          }
+        })
+      : await prisma.supportKpiEntry.update({
+          where: { id: existing.id },
+          data: { ...data, externalReference, dedupeKey, archivedAt: body.archived === true ? new Date() : undefined }
+        });
+  } catch (error) {
+    if (isPrismaErrorCode(error, "P2002")) throw new SupportOperationsError("CONFLICT");
+    throw error;
+  }
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
     actorId: actor.id,
@@ -1987,6 +2244,7 @@ export async function submitSupportKpiEntry(prisma: PrismaClient, actor: Current
     where: { id: entryId, organizationId: actor.organizationId, archivedAt: null }
   });
   if (!existing) throw new SupportOperationsError("NOT_FOUND");
+  if (metricDefinition(existing.metric).status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
   if (existing.status !== "DRAFT") throw new SupportOperationsError("CONFLICT");
   const entry = await prisma.supportKpiEntry.update({
     where: { id: existing.id },
@@ -2016,6 +2274,7 @@ export async function reviewSupportKpiEntry(prisma: PrismaClient, actor: Current
       where: { id: entryId, organizationId: actor.organizationId, archivedAt: null, status: "SUBMITTED" }
     });
     if (!existing) throw new SupportOperationsError("CONFLICT");
+    if (metricDefinition(existing.metric).status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
     if (decision === "APPROVED" && existing.supersedesId) {
       await tx.supportKpiEntry.updateMany({
         where: { id: existing.supersedesId, organizationId: actor.organizationId, status: "APPROVED" },
@@ -2088,6 +2347,8 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
           archivedAt: null,
           status: "APPROVED",
           metric: { in: [...new Set(visibleItems.map((item) => item.metric))] },
+          observationType: "ACTUAL",
+          dataState: "AVAILABLE",
           periodStart: { lte: periodEnd },
           periodEnd: { gte: periodStart }
         },
@@ -2095,7 +2356,8 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
       })
     : [];
   const evaluatedItems = visibleItems.map((campaign) => {
-    const audience = parseStoredJson<CampaignAudienceSnapshot>(campaign.audienceSnapshotJson) ?? {
+    const storedAudience = parseStoredJson<CampaignAudienceSnapshot>(campaign.audienceSnapshotJson);
+    const audience = storedAudience ?? {
       rule: "FIXED_AT_ACTIVATION" as const,
       members: []
     };
@@ -2104,7 +2366,7 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
       : null;
     const result = frozenResult ?? evaluatedCampaignResult(
       campaign,
-      entriesForCampaign(campaign, entries),
+      entriesForCampaign(campaign, entries, storedAudience),
       campaign.resultSnapshotAt
     );
     const { audienceSnapshotJson: _audienceSnapshotJson, resultSnapshotJson: _resultSnapshotJson, ...campaignView } = campaign;
@@ -2127,6 +2389,7 @@ function campaignData(actor: CurrentUser, body: Record<string, unknown>) {
   const metric = parseWritableMetric(body.metric);
   const definition = metricDefinition(metric);
   const dimensions = seriesDimensions(body);
+  if (dimensions.observationType !== "ACTUAL") throw new SupportOperationsError("INVALID_INPUT");
   const defaultComparison = definition.direction === "LOWER_IS_BETTER" ? "LTE" : "GTE";
   const comparison = requiredString(body.comparison ?? defaultComparison, 10).toUpperCase();
   const status = requiredString(body.status ?? "DRAFT", 20).toUpperCase();
@@ -2197,6 +2460,7 @@ export async function updateSupportCampaign(prisma: PrismaClient, actor: Current
   const transition = await prisma.$transaction(async (tx) => {
     const existing = await tx.supportCampaign.findFirst({ where: { id: campaignId, organizationId: actor.organizationId } });
     if (!existing) throw new SupportOperationsError("NOT_FOUND");
+    if (metricDefinition(existing.metric).status !== "CURRENT") throw new SupportOperationsError("INVALID_INPUT");
     const nextStatus = requiredString(body.status ?? existing.status, 20).toUpperCase();
     if (!(campaignTransitions[existing.status] ?? []).includes(nextStatus)) throw new SupportOperationsError("CONFLICT");
     if (existing.status !== "DRAFT" && Object.keys(body).some((key) => key !== "status")) {
@@ -2271,6 +2535,8 @@ export async function updateSupportCampaign(prisma: PrismaClient, actor: Current
             archivedAt: null,
             status: "APPROVED",
             metric: campaignForResult.metric,
+            observationType: "ACTUAL",
+            dataState: "AVAILABLE",
             periodStart: { lte: campaignForResult.endsAt },
             periodEnd: { gte: campaignForResult.startsAt }
           },
@@ -2278,7 +2544,7 @@ export async function updateSupportCampaign(prisma: PrismaClient, actor: Current
         });
         const resultSnapshot = evaluatedCampaignResult(
           campaignForResult,
-          entriesForCampaign(campaignForResult, approvedEntries),
+          entriesForCampaign(campaignForResult, approvedEntries, audience),
           now
         );
         updateData.resultSnapshotJson = JSON.stringify(resultSnapshot);

@@ -1,4 +1,5 @@
-export const SUPPORT_PERFORMANCE_DICTIONARY_VERSION = 2 as const;
+export const SUPPORT_PERFORMANCE_DICTIONARY_VERSION = 3 as const;
+export const SUPPORT_METRIC_DATA_STATE_VERSION = 1 as const;
 
 export const supportMetricUnits = ["SCORE_1_5", "DURATION_SECONDS", "PERCENT", "COUNT"] as const;
 export type SupportMetricUnit = (typeof supportMetricUnits)[number];
@@ -15,8 +16,11 @@ export type SupportMetricGranularity = (typeof supportMetricGranularities)[numbe
 export const supportObservationTypes = ["ACTUAL", "EXPECTATION"] as const;
 export type SupportObservationType = (typeof supportObservationTypes)[number];
 
-export const supportMetricDataStates = ["AVAILABLE"] as const;
+export const supportMetricDataStates = ["AVAILABLE", "NOT_REPORTED", "NOT_APPLICABLE", "INVALID_SOURCE"] as const;
 export type SupportMetricDataState = (typeof supportMetricDataStates)[number];
+
+export const supportMetricDefinitionStatuses = ["CURRENT", "LEGACY_READ_ONLY", "PROVISIONAL_READ_ONLY"] as const;
+export type SupportMetricDefinitionStatus = (typeof supportMetricDefinitionStatuses)[number];
 
 export interface SupportMetricDefinition {
   key: string;
@@ -25,7 +29,7 @@ export interface SupportMetricDefinition {
   unit: SupportMetricUnit;
   direction: SupportMetricDirection;
   aggregation: SupportMetricAggregation;
-  status: "CURRENT" | "LEGACY_READ_ONLY";
+  status: SupportMetricDefinitionStatus;
   provisional?: boolean;
   note?: string;
 }
@@ -119,9 +123,13 @@ export const supportMetricDefinitions = [
 export type SupportMetricKey = (typeof supportMetricDefinitions)[number]["key"];
 export type WritableSupportMetricKey = Extract<(typeof supportMetricDefinitions)[number], { status: "CURRENT" }>["key"];
 
+export function isWritableSupportMetricDefinition(definition: SupportMetricDefinition) {
+  return definition.status === "CURRENT";
+}
+
 export const supportMetricKeys = supportMetricDefinitions.map((definition) => definition.key) as SupportMetricKey[];
 export const writableSupportMetricKeys = supportMetricDefinitions
-  .filter((definition) => definition.status === "CURRENT")
+  .filter(isWritableSupportMetricDefinition)
   .map((definition) => definition.key) as WritableSupportMetricKey[];
 
 const definitionByKey = new Map<string, SupportMetricDefinition>(
