@@ -134,6 +134,37 @@ const managerCalendar: SupportScheduleCalendarResponse = {
 };
 
 const roster = { teams: [team], agents: [ana, bruno], selectedTeamId: null };
+const planning = {
+  teamId: team.id,
+  rules: [{
+    id: "rule-1",
+    teamId: team.id,
+    version: 1,
+    timezone: "America/Sao_Paulo",
+    maxDailyMinutes: 540,
+    maxWeeklyMinutes: 2700,
+    minimumRestMinutes: 660,
+    minimumNoticeMinutes: 120,
+    maxMonthlyExchanges: 8,
+    autoApproveEligibleSwaps: true,
+    requireManagerExtraApproval: true,
+    effectiveFrom: "2099-07-01T03:00:00.000Z",
+    effectiveTo: null
+  }],
+  patterns: [{
+    id: "pattern-persisted",
+    teamId: team.id,
+    name: "Turno manhã",
+    version: 2,
+    startMinute: 480,
+    endMinute: 885,
+    weekdays: [1, 2, 3, 4, 5],
+    timezone: "America/Sao_Paulo",
+    effectiveFrom: "2099-07-01T03:00:00.000Z",
+    effectiveTo: null
+  }],
+  assignments: []
+};
 
 describe("SupportSchedulesView", () => {
   let response: SupportScheduleCalendarResponse;
@@ -145,6 +176,7 @@ describe("SupportSchedulesView", () => {
     apiMock.mockImplementation((path: string, options?: RequestInit) => {
       if (path.startsWith("/v1/support/pauses?")) return Promise.resolve(roster);
       if (path.startsWith("/v1/support/schedules?") && !options) return Promise.resolve(response);
+      if (path.startsWith("/v1/support/schedules/planning?")) return Promise.resolve(planning);
       if (path === "/v1/support/schedules/patterns") {
         return Promise.resolve({ pattern: { id: "pattern-new", teamId: team.id, name: "Turno padrão", version: 1, startMinute: 480, endMinute: 1020 } });
       }
@@ -234,6 +266,9 @@ describe("SupportSchedulesView", () => {
 
     await screen.findByRole("heading", { name: "Cobertura semanal" });
     await user.click(screen.getByRole("tab", { name: "Planejamento" }));
+
+    expect(await screen.findByRole("table", { name: "Padrões de turno persistidos" })).toHaveTextContent("Turno manhã");
+    expect(screen.getByRole("option", { name: "Turno manhã · v2" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Criar regra" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/schedules/rules", expect.objectContaining({ method: "POST", body: expect.stringContaining(`"teamId":"${team.id}"`) })));

@@ -14,6 +14,7 @@ import {
   decideSupportExtraShiftClaim,
   decideSupportShiftOffer,
   listSupportScheduleCalendar,
+  listSupportSchedulePlanning,
   materializeSupportShiftOccurrences,
 } from "./support-scheduling.service.js";
 
@@ -78,6 +79,22 @@ export async function listSupportScheduleCalendarHandler(
           "SELF" | "TEAM" | undefined,
         teamId: text(request.query.teamId),
         userId: text(request.query.userId),
+      }),
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function listSupportSchedulePlanningHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await listSupportSchedulePlanning(prisma, actor(request), {
+        teamId: param(request.query.teamId),
       }),
     );
   } catch (error) {

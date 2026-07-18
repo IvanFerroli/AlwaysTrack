@@ -47,11 +47,13 @@ import {
   supportScheduleQuery,
   supportScheduleWeekDates,
   supportShiftKindLabels,
+  supportTimeFromMinutes,
   type SupportCreatedPattern,
   type SupportExtraShiftClaim,
   type SupportMaterializationResult,
   type SupportScheduleCalendarResponse,
   type SupportScheduleIntent,
+  type SupportSchedulePlanningResponse,
   type SupportScheduleRosterResponse,
   type SupportShiftOccurrence,
   type SupportShiftOffer
@@ -275,6 +277,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   const [teamId, setTeamId] = useState(initialIntent?.teamId ?? "");
   const [userId, setUserId] = useState(initialIntent?.userId ?? "");
   const [calendar, setCalendar] = useState<SupportScheduleCalendarResponse | null>(null);
+  const [planning, setPlanning] = useState<SupportSchedulePlanningResponse | null>(null);
   const [roster, setRoster] = useState<SupportScheduleRosterResponse>({ teams: [], agents: [], selectedTeamId: null });
   const [loading, setLoading] = useState(!canManage || Boolean(initialIntent?.teamId));
   const [rosterLoading, setRosterLoading] = useState(true);
@@ -282,6 +285,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rosterError, setRosterError] = useState<string | null>(null);
+  const [planningError, setPlanningError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [highlightedOfferId, setHighlightedOfferId] = useState(initialIntent?.offerId ?? "");
@@ -368,6 +372,23 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
     }
   }, [canManage, date, teamId, userId]);
 
+  const loadPlanning = useCallback(async () => {
+    if (!canManage || !teamId) {
+      setPlanning(null);
+      setPlanningError(null);
+      return;
+    }
+    setPlanningError(null);
+    try {
+      setPlanning(await api<SupportSchedulePlanningResponse>(
+        `/v1/support/schedules/planning?${new URLSearchParams({ teamId }).toString()}`
+      ));
+    } catch (caught) {
+      setPlanning(null);
+      setPlanningError(caughtMessage(caught, "Não foi possível carregar regras e padrões da equipe."));
+    }
+  }, [canManage, teamId]);
+
   useEffect(() => {
     void loadRoster();
   }, [loadRoster]);
@@ -378,6 +399,10 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
     const timer = window.setInterval(() => void loadCalendar(false), SUPPORT_SCHEDULE_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [canManage, loadCalendar, teamId]);
+
+  useEffect(() => {
+    void loadPlanning();
+  }, [loadPlanning]);
 
   useEffect(() => {
     if (!initialIntent) return;
@@ -520,7 +545,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
   async function saveRule(event: FormEvent) {
     event.preventDefault();
     if (!teamId) return;
-    await perform(
+    const completed = await perform(
       "rule",
       () => api("/v1/support/schedules/rules", {
         method: "POST",
@@ -539,6 +564,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       }),
       "Nova versão da regra criada."
     );
+    if (completed) await loadPlanning();
   }
 
   async function savePattern(event: FormEvent) {
@@ -567,13 +593,14 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       const pattern = (result as { pattern: SupportCreatedPattern }).pattern;
       setCreatedPatterns((current) => [...current.filter((item) => item.id !== pattern.id), pattern]);
       setAssignmentDraft((current) => ({ ...current, patternVersionId: pattern.id }));
+      await loadPlanning();
     }
   }
 
   async function saveAssignment(event: FormEvent) {
     event.preventDefault();
     if (!teamId) return;
-    await perform(
+    const completed = await perform(
       "assignment",
       () => api("/v1/support/schedules/assignments", {
         method: "POST",
@@ -587,6 +614,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       }),
       "Padrão atribuído ao atendente."
     );
+    if (completed) await loadPlanning();
   }
 
   async function materialize(dryRun: boolean) {
@@ -628,6 +656,9 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
 
   const patternOptions = useMemo(() => {
     const options = new Map<string, string>();
+    for (const pattern of planning?.patterns ?? []) {
+      options.set(pattern.id, `${pattern.name} · v${pattern.version}`);
+    }
     for (const pattern of createdPatterns.filter((item) => item.teamId === teamId)) {
       options.set(pattern.id, `${pattern.name} · v${pattern.version}`);
     }
@@ -640,7 +671,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       }
     }
     return [...options.entries()].map(([id, label]) => ({ id, label }));
-  }, [calendar?.occurrences, createdPatterns, teamId, timezone]);
+  }, [calendar?.occurrences, createdPatterns, planning?.patterns, teamId, timezone]);
 
   const ownOccurrences = calendar?.occurrences.filter((occurrence) => occurrence.userId === user.id) ?? [];
   const futureOwnOccurrences = ownOccurrences.filter((occurrence) => new Date(occurrence.startsAt).getTime() > Date.now());
@@ -737,6 +768,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       {notice ? <p className="support-notice" role="status">{notice}</p> : null}
       {error ? <p className="error" role="alert">{error}</p> : null}
       {rosterError ? <p className="error" role="alert">{rosterError}</p> : null}
+      {planningError ? <p className="error" role="alert">{planningError}</p> : null}
 
       {canManage && !teamId ? (
         <OperationalState
@@ -940,6 +972,60 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
 
           {tab === "management" && canManage ? (
             <div id="support-schedules-management-panel" role="tabpanel" aria-labelledby="support-schedules-management-tab" className="support-tab-panel support-schedule-management">
+              <section className="support-table-section support-full-span" aria-labelledby="support-current-planning-title">
+                <div className="support-section-heading">
+                  <div><p className="eyebrow">Configuração persistida</p><h2 id="support-current-planning-title">Planejamento vigente e futuro</h2></div>
+                  <span className="support-count">{planning?.patterns.length ?? 0} padrão(ões)</span>
+                </div>
+                {!planning && !planningError ? (
+                  <OperationalState state="loading" title="Carregando planejamento" />
+                ) : planning ? (
+                  <div className="support-planning-overview">
+                    {planning.rules[0] ? (
+                      <dl className="support-materialization-summary">
+                        <div><dt>Regra</dt><dd>v{planning.rules[0].version}</dd></div>
+                        <div><dt>Fuso</dt><dd>{planning.rules[0].timezone}</dd></div>
+                        <div><dt>Máximo diário</dt><dd>{planning.rules[0].maxDailyMinutes} min</dd></div>
+                        <div><dt>Descanso mínimo</dt><dd>{planning.rules[0].minimumRestMinutes} min</dd></div>
+                      </dl>
+                    ) : <p className="support-attention">Nenhuma regra ativa. Crie a primeira versão antes dos padrões.</p>}
+                    {planning.patterns.length ? (
+                      <div className="table-scroll">
+                        <table aria-label="Padrões de turno persistidos">
+                          <thead><tr><th scope="col">Padrão</th><th scope="col">Horário</th><th scope="col">Dias</th><th scope="col">Vigência</th></tr></thead>
+                          <tbody>{planning.patterns.map((pattern) => (
+                            <tr key={pattern.id}>
+                              <td><strong>{pattern.name}</strong><small>versão {pattern.version}</small></td>
+                              <td>{supportTimeFromMinutes(pattern.startMinute)} - {supportTimeFromMinutes(pattern.endMinute)}</td>
+                              <td>{pattern.weekdays.map((day) => weekdayOptions.find(([value]) => value === day)?.[1] ?? day).join(", ")}</td>
+                              <td>{new Date(pattern.effectiveFrom).toLocaleDateString("pt-BR", { timeZone: pattern.timezone })}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    ) : <OperationalState state="empty" title="Nenhum padrão cadastrado" />}
+                    {planning.assignments.length ? (
+                      <details className="support-conflicts">
+                        <summary>{planning.assignments.length} atribuição(ões) ativa(s)</summary>
+                        <div className="table-scroll">
+                          <table aria-label="Atribuições de turno ativas">
+                            <thead><tr><th scope="col">Atendente</th><th scope="col">Padrão</th><th scope="col">Válido a partir de</th><th scope="col">Válido até</th></tr></thead>
+                            <tbody>{planning.assignments.map((assignment) => (
+                              <tr key={assignment.id}>
+                                <td>{assignment.user.name}</td>
+                                <td>{assignment.patternVersion.name} · v{assignment.patternVersion.version}</td>
+                                <td>{new Date(assignment.validFrom).toLocaleDateString("pt-BR", { timeZone: assignment.patternVersion.timezone })}</td>
+                                <td>{assignment.validTo ? new Date(assignment.validTo).toLocaleDateString("pt-BR", { timeZone: assignment.patternVersion.timezone }) : "Sem término"}</td>
+                              </tr>
+                            ))}</tbody>
+                          </table>
+                        </div>
+                      </details>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+
               <section className="support-form-section" aria-labelledby="support-rule-title">
                 <div className="support-section-heading"><div><p className="eyebrow">Governança de jornada</p><h2 id="support-rule-title">Nova versão da regra</h2></div><span className="support-count">{selectedTeam?.name}</span></div>
                 <form className="support-form-grid support-rule-form" onSubmit={saveRule}>

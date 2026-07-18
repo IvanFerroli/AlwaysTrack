@@ -72,6 +72,10 @@ export interface MaterializeSupportShiftsInput {
   dryRun?: boolean;
 }
 
+export interface SupportSchedulePlanningInput {
+  teamId: string;
+}
+
 const activeOfferStatuses = ["OPEN", "MANAGER_PENDING"];
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -961,6 +965,72 @@ export async function listSupportScheduleCalendar(
     occurrences,
     extraSlots: filteredSlots,
     offers,
+  };
+}
+
+export async function listSupportSchedulePlanning(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  input: SupportSchedulePlanningInput,
+) {
+  ensurePermission(actor, "manage");
+  const teamId = input.teamId?.trim();
+  if (!teamId || teamId.length > 80)
+    throw new SupportSchedulingError("INVALID_INPUT");
+
+  await ensureTeam(prisma, actor.organizationId, teamId);
+  const [rules, patterns, assignments] = await Promise.all([
+    prisma.supportScheduleRuleVersion.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        teamId,
+        active: true,
+      },
+      orderBy: [{ effectiveFrom: "desc" }, { version: "desc" }],
+      take: 50,
+    }),
+    prisma.supportShiftPatternVersion.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        teamId,
+        active: true,
+      },
+      orderBy: [{ name: "asc" }, { version: "desc" }],
+      take: 200,
+    }),
+    prisma.supportShiftAssignment.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        teamId,
+        active: true,
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        patternVersion: {
+          select: {
+            id: true,
+            name: true,
+            version: true,
+            startMinute: true,
+            endMinute: true,
+            weekdaysJson: true,
+            timezone: true,
+          },
+        },
+      },
+      orderBy: [{ user: { name: "asc" } }, { validFrom: "desc" }],
+      take: 500,
+    }),
+  ]);
+
+  return {
+    teamId,
+    rules: rules.map((rule) => ({ ...rule, snapshot: ruleSnapshot(rule) })),
+    patterns: patterns.map((pattern) => ({
+      ...pattern,
+      weekdays: parseWeekdays(pattern.weekdaysJson),
+    })),
+    assignments,
   };
 }
 

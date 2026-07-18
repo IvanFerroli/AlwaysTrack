@@ -190,6 +190,7 @@ import {
   decideSupportExtraShiftClaimHandler,
   decideSupportShiftOfferHandler,
   listSupportScheduleCalendarHandler,
+  listSupportSchedulePlanningHandler,
   materializeSupportShiftOccurrencesHandler
 } from "./core/support-scheduling/support-scheduling.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
@@ -460,6 +461,13 @@ export function createApp() {
   app.get("/v1/operations/today", requireAuth, requireRole(commercialAllRoles), operationalTodayHandler);
   app.get("/v1/support/dashboard", requireAuth, requireRole(supportOperationsRoles), supportDashboardHandler);
   app.get("/v1/support/schedules", requireAuth, requireRole(supportOperationsRoles), listSupportScheduleCalendarHandler);
+  app.get(
+    "/v1/support/schedules/planning",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    listSupportSchedulePlanningHandler
+  );
   app.post(
     "/v1/support/schedules/rules",
     requireAuth,

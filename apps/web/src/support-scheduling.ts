@@ -128,6 +128,49 @@ export interface SupportScheduleRosterResponse {
   selectedTeamId: string | null;
 }
 
+export interface SupportScheduleRuleVersion {
+  id: string;
+  teamId: string;
+  version: number;
+  timezone: string;
+  maxDailyMinutes: number;
+  maxWeeklyMinutes: number;
+  minimumRestMinutes: number;
+  minimumNoticeMinutes: number;
+  maxMonthlyExchanges: number;
+  autoApproveEligibleSwaps: boolean;
+  requireManagerExtraApproval: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface SupportPlanningPattern extends SupportCreatedPattern {
+  weekdays: number[];
+  timezone: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface SupportShiftAssignment {
+  id: string;
+  teamId: string;
+  userId: string;
+  patternVersionId: string;
+  validFrom: string;
+  validTo: string | null;
+  user: SupportAgent;
+  patternVersion: Pick<SupportPlanningPattern, "id" | "name" | "version" | "startMinute" | "endMinute" | "timezone"> & {
+    weekdaysJson: string;
+  };
+}
+
+export interface SupportSchedulePlanningResponse {
+  teamId: string;
+  rules: SupportScheduleRuleVersion[];
+  patterns: SupportPlanningPattern[];
+  assignments: SupportShiftAssignment[];
+}
+
 export interface SupportCreatedPattern {
   id: string;
   teamId: string;

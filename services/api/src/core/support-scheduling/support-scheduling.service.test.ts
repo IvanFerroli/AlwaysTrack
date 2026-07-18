@@ -17,6 +17,7 @@ import {
   findPublishedOccurrenceCoveringInterval,
   isValidSupportLocalDate,
   listSupportScheduleCalendar,
+  listSupportSchedulePlanning,
   materializeSupportShiftOccurrences,
   supportWorkloadViolations,
   supportZonedDateTimeToUtc,
@@ -270,6 +271,73 @@ describe("support scheduling workload rules", () => {
 });
 
 describe("support schedule scope and versioning", () => {
+  it("lists persisted planning data only inside the manager organization and team", async () => {
+    const activeRule = rule();
+    const pattern = {
+      id: "pattern-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      name: "Manhã",
+      version: 1,
+      startMinute: 480,
+      endMinute: 885,
+      weekdaysJson: "[1,2,3,4,5]",
+      timezone: "America/Sao_Paulo",
+      active: true,
+      effectiveFrom: new Date("2090-01-01T00:00:00.000Z"),
+      effectiveTo: null,
+      createdById: "admin-1",
+      createdAt: new Date("2090-01-01T00:00:00.000Z"),
+    };
+    const assignment = {
+      id: "assignment-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      userId: "sac-1",
+      patternVersionId: "pattern-1",
+      validFrom: new Date("2090-01-01T00:00:00.000Z"),
+      validTo: null,
+      active: true,
+      user: { id: "sac-1", name: "SAC 1", email: "sac1@example.com" },
+      patternVersion: pattern,
+    };
+    const prisma = {
+      supportTeam: {
+        findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
+      },
+      supportScheduleRuleVersion: {
+        findMany: vi.fn().mockResolvedValue([activeRule]),
+      },
+      supportShiftPatternVersion: {
+        findMany: vi.fn().mockResolvedValue([pattern]),
+      },
+      supportShiftAssignment: {
+        findMany: vi.fn().mockResolvedValue([assignment]),
+      },
+    };
+
+    await expect(
+      listSupportSchedulePlanning(prisma as never, admin, { teamId: "team-1" }),
+    ).resolves.toMatchObject({
+      teamId: "team-1",
+      rules: [{ id: "rule-1", snapshot: { id: "rule-1" } }],
+      patterns: [{ id: "pattern-1", weekdays: [1, 2, 3, 4, 5] }],
+      assignments: [{ id: "assignment-1", userId: "sac-1" }],
+    });
+    expect(prisma.supportShiftPatternVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          teamId: "team-1",
+          active: true,
+        }),
+      }),
+    );
+    await expect(
+      listSupportSchedulePlanning({} as never, sac, { teamId: "team-1" }),
+    ).rejects.toEqual(new SupportSchedulingError("FORBIDDEN"));
+  });
+
   it("keeps SAC calendar self-scoped and limits open extras to effective memberships", async () => {
     const findOccurrences = vi.fn().mockResolvedValue([]);
     const findExtraSlots = vi.fn().mockResolvedValue([]);
