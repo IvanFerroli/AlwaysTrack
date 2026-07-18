@@ -1127,6 +1127,14 @@ async function main() {
       status: "ACTIVE",
       startsAt: daysAgo(7),
       endsAt: addDays(21),
+      lifecycleVersion: 2,
+      audienceRule: "FIXED_AT_ACTIVATION",
+      audienceSnapshotJson: JSON.stringify({
+        rule: "FIXED_AT_ACTIVATION",
+        members: [sac, sac2, sac3].map((user) => ({ id: user.id, name: user.name }))
+      }),
+      audienceSnapshotAt: daysAgo(7),
+      publishedAt: daysAgo(7),
       updatedById: admin.id
     };
     if (existing) {

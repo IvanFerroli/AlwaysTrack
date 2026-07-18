@@ -148,8 +148,19 @@ export interface SupportCampaign {
   status: SupportCampaignStatus;
   startsAt: string;
   endsAt: string;
+  lifecycleVersion: number;
+  audienceRule: "FIXED_AT_ACTIVATION";
+  audienceSnapshotAt: string | null;
+  resultSnapshotAt: string | null;
+  publishedAt: string | null;
+  pausedAt: string | null;
+  closedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  audience: {
+    rule: "FIXED_AT_ACTIVATION";
+    members: Array<{ id: string; name: string }>;
+  };
   result: {
     current: number | null;
     average: number | null;
@@ -157,6 +168,22 @@ export interface SupportCampaign {
     aggregation: "WEIGHTED" | "SIMPLE";
     achieved: boolean;
     progressPercent: number;
+    frozenAt: string | null;
+    trend: Array<{
+      entryId: string | null;
+      revision: number;
+      periodStart: string;
+      periodEnd: string;
+      value: number;
+      samples: number;
+    }>;
+    provenance: Array<{
+      entryId: string | null;
+      revision: number;
+      source: string | null;
+      periodStart: string;
+      periodEnd: string;
+    }>;
   };
 }
 

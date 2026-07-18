@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { recordAuditLog } from "../audit/audit.service.js";
+import { emitInAppNotifications } from "../notifications/notifications.service.js";
 
 export const supportMetricKeys = ["CSAT", "PRODUCTIVITY", "SLA", "RECLAME_AQUI_OPEN"] as const;
 export type SupportMetricKey = (typeof supportMetricKeys)[number];
@@ -650,6 +651,118 @@ function campaignProgress(comparison: string, targetValue: number, current: numb
   return { achieved, progressPercent: targetValue > 0 ? Math.max(Math.min(current / targetValue * 100, 99), 0) : 0 };
 }
 
+interface CampaignAudienceMember {
+  id: string;
+  name: string;
+}
+
+interface CampaignAudienceSnapshot {
+  rule: "FIXED_AT_ACTIVATION";
+  members: CampaignAudienceMember[];
+}
+
+interface CampaignResultEntry {
+  id?: string;
+  metric: string;
+  value: number;
+  numerator: number | null;
+  denominator: number | null;
+  scopeType: string;
+  userId: string | null;
+  teamId: string | null;
+  teamLabel: string | null;
+  periodStart: Date;
+  periodEnd: Date;
+  revision?: number;
+  source?: string | null;
+}
+
+function parseStoredJson<T>(value: string | null | undefined): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function entriesForCampaign(
+  campaign: { metric: string; scopeType: string; userId: string | null; teamId: string | null; teamLabel: string | null; startsAt: Date; endsAt: Date },
+  entries: CampaignResultEntry[]
+) {
+  return entries.filter((entry) => {
+    if (entry.metric !== campaign.metric || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
+    if (campaign.scopeType === "USER") return entry.userId === campaign.userId;
+    if (campaign.scopeType === "TEAM") return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
+    return entry.scopeType === "ORGANIZATION";
+  });
+}
+
+function evaluatedCampaignResult(
+  campaign: { metric: string; comparison: string; targetValue: number },
+  entries: CampaignResultEntry[],
+  frozenAt: Date | null = null
+) {
+  const metric = campaign.metric as SupportMetricKey;
+  const aggregate = aggregateMetricEntries(metric, entries);
+  const current = aggregate.average;
+  return {
+    current,
+    ...aggregate,
+    ...campaignProgress(campaign.comparison, campaign.targetValue, current),
+    frozenAt,
+    trend: entries.map((entry) => ({
+      entryId: entry.id ?? null,
+      revision: entry.revision ?? 1,
+      periodStart: entry.periodStart,
+      periodEnd: entry.periodEnd,
+      value: entry.value,
+      samples: entry.denominator ?? 1
+    })),
+    provenance: entries.map((entry) => ({
+      entryId: entry.id ?? null,
+      revision: entry.revision ?? 1,
+      source: entry.source ?? null,
+      periodStart: entry.periodStart,
+      periodEnd: entry.periodEnd
+    }))
+  };
+}
+
+async function resolveCampaignAudience(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  organizationId: string,
+  campaign: { scopeType: string; userId: string | null; teamId: string | null }
+): Promise<CampaignAudienceSnapshot> {
+  let members: CampaignAudienceMember[];
+  if (campaign.scopeType === "USER") {
+    const user = campaign.userId
+      ? await prisma.user.findFirst({
+          where: { id: campaign.userId, organizationId, role: "SAC", active: true },
+          select: { id: true, name: true }
+        })
+      : null;
+    members = user ? [user] : [];
+  } else if (campaign.scopeType === "TEAM") {
+    const memberships = campaign.teamId
+      ? await prisma.supportTeamMembership.findMany({
+          where: { organizationId, teamId: campaign.teamId, user: { active: true, role: "SAC" }, ...activeMembership(new Date()) },
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { user: { name: "asc" } }
+        })
+      : [];
+    members = [...new Map(memberships.map((membership) => [membership.user.id, membership.user])).values()];
+  } else {
+    members = await prisma.user.findMany({
+      where: { organizationId, role: "SAC", active: true },
+      select: { id: true, name: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }]
+    });
+  }
+  if (!members.length) throw new SupportOperationsError("CONFLICT");
+  return { rule: "FIXED_AT_ACTIVATION", members };
+}
+
 export async function listSupportPerformance(prisma: PrismaClient, actor: CurrentUser, query: { from?: string; to?: string; metric?: string; userId?: string }) {
   const { where, from, to } = performanceWhere(actor, query);
   const [actorMemberships, allTeams] = await Promise.all([
@@ -902,11 +1015,7 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
     prisma.supportCampaign.findMany({
       where: {
         organizationId: actor.organizationId,
-        OR: isManager(actor) ? undefined : [
-          { scopeType: "ORGANIZATION" },
-          { userId: actor.id },
-          ...(actorTeamIds.length ? [{ teamId: { in: actorTeamIds } }] : [])
-        ]
+        status: isManager(actor) ? undefined : { in: ["ACTIVE", "PAUSED", "CLOSED"] }
       },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -922,40 +1031,47 @@ export async function listSupportCampaigns(prisma: PrismaClient, actor: CurrentU
       orderBy: { name: "asc" }
     })
   ]);
-  const periodStart = items.length ? new Date(Math.min(...items.map((item) => item.startsAt.getTime()))) : null;
-  const periodEnd = items.length ? new Date(Math.max(...items.map((item) => item.endsAt.getTime()))) : null;
+  const actorTeamIdSet = new Set(actorTeamIds);
+  const visibleItems = isManager(actor) ? items : items.filter((campaign) => {
+    const audience = parseStoredJson<CampaignAudienceSnapshot>(campaign.audienceSnapshotJson);
+    if (audience) return audience.members.some((member) => member.id === actor.id);
+    if (campaign.scopeType === "ORGANIZATION") return true;
+    if (campaign.scopeType === "USER") return campaign.userId === actor.id;
+    return Boolean(campaign.teamId && actorTeamIdSet.has(campaign.teamId));
+  });
+  const periodStart = visibleItems.length ? new Date(Math.min(...visibleItems.map((item) => item.startsAt.getTime()))) : null;
+  const periodEnd = visibleItems.length ? new Date(Math.max(...visibleItems.map((item) => item.endsAt.getTime()))) : null;
   const entries = periodStart && periodEnd
     ? await prisma.supportKpiEntry.findMany({
         where: {
           organizationId: actor.organizationId,
           archivedAt: null,
           status: "APPROVED",
-          metric: { in: [...new Set(items.map((item) => item.metric))] },
+          metric: { in: [...new Set(visibleItems.map((item) => item.metric))] },
           periodStart: { lte: periodEnd },
           periodEnd: { gte: periodStart }
         },
         orderBy: [{ periodEnd: "asc" }, { createdAt: "asc" }]
       })
     : [];
-  const evaluatedItems = items.map((campaign) => {
-    const metric = campaign.metric as SupportMetricKey;
-    const campaignEntries = entries.filter((entry) => {
-      if (entry.metric !== metric || entry.periodEnd < campaign.startsAt || entry.periodStart > campaign.endsAt) return false;
-      if (campaign.scopeType === "USER") return entry.userId === campaign.userId;
-      if (campaign.scopeType === "TEAM") {
-        return campaign.teamId ? entry.teamId === campaign.teamId : entry.teamLabel === campaign.teamLabel;
-      }
-      return entry.scopeType === "ORGANIZATION";
-    });
-    const aggregate = aggregateMetricEntries(metric, campaignEntries);
-    const current = aggregate.average;
+  const evaluatedItems = visibleItems.map((campaign) => {
+    const audience = parseStoredJson<CampaignAudienceSnapshot>(campaign.audienceSnapshotJson) ?? {
+      rule: "FIXED_AT_ACTIVATION" as const,
+      members: []
+    };
+    const frozenResult = campaign.status === "CLOSED"
+      ? parseStoredJson<ReturnType<typeof evaluatedCampaignResult>>(campaign.resultSnapshotJson)
+      : null;
+    const result = frozenResult ?? evaluatedCampaignResult(
+      campaign,
+      entriesForCampaign(campaign, entries),
+      campaign.resultSnapshotAt
+    );
+    const { audienceSnapshotJson: _audienceSnapshotJson, resultSnapshotJson: _resultSnapshotJson, ...campaignView } = campaign;
     return {
-      ...campaign,
-      result: {
-        current,
-        ...aggregate,
-        ...campaignProgress(campaign.comparison, campaign.targetValue, current)
-      }
+      ...campaignView,
+      audience,
+      result
     };
   });
   return { canManage: isManager(actor), items: evaluatedItems, teams };
@@ -986,9 +1102,17 @@ function campaignData(actor: CurrentUser, body: Record<string, unknown>) {
   };
 }
 
+const campaignTransitions: Record<string, readonly string[]> = {
+  DRAFT: ["DRAFT", "ACTIVE"],
+  ACTIVE: ["PAUSED", "CLOSED"],
+  PAUSED: ["ACTIVE", "CLOSED"],
+  CLOSED: []
+};
+
 export async function createSupportCampaign(prisma: PrismaClient, actor: CurrentUser, input: unknown) {
   if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
   const data = campaignData(actor, input as Record<string, unknown>);
+  if (data.status !== "DRAFT") throw new SupportOperationsError("INVALID_INPUT");
   if (data.userId) await ensureSupportAgent(prisma, actor.organizationId, data.userId);
   if (data.teamId) {
     const team = await ensureSupportTeam(prisma, actor.organizationId, data.teamId);
@@ -1008,38 +1132,134 @@ export async function createSupportCampaign(prisma: PrismaClient, actor: Current
 
 export async function updateSupportCampaign(prisma: PrismaClient, actor: CurrentUser, campaignId: string, input: unknown) {
   if (!isManager(actor) || !input || typeof input !== "object") throw new SupportOperationsError("FORBIDDEN");
-  const existing = await prisma.supportCampaign.findFirst({ where: { id: campaignId, organizationId: actor.organizationId } });
-  if (!existing) throw new SupportOperationsError("NOT_FOUND");
   const body = input as Record<string, unknown>;
-  const data = campaignData(actor, {
-    name: body.name ?? existing.name,
-    description: body.description === undefined ? existing.description : body.description,
-    metric: body.metric ?? existing.metric,
-    targetValue: body.targetValue ?? existing.targetValue,
-    comparison: body.comparison ?? existing.comparison,
-    scopeType: body.scopeType ?? existing.scopeType,
-    userId: body.userId === undefined ? existing.userId : body.userId,
-    teamId: body.teamId === undefined ? existing.teamId : body.teamId,
-    teamLabel: body.teamLabel === undefined ? existing.teamLabel : body.teamLabel,
-    status: body.status ?? existing.status,
-    startsAt: body.startsAt ?? existing.startsAt.toISOString(),
-    endsAt: body.endsAt ?? existing.endsAt.toISOString()
-  });
-  if (data.userId) await ensureSupportAgent(prisma, actor.organizationId, data.userId);
-  if (data.teamId) {
-    const team = await ensureSupportTeam(prisma, actor.organizationId, data.teamId);
-    data.teamLabel ??= team.name;
+  const transition = await prisma.$transaction(async (tx) => {
+    const existing = await tx.supportCampaign.findFirst({ where: { id: campaignId, organizationId: actor.organizationId } });
+    if (!existing) throw new SupportOperationsError("NOT_FOUND");
+    const nextStatus = requiredString(body.status ?? existing.status, 20).toUpperCase();
+    if (!(campaignTransitions[existing.status] ?? []).includes(nextStatus)) throw new SupportOperationsError("CONFLICT");
+    if (existing.status !== "DRAFT" && Object.keys(body).some((key) => key !== "status")) {
+      throw new SupportOperationsError("CONFLICT");
+    }
+
+    const data = existing.status === "DRAFT"
+      ? campaignData(actor, {
+          name: body.name ?? existing.name,
+          description: body.description === undefined ? existing.description : body.description,
+          metric: body.metric ?? existing.metric,
+          targetValue: body.targetValue ?? existing.targetValue,
+          comparison: body.comparison ?? existing.comparison,
+          scopeType: body.scopeType ?? existing.scopeType,
+          userId: body.userId === undefined ? existing.userId : body.userId,
+          teamId: body.teamId === undefined ? existing.teamId : body.teamId,
+          teamLabel: body.teamLabel === undefined ? existing.teamLabel : body.teamLabel,
+          status: nextStatus,
+          startsAt: body.startsAt ?? existing.startsAt.toISOString(),
+          endsAt: body.endsAt ?? existing.endsAt.toISOString()
+        })
+      : { status: nextStatus, updatedById: actor.id };
+
+    if ("userId" in data && data.userId) await ensureSupportAgent(tx, actor.organizationId, data.userId);
+    if ("teamId" in data && data.teamId) {
+      const team = await ensureSupportTeam(tx, actor.organizationId, data.teamId);
+      data.teamLabel ??= team.name;
+    }
+
+    const now = new Date();
+    const statusChanged = existing.status !== nextStatus;
+    const updateData: Prisma.SupportCampaignUncheckedUpdateInput = { ...data };
+    let audience = parseStoredJson<CampaignAudienceSnapshot>(existing.audienceSnapshotJson);
+    if (nextStatus !== "DRAFT" && !audience) {
+      const campaignScope = {
+        scopeType: "scopeType" in data ? data.scopeType : existing.scopeType,
+        userId: "userId" in data ? data.userId : existing.userId,
+        teamId: "teamId" in data ? data.teamId : existing.teamId
+      };
+      audience = await resolveCampaignAudience(tx, actor.organizationId, campaignScope);
+      updateData.audienceSnapshotJson = JSON.stringify(audience);
+      updateData.audienceSnapshotAt = now;
+      updateData.audienceRule = audience.rule;
+    }
+    if (statusChanged) {
+      updateData.lifecycleVersion = { increment: 1 };
+      if (nextStatus === "ACTIVE") {
+        updateData.publishedAt = existing.publishedAt ?? now;
+        updateData.pausedAt = null;
+      } else if (nextStatus === "PAUSED") {
+        updateData.pausedAt = now;
+      } else if (nextStatus === "CLOSED") {
+        const campaignForResult = {
+          ...existing,
+          ...data,
+          startsAt: "startsAt" in data ? data.startsAt : existing.startsAt,
+          endsAt: "endsAt" in data ? data.endsAt : existing.endsAt,
+          scopeType: "scopeType" in data ? data.scopeType : existing.scopeType,
+          userId: "userId" in data ? data.userId : existing.userId,
+          teamId: "teamId" in data ? data.teamId : existing.teamId,
+          teamLabel: "teamLabel" in data ? data.teamLabel : existing.teamLabel,
+          metric: "metric" in data ? data.metric : existing.metric,
+          comparison: "comparison" in data ? data.comparison : existing.comparison,
+          targetValue: "targetValue" in data ? data.targetValue : existing.targetValue
+        };
+        const approvedEntries = await tx.supportKpiEntry.findMany({
+          where: {
+            organizationId: actor.organizationId,
+            archivedAt: null,
+            status: "APPROVED",
+            metric: campaignForResult.metric,
+            periodStart: { lte: campaignForResult.endsAt },
+            periodEnd: { gte: campaignForResult.startsAt }
+          },
+          orderBy: [{ periodEnd: "asc" }, { createdAt: "asc" }]
+        });
+        const resultSnapshot = evaluatedCampaignResult(
+          campaignForResult,
+          entriesForCampaign(campaignForResult, approvedEntries),
+          now
+        );
+        updateData.resultSnapshotJson = JSON.stringify(resultSnapshot);
+        updateData.resultSnapshotAt = now;
+        updateData.closedAt = now;
+      }
+    }
+
+    const campaign = await tx.supportCampaign.update({ where: { id: existing.id }, data: updateData });
+    await tx.auditLog.create({
+      data: {
+        organizationId: actor.organizationId,
+        actorId: actor.id,
+        action: statusChanged ? `support_campaign.status.${nextStatus.toLowerCase()}` : "support_campaign.draft.update",
+        entityType: "SupportCampaign",
+        entityId: campaign.id,
+        metadataJson: JSON.stringify({
+          previousStatus: existing.status,
+          status: nextStatus,
+          lifecycleVersion: campaign.lifecycleVersion,
+          audienceCount: audience?.members.length ?? 0,
+          resultFrozen: nextStatus === "CLOSED"
+        })
+      }
+    });
+    return { campaign, previousStatus: existing.status, audience, statusChanged };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (transition.statusChanged && transition.audience) {
+    const statusTitle = transition.campaign.status === "ACTIVE"
+      ? transition.previousStatus === "PAUSED" ? "Campanha retomada" : "Nova campanha SAC"
+      : transition.campaign.status === "PAUSED" ? "Campanha pausada" : "Campanha encerrada";
+    await emitInAppNotifications(prisma, actor.organizationId, {
+      actorId: actor.id,
+      recipientIds: transition.audience.members.map((member) => member.id),
+      type: `support_campaign.${transition.campaign.status.toLowerCase()}`,
+      title: `${statusTitle}: ${transition.campaign.name}`,
+      body: transition.campaign.description,
+      entityType: "SupportCampaign",
+      entityId: transition.campaign.id,
+      href: "/campanhas",
+      dedupeKey: `support-campaign:${transition.campaign.id}:status:${transition.campaign.status}:v${transition.campaign.lifecycleVersion}`
+    });
   }
-  const campaign = await prisma.supportCampaign.update({ where: { id: existing.id }, data });
-  await recordAuditLog(prisma, {
-    organizationId: actor.organizationId,
-    actorId: actor.id,
-    action: "support_campaign.update",
-    entityType: "SupportCampaign",
-    entityId: campaign.id,
-    metadata: { status: campaign.status }
-  });
-  return { campaign };
+  return { campaign: transition.campaign };
 }
 
 export async function getSupportDashboard(prisma: PrismaClient, actor: CurrentUser, dateText?: string) {

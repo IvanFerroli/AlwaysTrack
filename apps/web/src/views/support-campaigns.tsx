@@ -1,8 +1,8 @@
-import { Pencil, Plus, RefreshCw, Save, X } from "lucide-react";
+import { CircleStop, Pause, Pencil, Play, Plus, RefreshCw, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
-import { OperationalState } from "../components/operational";
+import { ConfirmButton, OperationalState } from "../components/operational";
 import {
   emptySupportCampaignDraft,
   formatSupportDate,
@@ -28,6 +28,25 @@ import "../support-operations.css";
 
 function errorMessage(caught: unknown, fallback: string) {
   return caught instanceof Error ? caught.message : fallback;
+}
+
+function CampaignTrend({ campaign }: { campaign: SupportCampaign }) {
+  const points = campaign.result.trend.slice(-8);
+  if (!points.length) return null;
+  const maximum = Math.max(...points.map((point) => point.value), campaign.targetValue, 1);
+  return (
+    <ol className="support-campaign-trend" aria-label={`Tendência de ${campaign.name}`}>
+      {points.map((point, index) => (
+        <li
+          key={point.entryId ?? `${point.periodEnd}-${index}`}
+          style={{ height: `${Math.max(point.value / maximum * 100, 6)}%` }}
+          title={`${formatSupportDate(point.periodEnd)}: ${formatSupportMetricValue(campaign.metric, point.value)}`}
+        >
+          <span className="sr-only">{formatSupportDate(point.periodEnd)}: {formatSupportMetricValue(campaign.metric, point.value)}</span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 export function SupportCampaignsView({ user }: { user: CurrentUser }) {
@@ -81,6 +100,25 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
       await load(false);
     } catch (caught) {
       setError(errorMessage(caught, "Falha ao salvar a campanha."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function transitionCampaign(campaignId: string, status: "ACTIVE" | "PAUSED" | "CLOSED") {
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api(`/v1/support/campaigns/${campaignId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status })
+      });
+      setNotice(status === "ACTIVE" ? "Campanha publicada." : status === "PAUSED" ? "Campanha pausada." : "Campanha encerrada com resultado congelado.");
+      setDraft(emptySupportCampaignDraft());
+      await load(false);
+    } catch (caught) {
+      setError(errorMessage(caught, "Falha ao alterar o estado da campanha."));
     } finally {
       setSaving(false);
     }
@@ -164,11 +202,6 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
               const team = teams.find((item) => item.id === event.target.value);
               setDraft((current) => ({ ...current, teamId: event.target.value, teamLabel: team?.name ?? "" }));
             }}><option value="">Selecione</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
-            <label>Status
-              <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as SupportCampaignDraft["status"] }))}>
-                {Object.entries(supportCampaignStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
-              </select>
-            </label>
             <label>Início<input required type="date" value={draft.startsAt} onChange={(event) => setDraft((current) => ({ ...current, startsAt: event.target.value }))} /></label>
             <label>Fim<input required type="date" value={draft.endsAt} onChange={(event) => setDraft((current) => ({ ...current, endsAt: event.target.value }))} /></label>
             <label className="support-full-span">Descrição<textarea maxLength={1000} rows={3} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></label>
@@ -197,16 +230,24 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
                   <td className="support-campaign-result">
                     <strong>{formatSupportMetricValue(item.metric, item.result.current)}</strong>
                     <span className={`support-status ${item.result.current === null ? "draft" : item.result.achieved ? "active" : "paused"}`}>
-                      {item.result.current === null ? "Sem medição" : item.result.achieved ? "Na meta" : "Abaixo da meta"}
+                      {item.result.current === null ? "Sem medição" : item.result.achieved ? "Na meta" : "Fora da meta"}
                     </span>
                     <span className="support-progress" role="progressbar" aria-label={`Progresso de ${item.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(item.result.progressPercent)}>
                       <i style={{ width: `${item.result.progressPercent}%` }} />
                     </span>
+                    <CampaignTrend campaign={item} />
+                    <small>{item.result.samples} amostra(s){item.result.frozenAt ? ` · fechado em ${formatSupportDate(item.result.frozenAt)}` : ""}</small>
                   </td>
-                  <td>{supportScopeLabel(item)}</td>
+                  <td>{supportScopeLabel(item)}<small>{item.audience.members.length} pessoa(s)</small>{item.audience.members.length ? <details><summary>Ver público</summary><ul>{item.audience.members.map((member) => <li key={member.id}>{member.name}</li>)}</ul></details> : null}</td>
                   <td>{formatSupportDate(item.startsAt)}<small>até {formatSupportDate(item.endsAt)}</small></td>
                   <td><span className={`support-status ${item.status.toLowerCase()}`}>{supportCampaignStatusLabels[item.status]}</span></td>
-                  {canManage ? <td><button className="secondary small" type="button" onClick={() => { setDraft(supportCampaignDraftFromItem(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={15} /> Editar</button></td> : null}
+                  {canManage ? <td><div className="inline-actions support-campaign-actions">
+                    {item.status === "DRAFT" ? <><button className="secondary small" type="button" disabled={saving} onClick={() => { setDraft(supportCampaignDraftFromItem(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={15} /> Editar</button><button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Publicar</button></> : null}
+                    {item.status === "ACTIVE" ? <button className="secondary small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "PAUSED")}><Pause size={15} /> Pausar</button> : null}
+                    {item.status === "PAUSED" ? <button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Retomar</button> : null}
+                    {item.status === "ACTIVE" || item.status === "PAUSED" ? <ConfirmButton confirmLabel="Confirmar encerramento" disabled={saving} onConfirm={() => void transitionCampaign(item.id, "CLOSED")}><CircleStop size={15} /> Encerrar</ConfirmButton> : null}
+                    {item.status === "CLOSED" ? <span className="muted">Sem ações</span> : null}
+                  </div></td> : null}
                 </tr>
               ))}</tbody>
             </table>

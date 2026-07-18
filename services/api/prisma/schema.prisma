@@ -556,24 +556,33 @@ model SupportKpiEntry {
 }
 
 model SupportCampaign {
-  id             String   @id @default(cuid())
-  organizationId String
-  name           String
-  description    String?
-  metric         String
-  targetValue    Float
-  comparison     String
-  scopeType      String
-  userId         String?
-  teamLabel      String?
-  teamId         String?
-  status         String   @default("DRAFT")
-  startsAt       DateTime
-  endsAt         DateTime
-  createdById    String
-  updatedById    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  organizationId       String
+  name                 String
+  description          String?
+  metric               String
+  targetValue          Float
+  comparison           String
+  scopeType            String
+  userId               String?
+  teamLabel            String?
+  teamId               String?
+  status               String    @default("DRAFT")
+  startsAt             DateTime
+  endsAt               DateTime
+  lifecycleVersion     Int       @default(1)
+  audienceRule         String    @default("FIXED_AT_ACTIVATION")
+  audienceSnapshotJson String?
+  audienceSnapshotAt   DateTime?
+  resultSnapshotJson   String?
+  resultSnapshotAt     DateTime?
+  publishedAt          DateTime?
+  pausedAt             DateTime?
+  closedAt             DateTime?
+  createdById          String
+  updatedById          String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User?        @relation("SupportCampaignTarget", fields: [userId], references: [id])

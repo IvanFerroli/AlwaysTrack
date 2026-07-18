@@ -15,9 +15,27 @@ const campaign = {
   id: "campaign-1", name: "Fila sob controle", description: "Reduzir o estoque aberto", metric: "RECLAME_AQUI_OPEN", targetValue: 8,
   comparison: "LTE", scopeType: "TEAM", userId: null, user: null, teamLabel: "Retenção", teamId: "team-1", team, status: "ACTIVE",
   startsAt: "2026-07-17T03:00:00.000Z", endsAt: "2026-08-01T02:59:59.999Z", createdAt: "2026-07-17T03:00:00.000Z", updatedAt: "2026-07-17T03:00:00.000Z",
-  result: { current: 6, average: 7, samples: 4, aggregation: "SIMPLE", achieved: true, progressPercent: 100 }
+  lifecycleVersion: 2, audienceRule: "FIXED_AT_ACTIVATION", audienceSnapshotAt: "2026-07-17T03:00:00.000Z", resultSnapshotAt: null,
+  publishedAt: "2026-07-17T03:00:00.000Z", pausedAt: null, closedAt: null,
+  audience: { rule: "FIXED_AT_ACTIVATION", members: [agent] },
+  result: {
+    current: 6, average: 7, samples: 4, aggregation: "SIMPLE", achieved: true, progressPercent: 100, frozenAt: null,
+    trend: [{ entryId: "kpi-1", revision: 1, periodStart: "2026-07-17T03:00:00.000Z", periodEnd: "2026-07-18T02:59:59.999Z", value: 6, samples: 1 }],
+    provenance: [{ entryId: "kpi-1", revision: 1, source: "Painel SAC", periodStart: "2026-07-17T03:00:00.000Z", periodEnd: "2026-07-18T02:59:59.999Z" }]
+  }
+};
+const draftCampaign = {
+  ...campaign,
+  id: "campaign-draft",
+  name: "Nova meta em revisão",
+  status: "DRAFT",
+  lifecycleVersion: 1,
+  audienceSnapshotAt: null,
+  publishedAt: null,
+  audience: { rule: "FIXED_AT_ACTIVATION", members: [] }
 };
 const campaignResponse = { canManage: true, items: [campaign], teams: [team] };
+const managerCampaignResponse = { canManage: true, items: [draftCampaign, campaign], teams: [team] };
 const performanceResponse = { canManage: true, period: { from: "", to: "" }, agents: [agent], teams: [team], summary: [], entries: [], campaigns: [] };
 
 describe("SupportCampaignsView", () => {
@@ -41,7 +59,12 @@ describe("SupportCampaignsView", () => {
     expect(apiMock).not.toHaveBeenCalledWith("/v1/support/performance");
   });
 
-  it("lets managers create an LTE team campaign and edit an existing one", async () => {
+  it("lets managers create and edit a draft, then use governed lifecycle actions", async () => {
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/support/campaigns") return Promise.resolve(managerCampaignResponse);
+      if (path === "/v1/support/performance") return Promise.resolve(performanceResponse);
+      return Promise.resolve({});
+    });
     const user = userEvent.setup();
     render(<SupportCampaignsView user={manager} />);
     const createSection = (await screen.findByRole("heading", { name: "Criar campanha" })).closest("section")!;
@@ -51,7 +74,6 @@ describe("SupportCampaignsView", () => {
     await user.click(within(createSection).getByLabelText("≤ No máximo"));
     await user.selectOptions(within(createSection).getByLabelText("Escopo"), "TEAM");
     await user.selectOptions(within(createSection).getByLabelText("Equipe"), "team-1");
-    await user.selectOptions(within(createSection).getByLabelText("Status"), "ACTIVE");
     await user.click(within(createSection).getByRole("button", { name: "Criar campanha" }));
 
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns", expect.objectContaining({
@@ -59,16 +81,32 @@ describe("SupportCampaignsView", () => {
       body: expect.stringContaining('"comparison":"LTE","scopeType":"TEAM"')
     })));
 
-    await user.click(screen.getByRole("button", { name: "Editar" }));
+    expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns", expect.objectContaining({ body: expect.stringContaining('"status":"DRAFT"') }));
+
+    const draftRow = screen.getByText("Nova meta em revisão").closest("tr")!;
+    await user.click(within(draftRow).getByRole("button", { name: "Editar" }));
     const editSection = screen.getByRole("heading", { name: "Editar campanha" }).closest("section")!;
     const name = within(editSection).getByLabelText("Nome");
     await user.clear(name);
     await user.type(name, "Fila zerada");
     await user.click(within(editSection).getByRole("button", { name: "Salvar campanha" }));
 
-    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns/campaign-1", expect.objectContaining({
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns/campaign-draft", expect.objectContaining({
       method: "PATCH",
       body: expect.stringContaining('"name":"Fila zerada"')
     })));
+
+    await user.click(within(draftRow).getByRole("button", { name: "Publicar" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns/campaign-draft", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "ACTIVE" })
+    }));
+
+    const activeRow = screen.getByText("Fila sob controle").closest("tr")!;
+    await user.click(within(activeRow).getByRole("button", { name: "Pausar" }));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/support/campaigns/campaign-1", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "PAUSED" })
+    }));
   });
 });

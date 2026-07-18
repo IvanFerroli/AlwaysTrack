@@ -13,6 +13,7 @@ import {
   requestSupportPauseSwap,
   reviewSupportKpiEntry,
   submitSupportKpiEntry,
+  updateSupportCampaign,
   updateSupportKpiEntry
 } from "./support-operations.service.js";
 
@@ -328,11 +329,92 @@ describe("support operations service", () => {
       targetValue: 0,
       comparison: "LTE",
       scopeType: "ORGANIZATION",
-      status: "ACTIVE",
+      status: "DRAFT",
       startsAt: "2026-07-17T03:00:00.000Z",
       endsAt: "2026-07-31T02:59:59.999Z"
     });
-    expect(result.campaign).toMatchObject({ metric: "RECLAME_AQUI_OPEN", comparison: "LTE", targetValue: 0 });
+    expect(result.campaign).toMatchObject({ metric: "RECLAME_AQUI_OPEN", comparison: "LTE", targetValue: 0, status: "DRAFT" });
+    await expect(createSupportCampaign(prisma as never, admin, {
+      name: "Publicação direta",
+      metric: "CSAT",
+      targetValue: 90,
+      scopeType: "ORGANIZATION",
+      status: "ACTIVE",
+      startsAt: "2026-07-17T03:00:00.000Z",
+      endsAt: "2026-07-31T02:59:59.999Z"
+    })).rejects.toEqual(new SupportOperationsError("INVALID_INPUT"));
+  });
+
+  it("publishes a draft with a fixed audience snapshot, audit and deduplicated notification", async () => {
+    const existing = {
+      id: "campaign-1", organizationId: "org-1", name: "CSAT alto", description: "Qualidade sustentável", metric: "CSAT",
+      targetValue: 92, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
+      status: "DRAFT", startsAt: new Date("2026-07-17T03:00:00.000Z"), endsAt: new Date("2026-07-31T02:59:59.999Z"),
+      audienceSnapshotJson: null, publishedAt: null, lifecycleVersion: 1
+    };
+    const agents = [{ id: "sac-1", name: "Ana" }, { id: "sac-2", name: "Bruno" }];
+    const campaignUpdate = vi.fn().mockImplementation(({ data }) => Promise.resolve({
+      ...existing,
+      ...data,
+      status: "ACTIVE",
+      lifecycleVersion: 2
+    }));
+    const tx = {
+      supportCampaign: { findFirst: vi.fn().mockResolvedValue(existing), update: campaignUpdate },
+      user: { findMany: vi.fn().mockResolvedValue(agents) },
+      auditLog: auditMock()
+    };
+    const prisma = {
+      $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)),
+      user: { findMany: vi.fn().mockResolvedValue(agents.map(({ id }) => ({ id }))) },
+      inAppNotification: { upsert: vi.fn().mockResolvedValue({ id: "notification-1" }) }
+    };
+
+    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { status: "ACTIVE" }))
+      .resolves.toMatchObject({ campaign: { status: "ACTIVE", lifecycleVersion: 2 } });
+    const updateData = campaignUpdate.mock.calls[0]?.[0].data;
+    expect(JSON.parse(updateData.audienceSnapshotJson)).toEqual({ rule: "FIXED_AT_ACTIVATION", members: agents });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_campaign.status.active" })
+    }));
+    expect(prisma.inAppNotification.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.inAppNotification.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ type: "support_campaign.active", entityId: "campaign-1" })
+    }));
+  });
+
+  it("blocks destructive edits after publication and freezes approved provenance on close", async () => {
+    const audienceSnapshotJson = JSON.stringify({ rule: "FIXED_AT_ACTIVATION", members: [{ id: "sac-1", name: "Ana" }] });
+    const existing = {
+      id: "campaign-1", organizationId: "org-1", name: "SLA estável", description: null, metric: "SLA",
+      targetValue: 90, comparison: "GTE", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null,
+      status: "ACTIVE", startsAt: new Date("2026-07-01T03:00:00.000Z"), endsAt: new Date("2026-07-31T02:59:59.999Z"),
+      audienceSnapshotJson, publishedAt: new Date("2026-07-01T03:00:00.000Z"), lifecycleVersion: 2
+    };
+    const approved = [{
+      id: "kpi-1", metric: "SLA", value: 95, numerator: 95, denominator: 100, scopeType: "ORGANIZATION", userId: null,
+      teamId: null, teamLabel: null, periodStart: new Date("2026-07-01T03:00:00.000Z"), periodEnd: new Date("2026-07-07T02:59:59.999Z"),
+      revision: 2, source: "Painel oficial"
+    }];
+    const campaignUpdate = vi.fn().mockImplementation(({ data }) => Promise.resolve({ ...existing, ...data, status: "CLOSED", lifecycleVersion: 3 }));
+    const tx = {
+      supportCampaign: { findFirst: vi.fn().mockResolvedValue(existing), update: campaignUpdate },
+      supportKpiEntry: { findMany: vi.fn().mockResolvedValue(approved) },
+      auditLog: auditMock()
+    };
+    const prisma = {
+      $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)),
+      user: { findMany: vi.fn().mockResolvedValue([{ id: "sac-1" }]) },
+      inAppNotification: { upsert: vi.fn().mockResolvedValue({ id: "notification-1" }) }
+    };
+
+    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { targetValue: 99 }))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+    await expect(updateSupportCampaign(prisma as never, admin, "campaign-1", { status: "CLOSED" }))
+      .resolves.toMatchObject({ campaign: { status: "CLOSED" } });
+    const frozen = JSON.parse(campaignUpdate.mock.calls[0]?.[0].data.resultSnapshotJson);
+    expect(frozen).toMatchObject({ current: 95, achieved: true, samples: 100 });
+    expect(frozen.provenance).toEqual([expect.objectContaining({ entryId: "kpi-1", revision: 2, source: "Painel oficial" })]);
   });
 
   it("evaluates campaign progress with the same weighted period aggregation as performance", async () => {
@@ -366,13 +448,16 @@ describe("support operations service", () => {
 
     const result = await listSupportCampaigns(prisma as never, admin);
 
-    expect(result.items[0]?.result).toEqual({
+    expect(result.items[0]?.result).toMatchObject({
       current: 98,
       average: 98,
       samples: 100,
       aggregation: "WEIGHTED",
       achieved: true,
-      progressPercent: 100
+      progressPercent: 100,
+      frozenAt: null
     });
+    expect(result.items[0]?.result.trend).toHaveLength(2);
+    expect(result.items[0]?.result.provenance).toHaveLength(2);
   });
 });
