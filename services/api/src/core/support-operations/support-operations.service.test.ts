@@ -13,6 +13,7 @@ import {
   listSupportPauses,
   listSupportPerformance,
   generateSupportPauseSlots,
+  rescheduleSupportPauseBooking,
   requestSupportPauseSwap,
   reviewSupportKpiEntry,
   submitSupportKpiEntry,
@@ -56,6 +57,7 @@ describe("support operations service", () => {
           ]
         }
       ]) },
+      supportShiftOccurrence: { findMany: vi.fn().mockResolvedValue([]) },
       supportPauseSwap: { findMany: vi.fn().mockResolvedValue([]) }
     };
 
@@ -161,6 +163,11 @@ describe("support operations service", () => {
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }), count: vi.fn().mockResolvedValue(3) },
       supportPauseSlot: { findFirst: vi.fn().mockResolvedValue({ ...slot, teamId: null }) },
       supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ minimumCoverage: 3 }) },
+      supportShiftOccurrence: {
+        count: vi.fn().mockResolvedValue(0),
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([])
+      },
       supportPauseBooking: {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: vi.fn().mockResolvedValue([]),
@@ -209,6 +216,12 @@ describe("support operations service", () => {
     const booking = { id: "booking-1", slotId: slot.id, userId: "sac-1", status: "BOOKED" };
     const tx = {
       supportPauseSlot: { findFirst: vi.fn().mockResolvedValue(slot) },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
+      supportShiftOccurrence: {
+        count: vi.fn().mockResolvedValue(0),
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([])
+      },
       user: { findFirst: vi.fn().mockResolvedValue({ id: "sac-1" }) },
       supportPauseBooking: {
         findUnique: vi.fn().mockResolvedValue(booking),
@@ -224,6 +237,162 @@ describe("support operations service", () => {
     expect(tx.supportPauseBooking.findFirst).not.toHaveBeenCalled();
     expect(tx.supportPauseBooking.create).not.toHaveBeenCalled();
     expect(tx.supportPauseBooking.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks a pause outside the operator published shift", async () => {
+    const slot = {
+      id: "slot-1",
+      organizationId: "org-1",
+      startsAt: new Date("2099-07-17T15:00:00.000Z"),
+      endsAt: new Date("2099-07-17T16:15:00.000Z"),
+      capacity: 1,
+      teamId: "team-1",
+      bookings: []
+    };
+    const tx = {
+      supportPauseSlot: { findFirst: vi.fn().mockResolvedValue(slot) },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ organizationId: "org-1", timezone: "America/Sao_Paulo" }) },
+      supportPauseBooking: { findUnique: vi.fn().mockResolvedValue(null) },
+      supportShiftOccurrence: {
+        count: vi.fn().mockResolvedValue(3),
+        findFirst: vi.fn().mockResolvedValue(null)
+      },
+      supportTeamMembership: { findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }) },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: sac.id }) }
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(bookSupportPauseSlot(prisma as never, sac, slot.id, {}))
+      .rejects.toEqual(new SupportOperationsError("CONFLICT"));
+  });
+
+  it("uses published shift coverage and links the pause to its occurrence", async () => {
+    const slot = {
+      id: "slot-1",
+      organizationId: "org-1",
+      startsAt: new Date("2099-07-17T15:00:00.000Z"),
+      endsAt: new Date("2099-07-17T16:15:00.000Z"),
+      capacity: 2,
+      teamId: "team-1",
+      bookings: []
+    };
+    const occurrence = {
+      id: "occurrence-1",
+      userId: sac.id,
+      teamId: "team-1",
+      status: "PUBLISHED",
+      startsAt: new Date("2099-07-17T11:00:00.000Z"),
+      endsAt: new Date("2099-07-17T17:45:00.000Z")
+    };
+    const bookingCreate = vi.fn().mockResolvedValue({ id: "booking-1", shiftOccurrenceId: occurrence.id });
+    const tx = {
+      supportPauseSlot: { findFirst: vi.fn().mockResolvedValue(slot) },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2 }) },
+      supportPauseBooking: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+        create: bookingCreate
+      },
+      supportShiftOccurrence: {
+        count: vi.fn().mockResolvedValue(3),
+        findFirst: vi.fn().mockResolvedValue(occurrence),
+        findMany: vi.fn().mockResolvedValue([{ userId: "sac-1" }, { userId: "sac-2" }, { userId: "sac-3" }])
+      },
+      supportTeamMembership: {
+        findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }),
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: sac.id }) },
+      auditLog: auditMock()
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(bookSupportPauseSlot(prisma as never, sac, slot.id, {}))
+      .resolves.toMatchObject({ booking: { id: "booking-1", shiftOccurrenceId: occurrence.id } });
+    expect(bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        shiftOccurrenceId: occurrence.id,
+        coverageBefore: null,
+        coverageAfter: null
+      })
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ metadataJson: expect.stringContaining('"coverageSource":"PUBLISHED_SCHEDULE"') })
+    }));
+  });
+
+  it("reschedules an invalidated pause explicitly and preserves its audit chain", async () => {
+    const original = {
+      id: "booking-old",
+      organizationId: "org-1",
+      slotId: "slot-old",
+      userId: sac.id,
+      status: "BOOKED",
+      slot: { id: "slot-old", teamId: "team-1", startsAt: new Date("2099-07-17T14:00:00.000Z") }
+    };
+    const targetSlot = {
+      id: "slot-new",
+      organizationId: "org-1",
+      teamId: "team-1",
+      startsAt: new Date("2099-07-17T15:00:00.000Z"),
+      endsAt: new Date("2099-07-17T16:15:00.000Z"),
+      capacity: 2,
+      bookings: []
+    };
+    const occurrence = { id: "occurrence-1", userId: sac.id };
+    const bookingCreate = vi.fn().mockResolvedValue({
+      id: "booking-new",
+      slotId: targetSlot.id,
+      userId: sac.id,
+      rescheduledFromId: original.id,
+      shiftOccurrenceId: occurrence.id
+    });
+    const bookingUpdate = vi.fn().mockResolvedValue({ ...original, status: "RESCHEDULED" });
+    const tx = {
+      supportPauseBooking: {
+        findFirst: vi.fn().mockResolvedValueOnce(original).mockResolvedValueOnce(null),
+        findUnique: vi.fn().mockResolvedValue(null),
+        findMany: vi.fn().mockResolvedValue([]),
+        create: bookingCreate,
+        update: bookingUpdate
+      },
+      supportPauseSlot: { findFirst: vi.fn().mockResolvedValue(targetSlot) },
+      supportPausePolicy: { findUnique: vi.fn().mockResolvedValue({ organizationId: "org-1", timezone: "America/Sao_Paulo", minimumCoverage: 2 }) },
+      supportShiftOccurrence: {
+        count: vi.fn().mockResolvedValue(3),
+        findFirst: vi.fn().mockResolvedValue(occurrence),
+        findMany: vi.fn().mockResolvedValue([{ userId: "sac-1" }, { userId: "sac-2" }, { userId: "sac-3" }])
+      },
+      supportTeamMembership: {
+        findFirst: vi.fn().mockResolvedValue({ id: "membership-1" }),
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      user: { findFirst: vi.fn().mockResolvedValue({ id: sac.id }) },
+      supportPauseSwap: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      auditLog: auditMock()
+    };
+    const prisma = { $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
+
+    await expect(rescheduleSupportPauseBooking(prisma as never, sac, original.id, { targetSlotId: targetSlot.id }))
+      .resolves.toMatchObject({
+        booking: { id: "booking-new", rescheduledFromId: original.id },
+        previousBooking: { id: original.id, status: "RESCHEDULED" }
+      });
+    expect(bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        rescheduledFromId: original.id,
+        shiftOccurrenceId: occurrence.id,
+        slotId: targetSlot.id
+      })
+    });
+    expect(bookingUpdate).toHaveBeenCalledWith({
+      where: { id: original.id },
+      data: { status: "RESCHEDULED", rescheduleRequiredAt: null }
+    });
+    expect(tx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ action: "support_pause.booking.reschedule" })
+    }));
   });
 
   it("requires a reason and explicit impact confirmation for a manager override", async () => {
@@ -272,6 +441,7 @@ describe("support operations service", () => {
       supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
       user: { findMany: vi.fn().mockResolvedValue([]) },
       supportPauseSlot: { findMany: vi.fn().mockResolvedValue([]) },
+      supportShiftOccurrence: { findMany: vi.fn().mockResolvedValue([]) },
       supportPauseSwap: {
         findMany: vi.fn().mockResolvedValue([swap]),
         updateMany: vi.fn().mockResolvedValue({ count: 1 })
@@ -302,6 +472,7 @@ describe("support operations service", () => {
       },
       supportPausePolicy: { findUnique: vi.fn().mockResolvedValue(null) },
       supportPauseSlot: { findMany: vi.fn().mockResolvedValue([]) },
+      supportShiftOccurrence: { findMany: vi.fn().mockResolvedValue([]) },
       supportPauseSwap: { findMany: findManySwaps }
     };
 

@@ -169,6 +169,7 @@ import {
   listSupportCampaignsHandler,
   listSupportPausesHandler,
   listSupportPerformanceHandler,
+  rescheduleSupportPauseBookingHandler,
   reviewSupportKpiEntryHandler,
   submitSupportKpiEntryHandler,
   requestSupportPauseSwapHandler,
@@ -542,6 +543,13 @@ export function createApp() {
   app.post("/v1/support/pauses/slots/generate", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, generateSupportPauseSlotsHandler);
   app.post("/v1/support/pauses/slots/:slotId/book", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, bookSupportPauseSlotHandler);
   app.delete("/v1/support/pauses/bookings/:bookingId", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, cancelSupportPauseBookingHandler);
+  app.post(
+    "/v1/support/pauses/bookings/:bookingId/reschedule",
+    requireAuth,
+    requireRole(supportOperationsRoles),
+    rateLimits.interaction,
+    rescheduleSupportPauseBookingHandler
+  );
   app.post("/v1/support/pauses/swaps", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, requestSupportPauseSwapHandler);
   app.post("/v1/support/pauses/swaps/:swapId/decision", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, decideSupportPauseSwapHandler);
   app.delete("/v1/support/pauses/swaps/:swapId", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, cancelSupportPauseSwapHandler);

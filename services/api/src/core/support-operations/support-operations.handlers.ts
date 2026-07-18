@@ -15,6 +15,7 @@ import {
   listSupportCampaigns,
   listSupportPauses,
   listSupportPerformance,
+  rescheduleSupportPauseBooking,
   requestSupportPauseSwap,
   reviewSupportKpiEntry,
   submitSupportKpiEntry,
@@ -75,6 +76,10 @@ export async function bookSupportPauseSlotHandler(request: Request, response: Re
 
 export async function cancelSupportPauseBookingHandler(request: Request, response: Response) {
   try { return sendOk(response, await cancelSupportPauseBooking(prisma, actor(request), param(request.params.bookingId), request.body)); } catch (error) { return failure(response, error); }
+}
+
+export async function rescheduleSupportPauseBookingHandler(request: Request, response: Response) {
+  try { return sendOk(response, await rescheduleSupportPauseBooking(prisma, actor(request), param(request.params.bookingId), request.body)); } catch (error) { return failure(response, error); }
 }
 
 export async function requestSupportPauseSwapHandler(request: Request, response: Response) {
