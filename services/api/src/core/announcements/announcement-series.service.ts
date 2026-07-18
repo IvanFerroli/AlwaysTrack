@@ -147,6 +147,14 @@ function normalizeRoles(values: unknown[] = []) {
   return [...new Set(values.filter((value): value is UserRole => typeof value === "string" && allowed.has(value)))];
 }
 
+function strictRoles(values: unknown[]) {
+  const allowed = new Set<string>(commercialAllRoles);
+  if (!values.length || values.some((value) => typeof value !== "string" || !allowed.has(value))) {
+    throw new AnnouncementError("INVALID_INPUT");
+  }
+  return normalizeRoles(values);
+}
+
 function normalizeRecurrenceDays(values: unknown[] | undefined) {
   if (values === undefined) return undefined;
   const days = [...new Set(values.map(Number))].sort((left, right) => left - right);
@@ -196,7 +204,7 @@ export function parseCreateAnnouncementSeriesInput(payload: unknown): CreateAnno
       content: optionalString(input, "content", { maxLength: 20_000 }),
       tags: tags ? normalizeTags(tags) : undefined,
       links: links ? normalizeAnnouncementLinks(links, true) : undefined,
-      targetRoles: roles ? normalizeRoles(roles) : undefined,
+      targetRoles: roles ? strictRoles(roles) : undefined,
       priority: normalizedPriority(optionalString(input, "priority", { maxLength: 20 })),
       pinned: optionalBoolean(input, "pinned"),
       requiresAck: optionalBoolean(input, "requiresAck")
@@ -312,7 +320,9 @@ function normalizeVersion(input: AnnouncementSeriesVersionInput, previous?: Anno
     content,
     tags: input.tags ?? base?.tags ?? [],
     links: input.links === undefined ? (base?.links ?? []) : normalizeAnnouncementLinks(input.links, true),
-    targetRoles: input.targetRoles?.length ? input.targetRoles : (base?.targetRoles.length ? base.targetRoles : [...commercialAllRoles]),
+    targetRoles: input.targetRoles === undefined
+      ? (base?.targetRoles.length ? base.targetRoles : [...commercialAllRoles])
+      : strictRoles(input.targetRoles),
     priority: input.priority ?? base?.priority ?? "NORMAL",
     pinned: input.pinned ?? base?.pinned ?? false,
     requiresAck: input.requiresAck ?? base?.requiresAck ?? false

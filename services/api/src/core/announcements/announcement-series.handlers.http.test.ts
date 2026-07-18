@@ -181,7 +181,7 @@ describe("announcement series HTTP handlers", () => {
             href: " https://example.com/politica ",
           },
         ],
-        targetRoles: ["SAC", "INVALID_ROLE"],
+        targetRoles: ["SAC"],
         priority: "high",
         pinned: true,
         requiresAck: false,
@@ -219,6 +219,20 @@ describe("announcement series HTTP handlers", () => {
         requiresAck: false,
       },
     );
+  });
+
+  it("rejects an explicitly empty or partially invalid series audience", async () => {
+    for (const targetRoles of [[], ["SAC", "INVALID_ROLE"]]) {
+      const response = await requestHandler({
+        handler: handlers.createAnnouncementSeriesHandler,
+        method: "post",
+        body: { targetRoles }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await jsonEnvelope(response)).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+    }
+    expect(service.createAnnouncementSeries).not.toHaveBeenCalled();
   });
 
   it("removes slug and parses the series-version body", async () => {

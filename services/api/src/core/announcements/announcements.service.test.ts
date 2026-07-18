@@ -3,6 +3,7 @@ import type { CurrentUser } from "@alwaystrack/shared";
 import { InputValidationError } from "../validation/input-validation.js";
 import {
   acknowledgeAnnouncement,
+  AnnouncementError,
   createAnnouncement,
   getAnnouncementBySlug,
   getAnnouncementsAcknowledgementCompliance,
@@ -66,7 +67,7 @@ function prismaMock() {
 
 describe("announcements service", () => {
   it("parses input and filters", () => {
-    expect(parseAnnouncementInput({ title: " Aviso ", priority: "critical", targetRoles: ["VENDEDOR", "RT"], tags: ["#Notas"] })).toMatchObject({
+    expect(parseAnnouncementInput({ title: " Aviso ", priority: "critical", targetRoles: ["VENDEDOR"], tags: ["#Notas"] })).toMatchObject({
       title: "Aviso",
       priority: "CRITICAL",
       targetRoles: ["VENDEDOR"],
@@ -85,6 +86,19 @@ describe("announcements service", () => {
     expect(() => parseAnnouncementInput({ title: 123 })).toThrow(InputValidationError);
     expect(() => parseAnnouncementInput({ content: "x".repeat(20_001) })).toThrow(InputValidationError);
     expect(() => parseAnnouncementInput({ tags: Array.from({ length: 31 }, (_, index) => `tag-${index}`) })).toThrow(InputValidationError);
+    expect(() => parseAnnouncementInput({ targetRoles: [] })).toThrow(new AnnouncementError("INVALID_INPUT"));
+    expect(() => parseAnnouncementInput({ targetRoles: ["SAC", "INVALID_ROLE"] })).toThrow(new AnnouncementError("INVALID_INPUT"));
+  });
+
+  it("fails closed when a service caller supplies an explicitly empty audience", async () => {
+    const prisma = prismaMock();
+
+    await expect(createAnnouncement(prisma as never, admin, {
+      title: "Aviso restrito",
+      content: "Texto",
+      targetRoles: []
+    })).rejects.toEqual(new AnnouncementError("INVALID_INPUT"));
+    expect(prisma.announcement.create).not.toHaveBeenCalled();
   });
 
   it("accepts only internal absolute paths and https URLs in related links", () => {

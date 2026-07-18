@@ -169,6 +169,14 @@ function cleanRoles(values: unknown[] = []) {
   return [...roles];
 }
 
+function strictRoles(values: unknown[]) {
+  const allowed = new Set<string>(commercialAllRoles);
+  if (!values.length || values.some((value) => typeof value !== "string" || !allowed.has(value))) {
+    throw new AnnouncementError("INVALID_INPUT");
+  }
+  return cleanRoles(values);
+}
+
 /** Builds tenant-bound acknowledgement compliance for several announcements with one audience query. */
 export async function getAnnouncementsAcknowledgementCompliance(
   prisma: PrismaClient,
@@ -334,7 +342,7 @@ export function parseAnnouncementInput(payload: unknown): AnnouncementInput {
       content: optionalString(input, "content", { maxLength: 20_000 }),
       tags: tags ? normalizedTags(tags) : undefined,
       links: links ? normalizeAnnouncementLinks(links, true) : undefined,
-      targetRoles: targetRoles ? cleanRoles(targetRoles) : undefined,
+      targetRoles: targetRoles ? strictRoles(targetRoles) : undefined,
       status: cleanStatus(optionalString(input, "status", { maxLength: 20 })),
       priority: cleanPriority(optionalString(input, "priority", { maxLength: 20 })),
       pinned: optionalBoolean(input, "pinned"),
@@ -442,6 +450,7 @@ export async function getAnnouncementBySlug(prisma: PrismaClient, actor: Current
 export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUser, input: AnnouncementInput) {
   ensureManager(actor);
   if (!input.title || !input.content) throw new AnnouncementError("INVALID_INPUT");
+  const targetRoles = input.targetRoles === undefined ? [...commercialAllRoles] : strictRoles(input.targetRoles);
   const slug = slugify(input.slug ?? input.title);
   const existing = await prisma.announcement.findFirst({ where: { organizationId: actor.organizationId, slug } });
   if (existing) throw new AnnouncementError("SLUG_TAKEN");
@@ -455,7 +464,7 @@ export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUse
       content: input.content,
       tagsJson: tagsJsonFor(input.tags),
       linksJson: JSON.stringify(normalizeAnnouncementLinks(input.links ?? [], true)),
-      targetRolesJson: JSON.stringify(input.targetRoles?.length ? input.targetRoles : commercialAllRoles),
+      targetRolesJson: JSON.stringify(targetRoles),
       status,
       priority: input.priority ?? "NORMAL",
       pinned: input.pinned ?? false,
@@ -481,6 +490,7 @@ export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUse
 
 export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string, input: AnnouncementInput) {
   ensureManager(actor);
+  const targetRoles = input.targetRoles === undefined ? undefined : strictRoles(input.targetRoles);
   const current = await prisma.announcement.findFirst({ where: { id: announcementId, organizationId: actor.organizationId } });
   if (!current) throw new AnnouncementError("NOT_FOUND");
   const nextSlug = input.slug === undefined ? current.slug : slugify(input.slug ?? input.title ?? current.title);
@@ -490,9 +500,9 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
   }
   const nextLinksJson =
     input.links === undefined ? current.linksJson : JSON.stringify(normalizeAnnouncementLinks(input.links, true));
-  const nextTargetRolesJson = input.targetRoles === undefined
+  const nextTargetRolesJson = targetRoles === undefined
     ? current.targetRolesJson
-    : JSON.stringify(input.targetRoles.length ? input.targetRoles : commercialAllRoles);
+    : JSON.stringify(targetRoles);
   const acknowledgementContentChanged = [
     input.title !== undefined && input.title !== current.title,
     input.summary !== undefined && input.summary !== current.summary,
@@ -510,7 +520,7 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
       content: input.content,
       tagsJson: input.tags ? tagsJsonFor(input.tags) : undefined,
       linksJson: input.links ? nextLinksJson : undefined,
-      targetRolesJson: input.targetRoles ? nextTargetRolesJson : undefined,
+      targetRolesJson: targetRoles ? nextTargetRolesJson : undefined,
       status: input.status,
       priority: input.priority,
       pinned: input.pinned,
