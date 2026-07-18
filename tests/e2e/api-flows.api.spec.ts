@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectOk, loginApi, loginAsAdminApi, type ManagedUser } from "./helpers";
+import { expectOk, firstSupportTeamId, loginApi, loginAsAdminApi, type ManagedUser } from "./helpers";
 
 type FaqThread = {
   id: string;
@@ -51,29 +51,29 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
     await loginAsAdminApi(request);
     const suffix = `${Date.now()}-${test.info().workerIndex}`;
     const title = `E2E FAQ ${suffix}`;
-    const vendorEmail = `e2e-vendedor-${suffix}@example.com`;
-    const vendorPassword = "AlwaysTrackUser123!";
+    const sacEmail = `e2e-sac-faq-${suffix}@example.com`;
+    const sacPassword = "AlwaysTrackUser123!";
+    const supportTeamId = await firstSupportTeamId(request);
 
     await expectOk<{ user: ManagedUser }>(
       await request.post("/v1/users", {
         data: {
-          name: `E2E Vendedor ${suffix}`,
-          email: vendorEmail,
-          password: vendorPassword,
-          role: "VENDEDOR",
-          sellerCode: `e2e-${suffix}`,
-          sellerDisplayName: `E2E Vendedor ${suffix}`,
+          name: `E2E SAC FAQ ${suffix}`,
+          email: sacEmail,
+          password: sacPassword,
+          role: "SAC",
+          supportTeamId,
           active: true
         }
       })
     );
 
-    const vendorRequest = await playwright.request.newContext({ baseURL: "http://127.0.0.1:3334" });
+    const sacRequest = await playwright.request.newContext({ baseURL: "http://127.0.0.1:3334" });
     try {
-      await loginApi(vendorRequest, vendorEmail, vendorPassword);
+      await loginApi(sacRequest, sacEmail, sacPassword);
 
       const created = await expectOk<{ thread: FaqThread }>(
-        await vendorRequest.post("/v1/faq/threads", {
+        await sacRequest.post("/v1/faq/threads", {
           data: {
             title,
             body: "Como validar a promocao da FAQ para Wiki?"
@@ -118,7 +118,7 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
       expect(wikiList.items.some((page) => page.slug === slug)).toBe(true);
 
       const notifications = await expectOk<{ items: InAppNotification[]; unread: number }>(
-        await vendorRequest.get("/v1/in-app-notifications")
+        await sacRequest.get("/v1/in-app-notifications")
       );
       const promotionNotice = notifications.items.find(
         (item) => item.entityId === created.thread.id && item.type === "faq.thread.promoted_to_wiki"
@@ -127,22 +127,23 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
 
       if (promotionNotice) {
         const readOne = await expectOk<{ notification: InAppNotification }>(
-          await vendorRequest.post(`/v1/in-app-notifications/${promotionNotice.id}/read`)
+          await sacRequest.post(`/v1/in-app-notifications/${promotionNotice.id}/read`)
         );
         expect(readOne.notification.readAt).toBeTruthy();
       }
 
-      const readAll = await expectOk<{ updated: number }>(await vendorRequest.post("/v1/in-app-notifications/read-all"));
+      const readAll = await expectOk<{ updated: number }>(await sacRequest.post("/v1/in-app-notifications/read-all"));
       expect(readAll.updated).toBeGreaterThanOrEqual(0);
     } finally {
-      await vendorRequest.dispose();
+      await sacRequest.dispose();
     }
   });
 
-  test("admin can create and list a commercial SAC user without exposing password hash", async ({ request }) => {
+  test("admin can create and list a team-bound SAC user without exposing password hash", async ({ request }) => {
     await loginAsAdminApi(request);
     const suffix = `${Date.now()}-${test.info().workerIndex}`;
     const email = `e2e-sac-${suffix}@example.com`;
+    const supportTeamId = await firstSupportTeamId(request);
 
     const created = await expectOk<{ user: ManagedUser }>(
       await request.post("/v1/users", {
@@ -151,6 +152,7 @@ test.describe("AlwaysTrack API e2e regression flows", () => {
           email,
           password: "AlwaysTrackUser123!",
           role: "SAC",
+          supportTeamId,
           active: true
         }
       })

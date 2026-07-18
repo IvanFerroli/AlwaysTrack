@@ -27,12 +27,11 @@ async function createManagerAccount(request: APIRequestContext) {
         name: `E2E Gestor ${suffix}`,
         email,
         password: seedPassword,
-        role: "SAC",
+        role: "GESTOR",
         active: true
       }
     })
   );
-  await expectOk(await request.patch(`/v1/users/${created.user.id}`, { data: { role: "GESTOR" } }));
   return email;
 }
 

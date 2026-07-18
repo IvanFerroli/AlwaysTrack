@@ -49,8 +49,7 @@ test.describe("critical role desktop browser matrix", () => {
     await loginApi(request, "admin@example.com");
     const suffix = `${Date.now()}-${test.info().workerIndex}`;
     const email = `e2e-browser-gestor-${suffix}@example.com`;
-    const created = await expectOk<{ user: { id: string } }>(await request.post(e2eApiUrl("/v1/users"), { data: { name: `E2E Gestor ${suffix}`, email, password: seedPassword, role: "SAC", active: true } }));
-    await expectOk(await request.patch(e2eApiUrl(`/v1/users/${created.user.id}`), { data: { role: "GESTOR" } }));
+    await expectOk<{ user: { id: string } }>(await request.post(e2eApiUrl("/v1/users"), { data: { name: `E2E Gestor ${suffix}`, email, password: seedPassword, role: "GESTOR", active: true } }));
 
     await loginPage(page, email);
     await openPrimaryNavigationItem(page, /^Administração/, /^Status CaseFlow$/);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -179,6 +179,11 @@ test("detects missing and stale artifact sets", async () => {
   const root = fixtureRoot();
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(join(root, "src/main.ts"), "export const ready = true;");
+  const baseline = Date.now();
+  const sourcePath = join(root, "src/main.ts");
+  const outputPath = join(root, "docs/generated/typedoc/index.html");
+  utimesSync(sourcePath, new Date(baseline - 2_000), new Date(baseline - 2_000));
+  utimesSync(outputPath, new Date(baseline - 1_000), new Date(baseline - 1_000));
 
   assert.equal(
     artifactsAreFresh(root, ["docs/generated/typedoc/index.html"], ["src"]),
@@ -186,8 +191,8 @@ test("detects missing and stale artifact sets", async () => {
   );
   assert.equal(artifactsAreFresh(root, ["missing/index.html"], ["src"]), false);
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
   writeFileSync(join(root, "src/main.ts"), "export const ready = false;");
+  utimesSync(sourcePath, new Date(baseline), new Date(baseline));
   assert.equal(
     artifactsAreFresh(root, ["docs/generated/typedoc/index.html"], ["src"]),
     false

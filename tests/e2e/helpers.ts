@@ -58,6 +58,14 @@ export async function loginAsAdminApi(request: APIRequestContext) {
   await loginApi(request, "admin@example.com");
 }
 
+export async function firstSupportTeamId(request: APIRequestContext) {
+  const data = await expectOk<{ supportTeams: Array<{ id: string }> }>(
+    await request.get(e2eApiUrl("/v1/users/operational-options"))
+  );
+  expect(data.supportTeams.length).toBeGreaterThan(0);
+  return data.supportTeams[0].id;
+}
+
 export async function loginPage(page: Page, email: string, password = seedPassword) {
   await page.goto("/");
   await page.getByLabel("Email").fill(email);
