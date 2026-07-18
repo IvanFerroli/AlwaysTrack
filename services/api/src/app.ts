@@ -193,6 +193,15 @@ import {
   updateAnnouncementHandler
 } from "./core/announcements/announcements.handlers.js";
 import {
+  archiveAnnouncementSeriesHandler,
+  cancelAnnouncementOccurrenceHandler,
+  createAnnouncementSeriesHandler,
+  createAnnouncementSeriesVersionHandler,
+  getAnnouncementSeriesHandler,
+  listAnnouncementSeriesHandler,
+  materializeAnnouncementOccurrencesHandler
+} from "./core/announcements/announcement-series.handlers.js";
+import {
   copyOperationalScriptHandler,
   createPersonalScriptHandler,
   createOperationalScriptHandler,
@@ -321,6 +330,37 @@ export function createApp() {
   app.get("/v1/search", requireAuth, requireRole(commercialAllRoles), rateLimits.search, globalSearchHandler);
   app.get("/v1/announcements", requireAuth, requireRole(commercialAllRoles), listAnnouncementsHandler);
   app.post("/v1/announcements", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createAnnouncementHandler);
+  app.get("/v1/announcements/series", requireAuth, requireRole(commercialManagerRoles), listAnnouncementSeriesHandler);
+  app.post("/v1/announcements/series", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createAnnouncementSeriesHandler);
+  app.get("/v1/announcements/series/:seriesId", requireAuth, requireRole(commercialManagerRoles), getAnnouncementSeriesHandler);
+  app.post(
+    "/v1/announcements/series/:seriesId/versions",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    createAnnouncementSeriesVersionHandler
+  );
+  app.post(
+    "/v1/announcements/series/:seriesId/archive",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    archiveAnnouncementSeriesHandler
+  );
+  app.post(
+    "/v1/announcements/occurrences/:occurrenceId/cancel",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    cancelAnnouncementOccurrenceHandler
+  );
+  app.post(
+    "/v1/announcements/materialize",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    materializeAnnouncementOccurrencesHandler
+  );
   app.get("/v1/announcements/by-slug/:slug", requireAuth, requireRole(commercialAllRoles), getAnnouncementBySlugHandler);
   app.patch("/v1/announcements/:announcementId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateAnnouncementHandler);
   app.post("/v1/announcements/:announcementId/publish", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, publishAnnouncementHandler);
