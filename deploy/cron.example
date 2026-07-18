@@ -3,3 +3,6 @@
 
 # Materialize and publish recurring internal announcements with bounded lag.
 */5 * * * * cd /opt/alwaystrack/deploy && docker compose --profile jobs run --rm announcement-scheduler >> /var/log/alwaystrack-announcement-scheduler.log 2>&1
+
+# Extend each active support team's local schedule horizon once per day.
+15 1 * * * cd /opt/alwaystrack/deploy && docker compose --profile jobs run --rm support-schedule-horizon >> /var/log/alwaystrack-support-schedule-horizon.log 2>&1

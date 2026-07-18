@@ -26,6 +26,7 @@ export interface ApiEnv {
   metaAppSecret?: string;
   supportPhone?: string;
   notificationJobLimit: number;
+  supportScheduleHorizonDays: number;
   documentAiProvider: "fake" | "openai" | "gemini";
   documentAiModel: string;
   openAiApiKey?: string;
@@ -63,6 +64,21 @@ export interface ApiEnv {
 }
 
 let dotEnvLoaded = false;
+
+function boundedInteger(
+  value: string | undefined,
+  name: string,
+  defaultValue: number,
+  minimum: number,
+  maximum: number
+) {
+  if (value === undefined) return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
+  }
+  return parsed;
+}
 
 function loadDotEnv() {
   if (dotEnvLoaded) return;
@@ -122,6 +138,13 @@ export function loadEnv(source = process.env): ApiEnv {
     metaAppSecret: source.META_APP_SECRET,
     supportPhone: source.SUPPORT_PHONE,
     notificationJobLimit: Number(source.NOTIFICATION_JOB_LIMIT ?? "25"),
+    supportScheduleHorizonDays: boundedInteger(
+      source.SUPPORT_SCHEDULE_HORIZON_DAYS,
+      "SUPPORT_SCHEDULE_HORIZON_DAYS",
+      30,
+      1,
+      61
+    ),
     documentAiProvider: source.DOCUMENT_AI_PROVIDER === "openai" ? "openai" : source.DOCUMENT_AI_PROVIDER === "gemini" ? "gemini" : "fake",
     documentAiModel: source.DOCUMENT_AI_MODEL ?? "gemini-2.5-flash",
     openAiApiKey: source.OPENAI_API_KEY,

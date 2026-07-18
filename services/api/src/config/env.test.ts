@@ -52,4 +52,19 @@ describe("api env", () => {
     expect(env.appMode).toBe("beta-local");
     expect(env.betaAllowedEmails).toEqual(["admin@example.com", "vendedor@example.com"]);
   });
+
+  it("parses the support schedule horizon within its bounded range", () => {
+    expect(loadEnv({}).supportScheduleHorizonDays).toBe(30);
+    expect(loadEnv({ SUPPORT_SCHEDULE_HORIZON_DAYS: "1" }).supportScheduleHorizonDays).toBe(1);
+    expect(loadEnv({ SUPPORT_SCHEDULE_HORIZON_DAYS: "61" }).supportScheduleHorizonDays).toBe(61);
+  });
+
+  it.each(["", "0", "62", "1.5", "thirty"])(
+    "rejects an invalid support schedule horizon: %j",
+    (value) => {
+      expect(() => loadEnv({ SUPPORT_SCHEDULE_HORIZON_DAYS: value })).toThrow(
+        "SUPPORT_SCHEDULE_HORIZON_DAYS must be an integer between 1 and 61."
+      );
+    }
+  );
 });
