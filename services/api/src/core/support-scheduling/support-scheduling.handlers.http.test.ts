@@ -1,5 +1,7 @@
 import type { RequestHandler } from "express";
+import { commercialManagerRoles } from "@alwaystrack/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { requireRole } from "../auth/auth.middleware.js";
 import {
   adminUser,
   jsonEnvelope,
@@ -8,10 +10,13 @@ import {
 
 const service = vi.hoisted(() => ({
   acceptSupportShiftOffer: vi.fn(),
+  archiveSupportScheduleRuleDraft: vi.fn(),
+  archiveSupportScheduleRuleVersion: vi.fn(),
   assignSupportShiftPattern: vi.fn(),
   cancelSupportShiftOffer: vi.fn(),
   claimSupportExtraShiftSlot: vi.fn(),
   createSupportExtraShiftSlot: vi.fn(),
+  createSupportScheduleRuleDraft: vi.fn(),
   createSupportScheduleRuleVersion: vi.fn(),
   createSupportShiftOffer: vi.fn(),
   createSupportShiftPatternVersion: vi.fn(),
@@ -20,6 +25,9 @@ const service = vi.hoisted(() => ({
   listSupportScheduleCalendar: vi.fn(),
   listSupportSchedulePlanning: vi.fn(),
   materializeSupportShiftOccurrences: vi.fn(),
+  previewSupportScheduleRuleDraft: vi.fn(),
+  publishSupportScheduleRuleDraft: vi.fn(),
+  updateSupportScheduleRuleDraft: vi.fn(),
 }));
 
 vi.mock("../db/prisma.js", () => ({ prisma: { mocked: true } }));
@@ -37,7 +45,7 @@ interface Scenario {
   name: string;
   handler: RequestHandler;
   operation: ReturnType<typeof vi.fn>;
-  method?: "get" | "post";
+  method?: "get" | "patch" | "post";
   path: string;
   route: string;
   body?: unknown;
@@ -68,6 +76,60 @@ const scenarios: Scenario[] = [
     route: "/v1/support/schedule/rules",
     body: { teamId: "team-1" },
     status: 201,
+  },
+  {
+    name: "rule draft",
+    handler: handlers.createSupportScheduleRuleDraftHandler,
+    operation: service.createSupportScheduleRuleDraft,
+    method: "post",
+    path: "/v1/support/schedules/rule-drafts",
+    route: "/v1/support/schedules/rule-drafts",
+    body: { teamId: "team-1" },
+    status: 201,
+  },
+  {
+    name: "rule draft patch",
+    handler: handlers.updateSupportScheduleRuleDraftHandler,
+    operation: service.updateSupportScheduleRuleDraft,
+    method: "patch",
+    path: "/v1/support/schedules/rule-drafts/draft-1",
+    route: "/v1/support/schedules/rule-drafts/:draftId",
+    body: { expectedRevision: 1, maxDailyMinutes: 720 },
+  },
+  {
+    name: "rule draft preview",
+    handler: handlers.previewSupportScheduleRuleDraftHandler,
+    operation: service.previewSupportScheduleRuleDraft,
+    method: "post",
+    path: "/v1/support/schedules/rule-drafts/draft-1/preview",
+    route: "/v1/support/schedules/rule-drafts/:draftId/preview",
+    body: { expectedRevision: 1, checksum: "a".repeat(64) },
+  },
+  {
+    name: "rule draft publish",
+    handler: handlers.publishSupportScheduleRuleDraftHandler,
+    operation: service.publishSupportScheduleRuleDraft,
+    method: "post",
+    path: "/v1/support/schedules/rule-drafts/draft-1/publish",
+    route: "/v1/support/schedules/rule-drafts/:draftId/publish",
+    body: { expectedRevision: 1, checksum: "a".repeat(64) },
+  },
+  {
+    name: "rule draft archive",
+    handler: handlers.archiveSupportScheduleRuleDraftHandler,
+    operation: service.archiveSupportScheduleRuleDraft,
+    method: "post",
+    path: "/v1/support/schedules/rule-drafts/draft-1/archive",
+    route: "/v1/support/schedules/rule-drafts/:draftId/archive",
+    body: { expectedRevision: 1 },
+  },
+  {
+    name: "rule version archive",
+    handler: handlers.archiveSupportScheduleRuleVersionHandler,
+    operation: service.archiveSupportScheduleRuleVersion,
+    method: "post",
+    path: "/v1/support/schedules/rules/rule-1/archive",
+    route: "/v1/support/schedules/rules/:ruleId/archive",
   },
   {
     name: "pattern version",
@@ -376,6 +438,38 @@ describe("support scheduling HTTP handlers", () => {
 
   it.each([
     [
+      "draft patch",
+      handlers.updateSupportScheduleRuleDraftHandler,
+      service.updateSupportScheduleRuleDraft,
+      "/drafts/%20draft-1%20",
+      "/drafts/:draftId",
+      "draft-1",
+    ],
+    [
+      "draft preview",
+      handlers.previewSupportScheduleRuleDraftHandler,
+      service.previewSupportScheduleRuleDraft,
+      "/drafts/%20draft-1%20/preview",
+      "/drafts/:draftId/preview",
+      "draft-1",
+    ],
+    [
+      "draft publish",
+      handlers.publishSupportScheduleRuleDraftHandler,
+      service.publishSupportScheduleRuleDraft,
+      "/drafts/%20draft-1%20/publish",
+      "/drafts/:draftId/publish",
+      "draft-1",
+    ],
+    [
+      "draft archive",
+      handlers.archiveSupportScheduleRuleDraftHandler,
+      service.archiveSupportScheduleRuleDraft,
+      "/drafts/%20draft-1%20/archive",
+      "/drafts/:draftId/archive",
+      "draft-1",
+    ],
+    [
       "claim",
       handlers.claimSupportExtraShiftSlotHandler,
       service.claimSupportExtraShiftSlot,
@@ -432,6 +526,46 @@ describe("support scheduling HTTP handlers", () => {
       expectedId,
       body,
     );
+  });
+
+  it("trims the archived rule version id without forwarding an HTTP override", async () => {
+    const response = await requestHandler({
+      handler: handlers.archiveSupportScheduleRuleVersionHandler,
+      method: "post",
+      path: "/rules/%20rule-1%20/archive",
+      route: "/rules/:ruleId/archive",
+      body: { ruleOverride: { id: "forbidden" } },
+    });
+
+    expect(response.status).toBe(200);
+    expect(service.archiveSupportScheduleRuleVersion).toHaveBeenCalledWith(
+      { mocked: true },
+      adminUser,
+      "rule-1",
+    );
+  });
+
+  it.each([
+    handlers.createSupportScheduleRuleDraftHandler,
+    handlers.updateSupportScheduleRuleDraftHandler,
+    handlers.previewSupportScheduleRuleDraftHandler,
+    handlers.publishSupportScheduleRuleDraftHandler,
+    handlers.archiveSupportScheduleRuleDraftHandler,
+    handlers.archiveSupportScheduleRuleVersionHandler,
+  ])("blocks SAC access to governed rule handlers", async (handler) => {
+    const response = await requestHandler({
+      handler,
+      method: "post",
+      middleware: [requireRole(commercialManagerRoles)],
+      user: { ...adminUser, id: "sac-1", role: "SAC" },
+      body: {},
+    });
+
+    expect(response.status).toBe(403);
+    expect(await jsonEnvelope(response)).toMatchObject({
+      ok: false,
+      error: { code: "FORBIDDEN" },
+    });
   });
 
   it.each([

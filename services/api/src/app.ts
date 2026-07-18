@@ -181,10 +181,13 @@ import {
 } from "./core/support-operations/support-operations.handlers.js";
 import {
   acceptSupportShiftOfferHandler,
+  archiveSupportScheduleRuleDraftHandler,
+  archiveSupportScheduleRuleVersionHandler,
   assignSupportShiftPatternHandler,
   cancelSupportShiftOfferHandler,
   claimSupportExtraShiftSlotHandler,
   createSupportExtraShiftSlotHandler,
+  createSupportScheduleRuleDraftHandler,
   createSupportScheduleRuleVersionHandler,
   createSupportShiftOfferHandler,
   createSupportShiftPatternVersionHandler,
@@ -192,7 +195,10 @@ import {
   decideSupportShiftOfferHandler,
   listSupportScheduleCalendarHandler,
   listSupportSchedulePlanningHandler,
-  materializeSupportShiftOccurrencesHandler
+  materializeSupportShiftOccurrencesHandler,
+  previewSupportScheduleRuleDraftHandler,
+  publishSupportScheduleRuleDraftHandler,
+  updateSupportScheduleRuleDraftHandler
 } from "./core/support-scheduling/support-scheduling.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
@@ -475,6 +481,48 @@ export function createApp() {
     requireRole(commercialManagerRoles),
     rateLimits.adminSensitive,
     createSupportScheduleRuleVersionHandler
+  );
+  app.post(
+    "/v1/support/schedules/rule-drafts",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    createSupportScheduleRuleDraftHandler
+  );
+  app.patch(
+    "/v1/support/schedules/rule-drafts/:draftId",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    updateSupportScheduleRuleDraftHandler
+  );
+  app.post(
+    "/v1/support/schedules/rule-drafts/:draftId/preview",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    previewSupportScheduleRuleDraftHandler
+  );
+  app.post(
+    "/v1/support/schedules/rule-drafts/:draftId/publish",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    publishSupportScheduleRuleDraftHandler
+  );
+  app.post(
+    "/v1/support/schedules/rule-drafts/:draftId/archive",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    archiveSupportScheduleRuleDraftHandler
+  );
+  app.post(
+    "/v1/support/schedules/rules/:ruleId/archive",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    archiveSupportScheduleRuleVersionHandler
   );
   app.post(
     "/v1/support/schedules/patterns",

@@ -4,11 +4,15 @@ import {
   SupportSchedulingError,
   acceptSupportShiftOffer,
   addSupportLocalDays,
+  archiveSupportScheduleRuleDraft,
+  archiveSupportScheduleRuleVersion,
   assignSupportShiftPattern,
   calculatePublishedOccurrenceCoverage,
   cancelSupportShiftOffer,
+  checksumSupportScheduleRulePayload,
   claimSupportExtraShiftSlot,
   createSupportExtraShiftSlot,
+  createSupportScheduleRuleDraft,
   createSupportScheduleRuleVersion,
   createSupportShiftOffer,
   createSupportShiftPatternVersion,
@@ -19,8 +23,13 @@ import {
   listSupportScheduleCalendar,
   listSupportSchedulePlanning,
   materializeSupportShiftOccurrences,
+  normalizeSupportScheduleRulePayload,
+  previewSupportScheduleRuleDraft,
+  publishSupportScheduleRuleDraft,
+  stableSupportScheduleRuleJson,
   supportWorkloadViolations,
   supportZonedDateTimeToUtc,
+  updateSupportScheduleRuleDraft,
 } from "./support-scheduling.service.js";
 
 const admin: CurrentUser = {
@@ -64,8 +73,48 @@ function rule(overrides: Record<string, unknown> = {}) {
     active: true,
     effectiveFrom: new Date("2090-01-01T00:00:00.000Z"),
     effectiveTo: null,
+    sourceDraftId: null,
+    normalizedPayloadJson: null,
+    checksum: null,
+    archivedAt: null,
     createdById: "admin-1",
     createdAt: new Date("2090-01-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+function draft(overrides: Record<string, unknown> = {}) {
+  const value = {
+    id: "draft-1",
+    organizationId: "org-1",
+    teamId: "team-1",
+    status: "DRAFT",
+    revision: 1,
+    baseVersionId: null,
+    timezone: "America/Sao_Paulo",
+    maxDailyMinutes: 840,
+    maxWeeklyMinutes: 3600,
+    minimumRestMinutes: 600,
+    minimumNoticeMinutes: 60,
+    maxMonthlyExchanges: 8,
+    autoApproveEligibleSwaps: true,
+    requireManagerExtraApproval: true,
+    effectiveFrom: new Date("2099-02-01T00:00:00.000Z"),
+    effectiveTo: null,
+    createdById: "admin-1",
+    updatedById: "admin-1",
+    publishedVersionId: null,
+    archivedAt: null,
+    archivedById: null,
+    createdAt: new Date("2099-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2099-01-01T00:00:00.000Z"),
+    ...overrides,
+  };
+  const payload = normalizeSupportScheduleRulePayload(value as never);
+  return {
+    ...value,
+    normalizedPayloadJson: stableSupportScheduleRuleJson(payload),
+    checksum: checksumSupportScheduleRulePayload(payload),
     ...overrides,
   };
 }
@@ -306,7 +355,13 @@ describe("support schedule scope and versioning", () => {
         findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
       },
       supportScheduleRuleVersion: {
-        findMany: vi.fn().mockResolvedValue([activeRule]),
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([activeRule])
+          .mockResolvedValueOnce([]),
+      },
+      supportScheduleRuleDraft: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
       supportShiftPatternVersion: {
         findMany: vi.fn().mockResolvedValue([pattern]),
@@ -321,6 +376,8 @@ describe("support schedule scope and versioning", () => {
     ).resolves.toMatchObject({
       teamId: "team-1",
       rules: [{ id: "rule-1", snapshot: { id: "rule-1" } }],
+      ruleDrafts: [],
+      archivedRuleVersions: [],
       patterns: [{ id: "pattern-1", weekdays: [1, 2, 3, 4, 5] }],
       assignments: [{ id: "assignment-1", userId: "sac-1" }],
     });
@@ -407,12 +464,27 @@ describe("support schedule scope and versioning", () => {
       .mockImplementation(({ data }) =>
         Promise.resolve({ id: "rule-2", createdAt: new Date(), ...data }),
       );
+    let createdDraft = draft();
+    const draftCreate = vi.fn().mockImplementation(({ data }) => {
+      createdDraft = draft({ id: "draft-legacy", ...data });
+      return Promise.resolve(createdDraft);
+    });
+    const draftUpdate = vi.fn().mockImplementation(({ data }) => {
+      createdDraft = { ...createdDraft, ...data };
+      return Promise.resolve(createdDraft);
+    });
     const tx = {
       supportTeam: {
         findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
       },
+      supportScheduleRuleDraft: {
+        create: draftCreate,
+        findFirst: vi.fn().mockImplementation(() => createdDraft),
+        update: draftUpdate,
+      },
       supportScheduleRuleVersion: {
         findFirst: vi.fn().mockResolvedValue(previous),
+        findMany: vi.fn().mockResolvedValue([previous]),
         update,
         create,
       },
@@ -454,7 +526,16 @@ describe("support schedule scope and versioning", () => {
     expect(tx.auditLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          action: "support_schedule.rule.version_created",
+          action: "support_schedule.rule_draft.published",
+        }),
+      }),
+    );
+    expect(draftCreate).toHaveBeenCalledOnce();
+    expect(draftUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "PUBLISHED",
+          publishedVersionId: "rule-2",
         }),
       }),
     );
@@ -560,6 +641,428 @@ describe("support schedule scope and versioning", () => {
         updatedById: "admin-1",
       }),
     });
+  });
+});
+
+describe("support schedule rule governance", () => {
+  it("normalizes stable JSON and checksum without identity metadata", () => {
+    const first = draft({ id: "draft-a", updatedById: "admin-a" });
+    const second = draft({ id: "draft-b", updatedById: "admin-b" });
+    const firstPayload = normalizeSupportScheduleRulePayload(first as never);
+    const secondPayload = normalizeSupportScheduleRulePayload(second as never);
+
+    expect(stableSupportScheduleRuleJson(firstPayload)).toBe(
+      stableSupportScheduleRuleJson({
+        timezone: firstPayload.timezone,
+        requireManagerExtraApproval:
+          firstPayload.requireManagerExtraApproval,
+        minimumRestMinutes: firstPayload.minimumRestMinutes,
+        minimumNoticeMinutes: firstPayload.minimumNoticeMinutes,
+        maxWeeklyMinutes: firstPayload.maxWeeklyMinutes,
+        maxMonthlyExchanges: firstPayload.maxMonthlyExchanges,
+        maxDailyMinutes: firstPayload.maxDailyMinutes,
+        effectiveTo: firstPayload.effectiveTo,
+        effectiveFrom: firstPayload.effectiveFrom,
+        autoApproveEligibleSwaps: firstPayload.autoApproveEligibleSwaps,
+      }),
+    );
+    expect(checksumSupportScheduleRulePayload(firstPayload)).toBe(
+      checksumSupportScheduleRulePayload(secondPayload),
+    );
+    expect(checksumSupportScheduleRulePayload(firstPayload)).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+  });
+
+  it("creates a tenant-scoped draft and rejects a foreign base version", async () => {
+    const draftCreate = vi
+      .fn()
+      .mockImplementation(({ data }) => Promise.resolve(draft(data)));
+    const tx = {
+      supportTeam: {
+        findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
+      },
+      supportScheduleRuleVersion: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+      supportScheduleRuleDraft: { create: draftCreate },
+      auditLog: auditMock(),
+    };
+    const prisma = transactionClient(tx);
+
+    await expect(
+      createSupportScheduleRuleDraft(prisma as never, admin, {
+        teamId: "team-1",
+        baseVersionId: "foreign-rule",
+        effectiveFrom: "2099-02-01T00:00:00.000Z",
+      }),
+    ).rejects.toEqual(new SupportSchedulingError("NOT_FOUND"));
+    expect(tx.supportScheduleRuleVersion.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "foreign-rule",
+        organizationId: "org-1",
+        teamId: "team-1",
+      },
+    });
+    expect(draftCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "timezone",
+      { timezone: "Mars/Olympus" },
+      new SupportSchedulingError("INVALID_INPUT"),
+    ],
+    [
+      "weekly limit",
+      { maxDailyMinutes: 720, maxWeeklyMinutes: 600 },
+      new SupportSchedulingError("INVALID_INPUT"),
+    ],
+    [
+      "future effective date",
+      { effectiveFrom: "2020-01-01T00:00:00.000Z" },
+      new SupportSchedulingError("RULE_VIOLATION", [
+        "RETROACTIVE_RULE_VERSION",
+      ]),
+    ],
+  ])("rejects invalid draft %s", async (_name, overrides, expected) => {
+    const tx = {
+      supportTeam: {
+        findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
+      },
+      supportScheduleRuleDraft: { create: vi.fn() },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      createSupportScheduleRuleDraft(
+        transactionClient(tx) as never,
+        admin,
+        {
+          teamId: "team-1",
+          effectiveFrom: "2099-02-01T00:00:00.000Z",
+          ...overrides,
+        },
+      ),
+    ).rejects.toEqual(expected);
+    expect(tx.supportScheduleRuleDraft.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale patch before updating the draft", async () => {
+    const update = vi.fn();
+    const tx = {
+      supportScheduleRuleDraft: {
+        findFirst: vi.fn().mockResolvedValue(draft({ revision: 2 })),
+        update,
+      },
+      auditLog: auditMock(),
+    };
+    const prisma = transactionClient(tx);
+
+    await expect(
+      updateSupportScheduleRuleDraft(prisma as never, admin, "draft-1", {
+        expectedRevision: 1,
+        maxDailyMinutes: 720,
+      }),
+    ).rejects.toEqual(
+      new SupportSchedulingError("CONFLICT", ["STALE_REVISION"]),
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("archives a draft with CAS and records the archiver", async () => {
+    const current = draft();
+    const update = vi.fn().mockImplementation(({ data }) =>
+      Promise.resolve({
+        ...current,
+        ...data,
+        revision: current.revision + 1,
+      }),
+    );
+    const tx = {
+      supportScheduleRuleDraft: {
+        findFirst: vi.fn().mockResolvedValue(current),
+        update,
+      },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      archiveSupportScheduleRuleDraft(
+        transactionClient(tx) as never,
+        admin,
+        current.id,
+        { expectedRevision: 1 },
+      ),
+    ).resolves.toMatchObject({
+      draft: {
+        status: "ARCHIVED",
+        revision: 2,
+        archivedById: "admin-1",
+      },
+    });
+  });
+
+  it("previews with the draft override and performs no writes", async () => {
+    const previewDraft = draft({ maxDailyMinutes: 60 });
+    const persistedRule = rule({
+      effectiveFrom: new Date("2098-01-01T00:00:00.000Z"),
+    });
+    const assignment = {
+      id: "assignment-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      userId: "sac-1",
+      validFrom: new Date("2098-01-01T00:00:00.000Z"),
+      validTo: null,
+      active: true,
+      patternVersion: {
+        id: "pattern-1",
+        active: true,
+        startMinute: 8 * 60,
+        endMinute: 10 * 60,
+        weekdaysJson: "[0,1,2,3,4,5,6]",
+        timezone: "America/Sao_Paulo",
+        effectiveFrom: new Date("2098-01-01T00:00:00.000Z"),
+        effectiveTo: null,
+      },
+      user: { id: "sac-1", active: true, role: "SAC" },
+    };
+    const occurrenceCreate = vi.fn();
+    const auditCreate = vi.fn();
+    const tx = {
+      supportScheduleRuleDraft: {
+        findFirst: vi.fn().mockResolvedValue(previewDraft),
+      },
+      supportScheduleRuleVersion: {
+        findFirst: vi.fn().mockResolvedValue(persistedRule),
+        findMany: vi.fn().mockResolvedValue([persistedRule]),
+      },
+      supportTeam: {
+        findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
+      },
+      supportShiftAssignment: {
+        findMany: vi.fn().mockResolvedValue([assignment]),
+      },
+      supportTeamMembership: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "membership-1",
+            userId: "sac-1",
+            validFrom: new Date("2098-01-01T00:00:00.000Z"),
+            validTo: null,
+          },
+        ]),
+      },
+      supportShiftOccurrence: {
+        findMany: vi.fn().mockResolvedValue([]),
+        create: occurrenceCreate,
+        update: vi.fn(),
+      },
+      auditLog: { create: auditCreate },
+    };
+    const prisma = transactionClient(tx);
+
+    const result = await previewSupportScheduleRuleDraft(
+      prisma as never,
+      admin,
+      previewDraft.id,
+      {
+        expectedRevision: previewDraft.revision,
+        checksum: previewDraft.checksum,
+        from: "2099-02-02",
+        to: "2099-02-02",
+      },
+    );
+
+    expect(result.materialization).toMatchObject({
+      dryRun: true,
+      candidates: 0,
+      conflicts: [
+        expect.objectContaining({ reason: "PATTERN_RULE_MISMATCH" }),
+      ],
+    });
+    expect(occurrenceCreate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns the same published version on a matching retry", async () => {
+    const publishedDraft = draft({
+      status: "PUBLISHED",
+      publishedVersionId: "rule-published",
+    });
+    const publishedRule = rule({
+      id: "rule-published",
+      sourceDraftId: "draft-1",
+      checksum: publishedDraft.checksum,
+    });
+    const create = vi.fn();
+    const tx = {
+      supportScheduleRuleDraft: {
+        findFirst: vi.fn().mockResolvedValue(publishedDraft),
+      },
+      supportScheduleRuleVersion: {
+        findFirst: vi.fn().mockResolvedValue(publishedRule),
+        create,
+      },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      publishSupportScheduleRuleDraft(
+        transactionClient(tx) as never,
+        admin,
+        publishedDraft.id,
+        {
+          expectedRevision: publishedDraft.revision,
+          checksum: publishedDraft.checksum,
+        },
+      ),
+    ).resolves.toMatchObject({
+      idempotent: true,
+      rule: { id: "rule-published" },
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlapping publication before creating a version", async () => {
+    const currentDraft = draft({
+      effectiveTo: new Date("2099-04-01T00:00:00.000Z"),
+    });
+    const previous = rule({
+      id: "rule-previous",
+      effectiveFrom: new Date("2098-01-01T00:00:00.000Z"),
+      effectiveTo: new Date("2099-02-01T00:00:00.000Z"),
+    });
+    const future = rule({
+      id: "rule-future",
+      version: 2,
+      effectiveFrom: new Date("2099-03-01T00:00:00.000Z"),
+    });
+    const create = vi.fn();
+    const tx = {
+      supportScheduleRuleDraft: {
+        findFirst: vi.fn().mockResolvedValue(currentDraft),
+      },
+      supportScheduleRuleVersion: {
+        findFirst: vi.fn().mockResolvedValue(future),
+        findMany: vi.fn().mockResolvedValue([previous, future]),
+        create,
+      },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      publishSupportScheduleRuleDraft(
+        transactionClient(tx) as never,
+        admin,
+        currentDraft.id,
+        {
+          expectedRevision: currentDraft.revision,
+          checksum: currentDraft.checksum,
+        },
+      ),
+    ).rejects.toEqual(
+      new SupportSchedulingError("CONFLICT", [
+        "OVERLAPPING_RULE_VERSION",
+      ]),
+    );
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("archives an unreferenced future version and reconnects its neighbors", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
+    const previous = rule({
+      id: "rule-previous",
+      effectiveFrom: new Date("2098-01-01T00:00:00.000Z"),
+      effectiveTo: new Date("2099-02-01T00:00:00.000Z"),
+    });
+    const target = rule({
+      id: "rule-target",
+      version: 2,
+      effectiveFrom: new Date("2099-02-01T00:00:00.000Z"),
+      effectiveTo: new Date("2099-03-01T00:00:00.000Z"),
+    });
+    const next = rule({
+      id: "rule-next",
+      version: 3,
+      effectiveFrom: new Date("2099-03-01T00:00:00.000Z"),
+    });
+    const update = vi.fn().mockImplementation(({ where, data }) =>
+      Promise.resolve(
+        where.id === target.id ? { ...target, ...data } : { ...previous, ...data },
+      ),
+    );
+    const tx = {
+      supportScheduleRuleVersion: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(target)
+          .mockResolvedValueOnce(previous)
+          .mockResolvedValueOnce(next),
+        update,
+      },
+      supportShiftOccurrence: { count: vi.fn().mockResolvedValue(0) },
+      supportShiftOffer: { count: vi.fn().mockResolvedValue(0) },
+      supportExtraShiftSlot: { count: vi.fn().mockResolvedValue(0) },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      archiveSupportScheduleRuleVersion(
+        transactionClient(tx) as never,
+        admin,
+        target.id,
+      ),
+    ).resolves.toMatchObject({ rule: { id: target.id, active: false } });
+    expect(update).toHaveBeenNthCalledWith(2, {
+      where: { id: previous.id },
+      data: { effectiveTo: next.effectiveFrom },
+    });
+  });
+
+  it("refuses to archive a future version referenced by an occurrence", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
+    const target = rule({
+      id: "rule-target",
+      effectiveFrom: new Date("2099-02-01T00:00:00.000Z"),
+    });
+    const update = vi.fn();
+    const tx = {
+      supportScheduleRuleVersion: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(target)
+          .mockResolvedValue(null),
+        update,
+      },
+      supportShiftOccurrence: { count: vi.fn().mockResolvedValue(1) },
+      supportShiftOffer: { count: vi.fn().mockResolvedValue(0) },
+      supportExtraShiftSlot: { count: vi.fn().mockResolvedValue(0) },
+      auditLog: auditMock(),
+    };
+
+    await expect(
+      archiveSupportScheduleRuleVersion(
+        transactionClient(tx) as never,
+        admin,
+        target.id,
+      ),
+    ).rejects.toEqual(
+      new SupportSchedulingError("CONFLICT", ["RULE_VERSION_REFERENCED"]),
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "support_schedule.rule_version.conflict",
+          metadataJson: expect.stringContaining("RULE_VERSION_REFERENCED"),
+        }),
+      }),
+    );
   });
 });
 

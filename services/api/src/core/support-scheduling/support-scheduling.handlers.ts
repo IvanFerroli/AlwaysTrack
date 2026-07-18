@@ -4,10 +4,13 @@ import { sendError, sendOk } from "../http/responses.js";
 import {
   SupportSchedulingError,
   acceptSupportShiftOffer,
+  archiveSupportScheduleRuleDraft,
+  archiveSupportScheduleRuleVersion,
   assignSupportShiftPattern,
   cancelSupportShiftOffer,
   claimSupportExtraShiftSlot,
   createSupportExtraShiftSlot,
+  createSupportScheduleRuleDraft,
   createSupportScheduleRuleVersion,
   createSupportShiftOffer,
   createSupportShiftPatternVersion,
@@ -16,6 +19,9 @@ import {
   listSupportScheduleCalendar,
   listSupportSchedulePlanning,
   materializeSupportShiftOccurrences,
+  previewSupportScheduleRuleDraft,
+  publishSupportScheduleRuleDraft,
+  updateSupportScheduleRuleDraft,
 } from "./support-scheduling.service.js";
 
 function actor(request: Request) {
@@ -115,6 +121,119 @@ export async function createSupportScheduleRuleVersionHandler(
         request.body,
       ),
       201,
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function createSupportScheduleRuleDraftHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await createSupportScheduleRuleDraft(
+        prisma,
+        actor(request),
+        request.body,
+      ),
+      201,
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function updateSupportScheduleRuleDraftHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await updateSupportScheduleRuleDraft(
+        prisma,
+        actor(request),
+        param(request.params.draftId),
+        request.body,
+      ),
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function previewSupportScheduleRuleDraftHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await previewSupportScheduleRuleDraft(
+        prisma,
+        actor(request),
+        param(request.params.draftId),
+        request.body,
+      ),
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function publishSupportScheduleRuleDraftHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await publishSupportScheduleRuleDraft(
+        prisma,
+        actor(request),
+        param(request.params.draftId),
+        request.body,
+      ),
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function archiveSupportScheduleRuleDraftHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await archiveSupportScheduleRuleDraft(
+        prisma,
+        actor(request),
+        param(request.params.draftId),
+        request.body,
+      ),
+    );
+  } catch (error) {
+    return failure(response, error);
+  }
+}
+
+export async function archiveSupportScheduleRuleVersionHandler(
+  request: Request,
+  response: Response,
+) {
+  try {
+    return sendOk(
+      response,
+      await archiveSupportScheduleRuleVersion(
+        prisma,
+        actor(request),
+        param(request.params.ruleId),
+      ),
     );
   } catch (error) {
     return failure(response, error);

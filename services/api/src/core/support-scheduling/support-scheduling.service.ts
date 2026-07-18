@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import {
   Prisma,
   type PrismaClient,
+  type SupportScheduleRuleDraft,
   type SupportScheduleRuleVersion,
   type SupportShiftOccurrence,
 } from "@prisma/client";
@@ -22,6 +24,18 @@ export class SupportSchedulingError extends Error {
     super(code);
   }
 }
+
+interface ConflictAuditContext {
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Record<string, unknown>;
+}
+
+const conflictAuditContexts = new WeakMap<
+  SupportSchedulingError,
+  ConflictAuditContext
+>();
 
 type DatabaseClient = PrismaClient | Prisma.TransactionClient;
 
@@ -72,9 +86,65 @@ export interface MaterializeSupportShiftsInput {
   dryRun?: boolean;
 }
 
+interface MaterializeSupportShiftsInternalInput
+  extends MaterializeSupportShiftsInput {
+  ruleOverride?: RuleLimits;
+}
+
 export interface SupportSchedulePlanningInput {
   teamId: string;
 }
+
+export interface NormalizedSupportScheduleRulePayload {
+  autoApproveEligibleSwaps: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  maxDailyMinutes: number;
+  maxMonthlyExchanges: number;
+  maxWeeklyMinutes: number;
+  minimumNoticeMinutes: number;
+  minimumRestMinutes: number;
+  requireManagerExtraApproval: boolean;
+  timezone: string;
+}
+
+type StructuredRuleSource = Pick<
+  SupportScheduleRuleDraft,
+  | "timezone"
+  | "maxDailyMinutes"
+  | "maxWeeklyMinutes"
+  | "minimumRestMinutes"
+  | "minimumNoticeMinutes"
+  | "maxMonthlyExchanges"
+  | "autoApproveEligibleSwaps"
+  | "requireManagerExtraApproval"
+  | "effectiveFrom"
+  | "effectiveTo"
+>;
+
+type RuleData = Omit<
+  NormalizedSupportScheduleRulePayload,
+  "effectiveFrom" | "effectiveTo"
+> & {
+  effectiveFrom: Date;
+  effectiveTo: Date | null;
+  normalizedPayload: NormalizedSupportScheduleRulePayload;
+  normalizedPayloadJson: string;
+  checksum: string;
+};
+
+const structuredRuleKeys = [
+  "timezone",
+  "maxDailyMinutes",
+  "maxWeeklyMinutes",
+  "minimumRestMinutes",
+  "minimumNoticeMinutes",
+  "maxMonthlyExchanges",
+  "autoApproveEligibleSwaps",
+  "requireManagerExtraApproval",
+  "effectiveFrom",
+  "effectiveTo",
+] as const;
 
 const activeOfferStatuses = ["OPEN", "MANAGER_PENDING"];
 const formatterCache = new Map<string, Intl.DateTimeFormat>();
@@ -157,6 +227,28 @@ function optionalBoolean(
   const value = input[key];
   if (value === undefined) return fallback;
   if (typeof value !== "boolean")
+    throw new SupportSchedulingError("INVALID_INPUT");
+  return value;
+}
+
+function assertOnlyKeys(
+  input: Record<string, unknown>,
+  allowed: readonly string[],
+) {
+  if (Object.keys(input).some((key) => !allowed.includes(key)))
+    throw new SupportSchedulingError("INVALID_INPUT");
+}
+
+function requiredRevision(input: Record<string, unknown>) {
+  const value = input.expectedRevision;
+  if (!Number.isInteger(value) || (value as number) < 1)
+    throw new SupportSchedulingError("INVALID_INPUT");
+  return value as number;
+}
+
+function requiredChecksum(input: Record<string, unknown>) {
+  const value = input.checksum;
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value))
     throw new SupportSchedulingError("INVALID_INPUT");
   return value;
 }
@@ -394,6 +486,177 @@ function broadUtcRange(from: string, to: string) {
   };
 }
 
+function stableJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .sort(([left], [right]) =>
+          left < right ? -1 : left > right ? 1 : 0,
+        )
+        .map(([key, item]) => [key, stableJsonValue(item)]),
+    );
+  }
+  return value;
+}
+
+export function stableSupportScheduleRuleJson(value: unknown) {
+  const serialized = JSON.stringify(stableJsonValue(value));
+  if (serialized === undefined)
+    throw new SupportSchedulingError("INVALID_INPUT");
+  return serialized;
+}
+
+export function normalizeSupportScheduleRulePayload(
+  source: StructuredRuleSource,
+): NormalizedSupportScheduleRulePayload {
+  return {
+    autoApproveEligibleSwaps: source.autoApproveEligibleSwaps,
+    effectiveFrom: source.effectiveFrom.toISOString(),
+    effectiveTo: source.effectiveTo?.toISOString() ?? null,
+    maxDailyMinutes: source.maxDailyMinutes,
+    maxMonthlyExchanges: source.maxMonthlyExchanges,
+    maxWeeklyMinutes: source.maxWeeklyMinutes,
+    minimumNoticeMinutes: source.minimumNoticeMinutes,
+    minimumRestMinutes: source.minimumRestMinutes,
+    requireManagerExtraApproval: source.requireManagerExtraApproval,
+    timezone: source.timezone,
+  };
+}
+
+export function checksumSupportScheduleRulePayload(
+  payload: NormalizedSupportScheduleRulePayload,
+) {
+  return createHash("sha256")
+    .update(stableSupportScheduleRuleJson(payload), "utf8")
+    .digest("hex");
+}
+
+function buildRuleData(
+  body: Record<string, unknown>,
+  fallback?: StructuredRuleSource,
+  options: { requireExplicitEffectiveFrom?: boolean; now?: Date } = {},
+): RuleData {
+  const timezone =
+    optionalText(body, "timezone", 80) ??
+    fallback?.timezone ??
+    "America/Sao_Paulo";
+  assertTimezone(timezone);
+  if (options.requireExplicitEffectiveFrom && body.effectiveFrom === undefined)
+    throw new SupportSchedulingError("INVALID_INPUT");
+  const effectiveFrom =
+    body.effectiveFrom === undefined
+      ? fallback?.effectiveFrom
+      : dateTime(body.effectiveFrom);
+  if (!effectiveFrom) throw new SupportSchedulingError("INVALID_INPUT");
+  const effectiveTo =
+    body.effectiveTo === undefined
+      ? (fallback?.effectiveTo ?? null)
+      : optionalDateTime(body.effectiveTo);
+  if (effectiveTo && effectiveTo <= effectiveFrom)
+    throw new SupportSchedulingError("INVALID_INPUT");
+  if (effectiveFrom <= (options.now ?? new Date()))
+    throw new SupportSchedulingError("RULE_VIOLATION", [
+      "RETROACTIVE_RULE_VERSION",
+    ]);
+
+  const structured = {
+    timezone,
+    maxDailyMinutes: integer(
+      body,
+      "maxDailyMinutes",
+      fallback?.maxDailyMinutes ?? 840,
+      60,
+      1440,
+    ),
+    maxWeeklyMinutes: integer(
+      body,
+      "maxWeeklyMinutes",
+      fallback?.maxWeeklyMinutes ?? 3600,
+      60,
+      10080,
+    ),
+    minimumRestMinutes: integer(
+      body,
+      "minimumRestMinutes",
+      fallback?.minimumRestMinutes ?? 600,
+      0,
+      1440,
+    ),
+    minimumNoticeMinutes: integer(
+      body,
+      "minimumNoticeMinutes",
+      fallback?.minimumNoticeMinutes ?? 60,
+      0,
+      43_200,
+    ),
+    maxMonthlyExchanges: integer(
+      body,
+      "maxMonthlyExchanges",
+      fallback?.maxMonthlyExchanges ?? 8,
+      0,
+      100,
+    ),
+    autoApproveEligibleSwaps: optionalBoolean(
+      body,
+      "autoApproveEligibleSwaps",
+      fallback?.autoApproveEligibleSwaps ?? true,
+    ),
+    requireManagerExtraApproval: optionalBoolean(
+      body,
+      "requireManagerExtraApproval",
+      fallback?.requireManagerExtraApproval ?? true,
+    ),
+    effectiveFrom,
+    effectiveTo,
+  };
+  if (structured.maxWeeklyMinutes < structured.maxDailyMinutes)
+    throw new SupportSchedulingError("INVALID_INPUT");
+
+  const normalizedPayload = normalizeSupportScheduleRulePayload(structured);
+  const normalizedPayloadJson =
+    stableSupportScheduleRuleJson(normalizedPayload);
+  return {
+    ...structured,
+    normalizedPayload,
+    normalizedPayloadJson,
+    checksum: checksumSupportScheduleRulePayload(normalizedPayload),
+  };
+}
+
+function normalizedRuleDiff(
+  reference: StructuredRuleSource | null,
+  current: StructuredRuleSource,
+) {
+  const before = reference
+    ? normalizeSupportScheduleRulePayload(reference)
+    : null;
+  const after = normalizeSupportScheduleRulePayload(current);
+  const changedKeys = Object.keys(after)
+    .filter(
+      (key) =>
+        !before ||
+        before[key as keyof NormalizedSupportScheduleRulePayload] !==
+          after[key as keyof NormalizedSupportScheduleRulePayload],
+    )
+    .sort();
+  return {
+    changedKeys,
+    changes: Object.fromEntries(
+      changedKeys.map((key) => [
+        key,
+        {
+          before:
+            before?.[key as keyof NormalizedSupportScheduleRulePayload] ??
+            null,
+          after: after[key as keyof NormalizedSupportScheduleRulePayload],
+        },
+      ]),
+    ),
+  };
+}
+
 function ruleSnapshot(rule: RuleLimits) {
   return {
     id: rule.id,
@@ -484,6 +747,96 @@ async function ensureTeam(
   return team;
 }
 
+async function scopedRuleDraft(
+  db: DatabaseClient,
+  actor: CurrentUser,
+  draftId: string,
+) {
+  const draft = await db.supportScheduleRuleDraft.findFirst({
+    where: { id: draftId, organizationId: actor.organizationId },
+  });
+  if (!draft) throw new SupportSchedulingError("NOT_FOUND");
+  return draft;
+}
+
+async function scopedBaseRuleVersion(
+  db: DatabaseClient,
+  actor: CurrentUser,
+  teamId: string,
+  baseVersionId: string | null,
+) {
+  if (!baseVersionId) return null;
+  const version = await db.supportScheduleRuleVersion.findFirst({
+    where: {
+      id: baseVersionId,
+      organizationId: actor.organizationId,
+      teamId,
+    },
+  });
+  if (!version) throw new SupportSchedulingError("NOT_FOUND");
+  return version;
+}
+
+function draftConflict(
+  draft: SupportScheduleRuleDraft,
+  reason: string,
+  metadata: Record<string, unknown> = {},
+) {
+  const error = new SupportSchedulingError("CONFLICT", [reason]);
+  conflictAuditContexts.set(error, {
+    action: "support_schedule.rule_draft.conflict",
+    entityType: "SupportScheduleRuleDraft",
+    entityId: draft.id,
+    metadata: {
+      teamId: draft.teamId,
+      revision: draft.revision,
+      checksum: draft.checksum,
+      diffKeys: [],
+      reason,
+      ...metadata,
+    },
+  });
+  return error;
+}
+
+function ruleVersionConflict(
+  version: SupportScheduleRuleVersion,
+  reason: string,
+) {
+  const error = new SupportSchedulingError("CONFLICT", [reason]);
+  conflictAuditContexts.set(error, {
+    action: "support_schedule.rule_version.conflict",
+    entityType: "SupportScheduleRuleVersion",
+    entityId: version.id,
+    metadata: {
+      teamId: version.teamId,
+      revision: null,
+      checksum: version.checksum,
+      diffKeys: [],
+      ruleVersionId: version.id,
+      version: version.version,
+      reason,
+    },
+  });
+  return error;
+}
+
+function assertDraftCas(
+  draft: SupportScheduleRuleDraft,
+  expectedRevision: number,
+  expectedChecksum?: string,
+) {
+  if (draft.revision !== expectedRevision)
+    throw draftConflict(draft, "STALE_REVISION", { expectedRevision });
+  if (expectedChecksum !== undefined && draft.checksum !== expectedChecksum)
+    throw draftConflict(draft, "STALE_CHECKSUM", { expectedRevision });
+}
+
+function assertEditableDraft(draft: SupportScheduleRuleDraft) {
+  if (draft.status !== "DRAFT")
+    throw draftConflict(draft, `DRAFT_STATUS_${draft.status}`);
+}
+
 async function ensureSupportUser(
   db: DatabaseClient,
   organizationId: string,
@@ -559,7 +912,7 @@ async function effectiveRule(
 }
 
 async function audit(
-  tx: Prisma.TransactionClient,
+  tx: DatabaseClient,
   actor: CurrentUser,
   action: string,
   entityType: string,
@@ -576,6 +929,35 @@ async function audit(
       metadataJson: JSON.stringify(metadata),
     },
   });
+}
+
+async function withConflictAudit<T>(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  work: () => Promise<T>,
+) {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof SupportSchedulingError) {
+      const context = conflictAuditContexts.get(error);
+      if (context) {
+        try {
+          await audit(
+            prisma,
+            actor,
+            context.action,
+            context.entityType,
+            context.entityId,
+            context.metadata,
+          );
+        } catch {
+          // The governed conflict remains the primary operation result.
+        }
+      }
+    }
+    throw error;
+  }
 }
 
 export function calculatePublishedOccurrenceCoverage(
@@ -979,59 +1361,628 @@ export async function listSupportSchedulePlanning(
     throw new SupportSchedulingError("INVALID_INPUT");
 
   await ensureTeam(prisma, actor.organizationId, teamId);
-  const [rules, patterns, assignments] = await Promise.all([
-    prisma.supportScheduleRuleVersion.findMany({
-      where: {
-        organizationId: actor.organizationId,
-        teamId,
-        active: true,
-      },
-      orderBy: [{ effectiveFrom: "desc" }, { version: "desc" }],
-      take: 50,
-    }),
-    prisma.supportShiftPatternVersion.findMany({
-      where: {
-        organizationId: actor.organizationId,
-        teamId,
-        active: true,
-      },
-      orderBy: [{ name: "asc" }, { version: "desc" }],
-      take: 200,
-    }),
-    prisma.supportShiftAssignment.findMany({
-      where: {
-        organizationId: actor.organizationId,
-        teamId,
-        active: true,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        patternVersion: {
-          select: {
-            id: true,
-            name: true,
-            version: true,
-            startMinute: true,
-            endMinute: true,
-            weekdaysJson: true,
-            timezone: true,
+  const [rules, ruleDrafts, archivedRuleVersions, patterns, assignments] =
+    await Promise.all([
+      prisma.supportScheduleRuleVersion.findMany({
+        where: {
+          organizationId: actor.organizationId,
+          teamId,
+          active: true,
+        },
+        orderBy: [{ effectiveFrom: "desc" }, { version: "desc" }],
+        take: 50,
+      }),
+      prisma.supportScheduleRuleDraft.findMany({
+        where: { organizationId: actor.organizationId, teamId },
+        orderBy: { updatedAt: "desc" },
+        take: 50,
+      }),
+      prisma.supportScheduleRuleVersion.findMany({
+        where: {
+          organizationId: actor.organizationId,
+          teamId,
+          active: false,
+          archivedAt: { not: null },
+        },
+        orderBy: [{ effectiveFrom: "desc" }, { version: "desc" }],
+        take: 50,
+      }),
+      prisma.supportShiftPatternVersion.findMany({
+        where: {
+          organizationId: actor.organizationId,
+          teamId,
+          active: true,
+        },
+        orderBy: [{ name: "asc" }, { version: "desc" }],
+        take: 200,
+      }),
+      prisma.supportShiftAssignment.findMany({
+        where: {
+          organizationId: actor.organizationId,
+          teamId,
+          active: true,
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          patternVersion: {
+            select: {
+              id: true,
+              name: true,
+              version: true,
+              startMinute: true,
+              endMinute: true,
+              weekdaysJson: true,
+              timezone: true,
+            },
           },
         },
-      },
-      orderBy: [{ user: { name: "asc" } }, { validFrom: "desc" }],
-      take: 500,
-    }),
-  ]);
+        orderBy: [{ user: { name: "asc" } }, { validFrom: "desc" }],
+        take: 500,
+      }),
+    ]);
 
   return {
     teamId,
     rules: rules.map((rule) => ({ ...rule, snapshot: ruleSnapshot(rule) })),
+    ruleDrafts: ruleDrafts.map((draft) => ({
+      ...draft,
+      payload: normalizeSupportScheduleRulePayload(draft),
+    })),
+    archivedRuleVersions: archivedRuleVersions.map((rule) => ({
+      ...rule,
+      snapshot: ruleSnapshot(rule),
+    })),
     patterns: patterns.map((pattern) => ({
       ...pattern,
       weekdays: parseWeekdays(pattern.weekdaysJson),
     })),
     assignments,
   };
+}
+
+function draftResult(draft: SupportScheduleRuleDraft) {
+  return {
+    draft,
+    payload: normalizeSupportScheduleRulePayload(draft),
+    checksum: draft.checksum,
+  };
+}
+
+async function createRuleDraftInTransaction(
+  tx: Prisma.TransactionClient,
+  actor: CurrentUser,
+  body: Record<string, unknown>,
+) {
+  const teamId = requiredText(body, "teamId", 80);
+  const baseVersionId = optionalText(body, "baseVersionId", 80);
+  await ensureTeam(tx, actor.organizationId, teamId);
+  const baseVersion = await scopedBaseRuleVersion(
+    tx,
+    actor,
+    teamId,
+    baseVersionId,
+  );
+  const data = buildRuleData(
+    body,
+    baseVersion ? { ...baseVersion, effectiveTo: null } : undefined,
+    { requireExplicitEffectiveFrom: true },
+  );
+  const { normalizedPayload, ...persistedData } = data;
+  const draft = await tx.supportScheduleRuleDraft.create({
+    data: {
+      organizationId: actor.organizationId,
+      teamId,
+      baseVersionId,
+      status: "DRAFT",
+      revision: 1,
+      createdById: actor.id,
+      updatedById: actor.id,
+      ...persistedData,
+    },
+  });
+  await audit(
+    tx,
+    actor,
+    "support_schedule.rule_draft.created",
+    "SupportScheduleRuleDraft",
+    draft.id,
+    {
+      teamId,
+      revision: draft.revision,
+      checksum: draft.checksum,
+      baseVersionId,
+      diffKeys: Object.keys(normalizedPayload).sort(),
+    },
+  );
+  return draft;
+}
+
+export async function createSupportScheduleRuleDraft(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  input: unknown,
+) {
+  ensurePermission(actor, "manage");
+  const body = inputObject(input);
+  assertOnlyKeys(body, ["teamId", "baseVersionId", ...structuredRuleKeys]);
+  return serializable(prisma, async (tx) =>
+    draftResult(await createRuleDraftInTransaction(tx, actor, body)),
+  );
+}
+
+export async function updateSupportScheduleRuleDraft(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  draftId: string,
+  input: unknown,
+) {
+  ensurePermission(actor, "manage");
+  const body = inputObject(input);
+  assertOnlyKeys(body, ["expectedRevision", ...structuredRuleKeys]);
+  const expectedRevision = requiredRevision(body);
+  if (
+    !structuredRuleKeys.some((key) =>
+      Object.prototype.hasOwnProperty.call(body, key),
+    )
+  ) {
+    throw new SupportSchedulingError("INVALID_INPUT");
+  }
+
+  return withConflictAudit(prisma, actor, () =>
+    serializable(prisma, async (tx) => {
+      const draft = await scopedRuleDraft(tx, actor, draftId);
+      assertEditableDraft(draft);
+      assertDraftCas(draft, expectedRevision);
+      const data = buildRuleData(body, draft);
+      const diff = normalizedRuleDiff(draft, data);
+      const { normalizedPayload: _normalizedPayload, ...persistedData } = data;
+      const updated = await tx.supportScheduleRuleDraft.update({
+        where: {
+          id: draft.id,
+          revision: expectedRevision,
+          status: "DRAFT",
+        },
+        data: {
+          ...persistedData,
+          revision: { increment: 1 },
+          updatedById: actor.id,
+        },
+      });
+      await audit(
+        tx,
+        actor,
+        "support_schedule.rule_draft.updated",
+        "SupportScheduleRuleDraft",
+        draft.id,
+        {
+          teamId: draft.teamId,
+          revision: updated.revision,
+          previousRevision: draft.revision,
+          checksum: updated.checksum,
+          diffKeys: diff.changedKeys,
+        },
+      );
+      return draftResult(updated);
+    }),
+  );
+}
+
+async function publishRuleDraftInTransaction(
+  tx: Prisma.TransactionClient,
+  actor: CurrentUser,
+  draftId: string,
+  expectedRevision: number,
+  expectedChecksum: string,
+) {
+  const draft = await scopedRuleDraft(tx, actor, draftId);
+  assertDraftCas(draft, expectedRevision, expectedChecksum);
+
+  if (draft.status === "PUBLISHED" && draft.publishedVersionId) {
+    const published = await tx.supportScheduleRuleVersion.findFirst({
+      where: {
+        id: draft.publishedVersionId,
+        organizationId: actor.organizationId,
+        teamId: draft.teamId,
+        sourceDraftId: draft.id,
+        checksum: expectedChecksum,
+      },
+    });
+    if (!published)
+      throw draftConflict(draft, "PUBLISHED_RELATION_MISMATCH", {
+        publishedVersionId: draft.publishedVersionId,
+      });
+    return {
+      ...draftResult(draft),
+      rule: published,
+      version: published,
+      snapshot: ruleSnapshot(published),
+      idempotent: true,
+    };
+  }
+
+  assertEditableDraft(draft);
+  const validated = buildRuleData({}, draft);
+  if (
+    validated.normalizedPayloadJson !== draft.normalizedPayloadJson ||
+    validated.checksum !== draft.checksum
+  ) {
+    throw draftConflict(draft, "DRAFT_PAYLOAD_INTEGRITY");
+  }
+  const baseVersion = await scopedBaseRuleVersion(
+    tx,
+    actor,
+    draft.teamId,
+    draft.baseVersionId,
+  );
+  const [latestVersion, activeVersions] = await Promise.all([
+    tx.supportScheduleRuleVersion.findFirst({
+      where: {
+        organizationId: actor.organizationId,
+        teamId: draft.teamId,
+      },
+      orderBy: { version: "desc" },
+    }),
+    tx.supportScheduleRuleVersion.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        teamId: draft.teamId,
+        active: true,
+      },
+      orderBy: [{ effectiveFrom: "asc" }, { version: "asc" }],
+    }),
+  ]);
+  const previousVersion = [...activeVersions]
+    .reverse()
+    .find((version) => version.effectiveFrom < draft.effectiveFrom);
+  const overlapping = activeVersions.filter(
+    (version) =>
+      version.effectiveFrom < (draft.effectiveTo ?? new Date(8.64e15)) &&
+      (!version.effectiveTo || version.effectiveTo > draft.effectiveFrom),
+  );
+  if (
+    overlapping.some(
+      (version) =>
+        version.effectiveFrom >= draft.effectiveFrom ||
+        version.id !== previousVersion?.id,
+    )
+  ) {
+    throw draftConflict(draft, "OVERLAPPING_RULE_VERSION", {
+      conflictingVersionIds: overlapping.map((version) => version.id),
+    });
+  }
+
+  if (
+    previousVersion &&
+    (!previousVersion.effectiveTo ||
+      previousVersion.effectiveTo > draft.effectiveFrom)
+  ) {
+    await tx.supportScheduleRuleVersion.update({
+      where: { id: previousVersion.id },
+      data: { effectiveTo: draft.effectiveFrom },
+    });
+  }
+  const rule = await tx.supportScheduleRuleVersion.create({
+    data: {
+      organizationId: actor.organizationId,
+      teamId: draft.teamId,
+      sourceDraftId: draft.id,
+      version: (latestVersion?.version ?? 0) + 1,
+      timezone: validated.timezone,
+      maxDailyMinutes: validated.maxDailyMinutes,
+      maxWeeklyMinutes: validated.maxWeeklyMinutes,
+      minimumRestMinutes: validated.minimumRestMinutes,
+      minimumNoticeMinutes: validated.minimumNoticeMinutes,
+      maxMonthlyExchanges: validated.maxMonthlyExchanges,
+      autoApproveEligibleSwaps: validated.autoApproveEligibleSwaps,
+      requireManagerExtraApproval: validated.requireManagerExtraApproval,
+      effectiveFrom: validated.effectiveFrom,
+      effectiveTo: validated.effectiveTo,
+      normalizedPayloadJson: validated.normalizedPayloadJson,
+      checksum: validated.checksum,
+      active: true,
+      createdById: actor.id,
+    },
+  });
+  const publishedDraft = await tx.supportScheduleRuleDraft.update({
+    where: {
+      id: draft.id,
+      revision: expectedRevision,
+      checksum: expectedChecksum,
+      status: "DRAFT",
+    },
+    data: {
+      status: "PUBLISHED",
+      publishedVersionId: rule.id,
+      updatedById: actor.id,
+    },
+  });
+  const diff = normalizedRuleDiff(
+    baseVersion ?? latestVersion,
+    publishedDraft,
+  );
+  await audit(
+    tx,
+    actor,
+    "support_schedule.rule_draft.published",
+    "SupportScheduleRuleDraft",
+    draft.id,
+    {
+      teamId: draft.teamId,
+      revision: draft.revision,
+      checksum: draft.checksum,
+      baseVersionId: baseVersion?.id ?? null,
+      previousVersionId: previousVersion?.id ?? null,
+      publishedVersionId: rule.id,
+      publishedVersion: rule.version,
+      diffKeys: diff.changedKeys,
+    },
+  );
+  return {
+    ...draftResult(publishedDraft),
+    rule,
+    version: rule,
+    snapshot: ruleSnapshot(rule),
+    idempotent: false,
+  };
+}
+
+export async function publishSupportScheduleRuleDraft(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  draftId: string,
+  input: unknown,
+) {
+  ensurePermission(actor, "manage");
+  const body = inputObject(input);
+  assertOnlyKeys(body, ["expectedRevision", "checksum"]);
+  const expectedRevision = requiredRevision(body);
+  const expectedChecksum = requiredChecksum(body);
+  return withConflictAudit(prisma, actor, () =>
+    serializable(
+      prisma,
+      (tx) =>
+        publishRuleDraftInTransaction(
+          tx,
+          actor,
+          draftId,
+          expectedRevision,
+          expectedChecksum,
+        ),
+      true,
+    ),
+  );
+}
+
+export async function previewSupportScheduleRuleDraft(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  draftId: string,
+  input: unknown,
+) {
+  ensurePermission(actor, "manage");
+  const body = inputObject(input);
+  assertOnlyKeys(body, ["expectedRevision", "checksum", "from", "to"]);
+  const expectedRevision = requiredRevision(body);
+  const expectedChecksum = requiredChecksum(body);
+  const from = requireLocalDate(body.from);
+  const to = requireLocalDate(body.to);
+  localDates(from, to);
+  const draft = await scopedRuleDraft(prisma, actor, draftId);
+  assertEditableDraft(draft);
+  assertDraftCas(draft, expectedRevision, expectedChecksum);
+  const validated = buildRuleData({}, draft);
+  if (
+    validated.normalizedPayloadJson !== draft.normalizedPayloadJson ||
+    validated.checksum !== draft.checksum
+  ) {
+    throw draftConflict(draft, "DRAFT_PAYLOAD_INTEGRITY");
+  }
+  const relevantFrom = supportLocalDateForInstant(
+    draft.effectiveFrom,
+    draft.timezone,
+  );
+  const relevantTo = draft.effectiveTo
+    ? supportLocalDateForInstant(
+        new Date(draft.effectiveTo.getTime() - 1),
+        draft.timezone,
+      )
+    : null;
+  if (from < relevantFrom || (relevantTo && to > relevantTo))
+    throw new SupportSchedulingError("INVALID_INPUT");
+
+  const [baseVersion, latestVersion] = await Promise.all([
+    scopedBaseRuleVersion(
+      prisma,
+      actor,
+      draft.teamId,
+      draft.baseVersionId,
+    ),
+    prisma.supportScheduleRuleVersion.findFirst({
+      where: {
+        organizationId: actor.organizationId,
+        teamId: draft.teamId,
+      },
+      orderBy: { version: "desc" },
+    }),
+  ]);
+  const materialization = await materializeSupportShiftOccurrences(
+    prisma,
+    actor,
+    {
+      teamId: draft.teamId,
+      from,
+      to,
+      dryRun: true,
+      ruleOverride: {
+        id: draft.id,
+        organizationId: draft.organizationId,
+        teamId: draft.teamId,
+        version: 0,
+        timezone: draft.timezone,
+        maxDailyMinutes: draft.maxDailyMinutes,
+        maxWeeklyMinutes: draft.maxWeeklyMinutes,
+        minimumRestMinutes: draft.minimumRestMinutes,
+        minimumNoticeMinutes: draft.minimumNoticeMinutes,
+        maxMonthlyExchanges: draft.maxMonthlyExchanges,
+        autoApproveEligibleSwaps: draft.autoApproveEligibleSwaps,
+        requireManagerExtraApproval: draft.requireManagerExtraApproval,
+        effectiveFrom: draft.effectiveFrom,
+        effectiveTo: draft.effectiveTo,
+      },
+    },
+  );
+  return {
+    draftId: draft.id,
+    revision: draft.revision,
+    payload: validated.normalizedPayload,
+    normalizedPayloadJson: validated.normalizedPayloadJson,
+    checksum: validated.checksum,
+    diff: {
+      base: {
+        versionId: baseVersion?.id ?? null,
+        ...normalizedRuleDiff(baseVersion, draft),
+      },
+      latest: {
+        versionId: latestVersion?.id ?? null,
+        ...normalizedRuleDiff(latestVersion, draft),
+      },
+    },
+    window: {
+      from,
+      to,
+      effectiveFrom: relevantFrom,
+      effectiveTo: relevantTo,
+    },
+    materialization,
+  };
+}
+
+export async function archiveSupportScheduleRuleDraft(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  draftId: string,
+  input: unknown,
+) {
+  ensurePermission(actor, "manage");
+  const body = inputObject(input);
+  assertOnlyKeys(body, ["expectedRevision"]);
+  const expectedRevision = requiredRevision(body);
+  return withConflictAudit(prisma, actor, () =>
+    serializable(prisma, async (tx) => {
+      const draft = await scopedRuleDraft(tx, actor, draftId);
+      assertEditableDraft(draft);
+      assertDraftCas(draft, expectedRevision);
+      const archived = await tx.supportScheduleRuleDraft.update({
+        where: {
+          id: draft.id,
+          revision: expectedRevision,
+          status: "DRAFT",
+        },
+        data: {
+          status: "ARCHIVED",
+          revision: { increment: 1 },
+          archivedAt: new Date(),
+          archivedById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+      await audit(
+        tx,
+        actor,
+        "support_schedule.rule_draft.archived",
+        "SupportScheduleRuleDraft",
+        draft.id,
+        {
+          teamId: draft.teamId,
+          revision: archived.revision,
+          previousRevision: draft.revision,
+          checksum: draft.checksum,
+          diffKeys: [],
+        },
+      );
+      return draftResult(archived);
+    }),
+  );
+}
+
+export async function archiveSupportScheduleRuleVersion(
+  prisma: PrismaClient,
+  actor: CurrentUser,
+  ruleId: string,
+) {
+  ensurePermission(actor, "manage");
+  return withConflictAudit(prisma, actor, () =>
+    serializable(prisma, async (tx) => {
+      const version = await tx.supportScheduleRuleVersion.findFirst({
+        where: { id: ruleId, organizationId: actor.organizationId },
+      });
+      if (!version) throw new SupportSchedulingError("NOT_FOUND");
+      if (!version.active || version.archivedAt)
+        throw ruleVersionConflict(version, "RULE_VERSION_NOT_ACTIVE");
+      if (version.effectiveFrom <= new Date())
+        throw ruleVersionConflict(version, "RULE_VERSION_ALREADY_EFFECTIVE");
+
+      const [occurrenceCount, offerCount, extraSlotCount, previous, next] =
+        await Promise.all([
+          tx.supportShiftOccurrence.count({
+            where: { ruleVersionId: version.id },
+          }),
+          tx.supportShiftOffer.count({ where: { ruleVersionId: version.id } }),
+          tx.supportExtraShiftSlot.count({
+            where: { ruleVersionId: version.id },
+          }),
+          tx.supportScheduleRuleVersion.findFirst({
+            where: {
+              organizationId: actor.organizationId,
+              teamId: version.teamId,
+              active: true,
+              effectiveFrom: { lt: version.effectiveFrom },
+            },
+            orderBy: [{ effectiveFrom: "desc" }, { version: "desc" }],
+          }),
+          tx.supportScheduleRuleVersion.findFirst({
+            where: {
+              organizationId: actor.organizationId,
+              teamId: version.teamId,
+              active: true,
+              effectiveFrom: { gt: version.effectiveFrom },
+            },
+            orderBy: [{ effectiveFrom: "asc" }, { version: "asc" }],
+          }),
+        ]);
+      if (occurrenceCount || offerCount || extraSlotCount)
+        throw ruleVersionConflict(version, "RULE_VERSION_REFERENCED");
+
+      const archivedAt = new Date();
+      const archived = await tx.supportScheduleRuleVersion.update({
+        where: { id: version.id, active: true },
+        data: { active: false, archivedAt },
+      });
+      if (previous) {
+        await tx.supportScheduleRuleVersion.update({
+          where: { id: previous.id },
+          data: { effectiveTo: next?.effectiveFrom ?? null },
+        });
+      }
+      await audit(
+        tx,
+        actor,
+        "support_schedule.rule_version.archived",
+        "SupportScheduleRuleVersion",
+        version.id,
+        {
+          teamId: version.teamId,
+          version: version.version,
+          checksum: version.checksum,
+          previousVersionId: previous?.id ?? null,
+          nextVersionId: next?.id ?? null,
+          reconciledEffectiveTo: next?.effectiveFrom.toISOString() ?? null,
+          diffKeys: [],
+        },
+      );
+      return { rule: archived, snapshot: ruleSnapshot(archived) };
+    }),
+  );
 }
 
 export async function createSupportScheduleRuleVersion(
@@ -1041,94 +1992,24 @@ export async function createSupportScheduleRuleVersion(
 ) {
   ensurePermission(actor, "manage");
   const body = inputObject(input);
-  const teamId = requiredText(body, "teamId", 80);
-  const timezone = optionalText(body, "timezone", 80) ?? "America/Sao_Paulo";
-  assertTimezone(timezone);
-  const effectiveFrom = dateTime(body.effectiveFrom);
-  const effectiveTo = optionalDateTime(body.effectiveTo);
-  if (effectiveTo && effectiveTo <= effectiveFrom)
-    throw new SupportSchedulingError("INVALID_INPUT");
-  if (effectiveFrom < new Date())
-    throw new SupportSchedulingError("RULE_VIOLATION", [
-      "RETROACTIVE_RULE_VERSION",
-    ]);
-  const data = {
-    timezone,
-    maxDailyMinutes: integer(body, "maxDailyMinutes", 840, 60, 1440),
-    maxWeeklyMinutes: integer(body, "maxWeeklyMinutes", 3600, 60, 10080),
-    minimumRestMinutes: integer(body, "minimumRestMinutes", 600, 0, 1440),
-    minimumNoticeMinutes: integer(body, "minimumNoticeMinutes", 60, 0, 43_200),
-    maxMonthlyExchanges: integer(body, "maxMonthlyExchanges", 8, 0, 100),
-    autoApproveEligibleSwaps: optionalBoolean(
-      body,
-      "autoApproveEligibleSwaps",
+  assertOnlyKeys(body, ["teamId", "baseVersionId", ...structuredRuleKeys]);
+  return withConflictAudit(prisma, actor, () =>
+    serializable(
+      prisma,
+      async (tx) => {
+        const draft = await createRuleDraftInTransaction(tx, actor, body);
+        const published = await publishRuleDraftInTransaction(
+          tx,
+          actor,
+          draft.id,
+          draft.revision,
+          draft.checksum,
+        );
+        return { rule: published.rule, snapshot: published.snapshot };
+      },
       true,
     ),
-    requireManagerExtraApproval: optionalBoolean(
-      body,
-      "requireManagerExtraApproval",
-      true,
-    ),
-  };
-  if (data.maxWeeklyMinutes < data.maxDailyMinutes)
-    throw new SupportSchedulingError("INVALID_INPUT");
-
-  return serializable(prisma, async (tx) => {
-    await ensureTeam(tx, actor.organizationId, teamId);
-    const latest = await tx.supportScheduleRuleVersion.findFirst({
-      where: { organizationId: actor.organizationId, teamId },
-      orderBy: { version: "desc" },
-    });
-    if (latest && effectiveFrom <= latest.effectiveFrom)
-      throw new SupportSchedulingError("CONFLICT");
-    const overlapping = await tx.supportScheduleRuleVersion.findFirst({
-      where: {
-        organizationId: actor.organizationId,
-        teamId,
-        active: true,
-        effectiveFrom: effectiveTo ? { lt: effectiveTo } : undefined,
-        OR: [{ effectiveTo: null }, { effectiveTo: { gt: effectiveFrom } }],
-      },
-      orderBy: { version: "desc" },
-    });
-    if (overlapping && overlapping.id !== latest?.id)
-      throw new SupportSchedulingError("CONFLICT");
-    if (
-      latest?.active &&
-      (!latest.effectiveTo || latest.effectiveTo > effectiveFrom)
-    ) {
-      await tx.supportScheduleRuleVersion.update({
-        where: { id: latest.id },
-        data: { effectiveTo: effectiveFrom },
-      });
-    }
-    const rule = await tx.supportScheduleRuleVersion.create({
-      data: {
-        organizationId: actor.organizationId,
-        teamId,
-        version: (latest?.version ?? 0) + 1,
-        effectiveFrom,
-        effectiveTo,
-        active: true,
-        createdById: actor.id,
-        ...data,
-      },
-    });
-    await audit(
-      tx,
-      actor,
-      "support_schedule.rule.version_created",
-      "SupportScheduleRuleVersion",
-      rule.id,
-      {
-        teamId,
-        version: rule.version,
-        previousVersionId: latest?.id ?? null,
-        snapshot: ruleSnapshot(rule),
-      },
-    );
-    return { rule, snapshot: ruleSnapshot(rule) };
-  });
+  );
 }
 
 export async function createSupportShiftPatternVersion(
@@ -1382,7 +2263,7 @@ function occurrenceMatches(
 export async function materializeSupportShiftOccurrences(
   prisma: PrismaClient,
   actor: CurrentUser,
-  input: MaterializeSupportShiftsInput,
+  input: MaterializeSupportShiftsInternalInput,
 ) {
   ensurePermission(actor, "manage");
   const teamId =
@@ -1390,6 +2271,15 @@ export async function materializeSupportShiftOccurrences(
       ? input.teamId.trim()
       : "";
   if (!teamId) throw new SupportSchedulingError("INVALID_INPUT");
+  const ruleOverride = input.ruleOverride;
+  if (
+    ruleOverride &&
+    (ruleOverride.organizationId !== actor.organizationId ||
+      ruleOverride.teamId !== teamId)
+  ) {
+    throw new SupportSchedulingError("FORBIDDEN");
+  }
+  const dryRun = input.dryRun === true || Boolean(ruleOverride);
   const from = requireLocalDate(input.from);
   const to = requireLocalDate(input.to);
   const dates = localDates(from, to);
@@ -1464,6 +2354,9 @@ export async function materializeSupportShiftOccurrences(
           item,
         ]),
       );
+      const availableRules: RuleLimits[] = ruleOverride
+        ? [...rules, ruleOverride]
+        : rules;
       const candidates: Array<{
         key: string;
         assignmentId: string;
@@ -1542,13 +2435,20 @@ export async function materializeSupportShiftOccurrences(
             });
             continue;
           }
-          const rule = [...rules]
-            .reverse()
-            .find(
-              (item) =>
-                item.effectiveFrom <= interval.startsAt &&
-                (!item.effectiveTo || item.effectiveTo > interval.startsAt),
-            );
+          const rule =
+            ruleOverride &&
+            ruleOverride.effectiveFrom <= interval.startsAt &&
+            (!ruleOverride.effectiveTo ||
+              ruleOverride.effectiveTo > interval.startsAt)
+              ? ruleOverride
+              : [...rules]
+                  .reverse()
+                  .find(
+                    (item) =>
+                      item.effectiveFrom <= interval.startsAt &&
+                      (!item.effectiveTo ||
+                        item.effectiveTo > interval.startsAt),
+                  );
           if (!rule) {
             conflicts.push({
               assignmentId: assignment.id,
@@ -1593,9 +2493,11 @@ export async function materializeSupportShiftOccurrences(
         );
         const candidateRules = userCandidates
           .map((candidate) =>
-            rules.find((item) => item.id === candidate.ruleVersionId),
+            availableRules.find(
+              (item) => item.id === candidate.ruleVersionId,
+            ),
           )
-          .filter((item): item is SupportScheduleRuleVersion => Boolean(item));
+          .filter((item): item is RuleLimits => Boolean(item));
         if (!candidateRules.length) continue;
         const replacingIds = new Set(
           userCandidates
@@ -1657,7 +2559,7 @@ export async function materializeSupportShiftOccurrences(
         reusedCount: 0,
         preservedCount: 0,
       };
-      if (input.dryRun) return { ...preview, dryRun: true };
+      if (dryRun) return { ...preview, dryRun: true };
       const now = new Date();
       for (const candidate of materializableCandidates) {
         const existing = existingByKey.get(candidate.key);
