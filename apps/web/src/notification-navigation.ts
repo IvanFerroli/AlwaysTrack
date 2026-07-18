@@ -1,15 +1,13 @@
-export type NotificationTargetStatus = "AVAILABLE" | "ARCHIVED" | "REMOVED" | "FORBIDDEN_OR_MISSING";
+import {
+  normalizeNotificationTargetStatus,
+  normalizeNotificationTargetType,
+  notificationTargetFallbackHref,
+  notificationTargetHref,
+  type NotificationTargetStatus,
+  type NotificationTargetType
+} from "@alwaystrack/shared";
 
-export type NotificationTargetType =
-  | "SUPPORT_SCHEDULE"
-  | "SUPPORT_PAUSE"
-  | "ANNOUNCEMENT"
-  | "WIKI_PAGE"
-  | "FAQ_THREAD"
-  | "SUPPORT_CAMPAIGN"
-  | "SUPPORT_PERFORMANCE"
-  | "SERVICE_FLOW"
-  | "PROFILE";
+export type { NotificationTargetStatus, NotificationTargetType } from "@alwaystrack/shared";
 
 export type NotificationView =
   | "dashboard"
@@ -76,98 +74,6 @@ interface KnownRoute {
 }
 
 const internalOrigin = "https://navigation.alwaystrack.invalid";
-
-const targetTypeAliases: Record<string, NotificationTargetType> = {
-  SCHEDULE: "SUPPORT_SCHEDULE",
-  SUPPORT_SCHEDULE: "SUPPORT_SCHEDULE",
-  SUPPORT_SHIFT: "SUPPORT_SCHEDULE",
-  PAUSE: "SUPPORT_PAUSE",
-  SUPPORT_PAUSE: "SUPPORT_PAUSE",
-  SUPPORT_PAUSE_BOOKING: "SUPPORT_PAUSE",
-  SUPPORT_PAUSE_SWAP: "SUPPORT_PAUSE",
-  ANNOUNCEMENT: "ANNOUNCEMENT",
-  ANNOUNCEMENT_OCCURRENCE: "ANNOUNCEMENT",
-  WIKI: "WIKI_PAGE",
-  WIKI_PAGE: "WIKI_PAGE",
-  FAQ: "FAQ_THREAD",
-  FAQ_THREAD: "FAQ_THREAD",
-  SUPPORT_CAMPAIGN: "SUPPORT_CAMPAIGN",
-  CAMPAIGN: "SUPPORT_CAMPAIGN",
-  SUPPORT_PERFORMANCE: "SUPPORT_PERFORMANCE",
-  PERFORMANCE: "SUPPORT_PERFORMANCE",
-  SERVICE_FLOW: "SERVICE_FLOW",
-  PROFILE: "PROFILE"
-};
-
-function targetType(value: unknown) {
-  if (typeof value !== "string") return null;
-  const normalized = value
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    .replace(/[.\s-]+/g, "_")
-    .toUpperCase();
-  return targetTypeAliases[normalized] ?? null;
-}
-
-function targetStatus(value: unknown): NotificationTargetStatus | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toUpperCase();
-  return normalized === "AVAILABLE" || normalized === "ARCHIVED" || normalized === "REMOVED" || normalized === "FORBIDDEN_OR_MISSING"
-    ? normalized
-    : null;
-}
-
-function textParam(params: Record<string, unknown> | null | undefined, key: string) {
-  const value = params?.[key];
-  if (typeof value !== "string" && typeof value !== "number") return undefined;
-  const normalized = String(value).trim();
-  return normalized || undefined;
-}
-
-function withQuery(path: string, params: Record<string, unknown> | null | undefined, keys: string[]) {
-  const query = new URLSearchParams();
-  for (const key of keys) {
-    const value = textParam(params, key);
-    if (value) query.set(key, value);
-  }
-  return query.size ? `${path}?${query.toString()}` : path;
-}
-
-function typedTargetHref(type: NotificationTargetType | null, params: Record<string, unknown> | null | undefined) {
-  if (type === "SUPPORT_SCHEDULE") {
-    return withQuery("/escalas", params, ["date", "teamId", "userId", "scheduleId", "offerId", "swapId", "tab"]);
-  }
-  if (type === "SUPPORT_PAUSE") {
-    return withQuery("/pausas", params, ["date", "teamId", "slotId", "bookingId", "swapId", "tab"]);
-  }
-  if (type === "ANNOUNCEMENT") {
-    const slug = textParam(params, "slug");
-    return withQuery(slug ? `/avisos/${encodeURIComponent(slug)}` : "/avisos", params, ["occurrenceId"]);
-  }
-  if (type === "WIKI_PAGE") {
-    const slug = textParam(params, "slug");
-    return slug ? `/wiki/${encodeURIComponent(slug)}` : "/wiki";
-  }
-  if (type === "FAQ_THREAD") return withQuery("/faq", params, ["status", "threadId"]);
-  if (type === "SUPPORT_CAMPAIGN") return withQuery("/campanhas", params, ["campaignId"]);
-  if (type === "SUPPORT_PERFORMANCE") return withQuery("/performance", params, ["metric", "userId", "teamId"]);
-  if (type === "SERVICE_FLOW") return withQuery("/fluxos", params, ["flowId"]);
-  if (type === "PROFILE") return "/profile";
-  return null;
-}
-
-function fallbackHrefForType(type: NotificationTargetType | null) {
-  if (type === "SUPPORT_SCHEDULE") return "/escalas";
-  if (type === "SUPPORT_PAUSE") return "/pausas";
-  if (type === "ANNOUNCEMENT") return "/avisos";
-  if (type === "WIKI_PAGE") return "/wiki";
-  if (type === "FAQ_THREAD") return "/faq";
-  if (type === "SUPPORT_CAMPAIGN") return "/campanhas";
-  if (type === "SUPPORT_PERFORMANCE") return "/performance";
-  if (type === "SERVICE_FLOW") return "/fluxos";
-  if (type === "PROFILE") return "/profile";
-  return null;
-}
 
 function decodeSegment(value: string | undefined) {
   if (!value) return undefined;
@@ -307,17 +213,18 @@ function unavailableResult(message = "Este conteúdo não está disponível para
 
 export function resolveNotificationNavigation(source: NotificationNavigationSource): NotificationNavigationResult {
   const rawStatus = source.target?.status ?? source.targetStatus;
-  const normalizedStatus = targetStatus(rawStatus);
+  const normalizedStatus = normalizeNotificationTargetStatus(rawStatus);
   const status = rawStatus && !normalizedStatus ? "FORBIDDEN_OR_MISSING" : normalizedStatus ?? "AVAILABLE";
-  const type = targetType(source.target?.type ?? source.entityType);
+  const type = normalizeNotificationTargetType(source.target?.type ?? source.entityType);
+  const targetHasHref = Boolean(source.target && Object.prototype.hasOwnProperty.call(source.target, "href"));
+  const targetHasFallback = Boolean(source.target && Object.prototype.hasOwnProperty.call(source.target, "fallbackHref"));
   const candidateHref = source.resolvedHref
-    ?? source.target?.href
-    ?? typedTargetHref(type, source.target?.params)
+    ?? (targetHasHref ? source.target?.href : type ? notificationTargetHref(type, source.target?.params) : null)
     ?? source.href;
   const candidateRoute = knownRoute(candidateHref);
-  const explicitFallback = knownRoute(source.target?.fallbackHref ?? source.fallbackHref);
-  const typeFallback = knownRoute(fallbackHrefForType(type));
-  const routeFallback = candidateRoute ? knownRoute(candidateRoute.collectionHref) : null;
+  const explicitFallback = knownRoute(targetHasFallback ? source.target?.fallbackHref : source.fallbackHref);
+  const typeFallback = targetHasFallback ? null : knownRoute(notificationTargetFallbackHref(type));
+  const routeFallback = targetHasFallback ? null : candidateRoute ? knownRoute(candidateRoute.collectionHref) : null;
   const fallback = explicitFallback ?? typeFallback ?? routeFallback;
 
   if (status !== "AVAILABLE") {

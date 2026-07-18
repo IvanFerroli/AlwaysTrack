@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { api } from "../api";
-import { resolveNotificationNavigation, type NotificationNavigate, type NotificationNavigationSource } from "../notification-navigation";
+import {
+  resolveNotificationNavigation,
+  type NotificationNavigate,
+  type NotificationNavigationSource,
+  type NotificationTarget
+} from "../notification-navigation";
 import { useDismissibleLayer } from "./dismissible-layer";
 
 interface InAppNotificationItem extends NotificationNavigationSource {
@@ -96,7 +101,14 @@ export function NotificationCenter({ onNavigate }: { onNavigate: NotificationNav
   }
 
   async function openNotification(item: InAppNotificationItem) {
-    const navigation = resolveNotificationNavigation(item);
+    let resolved: { target: NotificationTarget };
+    try {
+      resolved = await api<{ target: NotificationTarget }>(`/v1/in-app-notifications/${item.id}/resolve`, { method: "POST" });
+    } catch (caught) {
+      setNavigationMessage(caught instanceof Error ? caught.message : "Não foi possível resolver esta notificação.");
+      return;
+    }
+    const navigation = resolveNotificationNavigation({ target: resolved.target });
     if (navigation.state === "UNAVAILABLE" || !navigation.href) {
       setNavigationMessage(navigation.message);
       return;

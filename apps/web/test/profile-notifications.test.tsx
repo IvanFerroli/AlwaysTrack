@@ -40,10 +40,19 @@ const scheduleNotification = {
   createdAt: "2026-07-17T13:00:00.000Z"
 };
 
-function setupApi(items = [scheduleNotification]) {
+const scheduleTarget = {
+  type: "SUPPORT_SCHEDULE",
+  status: "AVAILABLE",
+  params: { date: "2026-07-18", teamId: "team-1" },
+  href: "/escalas?date=2026-07-18&teamId=team-1",
+  fallbackHref: "/escalas"
+};
+
+function setupApi(items = [scheduleNotification], resolvedTarget: Record<string, unknown> = scheduleTarget) {
   apiMock.mockImplementation((path: string) => {
     if (path === "/v1/profile") return Promise.resolve({ profile });
     if (path === "/v1/in-app-notifications") return Promise.resolve({ items, unread: items.filter((item) => !item.readAt).length });
+    if (path.endsWith("/resolve")) return Promise.resolve({ target: resolvedTarget });
     return Promise.resolve({});
   });
 }
@@ -63,6 +72,7 @@ describe("ProfileView notification history", () => {
 
     await userActions.click(screen.getByRole("button", { name: /Sua escala foi publicada/ }));
 
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/resolve", { method: "POST" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/read", { method: "POST" }));
     expect(onNavigate).toHaveBeenCalledWith(
       scheduleNotification.href,
@@ -84,7 +94,7 @@ describe("ProfileView notification history", () => {
       type: "legacy.unknown",
       href: "/fora-do-catalogo"
     };
-    setupApi([unavailable]);
+    setupApi([unavailable], { type: null, status: "FORBIDDEN_OR_MISSING", params: {}, href: null, fallbackHref: null });
     const userActions = userEvent.setup();
     const onNavigate = vi.fn();
     render(<ProfileView user={user} onProfileSaved={vi.fn()} onNavigate={onNavigate} />);
@@ -95,5 +105,24 @@ describe("ProfileView notification history", () => {
     expect(await screen.findByText("Este conteúdo não está disponível para sua conta.")).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalled();
     expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-missing/read", { method: "POST" });
+  });
+
+  it("keeps profile history unread when backend resolution fails", async () => {
+    setupApi();
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/profile") return Promise.resolve({ profile });
+      if (path === "/v1/in-app-notifications") return Promise.resolve({ items: [scheduleNotification], unread: 1 });
+      if (path.endsWith("/resolve")) return Promise.reject(new Error("Resolver indisponível"));
+      return Promise.resolve({});
+    });
+    const userActions = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<ProfileView user={user} onProfileSaved={vi.fn()} onNavigate={onNavigate} />);
+
+    await userActions.click(await screen.findByRole("button", { name: /Sua escala foi publicada/ }));
+
+    expect(await screen.findByText("Resolver indisponível")).toBeInTheDocument();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/read", { method: "POST" });
   });
 });

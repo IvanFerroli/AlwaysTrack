@@ -1,5 +1,13 @@
 import type { NotificationJob, Prisma, PrismaClient } from "@prisma/client";
-import { notificationChannels, type CurrentUser, type NotificationChannel } from "@alwaystrack/shared";
+import {
+  deriveNotificationTarget,
+  notificationChannels,
+  type CurrentUser,
+  type NotificationChannel,
+  type NotificationTargetParams,
+  type NotificationTargetStatus,
+  type NotificationTargetType
+} from "@alwaystrack/shared";
 import { loadEnv } from "../../config/env.js";
 import { recordAuditLog } from "../audit/audit.service.js";
 import { optionalBoolean, optionalString, parseObjectPayload } from "../validation/input-validation.js";
@@ -63,6 +71,9 @@ export interface InAppNotificationInput {
   entityType?: string | null;
   entityId?: string | null;
   href?: string | null;
+  targetType?: NotificationTargetType | null;
+  targetParams?: NotificationTargetParams | null;
+  targetStatus?: NotificationTargetStatus | null;
   dedupeKey?: string | null;
 }
 
@@ -200,6 +211,15 @@ export async function emitInAppNotifications(prisma: PrismaClient, organizationI
     select: { id: true }
   });
   const ids = recipients.map((recipient) => recipient.id).filter((id) => id !== input.actorId);
+  const target = deriveNotificationTarget({
+    type: input.targetType,
+    notificationType: input.type,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    href: input.href,
+    params: input.targetParams,
+    status: input.targetStatus
+  });
   const created = [];
   for (const recipientId of uniqueTexts(ids)) {
     const data = {
@@ -211,6 +231,9 @@ export async function emitInAppNotifications(prisma: PrismaClient, organizationI
       entityType: input.entityType ?? null,
       entityId: input.entityId ?? null,
       href: input.href ?? null,
+      targetType: target?.type ?? null,
+      targetParamsJson: target ? JSON.stringify(target.params) : null,
+      targetStatus: target?.status ?? null,
       dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${recipientId}` : null
     };
     if (data.dedupeKey) {
@@ -221,7 +244,12 @@ export async function emitInAppNotifications(prisma: PrismaClient, organizationI
           update: {
             title: data.title,
             body: data.body,
+            entityType: data.entityType,
+            entityId: data.entityId,
             href: data.href,
+            targetType: data.targetType,
+            targetParamsJson: data.targetParamsJson,
+            targetStatus: data.targetStatus,
             readAt: null,
             createdAt: new Date()
           }
@@ -258,6 +286,16 @@ function notificationGroups(items: Array<{ type: string; readAt: Date | null }>)
   return [...groups.values()].sort((left, right) => right.unread - left.unread || right.total - left.total || left.type.localeCompare(right.type));
 }
 
+function publicInAppNotification<T extends {
+  organizationId: string;
+  recipientId: string;
+  dedupeKey: string | null;
+  targetParamsJson: string | null;
+}>(item: T) {
+  const { organizationId: _organizationId, recipientId: _recipientId, dedupeKey: _dedupeKey, targetParamsJson: _targetParamsJson, ...publicItem } = item;
+  return publicItem;
+}
+
 export async function listInAppNotifications(prisma: PrismaClient, actor: CurrentUser, input: ListInAppNotificationsInput = {}) {
   const baseWhere: Prisma.InAppNotificationWhereInput = { organizationId: actor.organizationId, recipientId: actor.id };
   const where: Prisma.InAppNotificationWhereInput = {
@@ -273,7 +311,7 @@ export async function listInAppNotifications(prisma: PrismaClient, actor: Curren
     }),
     prisma.inAppNotification.count({ where: { ...baseWhere, readAt: null } })
   ]);
-  return { items, unread, groups: notificationGroups(items) };
+  return { items: items.map(publicInAppNotification), unread, groups: notificationGroups(items) };
 }
 
 export async function markInAppNotificationRead(prisma: PrismaClient, actor: CurrentUser, notificationId: string) {

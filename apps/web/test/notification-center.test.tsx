@@ -17,6 +17,14 @@ const pauseNotification = {
   createdAt: "2026-07-17T12:00:00.000Z"
 };
 
+const pauseTarget = {
+  type: "SUPPORT_PAUSE",
+  status: "AVAILABLE",
+  params: { date: "2026-07-18", teamId: "team-2", swapId: "swap-1", tab: "swaps" },
+  href: "/pausas?date=2026-07-18&teamId=team-2&swapId=swap-1&tab=swaps",
+  fallbackHref: "/pausas"
+};
+
 function notificationResponse(items = [pauseNotification]) {
   return {
     items,
@@ -27,9 +35,12 @@ function notificationResponse(items = [pauseNotification]) {
 
 describe("NotificationCenter navigation and dismissal", () => {
   beforeEach(() => {
-    apiMock.mockImplementation((path: string) => path.startsWith("/v1/in-app-notifications")
-      ? Promise.resolve(path.endsWith("/read") ? {} : notificationResponse())
-      : Promise.resolve({}));
+    apiMock.mockImplementation((path: string) => {
+      if (path.endsWith("/resolve")) return Promise.resolve({ target: pauseTarget });
+      if (path.endsWith("/read")) return Promise.resolve({});
+      if (path.startsWith("/v1/in-app-notifications")) return Promise.resolve(notificationResponse());
+      return Promise.resolve({});
+    });
   });
 
   it("dismisses on outside pointer interaction and restores trigger focus", async () => {
@@ -55,7 +66,10 @@ describe("NotificationCenter navigation and dismissal", () => {
     await user.click(await screen.findByRole("button", { name: /Notificações, 1/ }));
     await user.click(await screen.findByRole("button", { name: /Troca de pausa pendente/ }));
 
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-pause/resolve", { method: "POST" }));
     await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-pause/read", { method: "POST" }));
+    expect(apiMock.mock.invocationCallOrder.find((_, index) => apiMock.mock.calls[index]?.[0]?.endsWith("/resolve")))
+      .toBeLessThan(apiMock.mock.invocationCallOrder.find((_, index) => apiMock.mock.calls[index]?.[0]?.endsWith("/read")) ?? Infinity);
     expect(onNavigate).toHaveBeenCalledWith(
       pauseNotification.href,
       expect.objectContaining({
@@ -77,9 +91,13 @@ describe("NotificationCenter navigation and dismissal", () => {
       type: "legacy.unknown",
       href: "https://example.test/segredo"
     };
-    apiMock.mockImplementation((path: string) => path === "/v1/in-app-notifications"
-      ? Promise.resolve(notificationResponse([unavailable]))
-      : Promise.resolve({}));
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/in-app-notifications") return Promise.resolve(notificationResponse([unavailable]));
+      if (path.endsWith("/resolve")) {
+        return Promise.resolve({ target: { type: null, status: "FORBIDDEN_OR_MISSING", params: {}, href: null, fallbackHref: null } });
+      }
+      return Promise.resolve({});
+    });
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     render(<NotificationCenter onNavigate={onNavigate} />);
@@ -92,5 +110,23 @@ describe("NotificationCenter navigation and dismissal", () => {
     expect(await screen.findByText("Este conteúdo não está disponível para sua conta.")).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalled();
     expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-unsafe/read", { method: "POST" });
+  });
+
+  it("does not read or navigate when backend resolution fails", async () => {
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/in-app-notifications") return Promise.resolve(notificationResponse());
+      if (path.endsWith("/resolve")) return Promise.reject(new Error("Falha de resolução"));
+      return Promise.resolve({});
+    });
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<NotificationCenter onNavigate={onNavigate} />);
+
+    await user.click(await screen.findByRole("button", { name: /Notificações, 1/ }));
+    await user.click(await screen.findByRole("button", { name: /Troca de pausa pendente/ }));
+
+    expect(await screen.findByText("Falha de resolução")).toBeInTheDocument();
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-pause/read", { method: "POST" });
   });
 });

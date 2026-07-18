@@ -1156,6 +1156,9 @@ model InAppNotification {
   entityType     String?
   entityId       String?
   href           String?
+  targetType     String?
+  targetParamsJson String?
+  targetStatus   String?
   dedupeKey      String?
   readAt         DateTime?
   createdAt      DateTime  @default(now())
@@ -1169,6 +1172,7 @@ model InAppNotification {
   @@index([readAt])
   @@index([type])
   @@index([entityType, entityId])
+  @@index([targetType, targetStatus])
 }
 
 model Announcement {

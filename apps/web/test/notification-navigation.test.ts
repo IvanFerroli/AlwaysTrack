@@ -53,6 +53,15 @@ describe("notification navigation resolver", () => {
     expect(result.href).not.toContain("segredo");
   });
 
+  it("honors an authoritative backend denial without inventing a fallback", () => {
+    const result = resolveNotificationNavigation({
+      href: "/avisos/href-legado",
+      target: { type: "ANNOUNCEMENT", status: "FORBIDDEN_OR_MISSING", params: {}, href: null, fallbackHref: null }
+    });
+
+    expect(result).toMatchObject({ state: "UNAVAILABLE", targetStatus: "FORBIDDEN_OR_MISSING", href: null, view: null });
+  });
+
   it("keeps legacy routes compatible and rejects arbitrary destinations", () => {
     expect(resolveNotificationNavigation({ href: "/ranking?teamId=team-1" })).toMatchObject({
       state: "READY",
@@ -61,5 +70,12 @@ describe("notification navigation resolver", () => {
     });
     expect(resolveNotificationNavigation({ href: "https://example.test/pausas" })).toMatchObject({ state: "UNAVAILABLE", href: null, view: null });
     expect(resolveNotificationNavigation({ href: "/destino-desconhecido" })).toMatchObject({ state: "UNAVAILABLE", href: null, view: null });
+  });
+
+  it("uses Shared catalog routes for Script Library and sales documents", () => {
+    expect(resolveNotificationNavigation({ target: { type: "SCRIPT_LIBRARY", status: "AVAILABLE", params: { suggestionId: "suggestion-1" } } }))
+      .toMatchObject({ state: "READY", href: "/scriptoteca?suggestionId=suggestion-1", view: "scriptLibrary" });
+    expect(resolveNotificationNavigation({ target: { type: "SALES_DOCUMENT", status: "AVAILABLE", params: { documentId: "document-1" } } }))
+      .toMatchObject({ state: "READY", href: "/notas?documentId=document-1", view: "dashboard" });
   });
 });

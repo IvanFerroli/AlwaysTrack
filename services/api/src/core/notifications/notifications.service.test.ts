@@ -157,7 +157,17 @@ describe("notifications service", () => {
           organizationId: "org-1",
           recipientId: "seller-1",
           type: "faq.thread.created",
+          targetType: "FAQ_THREAD",
+          targetParamsJson: JSON.stringify({ threadId: "thread-1" }),
+          targetStatus: "AVAILABLE",
           dedupeKey: "faq.thread.created:thread-1:seller-1"
+        }),
+        update: expect.objectContaining({
+          entityType: "FaqThread",
+          entityId: "thread-1",
+          targetType: "FAQ_THREAD",
+          targetParamsJson: JSON.stringify({ threadId: "thread-1" }),
+          targetStatus: "AVAILABLE"
         })
       })
     );
@@ -167,8 +177,8 @@ describe("notifications service", () => {
     const prisma = {
       inAppNotification: {
         findMany: vi.fn().mockResolvedValue([
-          { id: "notif-1", recipientId: "admin-1", type: "faq.thread.created", readAt: null },
-          { id: "notif-2", recipientId: "admin-1", type: "wiki.review", readAt: new Date("2026-06-09T00:00:00.000Z") }
+          { id: "notif-1", organizationId: "org-1", recipientId: "admin-1", dedupeKey: "private-1", targetParamsJson: "{}", type: "faq.thread.created", readAt: null },
+          { id: "notif-2", organizationId: "org-1", recipientId: "admin-1", dedupeKey: "private-2", targetParamsJson: "{}", type: "wiki.review", readAt: new Date("2026-06-09T00:00:00.000Z") }
         ]),
         count: vi.fn().mockResolvedValue(1),
         findFirst: vi.fn().mockResolvedValue({ id: "notif-1", recipientId: "admin-1", readAt: null }),
@@ -186,6 +196,10 @@ describe("notifications service", () => {
       ]
     });
     expect(listed.items).toHaveLength(2);
+    expect(listed.items[0]).not.toHaveProperty("organizationId");
+    expect(listed.items[0]).not.toHaveProperty("recipientId");
+    expect(listed.items[0]).not.toHaveProperty("dedupeKey");
+    expect(listed.items[0]).not.toHaveProperty("targetParamsJson");
     await markInAppNotificationRead(prisma as never, admin, "notif-1");
     await expect(markAllInAppNotificationsRead(prisma as never, admin)).resolves.toEqual({ updated: 3 });
 

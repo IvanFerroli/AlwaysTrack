@@ -23,6 +23,7 @@ const service = vi.hoisted(() => ({
   verifyWebhookChallenge: vi.fn()
 }));
 const provider = vi.hoisted(() => ({ getNotificationProvider: vi.fn(() => ({ name: "fake" })) }));
+const targetResolver = vi.hoisted(() => ({ resolveInAppNotificationTarget: vi.fn() }));
 
 vi.mock("../db/prisma.js", () => ({ prisma: { mocked: true } }));
 vi.mock("./provider.js", async (importOriginal) => ({
@@ -33,6 +34,7 @@ vi.mock("./notifications.service.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./notifications.service.js")>()),
   ...service
 }));
+vi.mock("./notification-target-resolver.js", () => targetResolver);
 
 import {
   createNotificationRuleHandler,
@@ -44,6 +46,7 @@ import {
   markInAppNotificationReadHandler,
   metaWebhookHandler,
   processNotificationJobsHandler,
+  resolveInAppNotificationTargetHandler,
   scanNotificationJobsHandler,
   updateNotificationRuleHandler,
   updateNotificationTemplateHandler,
@@ -68,6 +71,7 @@ describe("notification HTTP handlers", () => {
       service.updateNotificationRule,
       service.updateNotificationTemplate
     ]) mock.mockResolvedValue({ id: "notification-result" });
+    targetResolver.resolveInAppNotificationTarget.mockResolvedValue({ target: { status: "AVAILABLE", href: "/faq" } });
     service.verifyWebhookChallenge.mockReturnValue("challenge-ok");
   });
 
@@ -75,6 +79,7 @@ describe("notification HTTP handlers", () => {
     ["config", listNotificationConfigHandler, service.listNotificationConfig, "get", "/v1/notifications/config", "/v1/notifications/config", undefined, 200],
     ["in-app list", listInAppNotificationsHandler, service.listInAppNotifications, "get", "/v1/in-app-notifications?unreadOnly=1", "/v1/in-app-notifications", undefined, 200],
     ["mark read", markInAppNotificationReadHandler, service.markInAppNotificationRead, "post", "/v1/in-app-notifications/n-1/read", "/v1/in-app-notifications/:notificationId/read", undefined, 200],
+    ["resolve target", resolveInAppNotificationTargetHandler, targetResolver.resolveInAppNotificationTarget, "post", "/v1/in-app-notifications/n-1/resolve", "/v1/in-app-notifications/:notificationId/resolve", undefined, 200],
     ["mark all read", markAllInAppNotificationsReadHandler, service.markAllInAppNotificationsRead, "post", "/v1/in-app-notifications/read-all", "/v1/in-app-notifications/read-all", undefined, 200],
     ["create template", createNotificationTemplateHandler, service.createNotificationTemplate, "post", "/v1/notifications/templates", "/v1/notifications/templates", { key: "expiry" }, 201],
     ["update template", updateNotificationTemplateHandler, service.updateNotificationTemplate, "patch", "/v1/notifications/templates/t-1", "/v1/notifications/templates/:templateId", { key: "expiry" }, 200],

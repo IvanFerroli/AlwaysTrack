@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma.js";
 import { sendError, sendOk } from "../http/responses.js";
 import { isInputValidationError, sendInputValidationError } from "../validation/input-validation.js";
 import { getNotificationProvider } from "./provider.js";
+import { resolveInAppNotificationTarget } from "./notification-target-resolver.js";
 import {
   createNotificationRule,
   createNotificationTemplate,
@@ -66,6 +67,14 @@ export async function listInAppNotificationsHandler(request: Request, response: 
 export async function markInAppNotificationReadHandler(request: Request, response: Response) {
   try {
     return sendOk(response, await markInAppNotificationRead(prisma, actorFrom(request), routeParam(request.params.notificationId)));
+  } catch (error) {
+    return sendNotificationError(response, error);
+  }
+}
+
+export async function resolveInAppNotificationTargetHandler(request: Request, response: Response) {
+  try {
+    return sendOk(response, await resolveInAppNotificationTarget(prisma, actorFrom(request), routeParam(request.params.notificationId)));
   } catch (error) {
     return sendNotificationError(response, error);
   }

@@ -84,6 +84,7 @@ import {
   listNotificationConfigHandler,
   markAllInAppNotificationsReadHandler,
   markInAppNotificationReadHandler,
+  resolveInAppNotificationTargetHandler,
   manualLicenseNotificationHandler,
   metaWebhookHandler,
   processNotificationJobsHandler,
@@ -605,6 +606,7 @@ export function createApp() {
   app.post("/v1/faq/threads/:threadId/promote-to-wiki", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, promoteFaqThreadToWikiHandler);
   app.get("/v1/in-app-notifications", requireAuth, requireRole(commercialAllRoles), listInAppNotificationsHandler);
   app.post("/v1/in-app-notifications/read-all", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, markAllInAppNotificationsReadHandler);
+  app.post("/v1/in-app-notifications/:notificationId/resolve", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, resolveInAppNotificationTargetHandler);
   app.post("/v1/in-app-notifications/:notificationId/read", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, markInAppNotificationReadHandler);
   if (env.enableLegacySylembra) {
     app.get("/v1/reports/licenses/expired", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), expiredLicensesReportHandler);
