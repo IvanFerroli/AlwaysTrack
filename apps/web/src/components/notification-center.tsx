@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { api } from "../api";
+import { resolveNotificationNavigation, type NotificationNavigate, type NotificationNavigationSource } from "../notification-navigation";
+import { useDismissibleLayer } from "./dismissible-layer";
 
-interface InAppNotificationItem {
+interface InAppNotificationItem extends NotificationNavigationSource {
   id: string;
   type: string;
   title: string;
@@ -25,7 +27,7 @@ function formatDateTimeBr(value: string | null | undefined) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
-export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string | null) => void }) {
+export function NotificationCenter({ onNavigate }: { onNavigate: NotificationNavigate }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<InAppNotificationItem[]>([]);
   const [groups, setGroups] = useState<NotificationGroup[]>([]);
@@ -33,18 +35,17 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
   const [loading, setLoading] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [selectedType, setSelectedType] = useState("");
+  const [navigationMessage, setNavigationMessage] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    popoverRef.current?.querySelector<HTMLElement>("button:not(:disabled)")?.focus();
-  }, [open]);
-
-  function closeAndRestoreFocus() {
-    setOpen(false);
-    queueMicrotask(() => triggerRef.current?.focus());
-  }
+  useDismissibleLayer({
+    open,
+    layerRef: popoverRef,
+    triggerRef,
+    initialFocus: () => popoverRef.current?.querySelector<HTMLElement>("button:not(:disabled)") ?? null,
+    onDismiss: () => setOpen(false)
+  });
 
   async function loadNotifications() {
     setLoading(true);
@@ -59,6 +60,9 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
       setItems(result.items);
       setGroups(result.groups);
       setUnread(result.unread);
+      setNavigationMessage(null);
+    } catch (caught) {
+      setNavigationMessage(caught instanceof Error ? caught.message : "Não foi possível carregar as notificações.");
     } finally {
       setLoading(false);
     }
@@ -69,21 +73,43 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
   }, [unreadOnly, selectedType]);
 
   async function markRead(item: InAppNotificationItem) {
-    if (!item.readAt) {
-      await api(`/v1/in-app-notifications/${item.id}/read`, { method: "POST" });
-      await loadNotifications();
-    }
+    if (item.readAt) return;
+    await api(`/v1/in-app-notifications/${item.id}/read`, { method: "POST" });
+    const readAt = new Date().toISOString();
+    setItems((current) => unreadOnly
+      ? current.filter((candidate) => candidate.id !== item.id)
+      : current.map((candidate) => candidate.id === item.id ? { ...candidate, readAt } : candidate));
+    setUnread((current) => Math.max(current - 1, 0));
+    setGroups((current) => current.map((group) => group.type === item.type ? { ...group, unread: Math.max(group.unread - 1, 0) } : group));
   }
 
   async function markAllRead() {
-    await api("/v1/in-app-notifications/read-all", { method: "POST" });
-    await loadNotifications();
+    try {
+      await api("/v1/in-app-notifications/read-all", { method: "POST" });
+      const readAt = new Date().toISOString();
+      setItems((current) => unreadOnly ? [] : current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
+      setUnread(0);
+      setGroups((current) => current.map((group) => ({ ...group, unread: 0 })));
+    } catch (caught) {
+      setNavigationMessage(caught instanceof Error ? caught.message : "Não foi possível marcar as notificações como lidas.");
+    }
   }
 
   async function openNotification(item: InAppNotificationItem) {
-    await markRead(item);
+    const navigation = resolveNotificationNavigation(item);
+    if (navigation.state === "UNAVAILABLE" || !navigation.href) {
+      setNavigationMessage(navigation.message);
+      return;
+    }
+    try {
+      await markRead(item);
+    } catch (caught) {
+      setNavigationMessage(caught instanceof Error ? caught.message : "Não foi possível atualizar esta notificação.");
+      return;
+    }
     setOpen(false);
-    onNavigate(item.href);
+    window.history.replaceState(null, "", navigation.href);
+    onNavigate(navigation.href, navigation);
   }
 
   return (
@@ -112,12 +138,6 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
           className="notification-popover"
           role="dialog"
           aria-labelledby="notification-popover-title"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              closeAndRestoreFocus();
-            }
-          }}
         >
           <div className="notification-popover-header">
             <span>
@@ -138,6 +158,7 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
               </button>
             ) : null}
           </div>
+          {navigationMessage ? <p className="muted" role="status">{navigationMessage}</p> : null}
           {groups.length > 0 ? (
             <div className="notification-groups" aria-label="Tipos de notificações">
               {groups.map((group) => (
@@ -156,16 +177,20 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (href?: string 
           {loading && items.length === 0 ? <p className="muted">Carregando...</p> : null}
           {!loading && items.length === 0 ? <p className="muted">Nenhuma notificação neste filtro</p> : null}
           <div className="notification-list">
-            {items.map((item) => (
-              <button className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} type="button" onClick={() => void openNotification(item)}>
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>{formatDateTimeBr(item.createdAt)} / {item.type}</small>
-                </span>
-                {item.body ? <em>{item.body}</em> : null}
-                {item.href ? <small className="notification-target">{item.href}</small> : null}
-              </button>
-            ))}
+            {items.map((item) => {
+              const navigation = resolveNotificationNavigation(item);
+              return (
+                <button className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} type="button" onClick={() => void openNotification(item)}>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{formatDateTimeBr(item.createdAt)} / {item.type}</small>
+                  </span>
+                  {item.body ? <em>{item.body}</em> : null}
+                  {navigation.state === "UNAVAILABLE" ? <small className="notification-target">Alvo indisponível</small> : null}
+                  {navigation.state === "FALLBACK" ? <small className="notification-target">Visão relacionada disponível</small> : null}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}

@@ -41,6 +41,12 @@ import { api, apiBaseUrl, appMode, appName, demoMode } from "./api";
 import { BrandMark } from "./components/brand";
 import { NotificationCenter } from "./components/notification-center";
 import {
+  resolveNotificationNavigation,
+  type NotificationNavigate,
+  type NotificationNavigationIntent,
+  type NotificationNavigationResult
+} from "./notification-navigation";
+import {
   ConfirmButton,
   InfoTip,
   OperationalFilters,
@@ -84,6 +90,7 @@ interface GlobalSearchGroup {
 
 type ViewKey =
   | "dashboard"
+  | "supportSchedules"
   | "supportPauses"
   | "supportPerformance"
   | "supportCampaigns"
@@ -121,8 +128,9 @@ type IconName =
   | "workflow"
   | "scan";
 
-type ViewIntent = {
-  faq?: { status?: string };
+type ViewIntent = Omit<NotificationNavigationIntent, "query" | "faq" | "announcements"> & {
+  query?: Record<string, string>;
+  faq?: { status?: string; threadId?: string };
   announcements?: { slug?: string | null };
 };
 
@@ -4323,72 +4331,18 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     };
   }, [user.role]);
 
-  function openNotificationHref(href?: string | null) {
-    if (!href) return;
-    const path = href.split("?")[0].replace(/\/$/, "") || href;
-    if (href.startsWith("/wiki/")) {
-      window.location.assign(href);
+  const openNotificationHref: NotificationNavigate = (href, suppliedNavigation) => {
+    const navigation: NotificationNavigationResult = suppliedNavigation ?? resolveNotificationNavigation({ href });
+    if (navigation.state === "UNAVAILABLE" || !navigation.view || !navigation.href) return;
+    const key = navigation.view as ViewKey;
+    if (!visibleNavByKey.has(key)) return;
+    if (key === "wiki" && navigation.intent.wiki?.slug) {
+      window.location.assign(navigation.href);
       return;
     }
-    if (path === "/wiki") {
-      openView("wiki");
-      return;
-    }
-    if (href.startsWith("/avisos/")) {
-      openView("announcements", { announcements: { slug: href.slice("/avisos/".length).split("?")[0] } });
-      window.history.replaceState(null, "", href);
-      return;
-    }
-    if (path === "/avisos") {
-      openView("announcements");
-      return;
-    }
-    if (path === "/scriptoteca") {
-      openView("scriptLibrary");
-      return;
-    }
-    if (path === "/faq") {
-      openView("faq");
-      return;
-    }
-    if (path === "/notas") {
-      openView("dashboard");
-      return;
-    }
-    if (path === "/campanhas") {
-      openView("supportCampaigns");
-      return;
-    }
-    if (path === "/ranking") {
-      openView("supportPerformance");
-      return;
-    }
-    if (path === "/extratos") {
-      openView("supportPerformance");
-      return;
-    }
-    if (path === "/pausas") {
-      openView("supportPauses");
-      return;
-    }
-    if (path === "/performance") {
-      openView("supportPerformance");
-      return;
-    }
-    if (path === "/audit") {
-      openView("audit");
-      return;
-    }
-    if (path === "/settings") {
-      openView("settings");
-      return;
-    }
-    if (path === "/profile") {
-      openView("profile");
-      return;
-    }
-    window.location.assign(href);
-  }
+    openView(key, navigation.intent as ViewIntent);
+    window.history.replaceState(null, "", navigation.href);
+  };
 
   useEffect(() => {
     function openHelp(event: Event) {
@@ -4649,7 +4603,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "settings" ? (
           <OrganizationSettingsView onSaved={setOrganizationSettings} onOpenAudit={() => openView("audit")} />
         ) : activeItem.key === "profile" ? (
-          <ProfileView user={user} onProfileSaved={onUserChange} />
+          <ProfileView user={user} onProfileSaved={onUserChange} onNavigate={openNotificationHref} />
         ) : activeItem.key === "help" ? (
           <HelpView user={user} />
         ) : (
