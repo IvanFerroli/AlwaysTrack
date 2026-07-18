@@ -92,21 +92,26 @@ const supportDashboard = {
   },
   performance: {
     summary: [
-      { metric: "CSAT", latest: 93, average: 91.8, samples: 120, aggregation: "WEIGHTED" },
-      { metric: "PRODUCTIVITY", latest: 84, average: 80, samples: 4, aggregation: "SIMPLE" },
-      { metric: "SLA", latest: 92, average: 88.5, samples: 140, aggregation: "WEIGHTED" },
-      { metric: "RECLAME_AQUI_OPEN", latest: 1, average: 2, samples: 4, aggregation: "SIMPLE" }
+      { metric: "CSAT_SCORE", definitionVersion: 2, unit: "SCORE_1_5", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null, latest: 4.4, average: 4.3, samples: 80, aggregation: "WEIGHTED_MEAN" },
+      { metric: "SLA_DURATION", definitionVersion: 2, unit: "DURATION_SECONDS", channel: null, granularity: "REPORTED_INTERVAL", observationType: "ACTUAL", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null, latest: 778, average: 778, samples: 40, aggregation: "WEIGHTED_MEAN" },
+      { metric: "SATISFACTION_RATE", definitionVersion: 2, unit: "PERCENT", channel: "TIKTOK", granularity: "REPORTED_MONTH", observationType: "ACTUAL", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null, latest: 82.8, average: 82.8, samples: 100, aggregation: "RATIO" },
+      { metric: "FIRST_RESPONSE_TIME", definitionVersion: 2, unit: "DURATION_SECONDS", channel: "TIKTOK", granularity: "REPORTED_MONTH", observationType: "ACTUAL", scopeType: "ORGANIZATION", userId: null, teamId: null, teamLabel: null, latest: 9300, average: 9300, samples: 20, aggregation: "WEIGHTED_MEAN" }
     ],
     entries: []
   },
   campaigns: [{
     id: "campaign-1",
-    name: "CSAT acima de 92",
-    metric: "CSAT",
-    targetValue: 92,
-    comparison: "GTE",
+    name: "Resposta TikTok sob controle",
+    metric: "FIRST_RESPONSE_TIME",
+    definitionVersion: 2,
+    unit: "DURATION_SECONDS",
+    channel: "TIKTOK",
+    granularity: "REPORTED_MONTH",
+    observationType: "ACTUAL",
+    targetValue: 9300,
+    comparison: "LTE",
     endsAt: "2026-08-07T02:59:59.999Z",
-    result: { current: 93, achieved: true, progressPercent: 100 }
+    result: { current: 778, achieved: true, progressPercent: 100 }
   }]
 };
 
@@ -188,9 +193,12 @@ describe("DashboardView SAC operational coverage", () => {
     expect(await screen.findByRole("img", { name: "Sobreposição de pausas e capacidade disponível por horário" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /SAC ativos: 3/ })).toHaveTextContent("Cobertura mínima: 2");
     expect(screen.getByText("Ana SAC, Bruno SAC")).toBeInTheDocument();
-    expect(screen.getByText("93%")).toBeInTheDocument();
-    expect(screen.getByText("CSAT acima de 92")).toBeInTheDocument();
-    expect(screen.getByText(/Na meta · atual 93%/)).toBeInTheDocument();
+    expect(screen.getByText("4,4 / 5")).toBeInTheDocument();
+    expect(screen.getByText("12min58s")).toBeInTheDocument();
+    expect(screen.getByText("82,8%")).toBeInTheDocument();
+    expect(screen.getByText("2h35min")).toBeInTheDocument();
+    expect(screen.getByText("Resposta TikTok sob controle")).toBeInTheDocument();
+    expect(screen.getByText(/Na meta · atual 12min58s/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /SAC ativos: 3/ }));
     await user.click(screen.getByRole("button", { name: /Pausas reservadas: 3/ }));
@@ -200,7 +208,7 @@ describe("DashboardView SAC operational coverage", () => {
     await user.click(screen.getByRole("button", { name: "Gerenciar pausas" }));
     await user.click(screen.getByRole("button", { name: /12:00 a 12:30: 2 de 2 em pausa/ }));
     await user.click(screen.getByRole("button", { name: "Abrir performance" }));
-    await user.click(screen.getByRole("button", { name: /CSAT acima de 92/ }));
+    await user.click(screen.getByRole("button", { name: /Resposta TikTok sob controle/ }));
     await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));
     expect(screen.getByText("Ana SAC")).toBeInTheDocument();
     expect(screen.getByText("Bruno SAC")).toBeInTheDocument();
@@ -260,7 +268,7 @@ describe("DashboardView SAC operational coverage", () => {
     expect(await screen.findByText("Livre")).toBeInTheDocument();
     expect(screen.getByText("CUSTOM")).toBeInTheDocument();
     expect(screen.getAllByText("Sem lançamento").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /CSAT acima de 92: sem medição/ })).toHaveTextContent("≤");
+    expect(screen.getByRole("button", { name: /Resposta TikTok sob controle: sem medição/ })).toHaveTextContent("≤");
     expect(screen.getByRole("button", { name: /SLA em evolução: em evolução/ })).toBeInTheDocument();
     expect(screen.getByText("Comunicado interno")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Mudança crítica/ }));

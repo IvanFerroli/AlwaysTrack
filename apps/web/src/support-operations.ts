@@ -1,7 +1,30 @@
-import type { CurrentUser } from "@alwaystrack/shared";
+import {
+  getSupportMetricDefinition,
+  supportMetricDefinitions,
+  supportMetricKeys as sharedSupportMetricKeys,
+  writableSupportMetricKeys as sharedWritableSupportMetricKeys,
+  type CurrentUser,
+  type SupportMetricAggregation,
+  type SupportMetricDefinition,
+  type SupportMetricGranularity,
+  type SupportMetricKey,
+  type SupportMetricUnit,
+  type SupportObservationType,
+  type WritableSupportMetricKey
+} from "@alwaystrack/shared";
 
-export const supportMetricKeys = ["CSAT", "PRODUCTIVITY", "SLA", "RECLAME_AQUI_OPEN"] as const;
-export type SupportMetricKey = (typeof supportMetricKeys)[number];
+export type {
+  SupportMetricAggregation,
+  SupportMetricDefinition,
+  SupportMetricGranularity,
+  SupportMetricKey,
+  SupportMetricUnit,
+  SupportObservationType,
+  WritableSupportMetricKey
+} from "@alwaystrack/shared";
+
+export const supportMetricKeys = [...sharedSupportMetricKeys];
+export const writableSupportMetricKeys = [...sharedWritableSupportMetricKeys];
 
 export const supportScopeTypes = ["ORGANIZATION", "USER", "TEAM"] as const;
 export type SupportScopeType = (typeof supportScopeTypes)[number];
@@ -118,6 +141,13 @@ export interface SupportPausesResponse {
 export interface SupportKpiEntry {
   id: string;
   metric: SupportMetricKey;
+  definitionVersion: number;
+  unit: SupportMetricUnit;
+  channel: string | null;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
+  rawValue: string | null;
+  dataState: "AVAILABLE";
   value: number;
   numerator: number | null;
   denominator: number | null;
@@ -148,6 +178,11 @@ export interface SupportCampaign {
   name: string;
   description: string | null;
   metric: SupportMetricKey;
+  definitionVersion: number;
+  unit: SupportMetricUnit;
+  channel: string | null;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
   targetValue: number;
   comparison: SupportComparison;
   scopeType: SupportScopeType;
@@ -176,7 +211,7 @@ export interface SupportCampaign {
     current: number | null;
     average: number | null;
     samples: number;
-    aggregation: "WEIGHTED" | "SIMPLE";
+    aggregation: SupportMetricAggregation;
     achieved: boolean;
     progressPercent: number;
     frozenAt: string | null;
@@ -187,6 +222,9 @@ export interface SupportCampaign {
       periodEnd: string;
       value: number;
       samples: number;
+      channel: string | null;
+      granularity: SupportMetricGranularity;
+      observationType: SupportObservationType;
     }>;
     provenance: Array<{
       entryId: string | null;
@@ -200,15 +238,26 @@ export interface SupportCampaign {
 
 export interface SupportPerformanceResponse {
   canManage: boolean;
+  dictionaryVersion: number;
+  definitions: SupportMetricDefinition[];
   period: { from: string; to: string };
   agents: SupportAgent[];
   teams: SupportTeam[];
   summary: Array<{
     metric: SupportMetricKey;
+    definitionVersion: number;
+    unit: SupportMetricUnit;
+    channel: string | null;
+    granularity: SupportMetricGranularity;
+    observationType: SupportObservationType;
+    scopeType: SupportScopeType;
+    userId: string | null;
+    teamId: string | null;
+    teamLabel: string | null;
     latest: number | null;
     average: number | null;
     samples: number;
-    aggregation: "WEIGHTED" | "SIMPLE";
+    aggregation: SupportMetricAggregation;
   }>;
   entries: SupportKpiEntry[];
   pendingReviewCount: number;
@@ -217,15 +266,20 @@ export interface SupportPerformanceResponse {
 
 export interface SupportCampaignsResponse {
   canManage: boolean;
+  dictionaryVersion: number;
+  definitions: SupportMetricDefinition[];
   items: SupportCampaign[];
   teams: SupportTeam[];
 }
 
 export interface SupportKpiDraft {
   id: string;
-  metric: SupportMetricKey;
+  metric: WritableSupportMetricKey;
   value: string;
   sampleSize: string;
+  channel: string;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
   scopeType: SupportScopeType;
   userId: string;
   teamLabel: string;
@@ -240,9 +294,12 @@ export interface SupportCampaignDraft {
   id: string;
   name: string;
   description: string;
-  metric: SupportMetricKey;
+  metric: WritableSupportMetricKey;
   targetValue: string;
   comparison: SupportComparison;
+  channel: string;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
   scopeType: SupportScopeType;
   userId: string;
   teamLabel: string;
@@ -252,11 +309,18 @@ export interface SupportCampaignDraft {
   endsAt: string;
 }
 
-export const supportMetricLabels: Record<SupportMetricKey, string> = {
-  CSAT: "CSAT",
-  PRODUCTIVITY: "Produtividade",
-  SLA: "SLA",
-  RECLAME_AQUI_OPEN: "Reclame Aqui em aberto"
+export const supportMetricLabels = Object.fromEntries(
+  supportMetricDefinitions.map((definition) => [definition.key, definition.label])
+) as Record<SupportMetricKey, string>;
+
+export const supportGranularityLabels: Record<SupportMetricGranularity, string> = {
+  REPORTED_INTERVAL: "Intervalo informado",
+  REPORTED_MONTH: "Fechamento mensal"
+};
+
+export const supportObservationTypeLabels: Record<SupportObservationType, string> = {
+  ACTUAL: "Realizado",
+  EXPECTATION: "Expectativa"
 };
 
 export const supportScopeLabels: Record<SupportScopeType, string> = {
@@ -324,12 +388,156 @@ export function formatSupportTime(value: string, timezone = "America/Sao_Paulo")
   }).format(new Date(value));
 }
 
-export function formatSupportMetricValue(metric: SupportMetricKey, value: number | null) {
-  if (value === null) return "-";
-  if (metric === "CSAT" || metric === "SLA") {
-    return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+export function supportMetricDefinition(metric: string, unit?: SupportMetricUnit): SupportMetricDefinition {
+  const definition = getSupportMetricDefinition(metric);
+  if (definition && (!unit || definition.unit === unit)) return definition;
+  if (unit) {
+    return {
+      key: metric,
+      definitionVersion: definition?.definitionVersion ?? 0,
+      label: definition?.label ?? metric,
+      unit,
+      direction: definition?.direction ?? "HIGHER_IS_BETTER",
+      aggregation: definition?.aggregation ?? "MEAN",
+      status: definition?.status ?? "LEGACY_READ_ONLY"
+    };
   }
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  return definition ?? {
+    key: metric,
+    definitionVersion: 0,
+    label: metric,
+    unit: "COUNT",
+    direction: "HIGHER_IS_BETTER",
+    aggregation: "MEAN",
+    status: "LEGACY_READ_ONLY"
+  };
+}
+
+export function formatSupportDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  if (hours) return `${hours}h${minutes ? `${minutes}min` : ""}${remainingSeconds ? `${remainingSeconds}s` : ""}`;
+  if (minutes) return `${minutes}min${remainingSeconds ? `${remainingSeconds}s` : ""}`;
+  return `${remainingSeconds}s`;
+}
+
+export function parseSupportDuration(value: string) {
+  const normalized = value.trim().toLowerCase();
+  const match = normalized.match(/^(?:(\d+)\s*h)?\s*(?:(\d+)\s*min)?\s*(?:(\d+)\s*s)?$/);
+  if (!match || !match.slice(1).some((part) => part !== undefined)) {
+    throw new Error("Informe a duração como 53s, 12min58s ou 1h9min.");
+  }
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+export function parseSupportMetricValue(metric: string, value: string, unit?: SupportMetricUnit) {
+  const definition = supportMetricDefinition(metric, unit);
+  if (definition.unit === "DURATION_SECONDS") return parseSupportDuration(value);
+  const parsed = Number(value.trim().replace(",", "."));
+  if (!Number.isFinite(parsed)) throw new Error("Informe um valor válido para a métrica.");
+  return parsed;
+}
+
+export function formatSupportMetricValue(metric: string, value: number | null, unit?: SupportMetricUnit) {
+  if (value === null) return "-";
+  const definition = supportMetricDefinition(metric, unit);
+  if (definition.unit === "DURATION_SECONDS") return formatSupportDuration(value);
+  const formatted = value.toLocaleString("pt-BR", {
+    maximumFractionDigits: definition.unit === "COUNT" ? 0 : 2
+  });
+  if (definition.unit === "SCORE_1_5") return `${formatted} / 5`;
+  if (definition.unit === "PERCENT") return `${formatted}%`;
+  return formatted;
+}
+
+export function formatSupportMetricInput(metric: string, value: number, unit?: SupportMetricUnit) {
+  return supportMetricDefinition(metric, unit).unit === "DURATION_SECONDS"
+    ? formatSupportDuration(value)
+    : String(value);
+}
+
+export function supportMetricInputHint(metric: string) {
+  const definition = supportMetricDefinition(metric);
+  if (definition.unit === "DURATION_SECONDS") return "Ex.: 53s, 12min58s ou 1h9min";
+  if (definition.unit === "SCORE_1_5") return "Nota de 1 a 5";
+  if (definition.unit === "PERCENT") return "Percentual de 0 a 100";
+  return "Número inteiro";
+}
+
+export function supportMetricDenominatorLabel(metric: string) {
+  const definition = supportMetricDefinition(metric);
+  if (definition.aggregation === "SUM" || definition.aggregation === "LATEST") return null;
+  if (definition.unit === "SCORE_1_5" || definition.unit === "PERCENT") return "Respostas consideradas";
+  return "Atendimentos considerados";
+}
+
+export function supportDefaultComparison(metric: string): SupportComparison {
+  return supportMetricDefinition(metric).direction === "LOWER_IS_BETTER" ? "LTE" : "GTE";
+}
+
+export function supportChannelLabel(channel: string | null) {
+  if (!channel) return "Todos os canais";
+  const knownLabels: Record<string, string> = { TIKTOK: "TikTok", WHATSAPP: "WhatsApp", EMAIL: "E-mail" };
+  if (knownLabels[channel]) return knownLabels[channel];
+  return channel.toLowerCase().replace(/(^|[_-])\p{L}/gu, (match) => match.replace(/[_-]/, " ").toUpperCase());
+}
+
+export function supportSeriesContext(item: {
+  channel: string | null;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
+}) {
+  return `${supportChannelLabel(item.channel)} · ${supportGranularityLabels[item.granularity] ?? "Período não informado"} · ${supportObservationTypeLabels[item.observationType] ?? "Tipo não informado"}`;
+}
+
+export function supportSeriesKey(item: {
+  metric: string;
+  definitionVersion: number;
+  unit: SupportMetricUnit;
+  channel: string | null;
+  granularity: SupportMetricGranularity;
+  observationType: SupportObservationType;
+  scopeType?: SupportScopeType;
+  userId?: string | null;
+  teamId?: string | null;
+  teamLabel?: string | null;
+}) {
+  return [
+    item.metric,
+    item.definitionVersion,
+    item.unit,
+    item.channel ?? "",
+    item.granularity,
+    item.observationType,
+    item.scopeType ?? "",
+    item.userId ?? "",
+    item.teamId ?? item.teamLabel ?? ""
+  ].join("|");
+}
+
+export function isSameSupportSeries(
+  entry: Pick<SupportKpiEntry, "metric" | "definitionVersion" | "unit" | "channel" | "granularity" | "observationType" | "scopeType" | "userId" | "teamId" | "teamLabel">,
+  series: SupportPerformanceResponse["summary"][number]
+) {
+  return supportSeriesKey(entry) === supportSeriesKey(series);
+}
+
+export function supportAggregationDetail(
+  item: Pick<SupportPerformanceResponse["summary"][number], "aggregation" | "samples" | "unit">
+) {
+  const count = item.samples.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  if (item.aggregation === "LATEST") return "Último lançamento aprovado";
+  if (item.aggregation === "SUM") return `${count} lançamento(s) somado(s)`;
+  if (item.aggregation === "RATIO") return item.samples ? `${count} respostas na taxa consolidada` : "Média simples dos lançamentos";
+  if (item.aggregation === "WEIGHTED_MEAN") {
+    return `${count} ${item.unit === "SCORE_1_5" ? "respostas" : "atendimentos"} na média ponderada`;
+  }
+  return `${count} lançamento(s) na média simples`;
 }
 
 export function supportScopeLabel(item: Pick<SupportCampaign | SupportKpiEntry, "scopeType" | "user" | "team" | "teamLabel">) {
@@ -341,9 +549,12 @@ export function supportScopeLabel(item: Pick<SupportCampaign | SupportKpiEntry, 
 export function emptySupportKpiDraft(today = supportDateInputValue()): SupportKpiDraft {
   return {
     id: "",
-    metric: "CSAT",
+    metric: "CSAT_SCORE",
     value: "",
     sampleSize: "",
+    channel: "",
+    granularity: "REPORTED_INTERVAL",
+    observationType: "ACTUAL",
     scopeType: "ORGANIZATION",
     userId: "",
     teamLabel: "",
@@ -356,11 +567,16 @@ export function emptySupportKpiDraft(today = supportDateInputValue()): SupportKp
 }
 
 export function supportKpiDraftFromEntry(entry: SupportKpiEntry): SupportKpiDraft {
+  const definition = supportMetricDefinition(entry.metric, entry.unit);
+  if (definition.status !== "CURRENT") throw new Error("Métricas legadas estão disponíveis somente para consulta.");
   return {
     id: entry.id,
-    metric: entry.metric,
-    value: String(entry.value),
+    metric: entry.metric as WritableSupportMetricKey,
+    value: formatSupportMetricInput(entry.metric, entry.value, entry.unit),
     sampleSize: entry.denominator == null ? "" : String(entry.denominator),
+    channel: entry.channel ?? "",
+    granularity: entry.granularity,
+    observationType: entry.observationType,
     scopeType: entry.scopeType,
     userId: entry.userId ?? "",
     teamLabel: entry.teamLabel ?? "",
@@ -373,18 +589,27 @@ export function supportKpiDraftFromEntry(entry: SupportKpiEntry): SupportKpiDraf
 }
 
 export function supportKpiPayloadFromDraft(draft: SupportKpiDraft) {
+  const value = parseSupportMetricValue(draft.metric, draft.value);
   if (draft.id) {
     return {
-      value: Number(draft.value),
+      value,
       sampleSize: draft.sampleSize ? Number(draft.sampleSize) : undefined,
+      channel: draft.channel.trim().toUpperCase() || null,
+      granularity: draft.granularity,
+      observationType: draft.observationType,
+      rawValue: draft.value.trim(),
       source: draft.source || null,
       note: draft.note || null
     };
   }
   return {
     metric: draft.metric,
-    value: Number(draft.value),
+    value,
     sampleSize: draft.sampleSize ? Number(draft.sampleSize) : undefined,
+    channel: draft.channel.trim().toUpperCase() || null,
+    granularity: draft.granularity,
+    observationType: draft.observationType,
+    rawValue: draft.value.trim(),
     scopeType: draft.scopeType,
     userId: draft.scopeType === "USER" ? draft.userId : undefined,
     teamLabel: draft.scopeType === "TEAM" ? draft.teamLabel : undefined,
@@ -401,9 +626,12 @@ export function emptySupportCampaignDraft(today = supportDateInputValue()): Supp
     id: "",
     name: "",
     description: "",
-    metric: "CSAT",
+    metric: "CSAT_SCORE",
     targetValue: "",
     comparison: "GTE",
+    channel: "",
+    granularity: "REPORTED_INTERVAL",
+    observationType: "ACTUAL",
     scopeType: "ORGANIZATION",
     userId: "",
     teamLabel: "",
@@ -415,13 +643,18 @@ export function emptySupportCampaignDraft(today = supportDateInputValue()): Supp
 }
 
 export function supportCampaignDraftFromItem(item: SupportCampaign): SupportCampaignDraft {
+  const definition = supportMetricDefinition(item.metric, item.unit);
+  if (definition.status !== "CURRENT") throw new Error("Campanhas legadas estão disponíveis somente para consulta.");
   return {
     id: item.id,
     name: item.name,
     description: item.description ?? "",
-    metric: item.metric,
-    targetValue: String(item.targetValue),
+    metric: item.metric as WritableSupportMetricKey,
+    targetValue: formatSupportMetricInput(item.metric, item.targetValue, item.unit),
     comparison: item.comparison,
+    channel: item.channel ?? "",
+    granularity: item.granularity,
+    observationType: item.observationType,
     scopeType: item.scopeType,
     userId: item.userId ?? "",
     teamLabel: item.teamLabel ?? "",
@@ -437,8 +670,11 @@ export function supportCampaignPayloadFromDraft(draft: SupportCampaignDraft) {
     name: draft.name.trim(),
     description: draft.description.trim() || null,
     metric: draft.metric,
-    targetValue: Number(draft.targetValue),
+    targetValue: parseSupportMetricValue(draft.metric, draft.targetValue),
     comparison: draft.comparison,
+    channel: draft.channel.trim().toUpperCase() || null,
+    granularity: draft.granularity,
+    observationType: draft.observationType,
     scopeType: draft.scopeType,
     userId: draft.scopeType === "USER" ? draft.userId : undefined,
     teamLabel: draft.scopeType === "TEAM" ? draft.teamLabel.trim() : undefined,

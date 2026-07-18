@@ -8,19 +8,26 @@ import {
   formatSupportDate,
   formatSupportMetricValue,
   isSupportManager,
+  supportAggregationDetail,
   supportCampaignDraftFromItem,
   supportCampaignPayloadFromDraft,
   supportCampaignStatusLabels,
+  supportDefaultComparison,
+  supportGranularityLabels,
+  supportMetricDefinition,
+  supportMetricInputHint,
   supportMetricKeys,
   supportMetricLabels,
+  supportObservationTypeLabels,
+  supportSeriesContext,
   supportScopeLabel,
   supportScopeLabels,
   supportScopeTypes,
+  writableSupportMetricKeys,
   type SupportAgent,
   type SupportCampaign,
   type SupportCampaignDraft,
   type SupportCampaignsResponse,
-  type SupportMetricKey,
   type SupportPerformanceResponse,
   type SupportTeam
 } from "../support-operations";
@@ -40,9 +47,9 @@ function CampaignTrend({ campaign }: { campaign: SupportCampaign }) {
         <li
           key={point.entryId ?? `${point.periodEnd}-${index}`}
           style={{ height: `${Math.max(point.value / maximum * 100, 6)}%` }}
-          title={`${formatSupportDate(point.periodEnd)}: ${formatSupportMetricValue(campaign.metric, point.value)}`}
+          title={`${formatSupportDate(point.periodEnd)}: ${formatSupportMetricValue(campaign.metric, point.value, campaign.unit)}`}
         >
-          <span className="sr-only">{formatSupportDate(point.periodEnd)}: {formatSupportMetricValue(campaign.metric, point.value)}</span>
+          <span className="sr-only">{formatSupportDate(point.periodEnd)}: {formatSupportMetricValue(campaign.metric, point.value, campaign.unit)}</span>
         </li>
       ))}
     </ol>
@@ -55,7 +62,7 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
   const [agents, setAgents] = useState<SupportAgent[]>([]);
   const [teams, setTeams] = useState<SupportTeam[]>([]);
   const [draft, setDraft] = useState<SupportCampaignDraft>(emptySupportCampaignDraft);
-  const [filters, setFilters] = useState({ status: "", metric: "" });
+  const [filters, setFilters] = useState({ status: "", metric: "", channel: "", granularity: "", observationType: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,8 +134,14 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
   const filteredItems = useMemo(() => (items ?? []).filter((item) => {
     if (filters.status && item.status !== filters.status) return false;
     if (filters.metric && item.metric !== filters.metric) return false;
+    if (filters.channel === "__NONE__" && item.channel) return false;
+    if (filters.channel && filters.channel !== "__NONE__" && item.channel !== filters.channel) return false;
+    if (filters.granularity && item.granularity !== filters.granularity) return false;
+    if (filters.observationType && item.observationType !== filters.observationType) return false;
     return true;
   }), [filters, items]);
+  const channels = useMemo(() => [...new Set((items ?? []).map((item) => item.channel).filter((channel): channel is string => Boolean(channel)))].sort(), [items]);
+  const draftDefinition = supportMetricDefinition(draft.metric);
   const campaignSummary = useMemo(() => {
     const active = (items ?? []).filter((item) => item.status === "ACTIVE");
     const endingSoon = active.filter((item) => {
@@ -178,13 +191,13 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
             <label className="support-wide-field">Nome<input required maxLength={160} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label>
             <label>Métrica
               <select value={draft.metric} onChange={(event) => {
-                const metric = event.target.value as SupportMetricKey;
-                setDraft((current) => ({ ...current, metric, comparison: metric === "RECLAME_AQUI_OPEN" ? "LTE" : current.comparison }));
+                const metric = event.target.value as SupportCampaignDraft["metric"];
+                setDraft((current) => ({ ...current, metric, targetValue: "", comparison: supportDefaultComparison(metric) }));
               }}>
-                {supportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
+                {writableSupportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
               </select>
             </label>
-            <label>Meta<input required min={0} max={draft.metric === "CSAT" || draft.metric === "SLA" ? 100 : undefined} step={draft.metric === "RECLAME_AQUI_OPEN" ? 1 : "any"} type="number" value={draft.targetValue} onChange={(event) => setDraft((current) => ({ ...current, targetValue: event.target.value }))} /></label>
+            <label>Meta<input required inputMode={draftDefinition.unit === "COUNT" ? "numeric" : "decimal"} placeholder={supportMetricInputHint(draft.metric)} type="text" value={draft.targetValue} onChange={(event) => setDraft((current) => ({ ...current, targetValue: event.target.value }))} /></label>
             <fieldset className="support-segmented-field">
               <legend>Comparação</legend>
               <div>
@@ -192,6 +205,17 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
                 <label className={draft.comparison === "LTE" ? "active" : ""}><input type="radio" name="support-comparison" value="LTE" checked={draft.comparison === "LTE"} onChange={() => setDraft((current) => ({ ...current, comparison: "LTE" }))} /> ≤ No máximo</label>
               </div>
             </fieldset>
+            <label>Canal<input maxLength={40} placeholder="Ex.: TIKTOK" value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} /></label>
+            <label>Período da série
+              <select value={draft.granularity} onChange={(event) => setDraft((current) => ({ ...current, granularity: event.target.value as SupportCampaignDraft["granularity"] }))}>
+                {Object.entries(supportGranularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label>Tipo
+              <select value={draft.observationType} onChange={(event) => setDraft((current) => ({ ...current, observationType: event.target.value as SupportCampaignDraft["observationType"] }))}>
+                {Object.entries(supportObservationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
             <label>Escopo
               <select value={draft.scopeType} onChange={(event) => setDraft((current) => ({ ...current, scopeType: event.target.value as SupportCampaignDraft["scopeType"], userId: "", teamId: "", teamLabel: "" }))}>
                 {supportScopeTypes.map((scope) => <option key={scope} value={scope}>{supportScopeLabels[scope]}</option>)}
@@ -216,6 +240,9 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
           <div className="support-inline-filters">
             <label>Status<select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos</option>{Object.entries(supportCampaignStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
             <label>Métrica<select value={filters.metric} onChange={(event) => setFilters((current) => ({ ...current, metric: event.target.value }))}><option value="">Todas</option>{supportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}</select></label>
+            <label>Canal<select value={filters.channel} onChange={(event) => setFilters((current) => ({ ...current, channel: event.target.value }))}><option value="">Todos</option><option value="__NONE__">Sem canal</option>{channels.map((channel) => <option key={channel} value={channel}>{channel}</option>)}</select></label>
+            <label>Período<select value={filters.granularity} onChange={(event) => setFilters((current) => ({ ...current, granularity: event.target.value }))}><option value="">Todos</option>{Object.entries(supportGranularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>Tipo<select value={filters.observationType} onChange={(event) => setFilters((current) => ({ ...current, observationType: event.target.value }))}><option value="">Todos</option>{Object.entries(supportObservationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           </div>
         </div>
         {filteredItems.length ? (
@@ -225,10 +252,10 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
               <tbody>{filteredItems.map((item) => (
                 <tr key={item.id}>
                   <td><strong>{item.name}</strong>{item.description ? <small>{item.description}</small> : null}</td>
-                  <td>{supportMetricLabels[item.metric]}</td>
-                  <td><strong>{item.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(item.metric, item.targetValue)}</strong></td>
+                  <td>{supportMetricLabels[item.metric]}<small>{supportSeriesContext(item)}{supportMetricDefinition(item.metric, item.unit).status === "LEGACY_READ_ONLY" ? " · somente leitura" : ""}</small></td>
+                  <td><strong>{item.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(item.metric, item.targetValue, item.unit)}</strong></td>
                   <td className="support-campaign-result">
-                    <strong>{formatSupportMetricValue(item.metric, item.result.current)}</strong>
+                    <strong>{formatSupportMetricValue(item.metric, item.result.current, item.unit)}</strong>
                     <span className={`support-status ${item.result.current === null ? "draft" : item.result.achieved ? "active" : "paused"}`}>
                       {item.result.current === null ? "Sem medição" : item.result.achieved ? "Na meta" : "Fora da meta"}
                     </span>
@@ -236,16 +263,17 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
                       <i style={{ width: `${item.result.progressPercent}%` }} />
                     </span>
                     <CampaignTrend campaign={item} />
-                    <small>{item.result.samples} amostra(s){item.result.frozenAt ? ` · fechado em ${formatSupportDate(item.result.frozenAt)}` : ""}</small>
+                    <small>{supportAggregationDetail({ ...item.result, unit: item.unit })}{item.result.frozenAt ? ` · fechado em ${formatSupportDate(item.result.frozenAt)}` : ""}</small>
                   </td>
                   <td>{supportScopeLabel(item)}<small>{item.audience.members.length} pessoa(s)</small>{item.audience.members.length ? <details><summary>Ver público</summary><ul>{item.audience.members.map((member) => <li key={member.id}>{member.name}</li>)}</ul></details> : null}</td>
                   <td>{formatSupportDate(item.startsAt)}<small>até {formatSupportDate(item.endsAt)}</small></td>
                   <td><span className={`support-status ${item.status.toLowerCase()}`}>{supportCampaignStatusLabels[item.status]}</span></td>
                   {canManage ? <td><div className="inline-actions support-campaign-actions">
-                    {item.status === "DRAFT" ? <><button className="secondary small" type="button" disabled={saving} onClick={() => { setDraft(supportCampaignDraftFromItem(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={15} /> Editar</button><button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Publicar</button></> : null}
-                    {item.status === "ACTIVE" ? <button className="secondary small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "PAUSED")}><Pause size={15} /> Pausar</button> : null}
-                    {item.status === "PAUSED" ? <button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Retomar</button> : null}
-                    {item.status === "ACTIVE" || item.status === "PAUSED" ? <ConfirmButton confirmLabel="Confirmar encerramento" disabled={saving} onConfirm={() => void transitionCampaign(item.id, "CLOSED")}><CircleStop size={15} /> Encerrar</ConfirmButton> : null}
+                    {item.status === "DRAFT" && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <><button className="secondary small" type="button" disabled={saving} onClick={() => { setDraft(supportCampaignDraftFromItem(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}><Pencil size={15} /> Editar</button><button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Publicar</button></> : null}
+                    {item.status === "ACTIVE" && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <button className="secondary small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "PAUSED")}><Pause size={15} /> Pausar</button> : null}
+                    {item.status === "PAUSED" && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <button className="small" type="button" disabled={saving} onClick={() => void transitionCampaign(item.id, "ACTIVE")}><Play size={15} /> Retomar</button> : null}
+                    {(item.status === "ACTIVE" || item.status === "PAUSED") && supportMetricDefinition(item.metric, item.unit).status === "CURRENT" ? <ConfirmButton confirmLabel="Confirmar encerramento" disabled={saving} onConfirm={() => void transitionCampaign(item.id, "CLOSED")}><CircleStop size={15} /> Encerrar</ConfirmButton> : null}
+                    {supportMetricDefinition(item.metric, item.unit).status === "LEGACY_READ_ONLY" ? <span className="muted">Somente leitura</span> : null}
                     {item.status === "CLOSED" ? <span className="muted">Sem ações</span> : null}
                   </div></td> : null}
                 </tr>

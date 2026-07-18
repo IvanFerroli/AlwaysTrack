@@ -3,7 +3,22 @@ import { useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { OperationalState } from "../components/operational";
-import { formatSupportDate, formatSupportTime, isSupportManager, supportDateInputValue } from "../support-operations";
+import {
+  formatSupportDate,
+  formatSupportMetricValue,
+  formatSupportTime,
+  isSupportManager,
+  supportAggregationDetail,
+  supportMetricDefinition,
+  supportSeriesContext,
+  supportSeriesKey,
+  supportDateInputValue,
+  type SupportMetricAggregation,
+  type SupportMetricGranularity,
+  type SupportMetricUnit,
+  type SupportObservationType,
+  type SupportScopeType
+} from "../support-operations";
 import {
   formatSupportScheduleTime,
   supportCalendarTimezone,
@@ -39,13 +54,39 @@ interface SupportDashboardData {
     }>;
   };
   performance: {
-    summary: Array<{ metric: string; latest: number | null; average: number | null; samples: number; aggregation: "WEIGHTED" | "SIMPLE" }>;
-    entries: Array<{ id: string; metric: string; value: number; periodStart: string }>;
+    summary: Array<{
+      metric: string;
+      definitionVersion: number;
+      unit: SupportMetricUnit;
+      channel: string | null;
+      granularity: SupportMetricGranularity;
+      observationType: SupportObservationType;
+      scopeType: SupportScopeType;
+      userId: string | null;
+      teamId: string | null;
+      teamLabel: string | null;
+      latest: number | null;
+      average: number | null;
+      samples: number;
+      aggregation: SupportMetricAggregation;
+    }>;
+    entries: Array<{
+      id: string;
+      userId: string | null;
+      user: { id: string; name: string } | null;
+      teamId: string | null;
+      team: { id: string; name: string } | null;
+    }>;
   };
   campaigns: Array<{
     id: string;
     name: string;
     metric: string;
+    definitionVersion: number;
+    unit: SupportMetricUnit;
+    channel: string | null;
+    granularity: SupportMetricGranularity;
+    observationType: SupportObservationType;
     targetValue: number;
     comparison: string;
     endsAt: string;
@@ -81,13 +122,6 @@ interface OperationalKnowledgeData {
   };
 }
 
-const metricLabels: Record<string, string> = {
-  CSAT: "CSAT",
-  PRODUCTIVITY: "Produtividade",
-  SLA: "SLA",
-  RECLAME_AQUI_OPEN: "ReclameAqui abertos"
-};
-
 function formatTime(value: string) {
   return formatSupportTime(value);
 }
@@ -98,10 +132,17 @@ function formatDate(value: string) {
     : formatSupportDate(value);
 }
 
-function formatMetric(metric: string, value: number | null) {
-  if (value === null) return "-";
-  if (metric === "CSAT" || metric === "SLA") return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-  return value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+function dashboardSeriesScope(
+  item: SupportDashboardData["performance"]["summary"][number],
+  entries: SupportDashboardData["performance"]["entries"]
+) {
+  if (item.scopeType === "USER") {
+    return entries.find((entry) => entry.userId === item.userId)?.user?.name ?? "Pessoa";
+  }
+  if (item.scopeType === "TEAM") {
+    return entries.find((entry) => entry.teamId === item.teamId)?.team?.name ?? item.teamLabel ?? "Equipe";
+  }
+  return "Toda a operação";
 }
 
 function OverlapChart({ data }: { data: SupportDashboardData["pauses"] }) {
@@ -341,10 +382,13 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
           </div>
           <div className="support-quality-grid">
             {dashboard.performance.summary.map((item) => (
-              <div key={item.metric}>
-                <span>{metricLabels[item.metric] ?? item.metric}</span>
-                <strong>{formatMetric(item.metric, item.latest)}</strong>
-                <small>{item.samples ? `Média ${formatMetric(item.metric, item.average)}` : "Sem lançamento"}</small>
+              <div key={supportSeriesKey(item)}>
+                <span>{supportMetricDefinition(item.metric, item.unit).label}</span>
+                <strong>{formatSupportMetricValue(item.metric, item.aggregation === "SUM" || item.aggregation === "LATEST" ? item.average : item.latest, item.unit)}</strong>
+                <small>{dashboardSeriesScope(item, dashboard.performance.entries)} · {supportSeriesContext(item)}</small>
+                <small>{item.samples ? item.aggregation === "SUM" || item.aggregation === "LATEST"
+                  ? supportAggregationDetail(item)
+                  : `Consolidado ${formatSupportMetricValue(item.metric, item.average, item.unit)} · ${supportAggregationDetail(item)}` : "Sem lançamento"}</small>
               </div>
             ))}
           </div>
@@ -352,8 +396,9 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
             {dashboard.campaigns.map((campaign) => (
               <button key={campaign.id} type="button" aria-label={`${campaign.name}: ${campaign.result.current === null ? "sem medição" : campaign.result.achieved ? "na meta" : "em evolução"}`} onClick={() => onOpen("supportCampaigns")}>
                 <strong>{campaign.name}</strong>
-                <span>{metricLabels[campaign.metric] ?? campaign.metric} {campaign.comparison === "LTE" ? "≤" : "≥"} {formatMetric(campaign.metric, campaign.targetValue)}</span>
-                <small>{campaign.result.current === null ? "Sem medição" : `${campaign.result.achieved ? "Na meta" : "Em evolução"} · atual ${formatMetric(campaign.metric, campaign.result.current)}`} · até {formatDate(campaign.endsAt)}</small>
+                <span>{supportMetricDefinition(campaign.metric, campaign.unit).label} {campaign.comparison === "LTE" ? "≤" : "≥"} {formatSupportMetricValue(campaign.metric, campaign.targetValue, campaign.unit)}</span>
+                <small>{supportSeriesContext(campaign)}</small>
+                <small>{campaign.result.current === null ? "Sem medição" : `${campaign.result.achieved ? "Na meta" : "Em evolução"} · atual ${formatSupportMetricValue(campaign.metric, campaign.result.current, campaign.unit)}`} · até {formatDate(campaign.endsAt)}</small>
               </button>
             ))}
             {dashboard.campaigns.length ? null : <OperationalState state="empty" title="Sem campanha ativa" detail="A gestão pode criar uma meta operacional em Campanhas." />}

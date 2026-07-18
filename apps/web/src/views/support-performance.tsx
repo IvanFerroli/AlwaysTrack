@@ -8,20 +8,29 @@ import {
   emptySupportKpiDraft,
   formatSupportDate,
   formatSupportMetricValue,
+  isSameSupportSeries,
   isSupportManager,
   shiftSupportDate,
+  supportAggregationDetail,
   supportDateInputValue,
   supportDayBoundaryIso,
+  supportGranularityLabels,
   supportKpiDraftFromEntry,
   supportKpiPayloadFromDraft,
+  supportMetricDefinition,
+  supportMetricDenominatorLabel,
+  supportMetricInputHint,
   supportMetricKeys,
   supportMetricLabels,
+  supportObservationTypeLabels,
+  supportSeriesContext,
+  supportSeriesKey,
   supportScopeLabel,
   supportScopeLabels,
   supportScopeTypes,
+  writableSupportMetricKeys,
   type SupportKpiDraft,
   type SupportKpiEntry,
-  type SupportMetricKey,
   type SupportPerformanceResponse
 } from "../support-operations";
 import "../support-operations.css";
@@ -32,17 +41,19 @@ function errorMessage(caught: unknown, fallback: string) {
   return caught instanceof Error ? caught.message : fallback;
 }
 
-function MetricTrend({ metric, entries }: { metric: SupportMetricKey; entries: SupportKpiEntry[] }) {
-  const points = entries.filter((entry) => entry.metric === metric && entry.status === "APPROVED").slice(-12);
+type SupportSummary = SupportPerformanceResponse["summary"][number];
+
+function MetricTrend({ series, entries }: { series: SupportSummary; entries: SupportKpiEntry[] }) {
+  const points = entries.filter((entry) => entry.status === "APPROVED" && isSameSupportSeries(entry, series)).slice(-12);
   if (!points.length) return <span className="support-trend-empty">Sem série</span>;
   const maximum = Math.max(...points.map((entry) => entry.value), 1);
   return (
-    <span className="support-mini-trend" role="img" aria-label={`Tendência de ${supportMetricLabels[metric]} com ${points.length} pontos`}>
+    <span className="support-mini-trend" role="img" aria-label={`Tendência de ${supportMetricLabels[series.metric]} com ${points.length} pontos`}>
       {points.map((entry) => (
         <i
           key={entry.id}
           style={{ height: `${Math.max(entry.value / maximum * 100, 5)}%` }}
-          title={`${formatSupportDate(entry.periodEnd)}: ${formatSupportMetricValue(metric, entry.value)}`}
+          title={`${formatSupportDate(entry.periodEnd)}: ${formatSupportMetricValue(entry.metric, entry.value, entry.unit)}`}
         />
       ))}
     </span>
@@ -61,7 +72,15 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
   const canManage = isSupportManager(user);
   const today = supportDateInputValue();
   const [tab, setTab] = useState<PerformanceTab>("overview");
-  const [filters, setFilters] = useState({ from: shiftSupportDate(today, -30), to: today, metric: "", userId: "" });
+  const [filters, setFilters] = useState({
+    from: shiftSupportDate(today, -30),
+    to: today,
+    metric: "",
+    userId: "",
+    channel: "",
+    granularity: "",
+    observationType: ""
+  });
   const [data, setData] = useState<SupportPerformanceResponse | null>(null);
   const [draft, setDraft] = useState<SupportKpiDraft>(() => emptySupportKpiDraft(today));
   const [loading, setLoading] = useState(true);
@@ -78,6 +97,9 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
     });
     if (filters.metric) search.set("metric", filters.metric);
     if (canManage && filters.userId) search.set("userId", filters.userId);
+    if (filters.channel.trim()) search.set("channel", filters.channel.trim().toUpperCase());
+    if (filters.granularity) search.set("granularity", filters.granularity);
+    if (filters.observationType) search.set("observationType", filters.observationType);
     try {
       setData(await api<SupportPerformanceResponse>(`/v1/support/performance?${search.toString()}`));
     } catch (caught) {
@@ -154,7 +176,14 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
   const tabs: ReadonlyArray<readonly [PerformanceTab, string]> = canManage
     ? [["overview", "Indicadores"], ["entries", "Lançamentos"]]
     : [["overview", "Indicadores"]];
-  const percentageMetric = draft.metric === "CSAT" || draft.metric === "SLA";
+  const draftDefinition = supportMetricDefinition(draft.metric);
+  const denominatorLabel = supportMetricDenominatorLabel(draft.metric);
+
+  function summaryScopeLabel(item: SupportSummary) {
+    if (item.scopeType === "USER") return data?.agents.find((agent) => agent.id === item.userId)?.name ?? "Pessoa não identificada";
+    if (item.scopeType === "TEAM") return data?.teams.find((team) => team.id === item.teamId)?.name ?? item.teamLabel ?? "Equipe não identificada";
+    return supportScopeLabels.ORGANIZATION;
+  }
 
   if (loading && !data) {
     return <OperationalState state="loading" title="Carregando desempenho" detail="Consolidando os indicadores do período." />;
@@ -180,6 +209,19 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
           <select value={filters.metric} onChange={(event) => setFilters((current) => ({ ...current, metric: event.target.value }))}>
             <option value="">Todas</option>
             {supportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
+          </select>
+        </label>
+        <label>Canal<input maxLength={40} placeholder="Todos" value={filters.channel} onChange={(event) => setFilters((current) => ({ ...current, channel: event.target.value }))} /></label>
+        <label>Período
+          <select value={filters.granularity} onChange={(event) => setFilters((current) => ({ ...current, granularity: event.target.value }))}>
+            <option value="">Todos</option>
+            {Object.entries(supportGranularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label>Tipo
+          <select value={filters.observationType} onChange={(event) => setFilters((current) => ({ ...current, observationType: event.target.value }))}>
+            <option value="">Todos</option>
+            {Object.entries(supportObservationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         {canManage ? <label>Agente
@@ -221,11 +263,12 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
         <div id="support-performance-overview-panel" role="tabpanel" aria-labelledby="support-performance-overview-tab" className="support-tab-panel">
           <div className="support-metrics-grid">
             {data.summary.map((item) => (
-              <div className="support-metric-card" key={item.metric}>
+              <div className="support-metric-card" key={supportSeriesKey(item)}>
                 <span>{supportMetricLabels[item.metric]}</span>
-                <strong>{formatSupportMetricValue(item.metric, item.latest)}</strong>
-                <MetricTrend metric={item.metric} entries={data.entries} />
-                <small>Média {formatSupportMetricValue(item.metric, item.average)} · {item.samples} amostra(s){item.aggregation === "WEIGHTED" ? " · ponderada" : ""}</small>
+                <strong>{formatSupportMetricValue(item.metric, item.aggregation === "SUM" || item.aggregation === "LATEST" ? item.average : item.latest, item.unit)}</strong>
+                <MetricTrend series={item} entries={data.entries} />
+                <small>{summaryScopeLabel(item)} · {supportSeriesContext(item)}</small>
+                <small>{item.aggregation === "SUM" || item.aggregation === "LATEST" ? supportAggregationDetail(item) : `Consolidado ${formatSupportMetricValue(item.metric, item.average, item.unit)} · ${supportAggregationDetail(item)}`}</small>
               </div>
             ))}
           </div>
@@ -239,15 +282,15 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
                   <tbody>{[...data.entries].reverse().map((entry) => (
                     <tr key={entry.id}>
                       <td>{formatSupportDate(entry.periodStart)}<small>até {formatSupportDate(entry.periodEnd)}</small></td>
-                      <td><strong>{supportMetricLabels[entry.metric]}</strong></td>
-                      <td>{formatSupportMetricValue(entry.metric, entry.value)}</td>
+                      <td><strong>{supportMetricLabels[entry.metric]}</strong><small>{supportSeriesContext(entry)}{supportMetricDefinition(entry.metric, entry.unit).status === "LEGACY_READ_ONLY" ? " · somente leitura" : ""}</small></td>
+                      <td>{formatSupportMetricValue(entry.metric, entry.value, entry.unit)}{entry.denominator ? <small>{entry.denominator.toLocaleString("pt-BR")} {entry.unit === "DURATION_SECONDS" ? "atendimentos" : "respostas"}</small> : null}</td>
                       <td>{supportScopeLabel(entry)}</td>
                       <td>{entry.source || "-"}{entry.note ? <small>{entry.note}</small> : null}</td>
                       <td><span className={`support-review-status ${entry.status.toLowerCase()}`}>{reviewStatusLabel[entry.status]}</span><small>revisão {entry.revision}</small>{entry.reviewNote ? <small>{entry.reviewNote}</small> : null}</td>
                       {canManage ? <td><div className="row-actions">
-                        {entry.status === "DRAFT" ? <><button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> Editar</button><button className="small" disabled={saving} type="button" onClick={() => void submitEntry(entry)}><Send size={15} /> Enviar</button></> : null}
-                        {entry.status === "SUBMITTED" ? <><button className="small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "APPROVED")}><Check size={15} /> Aprovar</button><button className="secondary small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "REJECTED")}><ThumbsDown size={15} /> Rejeitar</button></> : null}
-                        {entry.status === "APPROVED" || entry.status === "REJECTED" ? <button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> {entry.status === "APPROVED" ? "Criar correção" : "Corrigir"}</button> : null}
+                        {entry.status === "DRAFT" && supportMetricDefinition(entry.metric, entry.unit).status === "CURRENT" ? <><button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> Editar</button><button className="small" disabled={saving} type="button" onClick={() => void submitEntry(entry)}><Send size={15} /> Enviar</button></> : null}
+                        {entry.status === "SUBMITTED" && supportMetricDefinition(entry.metric, entry.unit).status === "CURRENT" ? <><button className="small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "APPROVED")}><Check size={15} /> Aprovar</button><button className="secondary small" disabled={saving} type="button" onClick={() => void reviewEntry(entry, "REJECTED")}><ThumbsDown size={15} /> Rejeitar</button></> : null}
+                        {(entry.status === "APPROVED" || entry.status === "REJECTED") && supportMetricDefinition(entry.metric, entry.unit).status === "CURRENT" ? <button className="secondary small" type="button" onClick={() => editEntry(entry)}><Pencil size={15} /> {entry.status === "APPROVED" ? "Criar correção" : "Corrigir"}</button> : null}
                       </div></td> : null}
                     </tr>
                   ))}</tbody>
@@ -259,7 +302,7 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
           {data.campaigns.length ? (
             <section className="support-table-section" aria-labelledby="support-active-targets-title">
               <div className="support-section-heading"><div><p className="eyebrow">Referência</p><h2 id="support-active-targets-title">Metas em andamento</h2></div></div>
-              <div className="table-scroll"><table aria-label="Metas SAC em andamento"><thead><tr><th scope="col">Campanha</th><th scope="col">Métrica</th><th scope="col">Meta</th><th scope="col">Escopo</th><th scope="col">Até</th></tr></thead><tbody>{data.campaigns.map((campaign) => <tr key={campaign.id}><td><strong>{campaign.name}</strong></td><td>{supportMetricLabels[campaign.metric]}</td><td>{campaign.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(campaign.metric, campaign.targetValue)}</td><td>{supportScopeLabel(campaign)}</td><td>{formatSupportDate(campaign.endsAt)}</td></tr>)}</tbody></table></div>
+              <div className="table-scroll"><table aria-label="Metas SAC em andamento"><thead><tr><th scope="col">Campanha</th><th scope="col">Métrica</th><th scope="col">Meta</th><th scope="col">Escopo</th><th scope="col">Até</th></tr></thead><tbody>{data.campaigns.map((campaign) => <tr key={campaign.id}><td><strong>{campaign.name}</strong></td><td>{supportMetricLabels[campaign.metric]}<small>{supportSeriesContext(campaign)}</small></td><td>{campaign.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(campaign.metric, campaign.targetValue, campaign.unit)}</td><td>{supportScopeLabel(campaign)}</td><td>{formatSupportDate(campaign.endsAt)}</td></tr>)}</tbody></table></div>
             </section>
           ) : null}
         </div>
@@ -274,12 +317,23 @@ export function SupportPerformanceView({ user }: { user: CurrentUser }) {
             </div>
             <form className="support-form-grid support-kpi-form" onSubmit={saveEntry}>
               <label>Métrica
-                <select disabled={Boolean(draft.id)} value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value as SupportMetricKey }))}>
-                  {supportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
+                <select disabled={Boolean(draft.id)} value={draft.metric} onChange={(event) => setDraft((current) => ({ ...current, metric: event.target.value as SupportKpiDraft["metric"], value: "", sampleSize: "" }))}>
+                  {writableSupportMetricKeys.map((metric) => <option key={metric} value={metric}>{supportMetricLabels[metric]}</option>)}
                 </select>
               </label>
-              <label>Valor<input required min={0} max={percentageMetric ? 100 : undefined} step={draft.metric === "RECLAME_AQUI_OPEN" ? 1 : "any"} type="number" value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} /></label>
-              {percentageMetric ? <label>Tamanho da amostra<input required min={1} step={1} type="number" value={draft.sampleSize} onChange={(event) => setDraft((current) => ({ ...current, sampleSize: event.target.value }))} /></label> : null}
+              <label>Valor<input required inputMode={draftDefinition.unit === "COUNT" ? "numeric" : "decimal"} placeholder={supportMetricInputHint(draft.metric)} type="text" value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} /></label>
+              {denominatorLabel ? <label>{denominatorLabel}<input min={1} step={1} type="number" value={draft.sampleSize} onChange={(event) => setDraft((current) => ({ ...current, sampleSize: event.target.value }))} /></label> : null}
+              <label>Canal<input maxLength={40} placeholder="Ex.: TIKTOK" value={draft.channel} onChange={(event) => setDraft((current) => ({ ...current, channel: event.target.value }))} /></label>
+              <label>Período
+                <select value={draft.granularity} onChange={(event) => setDraft((current) => ({ ...current, granularity: event.target.value as SupportKpiDraft["granularity"] }))}>
+                  {Object.entries(supportGranularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label>Tipo
+                <select value={draft.observationType} onChange={(event) => setDraft((current) => ({ ...current, observationType: event.target.value as SupportKpiDraft["observationType"] }))}>
+                  {Object.entries(supportObservationTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
               <label>Escopo
                 <select disabled={Boolean(draft.id)} value={draft.scopeType} onChange={(event) => setDraft((current) => ({ ...current, scopeType: event.target.value as SupportKpiDraft["scopeType"], userId: "", teamId: "", teamLabel: "" }))}>
                   {supportScopeTypes.map((scope) => <option key={scope} value={scope}>{supportScopeLabels[scope]}</option>)}

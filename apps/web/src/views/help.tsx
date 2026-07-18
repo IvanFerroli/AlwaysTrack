@@ -29,7 +29,7 @@ const helpSections = [
     text: "Reúne capacidade do dia, risco de sobreposição de pausas, indicadores de qualidade, campanhas, avisos e conhecimento pendente.",
     steps: ["Escolha a data.", "Alterne entre Visão geral, Pausas e Qualidade.", "Abra o módulo indicado pelo card que exige ação."],
     check: "Diferencie dado vazio de falha de carregamento e observe o horário da última atualização.",
-    common: "Uma média sem amostra suficiente não deve ser usada isoladamente para cobrar resultado.",
+    common: "Uma média sem base suficiente de respostas ou atendimentos não deve ser usada isoladamente para cobrar resultado.",
     support: "Acione suporte se cards do mesmo período divergirem entre dashboard e módulo detalhado."
   },
   {
@@ -56,10 +56,10 @@ const helpSections = [
     id: "desempenho-sac",
     title: "Desempenho do SAC",
     who: "SAC consulta; Gestor e Admin registram",
-    text: "A área acompanha CSAT, produtividade, SLA e Reclame Aqui por atendente ou time, com histórico e amostra visíveis.",
-    steps: ["Escolha período, métrica e escopo.", "Leia valor, tendência e tamanho da amostra.", "Registre ou corrija o KPI quando autorizado."],
-    check: "CSAT e SLA exigem amostra; consolidações usam numerador e denominador para evitar média de médias.",
-    common: "Comparar valores sem considerar amostra, período ou sentido da métrica pode inverter a interpretação.",
+    text: "A área acompanha notas, durações, taxas e contagens por operação, equipe ou atendente, preservando canal e período de cada série.",
+    steps: ["Escolha período, métrica, canal, tipo e escopo.", "Leia valor, tendência e a forma de consolidação.", "Registre ou corrija o KPI quando autorizado."],
+    check: "CSAT usa nota de 1 a 5; SLA e tempos usam duração. Bases informadas permitem consolidação ponderada sem misturar séries.",
+    common: "Comparar valores sem considerar base, canal, período ou sentido da métrica pode inverter a interpretação.",
     support: "Acione o Gestor se a fonte do indicador estiver ausente ou se a consolidação divergir do dado registrado."
   },
   {
@@ -67,7 +67,7 @@ const helpSections = [
     title: "Campanhas do SAC",
     who: "SAC acompanha; Gestor e Admin criam",
     text: "Campanhas transformam um KPI em objetivo temporal para a operação, um time ou uma pessoa, com resultado e progresso calculados no próprio sistema.",
-    steps: ["Defina nome, métrica, período e público.", "Escolha meta e sentido maior/menor é melhor.", "Ative a campanha.", "Acompanhe resultado e progresso."],
+    steps: ["Defina nome, métrica, canal, período da série e público.", "Escolha a meta na unidade indicada.", "Ative a campanha.", "Acompanhe resultado e progresso."],
     check: "A meta precisa usar a mesma unidade e o mesmo sentido definidos para a métrica.",
     common: "Campanha sem dados no período não equivale a meta não atingida; significa que ainda não há base para cálculo.",
     support: "Procure suporte se o resultado não refletir os KPIs do mesmo período e escopo."
@@ -167,8 +167,8 @@ const helpSections = [
     title: "Glossário rápido",
     who: "Todos os perfis",
     text: "Alguns termos aparecem em filtros, tabelas e auditoria.",
-    steps: ["Slot é uma janela disponível para pausa.", "Overlap é a quantidade simultânea de pessoas pausadas.", "Amostra é a base usada no KPI.", "Slug é o caminho amigável da Wiki.", "Escopo é o conjunto de dados que o usuário pode ver."],
-    check: "Não confunda média, total de amostra, meta e progresso da campanha.",
+    steps: ["Slot é uma janela disponível para pausa.", "Overlap é a quantidade simultânea de pessoas pausadas.", "Base é o total de respostas ou atendimentos usado na consolidação.", "Slug é o caminho amigável da Wiki.", "Escopo é o conjunto de dados que o usuário pode ver."],
+    check: "Não confunda média, base de consolidação, meta e progresso da campanha.",
     common: "Status técnico ajuda nos filtros, mas não substitui a leitura do contexto operacional.",
     support: "Peça suporte quando um termo técnico bloquear uma decisão operacional."
   },
