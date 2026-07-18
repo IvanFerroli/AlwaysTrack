@@ -1,0 +1,65 @@
+config:
+  target: "http://127.0.0.1:3333"
+  processor: "./support-operations.processor.cjs"
+  phases:
+    - duration: 1
+      arrivalRate: 1
+      name: single local idempotency probe
+  http:
+    cookieJar: true
+    timeout: 15
+  defaults:
+    headers:
+      content-type: application/json
+  plugins:
+    ensure: {}
+  ensure:
+    maxErrorRate: 0.1
+    thresholds:
+      - http.response_time.p95: 3000
+      - http.response_time.p99: 5000
+scenarios:
+  - name: idempotent support and announcement materialization
+    beforeScenario: prepareMaterializationScenario
+    afterResponse: ensure2xx
+    flow:
+      - post:
+          name: authenticate local seeded manager
+          url: "/v1/auth/login"
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+      - get:
+          name: discover local support team
+          url: "/v1/support/pauses?date={{ supportDate }}"
+          capture:
+            - json: "$.data.teams[0].id"
+              as: "supportTeamId"
+      - loop:
+          - post:
+              name: materialize weekly support schedules
+              url: "/v1/support/schedules/occurrences/materialize"
+              afterResponse: verifyIdempotentMaterialization
+              json:
+                teamId: "{{ supportTeamId }}"
+                from: "{{ supportFrom }}"
+                to: "{{ supportTo }}"
+                dryRun: false
+          - post:
+              name: generate support pause slots
+              url: "/v1/support/pauses/slots/generate"
+              afterResponse: verifyIdempotentMaterialization
+              json:
+                date: "{{ supportDate }}"
+                capacity: 1
+                teamId: "{{ supportTeamId }}"
+          - post:
+              name: materialize recurring announcements
+              url: "/v1/announcements/materialize"
+              afterResponse: verifyIdempotentMaterialization
+              json:
+                fromDate: "{{ supportFrom }}"
+                toDate: "{{ supportTo }}"
+                publishDue: false
+                dryRun: false
+        count: 2

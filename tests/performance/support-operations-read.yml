@@ -1,0 +1,51 @@
+config:
+  target: "http://127.0.0.1:3333"
+  processor: "./support-operations.processor.cjs"
+  phases:
+    - duration: 10
+      arrivalRate: 1
+      name: local critical-read smoke
+  http:
+    cookieJar: true
+    timeout: 10
+  defaults:
+    headers:
+      content-type: application/json
+  plugins:
+    ensure: {}
+  ensure:
+    maxErrorRate: 0.1
+    thresholds:
+      - http.response_time.p95: 1000
+      - http.response_time.p99: 2000
+scenarios:
+  - name: support schedules pauses and recurring announcements
+    beforeScenario: prepareReadScenario
+    afterResponse: ensure2xx
+    flow:
+      - post:
+          name: authenticate local seeded manager
+          url: "/v1/auth/login"
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+      - get:
+          name: discover local support team
+          url: "/v1/support/pauses?date={{ supportDate }}"
+          capture:
+            - json: "$.data.teams[0].id"
+              as: "supportTeamId"
+      - loop:
+          - get:
+              name: list weekly support schedules
+              url: "/v1/support/schedules?from={{ supportFrom }}&to={{ supportTo }}&scope=TEAM&teamId={{ supportTeamId }}"
+          - get:
+              name: list linked support pauses
+              url: "/v1/support/pauses?date={{ supportDate }}&teamId={{ supportTeamId }}"
+          - get:
+              name: list active announcements
+              url: "/v1/announcements?activeOnly=true"
+          - get:
+              name: list recurring announcement series
+              url: "/v1/announcements/series?fromDate={{ supportFrom }}&toDate={{ supportTo }}"
+        count: 2
