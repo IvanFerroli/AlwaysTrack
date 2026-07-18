@@ -35,7 +35,29 @@ interface OperationalObservabilityResponse {
     openFaqThreads: number;
     pendingWikiReviews: number;
     unreadNotifications: number;
+    publishedShiftsNext7d: number;
+    pendingShiftOffers: number;
+    pendingExtraClaims: number;
+    pauseReschedulesRequired: number;
+    activeAnnouncementSeries: number;
+    failedAnnouncementOccurrences: number;
+    overdueAnnouncementOccurrences: number;
     observedRoutes: number;
+  };
+  domains: {
+    scheduling: {
+      publishedNext7d: number;
+      pendingOffers: number;
+      pendingExtraClaims: number;
+      pauseReschedulesRequired: number;
+      status: "HEALTHY" | "ACTION_REQUIRED";
+    };
+    recurringAnnouncements: {
+      activeSeries: number;
+      failedOccurrences: number;
+      overdueOccurrences: number;
+      status: "HEALTHY" | "ACTION_REQUIRED";
+    };
   };
   http: {
     slowestRoutes: Array<{
@@ -232,6 +254,13 @@ function ObservabilityPanel({ onOpenAudit }: { onOpenAudit?: () => void }) {
             <div><span>Wiki pendente</span><strong>{observability.metrics.pendingWikiReviews}</strong></div>
             <div><span>Notificações não lidas</span><strong>{observability.metrics.unreadNotifications}</strong></div>
             <div><span>Rotas observadas</span><strong>{observability.metrics.observedRoutes}</strong></div>
+            <div><span>Turnos publicados · 7 dias</span><strong>{observability.metrics.publishedShiftsNext7d}</strong></div>
+            <div><span>Trocas de escala pendentes</span><strong>{observability.metrics.pendingShiftOffers}</strong></div>
+            <div><span>Extras pendentes</span><strong>{observability.metrics.pendingExtraClaims}</strong></div>
+            <div className={observability.metrics.pauseReschedulesRequired > 0 ? "warning" : ""}><span>Pausas para reagendar</span><strong>{observability.metrics.pauseReschedulesRequired}</strong></div>
+            <div><span>Séries de avisos ativas</span><strong>{observability.metrics.activeAnnouncementSeries}</strong></div>
+            <div className={observability.metrics.failedAnnouncementOccurrences > 0 ? "warning" : ""}><span>Ocorrências com falha</span><strong>{observability.metrics.failedAnnouncementOccurrences}</strong></div>
+            <div className={observability.metrics.overdueAnnouncementOccurrences > 0 ? "warning" : ""}><span>Avisos recorrentes atrasados</span><strong>{observability.metrics.overdueAnnouncementOccurrences}</strong></div>
           </div>
           <div className="observability-grid">
             <div>

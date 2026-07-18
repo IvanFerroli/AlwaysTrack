@@ -58,6 +58,12 @@ describe("http metrics diagnostics", () => {
       faqThread: { count: vi.fn().mockResolvedValue(3) },
       wikiEditRequest: { count: vi.fn().mockResolvedValue(1) },
       inAppNotification: { count: vi.fn().mockResolvedValue(5) },
+      supportShiftOccurrence: { count: vi.fn().mockResolvedValue(18) },
+      supportShiftOffer: { count: vi.fn().mockResolvedValue(2) },
+      supportExtraShiftClaim: { count: vi.fn().mockResolvedValue(1) },
+      supportPauseBooking: { count: vi.fn().mockResolvedValue(3) },
+      announcementSeries: { count: vi.fn().mockResolvedValue(1) },
+      announcementOccurrence: { count: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1) },
       auditLog: {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi
@@ -97,7 +103,29 @@ describe("http metrics diagnostics", () => {
       openFaqThreads: 3,
       pendingWikiReviews: 1,
       unreadNotifications: 5,
+      publishedShiftsNext7d: 18,
+      pendingShiftOffers: 2,
+      pendingExtraClaims: 1,
+      pauseReschedulesRequired: 3,
+      activeAnnouncementSeries: 1,
+      failedAnnouncementOccurrences: 0,
+      overdueAnnouncementOccurrences: 1,
       observedRoutes: 1
+    });
+    expect(snapshot.domains).toEqual({
+      scheduling: {
+        publishedNext7d: 18,
+        pendingOffers: 2,
+        pendingExtraClaims: 1,
+        pauseReschedulesRequired: 3,
+        status: "ACTION_REQUIRED"
+      },
+      recurringAnnouncements: {
+        activeSeries: 1,
+        failedOccurrences: 0,
+        overdueOccurrences: 1,
+        status: "ACTION_REQUIRED"
+      }
     });
     expect(snapshot.http.slowestRoutes[0]).toMatchObject({ route: "/v1/sales/documents", count: 1 });
     expect(snapshot.recentFailures[0]).toMatchObject({ action: "sales_document.extract_failed", entityId: "doc-1" });

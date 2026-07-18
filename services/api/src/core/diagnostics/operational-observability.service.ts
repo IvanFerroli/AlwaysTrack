@@ -12,6 +12,8 @@ function dayAgo(days: number) {
 export async function getOperationalObservability(prisma: PrismaClient, organizationId: string) {
   const last24h = hoursAgo(24);
   const last7d = dayAgo(7);
+  const now = new Date();
+  const next7d = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const routes = snapshotHttpMetrics();
 
   const [
@@ -22,6 +24,13 @@ export async function getOperationalObservability(prisma: PrismaClient, organiza
     openFaqThreads,
     pendingWikiReviews,
     unreadNotifications,
+    publishedShiftsNext7d,
+    pendingShiftOffers,
+    pendingExtraClaims,
+    pauseReschedulesRequired,
+    activeAnnouncementSeries,
+    failedAnnouncementOccurrences,
+    overdueAnnouncementOccurrences,
     recentFailures,
     recentAuditLogs
   ] = await Promise.all([
@@ -32,6 +41,21 @@ export async function getOperationalObservability(prisma: PrismaClient, organiza
     prisma.faqThread.count({ where: { organizationId, status: "OPEN" } }),
     prisma.wikiEditRequest.count({ where: { organizationId, status: "PENDING" } }),
     prisma.inAppNotification.count({ where: { organizationId, readAt: null } }),
+    prisma.supportShiftOccurrence.count({
+      where: { organizationId, status: "PUBLISHED", startsAt: { gte: now, lt: next7d } }
+    }),
+    prisma.supportShiftOffer.count({
+      where: { organizationId, status: { in: ["OPEN", "PEER_ACCEPTED", "MANAGER_PENDING"] } }
+    }),
+    prisma.supportExtraShiftClaim.count({ where: { organizationId, status: "PENDING" } }),
+    prisma.supportPauseBooking.count({
+      where: { organizationId, status: "BOOKED", rescheduleRequiredAt: { not: null } }
+    }),
+    prisma.announcementSeries.count({ where: { organizationId, status: "ACTIVE" } }),
+    prisma.announcementOccurrence.count({ where: { organizationId, status: "FAILED" } }),
+    prisma.announcementOccurrence.count({
+      where: { organizationId, status: "SCHEDULED", scheduledFor: { lt: now } }
+    }),
     prisma.auditLog.findMany({
       where: {
         organizationId,
@@ -64,7 +88,29 @@ export async function getOperationalObservability(prisma: PrismaClient, organiza
       openFaqThreads,
       pendingWikiReviews,
       unreadNotifications,
+      publishedShiftsNext7d,
+      pendingShiftOffers,
+      pendingExtraClaims,
+      pauseReschedulesRequired,
+      activeAnnouncementSeries,
+      failedAnnouncementOccurrences,
+      overdueAnnouncementOccurrences,
       observedRoutes: routes.length
+    },
+    domains: {
+      scheduling: {
+        publishedNext7d: publishedShiftsNext7d,
+        pendingOffers: pendingShiftOffers,
+        pendingExtraClaims,
+        pauseReschedulesRequired,
+        status: pauseReschedulesRequired > 0 ? "ACTION_REQUIRED" : "HEALTHY"
+      },
+      recurringAnnouncements: {
+        activeSeries: activeAnnouncementSeries,
+        failedOccurrences: failedAnnouncementOccurrences,
+        overdueOccurrences: overdueAnnouncementOccurrences,
+        status: failedAnnouncementOccurrences > 0 || overdueAnnouncementOccurrences > 0 ? "ACTION_REQUIRED" : "HEALTHY"
+      }
     },
     http: {
       slowestRoutes: routes.slice(0, 8),
