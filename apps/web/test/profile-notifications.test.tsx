@@ -30,99 +30,67 @@ const profile = {
   googleConnection: null
 };
 
-const scheduleNotification = {
-  id: "notice-schedule",
-  type: "support_schedule.published",
-  title: "Sua escala foi publicada",
-  body: "Confira os horários de amanhã.",
-  href: "/escalas?date=2026-07-18&teamId=team-1",
-  readAt: null,
-  createdAt: "2026-07-17T13:00:00.000Z"
-};
-
-const scheduleTarget = {
-  type: "SUPPORT_SCHEDULE",
-  status: "AVAILABLE",
-  params: { date: "2026-07-18", teamId: "team-1" },
-  href: "/escalas?date=2026-07-18&teamId=team-1",
-  fallbackHref: "/escalas"
-};
-
-function setupApi(items = [scheduleNotification], resolvedTarget: Record<string, unknown> = scheduleTarget) {
-  apiMock.mockImplementation((path: string) => {
+function setupApi() {
+  apiMock.mockImplementation((path: string, options?: { method?: string }) => {
     if (path === "/v1/profile") return Promise.resolve({ profile });
-    if (path === "/v1/in-app-notifications") return Promise.resolve({ items, unread: items.filter((item) => !item.readAt).length });
-    if (path.endsWith("/resolve")) return Promise.resolve({ target: resolvedTarget });
-    return Promise.resolve({});
+    return Promise.reject(new Error(`Unexpected API call: ${options?.method ?? "GET"} ${path}`));
   });
 }
 
-describe("ProfileView notification history", () => {
+describe("ProfileView identity", () => {
   beforeEach(() => setupApi());
 
-  it("keeps history filters and opens a notification instead of only marking it read", async () => {
-    const userActions = userEvent.setup();
-    const onNavigate = vi.fn();
-    render(<ProfileView user={user} onProfileSaved={vi.fn()} onNavigate={onNavigate} />);
+  it("loads only profile identity without consulting notifications", async () => {
+    render(<ProfileView user={user} onProfileSaved={vi.fn()} />);
 
-    expect(await screen.findByRole("heading", { name: "Histórico" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Estado")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tipo")).toBeInTheDocument();
-    expect(screen.queryByText(/preferência/i)).not.toBeInTheDocument();
-
-    await userActions.click(screen.getByRole("button", { name: /Sua escala foi publicada/ }));
-
-    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/resolve", { method: "POST" }));
-    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/read", { method: "POST" }));
-    expect(onNavigate).toHaveBeenCalledWith(
-      scheduleNotification.href,
-      expect.objectContaining({
-        state: "READY",
-        view: "supportSchedules",
-        intent: expect.objectContaining({ supportSchedules: expect.objectContaining({ date: "2026-07-18", teamId: "team-1" }) })
-      })
-    );
-    expect(window.location.pathname).toBe("/escalas");
-    expect(window.location.search).toBe("?date=2026-07-18&teamId=team-1");
+    expect(await screen.findByRole("heading", { name: "Dados do perfil" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome")).toHaveValue(profile.name);
+    expect(screen.getByText(profile.email)).toBeInTheDocument();
+    expect(screen.getByText(profile.organization.name)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Histórico" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Notificações")).not.toBeInTheDocument();
+    expect(apiMock).toHaveBeenCalledTimes(1);
+    expect(apiMock).toHaveBeenCalledWith("/v1/profile");
+    expect(apiMock.mock.calls.some(([path]) => String(path).includes("in-app-notifications"))).toBe(false);
   });
 
-  it("retains an unavailable historical item without reading or navigating", async () => {
-    const unavailable = {
-      ...scheduleNotification,
-      id: "notice-missing",
-      title: "Alvo removido",
-      type: "legacy.unknown",
-      href: "/fora-do-catalogo"
+  it("edits identity and updates the current user", async () => {
+    const updatedProfile = {
+      ...profile,
+      name: "Ana Lima",
+      phone: "+55 83 98888-7777",
+      avatarUrl: "https://example.com/ana.png"
     };
-    setupApi([unavailable], { type: null, status: "FORBIDDEN_OR_MISSING", params: {}, href: null, fallbackHref: null });
-    const userActions = userEvent.setup();
-    const onNavigate = vi.fn();
-    render(<ProfileView user={user} onProfileSaved={vi.fn()} onNavigate={onNavigate} />);
-
-    expect(await screen.findByText("Alvo indisponível")).toBeInTheDocument();
-    await userActions.click(screen.getByRole("button", { name: /Alvo removido/ }));
-
-    expect(await screen.findByText("Este conteúdo não está disponível para sua conta.")).toBeInTheDocument();
-    expect(onNavigate).not.toHaveBeenCalled();
-    expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-missing/read", { method: "POST" });
-  });
-
-  it("keeps profile history unread when backend resolution fails", async () => {
-    setupApi();
-    apiMock.mockImplementation((path: string) => {
+    apiMock.mockImplementation((path: string, options?: { method?: string }) => {
+      if (path === "/v1/profile" && options?.method === "PATCH") return Promise.resolve({ profile: updatedProfile });
       if (path === "/v1/profile") return Promise.resolve({ profile });
-      if (path === "/v1/in-app-notifications") return Promise.resolve({ items: [scheduleNotification], unread: 1 });
-      if (path.endsWith("/resolve")) return Promise.reject(new Error("Resolver indisponível"));
-      return Promise.resolve({});
+      return Promise.reject(new Error(`Unexpected API call: ${options?.method ?? "GET"} ${path}`));
     });
     const userActions = userEvent.setup();
-    const onNavigate = vi.fn();
-    render(<ProfileView user={user} onProfileSaved={vi.fn()} onNavigate={onNavigate} />);
+    const onProfileSaved = vi.fn();
+    render(<ProfileView user={user} onProfileSaved={onProfileSaved} />);
 
-    await userActions.click(await screen.findByRole("button", { name: /Sua escala foi publicada/ }));
+    const nameInput = await screen.findByLabelText("Nome");
+    await userActions.clear(nameInput);
+    await userActions.type(nameInput, updatedProfile.name);
+    await userActions.type(screen.getByLabelText("Telefone"), updatedProfile.phone);
+    await userActions.type(screen.getByLabelText("Avatar URL"), updatedProfile.avatarUrl);
+    await userActions.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
-    expect(await screen.findByText("Resolver indisponível")).toBeInTheDocument();
-    expect(onNavigate).not.toHaveBeenCalled();
-    expect(apiMock).not.toHaveBeenCalledWith("/v1/in-app-notifications/notice-schedule/read", { method: "POST" });
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/profile", {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: updatedProfile.name,
+        phone: updatedProfile.phone,
+        avatarUrl: updatedProfile.avatarUrl
+      })
+    }));
+    expect(await screen.findByText("Perfil atualizado.")).toBeInTheDocument();
+    expect(onProfileSaved).toHaveBeenCalledWith({
+      ...user,
+      name: updatedProfile.name,
+      avatarUrl: updatedProfile.avatarUrl
+    });
+    expect(apiMock.mock.calls.some(([path]) => String(path).includes("in-app-notifications"))).toBe(false);
   });
 });

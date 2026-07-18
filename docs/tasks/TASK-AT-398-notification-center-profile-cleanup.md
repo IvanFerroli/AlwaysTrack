@@ -1,7 +1,7 @@
 # TASK-AT-398 - Centro de Notificacoes e limpeza do Perfil
 
 ## Metadata
-- status: implementation-in-progress
+- status: completed-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-398-notification-center-profile-cleanup.md
@@ -17,10 +17,10 @@ O Perfil deve cuidar de identidade. Historico, filtros e acoes de notificacao du
 
 ## Dependencias
 - satisfeitas: TASK-AT-397 e TASK-AT-059.
-- em aberto: remover a superficie redundante do Perfil e validar que o sino permanece como centro unico.
+- em aberto: evidencia manual em navegador nos ambientes alvo; remocao e regressao automatizada estao cobertas localmente.
 
 ## Estado reconciliado em 2026-07-18
-- O sino resolve o alvo no backend antes de marcar leitura ou navegar, rejeita destinos arbitrarios e mantem nao lido quando a resolucao falha. Por decisao de produto, o Perfil nao deve mais listar, filtrar nem abrir notificacoes.
+- O sino resolve o alvo no backend antes de marcar leitura ou navegar, rejeita destinos arbitrarios e mantem nao lido quando a resolucao falha. O Perfil carrega e edita somente identidade via `/v1/profile`; historico, filtros, handlers e fetch de notificacoes foram removidos sem apagar dados ou API.
 
 ## Alvos explicitos
 1. NotificationCenter global no sino.
@@ -45,7 +45,7 @@ O Perfil deve cuidar de identidade. Historico, filtros e acoes de notificacao du
 4. Nenhum dado funcional de notificacao e apagado como efeito colateral da limpeza.
 
 ## Validacao
-- comandos/checks: testes Web/API de navegacao/fallback, `rg` de preferencias mortas, typecheck/build e `git diff --check`.
+- comandos/checks: testes Web de Perfil e sino, `rg` de contrato morto, typecheck/build e `git diff --check`.
 - revisao manual: sino com alvos ativos/removidos e Perfil sem notificacoes em desktop/mobile.
 
 ## Riscos

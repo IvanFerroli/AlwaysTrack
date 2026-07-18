@@ -4639,7 +4639,7 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "settings" ? (
           <OrganizationSettingsView onSaved={setOrganizationSettings} onOpenAudit={() => openView("audit")} />
         ) : activeItem.key === "profile" ? (
-          <ProfileView user={user} onProfileSaved={onUserChange} onNavigate={openNotificationHref} />
+          <ProfileView user={user} onProfileSaved={onUserChange} />
         ) : activeItem.key === "help" ? (
           <HelpView user={user} />
         ) : (

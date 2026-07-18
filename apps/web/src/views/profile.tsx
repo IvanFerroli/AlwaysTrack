@@ -1,25 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
-import { OperationalFilters, OperationalState } from "../components/operational";
-import {
-  resolveNotificationNavigation,
-  type NotificationNavigate,
-  type NotificationNavigationSource,
-  type NotificationTarget
-} from "../notification-navigation";
-
-interface ProfileNotificationItem extends NotificationNavigationSource {
-  id: string;
-  type: string;
-  title: string;
-  body?: string | null;
-  entityType?: string | null;
-  entityId?: string | null;
-  href?: string | null;
-  readAt?: string | null;
-  createdAt: string;
-}
+import { OperationalState } from "../components/operational";
 
 interface UserProfile {
   id: string;
@@ -38,47 +20,30 @@ function initialsFor(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "AT";
 }
 
-function formatDateTimeBr(value: string | null | undefined) {
-  if (!value) return "-";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString("pt-BR");
-}
-
 export interface ProfileViewProps {
   user: CurrentUser;
   onProfileSaved: (user: CurrentUser) => void;
-  onNavigate?: NotificationNavigate;
 }
 
-export function ProfileView({ user, onProfileSaved, onNavigate }: ProfileViewProps) {
+export function ProfileView({ user, onProfileSaved }: ProfileViewProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [notifications, setNotifications] = useState<ProfileNotificationItem[]>([]);
-  const [unread, setUnread] = useState(0);
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl ?? "");
-  const [notificationState, setNotificationState] = useState("");
-  const [notificationType, setNotificationType] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const [profileResult, notificationResult] = await Promise.all([
-        api<{ profile: UserProfile }>("/v1/profile"),
-        api<{ items: ProfileNotificationItem[]; unread: number }>("/v1/in-app-notifications")
-      ]);
+      const profileResult = await api<{ profile: UserProfile }>("/v1/profile");
       setProfile(profileResult.profile);
       setName(profileResult.profile.name);
       setPhone(profileResult.profile.phone ?? "");
       setAvatarUrl(profileResult.profile.avatarUrl ?? "");
-      setNotifications(notificationResult.items);
-      setUnread(notificationResult.unread);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar perfil.");
     } finally {
@@ -89,12 +54,6 @@ export function ProfileView({ user, onProfileSaved, onNavigate }: ProfileViewPro
   useEffect(() => {
     void load();
   }, []);
-
-  const notificationTypes = useMemo(() => [...new Set(notifications.map((item) => item.type))].sort((a, b) => a.localeCompare(b)), [notifications]);
-  const visibleNotifications = notifications.filter((item) => {
-    const stateOk = notificationState === "unread" ? !item.readAt : notificationState === "read" ? Boolean(item.readAt) : true;
-    return stateOk && (notificationType ? item.type === notificationType : true);
-  });
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -113,50 +72,6 @@ export function ProfileView({ user, onProfileSaved, onNavigate }: ProfileViewPro
       setError(caught instanceof Error ? caught.message : "Falha ao salvar perfil.");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function markNotificationRead(item: ProfileNotificationItem) {
-    if (item.readAt) return;
-    await api(`/v1/in-app-notifications/${item.id}/read`, { method: "POST" });
-    const readAt = new Date().toISOString();
-    setNotifications((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, readAt } : candidate));
-    setUnread((current) => Math.max(current - 1, 0));
-  }
-
-  async function openNotification(item: ProfileNotificationItem) {
-    let resolved: { target: NotificationTarget };
-    try {
-      resolved = await api<{ target: NotificationTarget }>(`/v1/in-app-notifications/${item.id}/resolve`, { method: "POST" });
-    } catch (caught) {
-      setNotificationMessage(caught instanceof Error ? caught.message : "Não foi possível resolver esta notificação.");
-      return;
-    }
-    const navigation = resolveNotificationNavigation({ target: resolved.target });
-    if (navigation.state === "UNAVAILABLE" || !navigation.href) {
-      setNotificationMessage(navigation.message);
-      return;
-    }
-    try {
-      await markNotificationRead(item);
-    } catch (caught) {
-      setNotificationMessage(caught instanceof Error ? caught.message : "Não foi possível atualizar esta notificação.");
-      return;
-    }
-    setNotificationMessage(navigation.message);
-    window.history.replaceState(null, "", navigation.href);
-    if (onNavigate) onNavigate(navigation.href, navigation);
-    else window.location.assign(navigation.href);
-  }
-
-  async function markAllRead() {
-    try {
-      await api("/v1/in-app-notifications/read-all", { method: "POST" });
-      const readAt = new Date().toISOString();
-      setNotifications((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })));
-      setUnread(0);
-    } catch (caught) {
-      setNotificationMessage(caught instanceof Error ? caught.message : "Não foi possível marcar as notificações como lidas.");
     }
   }
 
@@ -198,39 +113,6 @@ export function ProfileView({ user, onProfileSaved, onNavigate }: ProfileViewPro
             <button disabled={saving || !name.trim()}>Salvar perfil</button>
           </div>
         </form>
-      </section>
-
-      <OperationalFilters
-        fields={[
-          { key: "state", label: "Estado", type: "select", value: notificationState, placeholder: "Todas", options: [{ value: "unread", label: "Não lidas" }, { value: "read", label: "Lidas" }], onChange: setNotificationState },
-          { key: "type", label: "Tipo", type: "select", value: notificationType, placeholder: "Todos", options: notificationTypes.map((type) => ({ value: type, label: type })), onChange: setNotificationType }
-        ]}
-        onSubmit={() => undefined}
-      />
-
-      <section className="panel table-panel">
-        <div className="table-panel-toolbar">
-          <div><p className="eyebrow">Notificações</p><h2>Histórico</h2><p className="muted">{unread} não lida(s)</p></div>
-          <button className="secondary" disabled={unread === 0} type="button" onClick={() => void markAllRead()}>Marcar todas como lidas</button>
-        </div>
-        {notificationMessage ? <p className="muted" role="status">{notificationMessage}</p> : null}
-        {visibleNotifications.length === 0 ? (
-          <OperationalState state="empty" title="Nenhuma notificação encontrada" />
-        ) : (
-          <div className="profile-notification-list">
-            {visibleNotifications.map((item) => {
-              const navigation = resolveNotificationNavigation(item);
-              return (
-                <button className={item.readAt ? "profile-notification" : "profile-notification unread"} key={item.id} type="button" onClick={() => void openNotification(item)}>
-                  <span><strong>{item.title}</strong><small>{formatDateTimeBr(item.createdAt)} / {item.type}</small></span>
-                  {item.body ? <em>{item.body}</em> : null}
-                  {navigation.state === "UNAVAILABLE" ? <small>Alvo indisponível</small> : null}
-                  {navigation.state === "FALLBACK" ? <small>Visão relacionada disponível</small> : null}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </section>
     </div>
   );
