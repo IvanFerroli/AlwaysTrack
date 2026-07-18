@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useDismissibleLayer } from "./dismissible-layer";
 
 const emojiOptions = ["✅", "⚠️", "📌", "📎", "💬", "📦", "🚚", "🔁", "💰", "🧾", "🔍", "⭐", "👍", "🙏", "🙂"];
 
@@ -196,10 +197,25 @@ export function MarkdownEditor({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const writeTabRef = useRef<HTMLButtonElement | null>(null);
   const previewTabRef = useRef<HTMLButtonElement | null>(null);
+  const emojiTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const emojiMenuRef = useRef<HTMLDivElement | null>(null);
   const editorId = useId().replace(/:/g, "");
   const [preview, setPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [activeEmojiIndex, setActiveEmojiIndex] = useState(0);
+
+  useDismissibleLayer({
+    open: emojiOpen,
+    layerRef: emojiMenuRef,
+    triggerRef: emojiTriggerRef,
+    initialFocus: () => emojiMenuRef.current?.querySelector<HTMLButtonElement>("[role='menuitem'][tabindex='0']") ?? null,
+    restoreFocus: false,
+    onDismiss: (reason) => {
+      setEmojiOpen(false);
+      if (reason === "escape") queueMicrotask(() => emojiTriggerRef.current?.focus());
+    }
+  });
 
   function changeMode(nextPreview: boolean, focusTarget?: HTMLButtonElement | null) {
     setPreview(nextPreview);
@@ -217,6 +233,30 @@ export function MarkdownEditor({
       event.preventDefault();
       changeMode(true, previewTabRef.current);
     }
+  }
+
+  function openEmojiMenu(index: number) {
+    setActiveEmojiIndex(index);
+    setEmojiOpen(true);
+  }
+
+  function handleEmojiMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Tab") {
+      queueMicrotask(() => setEmojiOpen(false));
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
+
+    event.preventDefault();
+    const menuItems = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("[role='menuitem']"));
+    const currentIndex = menuItems.indexOf(event.target as HTMLButtonElement);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? menuItems.length - 1
+        : (currentIndex + (event.key === "ArrowUp" ? -1 : 1) + menuItems.length) % menuItems.length;
+    setActiveEmojiIndex(nextIndex);
+    menuItems[nextIndex]?.focus();
   }
 
   function format(type: string) {
@@ -302,13 +342,32 @@ export function MarkdownEditor({
           </button>
         ))}
         <div className="emoji-picker-wrap">
-          <button className="ghost-button small" type="button" aria-controls={`${editorId}-emoji-menu`} aria-expanded={emojiOpen} onClick={() => setEmojiOpen((current) => !current)}>
+          <button
+            ref={emojiTriggerRef}
+            className="ghost-button small"
+            type="button"
+            aria-controls={`${editorId}-emoji-menu`}
+            aria-expanded={emojiOpen}
+            aria-haspopup="menu"
+            onClick={() => {
+              if (emojiOpen) {
+                setEmojiOpen(false);
+              } else {
+                openEmojiMenu(0);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+              event.preventDefault();
+              openEmojiMenu(event.key === "ArrowUp" ? emojiOptions.length - 1 : 0);
+            }}
+          >
             Emoji
           </button>
           {emojiOpen ? (
-            <div id={`${editorId}-emoji-menu`} className="emoji-picker-panel" role="menu" aria-label="Escolher emoji">
-              {emojiOptions.map((emoji) => (
-                <button key={emoji} type="button" role="menuitem" onClick={() => insertText(emoji)}>
+            <div ref={emojiMenuRef} id={`${editorId}-emoji-menu`} className="emoji-picker-panel" role="menu" aria-label="Escolher emoji" onKeyDown={handleEmojiMenuKeyDown}>
+              {emojiOptions.map((emoji, index) => (
+                <button key={emoji} type="button" role="menuitem" tabIndex={index === activeEmojiIndex ? 0 : -1} onClick={() => insertText(emoji)}>
                   {emoji}
                 </button>
               ))}

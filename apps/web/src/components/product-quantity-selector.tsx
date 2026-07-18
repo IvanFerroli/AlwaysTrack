@@ -1,5 +1,6 @@
 import { Minus, Plus, X } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import { useDismissibleLayer } from "./dismissible-layer";
 
 export type ProductQuantityItem = {
   name: string;
@@ -127,8 +128,12 @@ export function ProductQuantitySelector({
 }: ProductQuantitySelectorProps) {
   const inputId = useId();
   const listboxId = `${inputId}-listbox`;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
   const items = useMemo(() => parseProductQuantityItems(value), [value]);
   const selectedKeys = useMemo(() => new Set(items.map((item) => normalizedKey(item.name))), [items]);
   const filteredSuggestions = useMemo(() => {
@@ -139,6 +144,24 @@ export function ProductQuantitySelector({
   }, [query, selectedKeys, suggestions]);
   const exactSuggestion = filteredSuggestions.find((suggestion) => searchableKey(suggestion.name) === searchableKey(query));
   const canAddCustom = allowCustom && Boolean(query.trim()) && !selectedKeys.has(normalizedKey(query)) && !exactSuggestion;
+  const optionCount = filteredSuggestions.length + (canAddCustom ? 1 : 0);
+  const optionsOpen = open && !disabled;
+  const activeOptionId = optionsOpen && activeOptionIndex >= 0 && activeOptionIndex < optionCount
+    ? `${listboxId}-option-${activeOptionIndex}`
+    : undefined;
+
+  useDismissibleLayer({
+    open: optionsOpen,
+    layerRef: listboxRef,
+    triggerRef: inputRef,
+    restoreFocus: false,
+    onDismiss: closeOptions
+  });
+
+  function closeOptions() {
+    setOpen(false);
+    setActiveOptionIndex(-1);
+  }
 
   function commit(nextItems: ProductQuantityItem[]) {
     onChange(serializeProductQuantityItems(nextItems));
@@ -149,7 +172,7 @@ export function ProductQuantitySelector({
     if (!trimmedName || selectedKeys.has(normalizedKey(trimmedName))) return;
     commit([...items, { name: trimmedName, quantity: 1 }]);
     setQuery("");
-    setOpen(false);
+    closeOptions();
   }
 
   function addSuggestion(suggestion: ProductSuggestion) {
@@ -169,13 +192,13 @@ export function ProductQuantitySelector({
     }
     if (nextItems.length !== items.length) commit(nextItems);
     setQuery("");
-    setOpen(false);
+    closeOptions();
   }
 
   function removeAll() {
     if (items.length > 0) commit([]);
     setQuery("");
-    setOpen(false);
+    closeOptions();
   }
 
   function updateQuantity(itemIndex: number, delta: number) {
@@ -197,11 +220,36 @@ export function ProductQuantitySelector({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      setOpen(false);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      setOpen(true);
+      if (optionCount === 0) {
+        setActiveOptionIndex(-1);
+      } else if (event.key === "Home") {
+        setActiveOptionIndex(0);
+      } else if (event.key === "End") {
+        setActiveOptionIndex(optionCount - 1);
+      } else if (activeOptionIndex < 0 || activeOptionIndex >= optionCount) {
+        setActiveOptionIndex(event.key === "ArrowUp" ? optionCount - 1 : 0);
+      } else {
+        const delta = event.key === "ArrowUp" ? -1 : 1;
+        setActiveOptionIndex((activeOptionIndex + delta + optionCount) % optionCount);
+      }
       return;
     }
-    if (event.key !== "Enter" || !query.trim()) return;
+    if (event.key !== "Enter") return;
+
+    if (optionsOpen && activeOptionIndex >= 0 && activeOptionIndex < optionCount) {
+      event.preventDefault();
+      if (activeOptionIndex < filteredSuggestions.length) {
+        addSuggestion(filteredSuggestions[activeOptionIndex]);
+      } else {
+        addItem(query);
+      }
+      return;
+    }
+
+    if (!query.trim()) return;
 
     const suggestion = exactSuggestion ?? filteredSuggestions[0];
     if (suggestion) {
@@ -213,28 +261,46 @@ export function ProductQuantitySelector({
     }
   }
 
+  function refocusInputAfterSelection() {
+    inputRef.current?.focus({ preventScroll: true });
+    closeOptions();
+  }
+
   return (
-    <div className="service-flow-product-selector">
+    <div
+      ref={wrapperRef}
+      className="service-flow-product-selector"
+      onBlur={(event) => {
+        if (event.relatedTarget instanceof Node && wrapperRef.current?.contains(event.relatedTarget)) return;
+        closeOptions();
+      }}
+    >
       <label className="service-flow-product-label" htmlFor={inputId}>
         {label}{required ? <span aria-hidden="true"> *</span> : null}
       </label>
       <div className="service-flow-product-combobox">
         <input
+          ref={inputRef}
           id={inputId}
           className="service-flow-product-input"
           type="text"
           role="combobox"
           aria-autocomplete="list"
           aria-controls={listboxId}
-          aria-expanded={open}
+          aria-expanded={optionsOpen}
+          aria-activedescendant={activeOptionId}
           aria-required={required}
           required={required && items.length === 0}
           disabled={disabled}
           value={query}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            setActiveOptionIndex(-1);
+          }}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
+            setActiveOptionIndex(-1);
           }}
           onKeyDown={handleKeyDown}
         />
@@ -250,22 +316,38 @@ export function ProductQuantitySelector({
         ) : null}
       </div>
 
-      {open && !disabled ? (
-        <div className="service-flow-product-options" id={listboxId} role="listbox" aria-label={`Sugestões de ${label}`}>
-          {filteredSuggestions.map((suggestion) => (
+      {optionsOpen ? (
+        <div ref={listboxRef} className="service-flow-product-options" id={listboxId} role="listbox" aria-label={`Sugestões de ${label}`}>
+          {filteredSuggestions.map((suggestion, index) => (
             <button
+              id={`${listboxId}-option-${index}`}
               className="service-flow-product-option"
               type="button"
               role="option"
-              aria-selected="false"
+              aria-selected={activeOptionIndex === index}
+              tabIndex={-1}
               key={suggestion.name}
-              onClick={() => addSuggestion(suggestion)}
+              onClick={() => {
+                addSuggestion(suggestion);
+                refocusInputAfterSelection();
+              }}
             >
               {suggestion.name}
             </button>
           ))}
           {canAddCustom ? (
-            <button className="service-flow-product-custom" type="button" role="option" aria-selected="false" onClick={() => addItem(query)}>
+            <button
+              id={`${listboxId}-option-${filteredSuggestions.length}`}
+              className="service-flow-product-custom"
+              type="button"
+              role="option"
+              aria-selected={activeOptionIndex === filteredSuggestions.length}
+              tabIndex={-1}
+              onClick={() => {
+                addItem(query);
+                refocusInputAfterSelection();
+              }}
+            >
               Adicionar &quot;{query.trim()}&quot;
             </button>
           ) : null}

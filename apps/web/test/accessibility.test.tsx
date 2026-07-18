@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { NotificationCenter } from "../src/components/notification-center";
@@ -42,6 +42,49 @@ describe("critical accessibility gate", () => {
     await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "Preview" })).toHaveFocus();
     expect(screen.getByRole("tabpanel")).toHaveTextContent("Ajuda");
+    expectNoCriticalAccessibilityViolations(container);
+  });
+
+  it("dismisses and navigates the emoji menu while preserving the intended focus", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(<MarkdownEditor label="Conteúdo da página" value="## Ajuda" onChange={onChange} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteúdo da página" });
+    const trigger = screen.getByRole("button", { name: "Emoji" });
+
+    textarea.focus();
+    textarea.setSelectionRange(8, 8);
+    await user.click(trigger);
+    let menuItems = screen.getAllByRole("menuitem");
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    await waitFor(() => expect(menuItems[0]).toHaveFocus());
+
+    await user.keyboard("{End}");
+    expect(menuItems.at(-1)).toHaveFocus();
+    await user.keyboard("{Home}{ArrowUp}");
+    expect(menuItems.at(-1)).toHaveFocus();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(screen.getAllByRole("menuitem")[0]).toHaveFocus());
+    await user.tab();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(textarea).toHaveFocus();
+
+    await user.click(trigger);
+    fireEvent.pointerDown(textarea);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    textarea.focus();
+    textarea.setSelectionRange(8, 8);
+    await user.click(trigger);
+    menuItems = screen.getAllByRole("menuitem");
+    await waitFor(() => expect(menuItems[0]).toHaveFocus());
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith("## Ajuda ✅");
+    await waitFor(() => expect(textarea).toHaveFocus());
     expectNoCriticalAccessibilityViolations(container);
   });
 

@@ -678,9 +678,6 @@ function GlobalSearchBox({ onNavigate }: { onNavigate: (href?: string | null) =>
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setOpen(query.trim().length >= 2)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setOpen(false);
-          }}
         />
       </label>
       {open && query.trim().length >= 2 ? (

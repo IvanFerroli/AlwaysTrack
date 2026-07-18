@@ -63,6 +63,26 @@ describe("ProductQuantitySelector", () => {
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
+  it("navigates suggestions through aria-activedescendant and selects the active option", async () => {
+    const user = userEvent.setup();
+    render(<ControlledSelector />);
+    const combobox = screen.getByRole("combobox", { name: "Produtos" });
+
+    await user.click(combobox);
+    const options = screen.getAllByRole("option");
+    await user.keyboard("{ArrowDown}");
+    expect(combobox).toHaveAttribute("aria-activedescendant", options[0].id);
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowDown}{End}{Home}{ArrowUp}");
+    expect(combobox).toHaveAttribute("aria-activedescendant", options.at(-1)?.id);
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("Vitamina C")).toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(combobox).toHaveFocus();
+  });
+
   it("adds a custom term and deduplicates names case-insensitively", async () => {
     const user = userEvent.setup();
     render(<ControlledSelector />);
@@ -70,6 +90,8 @@ describe("ProductQuantitySelector", () => {
 
     await user.type(combobox, "Creatina");
     await user.click(screen.getByRole("option", { name: 'Adicionar "Creatina"' }));
+    expect(combobox).toHaveFocus();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     await user.type(combobox, "creatina");
 
     expect(screen.queryByRole("option", { name: 'Adicionar "creatina"' })).not.toBeInTheDocument();
@@ -120,5 +142,27 @@ describe("ProductQuantitySelector", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(combobox).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes on outside interaction and blur without stealing destination focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <ControlledSelector allowAll={false} />
+        <button type="button">Destino externo</button>
+      </>
+    );
+    const combobox = screen.getByRole("combobox", { name: "Produtos" });
+    const outside = screen.getByRole("button", { name: "Destino externo" });
+
+    await user.click(combobox);
+    await user.click(outside);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(outside).toHaveFocus();
+
+    await user.click(combobox);
+    await user.tab();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(outside).toHaveFocus();
   });
 });
