@@ -1,7 +1,7 @@
 # TASK-AT-394 - Regras versionadas e configuracao gerencial de Escalas
 
 ## Metadata
-- status: implemented-partial-local-validation
+- status: completed-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-394-sac-scheduling-versioned-rules-admin.md
@@ -17,10 +17,11 @@ Regras facilmente configuraveis nao podem ser JSON livre nem edicao in-place. Du
 
 ## Dependencias
 - satisfeitas: TASK-AT-393.
-- em aberto: workflow de draft/preview/diff/archive da regra; limites e politica de aprovacao ja sao campos versionados por equipe.
+- em aberto: evidencia manual em navegador nos ambientes alvo; o workflow funcional e os contratos automatizados estao cobertos localmente.
 
 ## Estado reconciliado em 2026-07-18
-- API e painel criam diretamente a proxima versao imutavel com vigencia futura e fecham a janela anterior em transacao. Nao foram localizados draft persistido, diff entre versoes nem comando de arquivamento da regra.
+- Drafts persistidos possuem revisao otimista, payload normalizado e checksum deterministico. O painel salva e edita drafts, exige preview dry-run com diff contra base/ultima versao, invalida preview stale, publica de forma idempotente e arquiva draft ou versao futura ainda sem referencias.
+- Publicacao e fechamento da vigencia anterior ocorrem em transacao serializavel, com auditoria de IDs, checksum e campos alterados. O endpoint legado de criacao direta reutiliza o mesmo lifecycle governado.
 
 ## Alvos explicitos
 1. APIs draft/preview/publish/archive de regras.
@@ -45,7 +46,7 @@ Regras facilmente configuraveis nao podem ser JSON livre nem edicao in-place. Du
 4. Configuracao invalida nao chega ao materializador.
 
 ## Validacao
-- comandos/checks: testes parser/service/HTTP/Web, property tests de limites e typecheck.
+- comandos/checks: 110 testes focais API, 10 testes focais Web, typecheck API/Web, build Web e `git diff --check`.
 - revisao manual: criar draft, comparar, publicar hoje/futuro e arquivar.
 
 ## Riscos

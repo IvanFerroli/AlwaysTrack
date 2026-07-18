@@ -10,8 +10,8 @@
 Estender a transformacao operacional SAC com escalas efetivas, cobertura integrada a pausas, notificacoes resolviveis, overlays consistentes e Avisos recorrentes governados.
 
 ## Resultado da execucao local
-- Completas no recorte local implementado: TASK-AT-391, TASK-AT-395, TASK-AT-397 a TASK-AT-399, TASK-AT-403 a TASK-AT-406.
-- Parciais contra o contrato original: TASK-AT-392 a TASK-AT-394, TASK-AT-396, TASK-AT-401/402, TASK-AT-408 e TASK-AT-413/414.
+- Completas no recorte local implementado: TASK-AT-391, TASK-AT-394/395, TASK-AT-397, TASK-AT-403 a TASK-AT-406.
+- Parciais ou em execucao contra o contrato vigente: TASK-AT-392/393, TASK-AT-396, TASK-AT-398/399, TASK-AT-401/402, TASK-AT-408 e TASK-AT-413/414.
 - TASK-AT-400, TASK-AT-407, TASK-AT-409 e TASK-AT-410 possuem implementacao/testes locais, mas concorrencia, scheduler e alertas production-like permanecem externos.
 - TASK-AT-411 possui suites Web e specs desktop/mobile para SAC, GESTOR e ADMIN; SUPERVISOR, workflows completos, axe/visual e a execucao de Chromium neste host permanecem pendentes.
 - TASK-AT-412 registra API 80,72% e Web 56,53% de linhas, mais cinco harnesses Artillery guardados para leitura, cobertura, idempotencia, claim burst e recorrencia; os planos concorrentes nao foram executados.
@@ -22,7 +22,7 @@ Estender a transformacao operacional SAC com escalas efetivas, cobertura integra
 - `TASK-AT-367` a `TASK-AT-372` definem pausas, capacidade, swaps, overrides e overlap, mas a baseline usa janelas de turno da politica e nao uma escala efetiva diaria completa.
 - `TASK-AT-373` a `TASK-AT-380` implementam KPIs ponderados e Campanhas SAC governadas. Esta frente deve preservar esses contratos e seus testes; nao os reimplementa nem os converte em ranking nominal.
 - `TASK-AT-044`, `TASK-AT-080` e `TASK-AT-085` entregaram notificacoes in-app. `TASK-AT-397/398` adicionaram target tipado, resolver tenant-scoped e fallback autorizado antes da leitura/navegacao.
-- O Perfil atual concentra identidade e historico/filtros de notificacao; qualquer preferencia sem efeito real deve ser removida, nao simulada.
+- O Perfil concentra somente identidade; notificacoes, historico e acoes ficam no sino para evitar duas superficies concorrentes.
 - Popover de notificacoes, busca global, seletor de produtos, menu de emoji e menus de navegacao compartilham a mesma primitive de dismissal, com semantica de teclado especifica por controle.
 - Avisos possuem `startsAt`/`expiresAt`, vigencia e ciencia, mas nao regra recorrente, ocorrencia materializada ou edicao futura versionada.
 
@@ -87,7 +87,7 @@ Estender a transformacao operacional SAC com escalas efetivas, cobertura integra
 3. Cobertura usa polling de 45 segundos com atualizacao manual e indicador visivel.
 4. Troca pode ser autoaprovada pela regra; quando a regra exige gestao, aceite bilateral gera pendencia gerencial.
 5. Ocorrencias canceladas/expiradas permanecem auditaveis e nao sao apagadas.
-6. Perfil mantem historico clicavel de notificacoes e nao exibe preferencia sem efeito real.
+6. Sino mantem notificacoes clicaveis; Perfil nao consulta nem exibe historico ou preferencia de notificacao.
 7. Materializacao de Escalas continua disponivel por API/painel e possui job/cron multi-tenant para manter o horizonte futuro configuravel.
 8. Troca de Pausa usa `SupportPauseSwapBookingLock` exclusivo por booking; conflito legado de migration exige nova confirmacao.
 9. O catalogo tipado esta no Shared; persistencia aditiva, resolver API e consumo Web antes da leitura estao implementados.
