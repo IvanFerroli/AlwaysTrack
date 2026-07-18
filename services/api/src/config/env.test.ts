@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { loadEnv } from "./env.js";
 
 describe("api env", () => {
+  it("keeps legacy sales writes frozen unless rollback explicitly enables them", () => {
+    expect(loadEnv({}).enableLegacySalesWrites).toBe(false);
+    expect(loadEnv({ ENABLE_LEGACY_SALES_WRITES: "true" }).enableLegacySalesWrites).toBe(true);
+  });
+
   it("loads app identity defaults and overrides", () => {
     expect(loadEnv({}).appName).toBe("AlwaysTrack");
     expect(loadEnv({ APP_NAME: " Compliance Desk " }).appName).toBe("Compliance Desk");

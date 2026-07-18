@@ -70,6 +70,14 @@ model Organization {
   salesDocuments                SalesDocument[]
   salesCampaigns                SalesCampaign[]
   rankingSnapshots              RankingSnapshot[]
+  supportPausePolicy            SupportPausePolicy?
+  supportTeams                  SupportTeam[]
+  supportTeamMemberships        SupportTeamMembership[]
+  supportPauseSlots             SupportPauseSlot[]
+  supportPauseBookings          SupportPauseBooking[]
+  supportPauseSwaps             SupportPauseSwap[]
+  supportKpiEntries             SupportKpiEntry[]
+  supportCampaigns              SupportCampaign[]
   serviceCases                  ServiceCase[]
   companionInstallations        CompanionInstallation[]
   connectorDefinitions          ConnectorDefinition[]
@@ -190,6 +198,17 @@ model User {
   companionInstallations               CompanionInstallation[]        @relation("CompanionInstallationUser")
   connectorRuns                        ConnectorRun[]                 @relation("ConnectorRunUser")
   evidenceConflictsResolved            EvidenceConflict[]             @relation("EvidenceConflictResolvedBy")
+  supportPauseSlotsCreated             SupportPauseSlot[]              @relation("SupportPauseSlotCreator")
+  supportPauseBookings                 SupportPauseBooking[]
+  supportPauseSwapsRequested           SupportPauseSwap[]              @relation("SupportPauseSwapRequester")
+  supportPauseSwapsDecided             SupportPauseSwap[]              @relation("SupportPauseSwapDecider")
+  supportKpiEntriesTargeted             SupportKpiEntry[]               @relation("SupportKpiTarget")
+  supportKpiEntriesCreated              SupportKpiEntry[]               @relation("SupportKpiCreator")
+  supportKpiEntriesUpdated              SupportKpiEntry[]               @relation("SupportKpiUpdater")
+  supportCampaignsTargeted              SupportCampaign[]               @relation("SupportCampaignTarget")
+  supportCampaignsCreated               SupportCampaign[]               @relation("SupportCampaignCreator")
+  supportCampaignsUpdated               SupportCampaign[]               @relation("SupportCampaignUpdater")
+  supportTeamMemberships                SupportTeamMembership[]
 
   @@index([organizationId])
   @@index([role])
@@ -363,6 +382,190 @@ model RankingSnapshot {
   @@index([periodStart])
   @@index([periodEnd])
   @@index([scopeType])
+}
+
+model SupportPausePolicy {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  timezone        String   @default("America/Sao_Paulo")
+  minimumCoverage Int      @default(2)
+  slotMinutes     Int      @default(15)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+model SupportTeam {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  memberships  SupportTeamMembership[]
+  pauseSlots   SupportPauseSlot[]
+  kpiEntries   SupportKpiEntry[]
+  campaigns    SupportCampaign[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, active])
+}
+
+model SupportTeamMembership {
+  id             String    @id @default(cuid())
+  organizationId String
+  teamId         String
+  userId         String
+  validFrom      DateTime
+  validTo        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  team         SupportTeam  @relation(fields: [teamId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId, validFrom])
+  @@index([organizationId, validFrom, validTo])
+  @@index([userId, validFrom, validTo])
+}
+
+model SupportPauseSlot {
+  id             String   @id @default(cuid())
+  organizationId String
+  label          String?
+  startsAt       DateTime
+  endsAt         DateTime
+  capacity       Int      @default(1)
+  active         Boolean  @default(true)
+  createdById    String
+  teamId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  createdBy    User                  @relation("SupportPauseSlotCreator", fields: [createdById], references: [id])
+  team         SupportTeam?          @relation(fields: [teamId], references: [id])
+  bookings     SupportPauseBooking[]
+
+  @@unique([organizationId, startsAt, endsAt])
+  @@index([organizationId, startsAt])
+  @@index([organizationId, active])
+  @@index([teamId, startsAt])
+}
+
+model SupportPauseBooking {
+  id             String   @id @default(cuid())
+  organizationId String
+  slotId         String
+  userId         String
+  status         String   @default("BOOKED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  slot         SupportPauseSlot   @relation(fields: [slotId], references: [id])
+  user         User               @relation(fields: [userId], references: [id])
+  requestedSwaps SupportPauseSwap[] @relation("SupportPauseSwapRequesterBooking")
+  targetSwaps    SupportPauseSwap[] @relation("SupportPauseSwapTargetBooking")
+
+  @@unique([slotId, userId])
+  @@index([organizationId, status])
+  @@index([userId, status])
+}
+
+model SupportPauseSwap {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  requesterBookingId String
+  targetBookingId    String
+  requestedById      String
+  decidedById        String?
+  status             String   @default("PENDING")
+  note               String?
+  decidedAt          DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  requesterBooking SupportPauseBooking @relation("SupportPauseSwapRequesterBooking", fields: [requesterBookingId], references: [id])
+  targetBooking    SupportPauseBooking @relation("SupportPauseSwapTargetBooking", fields: [targetBookingId], references: [id])
+  requestedBy      User                @relation("SupportPauseSwapRequester", fields: [requestedById], references: [id])
+  decidedBy        User?               @relation("SupportPauseSwapDecider", fields: [decidedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([requestedById, status])
+  @@index([targetBookingId, status])
+}
+
+model SupportKpiEntry {
+  id             String    @id @default(cuid())
+  organizationId String
+  metric         String
+  value          Float
+  numerator      Float?
+  denominator    Float?
+  scopeType      String
+  userId         String?
+  teamLabel      String?
+  teamId         String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  source         String?
+  note           String?
+  createdById    String
+  updatedById    String
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation("SupportKpiTarget", fields: [userId], references: [id])
+  team         SupportTeam? @relation(fields: [teamId], references: [id])
+  createdBy    User         @relation("SupportKpiCreator", fields: [createdById], references: [id])
+  updatedBy    User         @relation("SupportKpiUpdater", fields: [updatedById], references: [id])
+
+  @@index([organizationId, metric, periodStart])
+  @@index([organizationId, scopeType])
+  @@index([userId, periodStart])
+  @@index([teamId, periodStart])
+}
+
+model SupportCampaign {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  metric         String
+  targetValue    Float
+  comparison     String
+  scopeType      String
+  userId         String?
+  teamLabel      String?
+  teamId         String?
+  status         String   @default("DRAFT")
+  startsAt       DateTime
+  endsAt         DateTime
+  createdById    String
+  updatedById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation("SupportCampaignTarget", fields: [userId], references: [id])
+  team         SupportTeam? @relation(fields: [teamId], references: [id])
+  createdBy    User         @relation("SupportCampaignCreator", fields: [createdById], references: [id])
+  updatedBy    User         @relation("SupportCampaignUpdater", fields: [updatedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, metric])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([teamId, status])
 }
 
 model Professional {

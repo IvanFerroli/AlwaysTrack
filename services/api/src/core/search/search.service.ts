@@ -1,5 +1,5 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
-import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
+import type { PrismaClient } from "@prisma/client";
+import { supportOperationsRoles, type CurrentUser } from "@alwaystrack/shared";
 
 export interface GlobalSearchInput {
   query?: string;
@@ -7,7 +7,7 @@ export interface GlobalSearchInput {
 }
 
 export interface GlobalSearchResult {
-  type: "note" | "seller" | "campaign" | "wiki" | "faq" | "announcement" | "script";
+  type: "campaign" | "wiki" | "faq" | "announcement" | "script";
   id: string;
   title: string;
   subtitle: string;
@@ -33,68 +33,51 @@ export function parseGlobalSearchInput(query: Record<string, unknown>): GlobalSe
   };
 }
 
-function sellerScopeWhere(actor: CurrentUser): Prisma.SellerProfileWhereInput {
-  if (["ADMIN", "GESTOR", "FINANCEIRO"].includes(actor.role)) return { organizationId: actor.organizationId };
-  if (actor.role === "VENDEDOR") return { organizationId: actor.organizationId, userId: actor.id };
-  if (actor.role === "SUPERVISOR") return { organizationId: actor.organizationId, salesGroup: { supervisorId: actor.id } };
-  return { organizationId: "__forbidden__" };
-}
-
-function salesDocumentScopeWhere(actor: CurrentUser): Prisma.SalesDocumentWhereInput {
-  return { organizationId: actor.organizationId, sellerProfile: sellerScopeWhere(actor) };
-}
-
-function campaignScopeWhere(actor: CurrentUser): Prisma.SalesCampaignWhereInput {
-  return {
-    organizationId: actor.organizationId,
-    salesGroup: actor.role === "SUPERVISOR" ? { supervisorId: actor.id } : undefined
-  };
-}
-
 function containsQuery(fields: string[], query: string) {
   return fields.map((field) => ({ [field]: { contains: query } }));
 }
 
-/** Lightweight scoped global search across the commercial and knowledge domains. */
+/** Lightweight scoped global search across support operations and knowledge. */
 export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, input: GlobalSearchInput) {
   const query = input.query;
   const limit = input.limit ?? 5;
   if (!query) {
     return { query: query ?? "", groups: [], total: 0 };
   }
-  const canSearchSales = canUseCommercialPermission(actor.role, "sales.read");
-  const canSearchCampaigns = canUseCommercialPermission(actor.role, "campaign.read");
+  const canSearchSupport = (supportOperationsRoles as readonly string[]).includes(actor.role);
+  const now = new Date();
 
-  const [notes, sellers, campaigns, wikiPages, faqThreads, announcements, scripts] = await Promise.all([
-    canSearchSales
-      ? prisma.salesDocument.findMany({
+  const [campaigns, wikiPages, faqThreads, announcements, scripts] = await Promise.all([
+    canSearchSupport
+      ? prisma.supportCampaign.findMany({
           where: {
-            ...salesDocumentScopeWhere(actor),
-            OR: containsQuery(["fileName", "invoiceNumber", "accessKey", "issuerName", "buyerName"], query)
+            organizationId: actor.organizationId,
+            OR: actor.role === "ADMIN" || actor.role === "GESTOR"
+              ? containsQuery(["name", "description", "status"], query)
+              : [{
+                  AND: [
+                    {
+                      OR: [
+                        { scopeType: "ORGANIZATION" },
+                        { userId: actor.id },
+                        {
+                          team: {
+                            memberships: {
+                              some: {
+                                userId: actor.id,
+                                validFrom: { lte: now },
+                                OR: [{ validTo: null }, { validTo: { gte: now } }]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    { OR: containsQuery(["name", "description", "status"], query) }
+                  ]
+                }],
           },
-          include: { sellerProfile: { include: { salesGroup: true } } },
-          orderBy: { createdAt: "desc" },
-          take: limit
-        })
-      : Promise.resolve([]),
-    canSearchSales
-      ? prisma.sellerProfile.findMany({
-          where: {
-            ...sellerScopeWhere(actor),
-            OR: containsQuery(["displayName", "code", "email", "document"], query)
-          },
-          include: { salesGroup: true },
-          orderBy: { displayName: "asc" },
-          take: limit
-        })
-      : Promise.resolve([]),
-    canSearchCampaigns
-      ? prisma.salesCampaign.findMany({
-          where: {
-            ...campaignScopeWhere(actor),
-            OR: containsQuery(["name", "description", "status"], query)
-          },
-          include: { salesGroup: true },
+          include: { team: true },
           orderBy: [{ status: "asc" }, { startsAt: "desc" }],
           take: limit
         })
@@ -144,42 +127,14 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
 
   const groups = [
     {
-      key: "notes",
-      label: "Notas",
-      items: notes.map(
-        (item): GlobalSearchResult => ({
-          type: "note",
-          id: item.id,
-          title: item.invoiceNumber ? `NF ${item.invoiceNumber}` : item.fileName,
-          subtitle: `${item.sellerProfile.displayName} · ${item.status}`,
-          href: "/notas",
-          meta: item.totalAmountCents !== null ? `R$ ${(item.totalAmountCents / 100).toFixed(2)}` : item.fileName
-        })
-      )
-    },
-    {
-      key: "sellers",
-      label: "Vendedores",
-      items: sellers.map(
-        (item): GlobalSearchResult => ({
-          type: "seller",
-          id: item.id,
-          title: item.displayName,
-          subtitle: item.salesGroup?.name ?? "Sem grupo",
-          href: "/ranking",
-          meta: item.code
-        })
-      )
-    },
-    {
       key: "campaigns",
-      label: "Campanhas",
+      label: "Campanhas SAC",
       items: campaigns.map(
         (item): GlobalSearchResult => ({
           type: "campaign",
           id: item.id,
           title: item.name,
-          subtitle: `${item.status} · ${item.salesGroup?.name ?? "Todos"}`,
+          subtitle: `${item.status} · ${item.team?.name ?? "Todo o SAC"}`,
           href: "/campanhas",
           meta: item.description
         })

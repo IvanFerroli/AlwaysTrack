@@ -940,7 +940,7 @@ async function main() {
     }
   });
 
-  await prisma.user.upsert({
+  const sac2 = await prisma.user.upsert({
     where: { email: "sac2@example.com" },
     update: { name: "SAC Demo 2", passwordHash: sacPasswordHash, role: "SAC", active: true, organizationId: organization.id },
     create: {
@@ -952,7 +952,7 @@ async function main() {
     }
   });
 
-  await prisma.user.upsert({
+  const sac3 = await prisma.user.upsert({
     where: { email: "sac3@example.com" },
     update: { name: "SAC Demo 3", passwordHash: sacPasswordHash, role: "SAC", active: true, organizationId: organization.id },
     create: {
@@ -1001,6 +1001,135 @@ async function main() {
       organizationId: organization.id
     }
   });
+
+  const supportTeam = await prisma.supportTeam.upsert({
+    where: { organizationId_name: { organizationId: organization.id, name: "SAC Atendimento" } },
+    update: { active: true },
+    create: { organizationId: organization.id, name: "SAC Atendimento" }
+  });
+  const supportMembershipValidFrom = new Date("2026-01-01T03:00:00.000Z");
+  for (const user of [sac, sac2, sac3]) {
+    await prisma.supportTeamMembership.upsert({
+      where: {
+        teamId_userId_validFrom: {
+          teamId: supportTeam.id,
+          userId: user.id,
+          validFrom: supportMembershipValidFrom
+        }
+      },
+      update: { organizationId: organization.id, validTo: null },
+      create: {
+        organizationId: organization.id,
+        teamId: supportTeam.id,
+        userId: user.id,
+        validFrom: supportMembershipValidFrom
+      }
+    });
+  }
+
+  await prisma.supportPausePolicy.upsert({
+    where: { organizationId: organization.id },
+    update: { timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15, active: true },
+    create: { organizationId: organization.id, timezone: "America/Sao_Paulo", minimumCoverage: 2, slotMinutes: 15 }
+  });
+
+  function supportPauseTime(hour: number, minute: number) {
+    const value = new Date(now);
+    value.setHours(hour, minute, 0, 0);
+    return value;
+  }
+
+  const supportSlotDefinitions = [
+    { label: "Pausa 19h", startsAt: supportPauseTime(19, 0), endsAt: supportPauseTime(19, 30), capacity: 2 },
+    { label: "Pausa 19h30", startsAt: supportPauseTime(19, 30), endsAt: supportPauseTime(20, 0), capacity: 1 },
+    { label: "Pausa 20h", startsAt: supportPauseTime(20, 0), endsAt: supportPauseTime(20, 30), capacity: 1 },
+    { label: "Pausa 20h30", startsAt: supportPauseTime(20, 30), endsAt: supportPauseTime(21, 0), capacity: 1 }
+  ];
+  const supportSlots = [];
+  for (const definition of supportSlotDefinitions) {
+    supportSlots.push(await prisma.supportPauseSlot.upsert({
+      where: { organizationId_startsAt_endsAt: { organizationId: organization.id, startsAt: definition.startsAt, endsAt: definition.endsAt } },
+      update: { label: definition.label, capacity: definition.capacity, active: true, teamId: supportTeam.id },
+      create: { organizationId: organization.id, createdById: admin.id, teamId: supportTeam.id, ...definition }
+    }));
+  }
+  for (const [slot, user] of [[supportSlots[0], sac], [supportSlots[0], sac2], [supportSlots[1], sac3]] as const) {
+    await prisma.supportPauseBooking.upsert({
+      where: { slotId_userId: { slotId: slot.id, userId: user.id } },
+      update: { status: "BOOKED" },
+      create: { organizationId: organization.id, slotId: slot.id, userId: user.id }
+    });
+  }
+
+  const supportPeriods = [21, 14, 7, 0].map((daysBack) => {
+    const periodEnd = daysAgo(daysBack);
+    const periodStart = new Date(periodEnd);
+    periodStart.setUTCDate(periodStart.getUTCDate() - 6);
+    return { periodStart, periodEnd };
+  });
+  const supportMetricSeries = {
+    CSAT: [86, 89, 91, 93],
+    PRODUCTIVITY: [72, 76, 79, 84],
+    SLA: [78, 82, 88, 92],
+    RECLAME_AQUI_OPEN: [6, 4, 3, 1]
+  } as const;
+  for (const [metric, values] of Object.entries(supportMetricSeries)) {
+    for (const [index, period] of supportPeriods.entries()) {
+      const existing = await prisma.supportKpiEntry.findFirst({
+        where: { organizationId: organization.id, metric, periodStart: period.periodStart }
+      });
+      const denominator = metric === "CSAT" || metric === "SLA" ? 40 + index * 15 : null;
+      const data = {
+        value: values[index],
+        numerator: denominator ? values[index] * denominator / 100 : null,
+        denominator,
+        scopeType: "TEAM",
+        teamId: supportTeam.id,
+        teamLabel: supportTeam.name,
+        periodEnd: period.periodEnd,
+        source: "Painel operacional demonstrativo",
+        note: index === values.length - 1 ? "Último fechamento informado pela gestão." : null,
+        updatedById: admin.id,
+        archivedAt: null
+      };
+      if (existing) {
+        await prisma.supportKpiEntry.update({ where: { id: existing.id }, data });
+      } else {
+        await prisma.supportKpiEntry.create({
+          data: {
+            organizationId: organization.id,
+            metric,
+            periodStart: period.periodStart,
+            createdById: admin.id,
+            ...data
+          }
+        });
+      }
+    }
+  }
+
+  const supportCampaignDefinitions = [
+    { name: "CSAT acima de 92", description: "Manter a qualidade percebida sem sacrificar o SLA.", metric: "CSAT", targetValue: 92, comparison: "GTE" },
+    { name: "ReclameAqui sob controle", description: "No máximo uma ocorrência aberta atribuída ao atendimento no período.", metric: "RECLAME_AQUI_OPEN", targetValue: 1, comparison: "LTE" }
+  ];
+  for (const definition of supportCampaignDefinitions) {
+    const existing = await prisma.supportCampaign.findFirst({ where: { organizationId: organization.id, name: definition.name } });
+    const data = {
+      ...definition,
+      scopeType: "TEAM",
+      teamId: supportTeam.id,
+      teamLabel: supportTeam.name,
+      status: "ACTIVE",
+      startsAt: daysAgo(7),
+      endsAt: addDays(21),
+      updatedById: admin.id
+    };
+    if (existing) {
+      await prisma.supportCampaign.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.supportCampaign.create({ data: { organizationId: organization.id, createdById: admin.id, ...data } });
+    }
+  }
 
   const salesGroup = await prisma.salesGroup.upsert({
     where: {

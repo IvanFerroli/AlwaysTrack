@@ -5,7 +5,8 @@ import {
   commercialKnowledgeContributorRoles,
   commercialManagerRoles,
   commercialReviewerRoles,
-  commercialSalesAccessRoles
+  commercialSalesAccessRoles,
+  supportOperationsRoles
 } from "@alwaystrack/shared";
 import { loadEnv } from "./config/env.js";
 import { attachRequestContext } from "./core/http/request-context.js";
@@ -155,6 +156,22 @@ import {
   uploadWikiAttachmentHandler
 } from "./core/wiki/wiki.handlers.js";
 import { operationalTodayHandler } from "./core/operations/operations.handlers.js";
+import {
+  bookSupportPauseSlotHandler,
+  cancelSupportPauseBookingHandler,
+  createSupportCampaignHandler,
+  createSupportKpiEntryHandler,
+  createSupportPauseSlotHandler,
+  decideSupportPauseSwapHandler,
+  listSupportCampaignsHandler,
+  listSupportPausesHandler,
+  listSupportPerformanceHandler,
+  requestSupportPauseSwapHandler,
+  supportDashboardHandler,
+  updateSupportCampaignHandler,
+  updateSupportKpiEntryHandler,
+  updateSupportPausePolicyHandler
+} from "./core/support-operations/support-operations.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
   archiveOperationalAttachmentHandler,
@@ -235,6 +252,7 @@ import {
   updateSalesCampaignHandler,
   uploadSalesDocumentHandler
 } from "./core/sales-documents/sales-documents.handlers.js";
+import { createLegacySalesWriteGuard, legacySalesDeprecationHeaders } from "./core/sales-documents/legacy-sales-retirement.js";
 import { caseFlowHandlers } from "./core/case-flow/case-flow.handlers.js";
 import { resolveCaseHandler } from "./core/case-flow/resolve.handlers.js";
 import { manualEvidenceHandler } from "./core/case-flow/manual-evidence.handlers.js";
@@ -251,6 +269,7 @@ export function createApp() {
   const app = express();
   const env = loadEnv();
   const rateLimits = createApiRateLimiters(env);
+  const legacySalesWriteGuard = createLegacySalesWriteGuard(env);
 
   app.set("trust proxy", 1);
   app.use(securityHeadersMiddleware);
@@ -376,14 +395,29 @@ export function createApp() {
   if (env.enableLegacySylembra) {
     app.get("/v1/dashboard", requireAuth, requireRole(["ADMIN", "RT", "SUPERVISOR"]), getDashboardHandler);
   }
+  app.use("/v1/sales", legacySalesDeprecationHeaders);
   app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialSalesAccessRoles), salesDashboardHandler);
   app.get("/v1/operations/today", requireAuth, requireRole(commercialAllRoles), operationalTodayHandler);
+  app.get("/v1/support/dashboard", requireAuth, requireRole(supportOperationsRoles), supportDashboardHandler);
+  app.get("/v1/support/pauses", requireAuth, requireRole(supportOperationsRoles), listSupportPausesHandler);
+  app.put("/v1/support/pauses/policy", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportPausePolicyHandler);
+  app.post("/v1/support/pauses/slots", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportPauseSlotHandler);
+  app.post("/v1/support/pauses/slots/:slotId/book", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, bookSupportPauseSlotHandler);
+  app.delete("/v1/support/pauses/bookings/:bookingId", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, cancelSupportPauseBookingHandler);
+  app.post("/v1/support/pauses/swaps", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, requestSupportPauseSwapHandler);
+  app.post("/v1/support/pauses/swaps/:swapId/decision", requireAuth, requireRole(supportOperationsRoles), rateLimits.interaction, decideSupportPauseSwapHandler);
+  app.get("/v1/support/performance", requireAuth, requireRole(supportOperationsRoles), listSupportPerformanceHandler);
+  app.post("/v1/support/performance/entries", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportKpiEntryHandler);
+  app.patch("/v1/support/performance/entries/:entryId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportKpiEntryHandler);
+  app.get("/v1/support/campaigns", requireAuth, requireRole(supportOperationsRoles), listSupportCampaignsHandler);
+  app.post("/v1/support/campaigns", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportCampaignHandler);
+  app.patch("/v1/support/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportCampaignHandler);
   app.get("/v1/sales/dashboard.csv", requireAuth, requireRole(commercialSalesAccessRoles), salesDashboardCsvHandler);
   app.get("/v1/sales/campaigns", requireAuth, requireRole(commercialSalesAccessRoles), listSalesCampaignsHandler);
-  app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, express.json(), createSalesCampaignHandler);
+  app.post("/v1/sales/campaigns", requireAuth, requireRole(commercialManagerRoles), legacySalesWriteGuard, rateLimits.adminSensitive, express.json(), createSalesCampaignHandler);
   app.get("/v1/sales/campaigns/snapshots", requireAuth, requireRole(commercialSalesAccessRoles), listRankingSnapshotsHandler);
-  app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, express.json(), updateSalesCampaignHandler);
-  app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), rateLimits.ai, createRankingSnapshotHandler);
+  app.patch("/v1/sales/campaigns/:campaignId", requireAuth, requireRole(commercialManagerRoles), legacySalesWriteGuard, rateLimits.adminSensitive, express.json(), updateSalesCampaignHandler);
+  app.post("/v1/sales/campaigns/:campaignId/snapshots", requireAuth, requireRole(commercialManagerRoles), legacySalesWriteGuard, rateLimits.ai, createRankingSnapshotHandler);
   app.get("/v1/sales/campaigns/:campaignId/snapshots/job", requireAuth, requireRole(commercialManagerRoles), rateLimits.search, getRankingSnapshotJobStatusHandler);
   app.get("/v1/sales/ranking", requireAuth, requireRole(commercialSalesAccessRoles), salesRankingHandler);
   app.get("/v1/sales/ranking/:sellerProfileId/explanation", requireAuth, requireRole(commercialSalesAccessRoles), salesRankingExplanationHandler);
@@ -396,15 +430,16 @@ export function createApp() {
     "/v1/sales/documents",
     requireAuth,
     requireRole(commercialSalesAccessRoles),
+    legacySalesWriteGuard,
     rateLimits.upload,
     express.raw({ limit: "11mb", type: ["application/pdf", "application/xml", "text/xml", "image/jpeg", "image/png", "image/webp"] }),
     uploadSalesDocumentHandler
   );
   app.get("/v1/sales/documents/:documentId/diagnostics", requireAuth, requireRole(commercialSalesAccessRoles), salesDocumentDiagnosticsHandler);
   app.get("/v1/sales/documents/:documentId/timeline", requireAuth, requireRole(commercialSalesAccessRoles), salesDocumentTimelineHandler);
-  app.patch("/v1/sales/documents/:documentId/manual-correction", requireAuth, requireRole(commercialReviewerRoles), rateLimits.adminSensitive, express.json(), salesDocumentManualCorrectionHandler);
-  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialSalesAccessRoles), rateLimits.ai, analyzeSalesDocumentHandler);
-  app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(commercialReviewerRoles), rateLimits.adminSensitive, reviewSalesDocumentHandler);
+  app.patch("/v1/sales/documents/:documentId/manual-correction", requireAuth, requireRole(commercialReviewerRoles), legacySalesWriteGuard, rateLimits.adminSensitive, express.json(), salesDocumentManualCorrectionHandler);
+  app.post("/v1/sales/documents/:documentId/analyze", requireAuth, requireRole(commercialSalesAccessRoles), legacySalesWriteGuard, rateLimits.ai, analyzeSalesDocumentHandler);
+  app.patch("/v1/sales/documents/:documentId/review", requireAuth, requireRole(commercialReviewerRoles), legacySalesWriteGuard, rateLimits.adminSensitive, reviewSalesDocumentHandler);
   app.get("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), listFaqThreadsHandler);
   app.post("/v1/faq/threads", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, createFaqThreadHandler);
   app.post("/v1/faq/threads/:threadId/comments", requireAuth, requireRole(commercialAllRoles), rateLimits.interaction, addFaqCommentHandler);

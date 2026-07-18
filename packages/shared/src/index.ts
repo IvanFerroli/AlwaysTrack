@@ -12,6 +12,7 @@ export const adminOnlyRoles = ["ADMIN"] as const satisfies readonly UserRole[];
 export const commercialAllRoles = ["ADMIN", "GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
 export const commercialSalesAccessRoles = ["ADMIN", "GESTOR", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
 export const commercialManagerRoles = ["ADMIN", "GESTOR"] as const satisfies readonly UserRole[];
+export const supportOperationsRoles = ["ADMIN", "GESTOR", "SAC"] as const satisfies readonly UserRole[];
 export const commercialReviewerRoles = ["ADMIN", "GESTOR", "FINANCEIRO"] as const satisfies readonly UserRole[];
 export const commercialMonitorRoles = ["ADMIN", "GESTOR", "SUPERVISOR", "FINANCEIRO"] as const satisfies readonly UserRole[];
 export const commercialKnowledgeContributorRoles = ["GESTOR", "SAC", "FINANCEIRO", "VENDEDOR", "SUPERVISOR"] as const satisfies readonly UserRole[];
@@ -39,7 +40,13 @@ export const commercialPermissionMatrix = {
   "users.manage": adminOnlyRoles,
   "audit.read": adminOnlyRoles,
   "profile.manageSelf": commercialAllRoles,
-  "notifications.readSelf": commercialAllRoles
+  "notifications.readSelf": commercialAllRoles,
+  "supportPauses.read": supportOperationsRoles,
+  "supportPauses.manage": commercialManagerRoles,
+  "supportPerformance.read": supportOperationsRoles,
+  "supportPerformance.manage": commercialManagerRoles,
+  "supportCampaigns.read": supportOperationsRoles,
+  "supportCampaigns.manage": commercialManagerRoles
 } as const;
 
 export type CommercialPermission = keyof typeof commercialPermissionMatrix;

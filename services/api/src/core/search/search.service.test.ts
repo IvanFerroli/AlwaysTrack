@@ -26,23 +26,8 @@ const sac: CurrentUser = {
 
 function prismaMock() {
   return {
-    salesDocument: {
-      findMany: vi.fn().mockResolvedValue([
-        {
-          id: "doc-1",
-          fileName: "danfe.pdf",
-          invoiceNumber: "703444",
-          status: "APPROVED",
-          totalAmountCents: 15990,
-          sellerProfile: { displayName: "Ana", salesGroup: { name: "Vendas" } }
-        }
-      ])
-    },
-    sellerProfile: {
-      findMany: vi.fn().mockResolvedValue([{ id: "seller-1", displayName: "Ana", code: "ANA", salesGroup: { name: "Vendas" } }])
-    },
-    salesCampaign: {
-      findMany: vi.fn().mockResolvedValue([{ id: "campaign-1", name: "Junho", status: "ACTIVE", description: "Whey", salesGroup: null }])
+    supportCampaign: {
+      findMany: vi.fn().mockResolvedValue([{ id: "campaign-1", name: "CSAT acima de 92", status: "ACTIVE", description: "Qualidade", team: { name: "SAC Atendimento" } }])
     },
     wikiPage: {
       findMany: vi.fn().mockResolvedValue([{ id: "wiki-1", title: "Conferência DANFE", slug: "conferencia-danfe", active: true }])
@@ -69,39 +54,29 @@ describe("global search service", () => {
     const prisma = prismaMock();
     const result = await globalSearch(prisma as never, admin, { query: "danfe", limit: 5 });
 
-    expect(result.total).toBe(7);
-    expect(result.groups.map((group) => group.key)).toEqual(["notes", "sellers", "campaigns", "wiki", "faq", "announcements", "scripts"]);
-    expect(result.groups[0].items[0]).toMatchObject({ type: "note", title: "NF 703444", href: "/notas" });
+    expect(result.total).toBe(5);
+    expect(result.groups.map((group) => group.key)).toEqual(["campaigns", "wiki", "faq", "announcements", "scripts"]);
+    expect(result.groups[0].items[0]).toMatchObject({ type: "campaign", title: "CSAT acima de 92", href: "/campanhas" });
     expect(result.groups.find((group) => group.key === "faq")?.items[0]).toMatchObject({ type: "faq" });
     expect(result.groups.find((group) => group.key === "announcements")?.items[0]).toMatchObject({ type: "announcement" });
-    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
+    expect(prisma.supportCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
   });
 
-  it("scopes seller results to the logged seller profile", async () => {
+  it("does not expose support campaigns to retired sales roles", async () => {
     const prisma = prismaMock();
-    await globalSearch(prisma as never, seller, { query: "ana", limit: 5 });
+    const result = await globalSearch(prisma as never, seller, { query: "ana", limit: 5 });
 
-    expect(prisma.salesDocument.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          sellerProfile: expect.objectContaining({ userId: "seller-user-1" })
-        })
-      })
-    );
-    expect(prisma.sellerProfile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: "seller-user-1" })
-      })
-    );
+    expect(result.groups.map((group) => group.key)).toEqual(["wiki", "faq", "announcements", "scripts"]);
+    expect(prisma.supportCampaign.findMany).not.toHaveBeenCalled();
   });
 
-  it("does not query commercial data for SAC users", async () => {
+  it("includes team-scoped campaigns for SAC users", async () => {
     const prisma = prismaMock();
     const result = await globalSearch(prisma as never, sac, { query: "danfe", limit: 5 });
 
-    expect(result.groups.map((group) => group.key)).toEqual(["wiki", "faq", "announcements", "scripts"]);
-    expect(prisma.salesDocument.findMany).not.toHaveBeenCalled();
-    expect(prisma.sellerProfile.findMany).not.toHaveBeenCalled();
-    expect(prisma.salesCampaign.findMany).not.toHaveBeenCalled();
+    expect(result.groups.map((group) => group.key)).toEqual(["campaigns", "wiki", "faq", "announcements", "scripts"]);
+    expect(prisma.supportCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ organizationId: "org-1" })
+    }));
   });
 });
