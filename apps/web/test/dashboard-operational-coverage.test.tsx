@@ -1,6 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  supportScheduleDate,
+  supportScheduleQuery,
+  supportScheduleWeekDates,
+  type SupportScheduleCalendarResponse,
+  type SupportShiftOccurrence,
+  type SupportScheduleDayStatus
+} from "../src/support-scheduling";
 import { DashboardView } from "../src/views/dashboard";
 
 const apiMock = vi.fn();
@@ -18,6 +26,47 @@ const adminUser = {
 };
 
 const sacUser = { ...adminUser, id: "sac-1", name: "SAC Teste", email: "sac@example.test", role: "SAC" as const };
+const localToday = supportScheduleDate();
+const localWeek = supportScheduleWeekDates(localToday);
+
+function scheduleOccurrence(overrides: Partial<SupportShiftOccurrence> = {}): SupportShiftOccurrence {
+  return {
+    id: "occurrence-today",
+    organizationId: sacUser.organizationId,
+    teamId: "team-1",
+    userId: sacUser.id,
+    assignmentId: "assignment-1",
+    patternVersionId: "pattern-1",
+    ruleVersionId: "rule-1",
+    localDate: localToday,
+    startsAt: `${localToday}T11:00:00.000Z`,
+    endsAt: `${localToday}T20:00:00.000Z`,
+    kind: "REGULAR",
+    status: "PUBLISHED",
+    sourceType: "MATERIALIZED",
+    sourceId: "assignment-1",
+    ruleSnapshotJson: JSON.stringify({ timezone: "America/Sao_Paulo" }),
+    publishedAt: `${localToday}T10:00:00.000Z`,
+    user: { id: sacUser.id, name: sacUser.name },
+    team: { id: "team-1", name: "Atendimento" },
+    pauseBookings: [],
+    ...overrides
+  };
+}
+
+function personalSchedule(occurrences: SupportShiftOccurrence[] = [], dayStatuses?: SupportScheduleDayStatus[]): SupportScheduleCalendarResponse {
+  return {
+    from: localWeek[0],
+    to: localWeek[6],
+    scope: "SELF",
+    teamId: null,
+    userId: sacUser.id,
+    occurrences,
+    extraSlots: [],
+    offers: [],
+    dayStatuses
+  };
+}
 
 const supportDashboard = {
   date: "2026-07-17",
@@ -89,10 +138,15 @@ const operationalKnowledge = {
   }
 };
 
-function installSuccess(overrides?: { dashboard?: unknown; knowledge?: unknown }) {
+function installSuccess(overrides?: { dashboard?: unknown; knowledge?: unknown; schedule?: DashboardScheduleCalendarResponse | Error }) {
   apiMock.mockImplementation((path: string) => {
     if (path.startsWith("/v1/support/dashboard?")) return Promise.resolve(overrides?.dashboard ?? supportDashboard);
     if (path === "/v1/operations/today") return Promise.resolve(overrides?.knowledge ?? operationalKnowledge);
+    if (path.startsWith("/v1/support/schedules?")) {
+      return overrides?.schedule instanceof Error
+        ? Promise.reject(overrides.schedule)
+        : Promise.resolve(overrides?.schedule ?? personalSchedule());
+    }
     return Promise.reject(new Error(`Unexpected dashboard request: ${path}`));
   });
 }
@@ -238,6 +292,127 @@ describe("DashboardView SAC operational coverage", () => {
     expect(screen.queryByText("Overlap das pausas")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gerenciar pausas" })).not.toBeInTheDocument();
     expect(screen.getByText("Performance SAC")).toBeInTheDocument();
+  });
+
+  it("highlights today's normal shift from the self-scoped published schedule", async () => {
+    installSuccess({ schedule: personalSchedule([scheduleOccurrence()], [{ localDate: localToday, status: "WORKING", occurrenceIds: ["occurrence-today"] }]) });
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    render(<DashboardView user={sacUser} onOpen={onOpen} />);
+
+    expect(await screen.findByRole("heading", { name: "Hoje você trabalha das 08:00 às 17:00" })).toBeInTheDocument();
+    const expectedQuery = supportScheduleQuery({ date: localToday, scope: "SELF" });
+    expect(apiMock).toHaveBeenCalledWith(expectedQuery);
+    expect(expectedQuery).not.toContain("userId=");
+    expect(expectedQuery).not.toContain("teamId=");
+
+    await user.click(screen.getByRole("button", { name: "Abrir minha escala" }));
+    expect(onOpen).toHaveBeenCalledWith("supportSchedules", {
+      supportSchedules: { date: localToday, tab: "calendario" }
+    });
+  });
+
+  it("labels a double shift and shows every published interval in chronological order", async () => {
+    installSuccess({
+      schedule: personalSchedule([
+        scheduleOccurrence({ endsAt: `${localToday}T15:00:00.000Z` }),
+        scheduleOccurrence({
+          id: "occurrence-double",
+          assignmentId: null,
+          sourceId: "extra-1",
+          startsAt: `${localToday}T16:00:00.000Z`,
+          kind: "DOUBLE"
+        })
+      ], [{ localDate: localToday, status: "DOUBLE", occurrenceIds: ["occurrence-today", "occurrence-double"] }])
+    });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Hoje é dobra" })).toBeInTheDocument();
+    expect(screen.getByText("08:00 a 12:00 e 13:00 a 17:00")).toBeInTheDocument();
+  });
+
+  it("does not infer a day off from occurrences published on another day", async () => {
+    const publishedWorkday = localWeek.find((date) => date !== localToday) as string;
+    installSuccess({
+      schedule: personalSchedule([scheduleOccurrence({
+        id: "occurrence-published-week",
+        localDate: publishedWorkday,
+        startsAt: `${publishedWorkday}T11:00:00.000Z`,
+        endsAt: `${publishedWorkday}T20:00:00.000Z`
+      })])
+    });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Escala de hoje ainda não publicada" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Hoje é folga" })).not.toBeInTheDocument();
+  });
+
+  it("declares today a day off only from an explicit OFF day status", async () => {
+    installSuccess({ schedule: personalSchedule([], [{ localDate: localToday, status: "OFF", occurrenceIds: [] }]) });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Hoje é folga" })).toBeInTheDocument();
+    expect(screen.getByText("Sua escala publicada confirma folga para hoje.")).toBeInTheDocument();
+  });
+
+  it("does not call an empty unpublished week a day off", async () => {
+    installSuccess({ schedule: personalSchedule([], [{ localDate: localToday, status: "UNPUBLISHED", occurrenceIds: [] }]) });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Escala de hoje ainda não publicada" })).toBeInTheDocument();
+    expect(screen.getByText("Ainda não há jornada publicada para confirmar trabalho ou folga.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Hoje é folga" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the rest of the dashboard available when the personal schedule fails", async () => {
+    installSuccess({ schedule: new Error("Falha temporaria na escala.") });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Escala de hoje indisponível" })).toBeInTheDocument();
+    expect(screen.getByText("Falha temporaria na escala.")).toBeInTheDocument();
+    expect(screen.getByText("Performance SAC")).toBeInTheDocument();
+  });
+
+  it("shows personal schedule loading without blocking the operational dashboard", async () => {
+    const schedule = deferred<SupportScheduleCalendarResponse>();
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/support/dashboard?")) return Promise.resolve(supportDashboard);
+      if (path === "/v1/operations/today") return Promise.resolve(operationalKnowledge);
+      if (path.startsWith("/v1/support/schedules?")) return schedule.promise;
+      return Promise.reject(new Error(`Unexpected dashboard request: ${path}`));
+    });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Carregando sua jornada de hoje" })).toBeInTheDocument();
+    expect(screen.getByText("Performance SAC")).toBeInTheDocument();
+
+    await act(async () => schedule.resolve(personalSchedule([], [{ localDate: localToday, status: "OFF", occurrenceIds: [] }])));
+    expect(await screen.findByRole("heading", { name: "Hoje é folga" })).toBeInTheDocument();
+  });
+
+  it("rejects a schedule payload that is not self-scoped to the current tenant user", async () => {
+    installSuccess({
+      schedule: {
+        ...personalSchedule([scheduleOccurrence()]),
+        scope: "TEAM",
+        userId: "sac-other"
+      }
+    });
+    render(<DashboardView user={sacUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByRole("heading", { name: "Escala de hoje indisponível" })).toBeInTheDocument();
+    expect(screen.getByText("Não foi possível validar a escala pessoal retornada.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Hoje você trabalha/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Performance SAC")).toBeInTheDocument();
+  });
+
+  it("does not request or show a personal journey highlight for admins", async () => {
+    installSuccess();
+    render(<DashboardView user={adminUser} onOpen={vi.fn()} />);
+
+    expect(await screen.findByText("Overlap das pausas")).toBeInTheDocument();
+    expect(screen.queryByText("Jornada de hoje")).not.toBeInTheDocument();
+    expect(apiMock.mock.calls.some(([path]) => String(path).startsWith("/v1/support/schedules?"))).toBe(false);
   });
 
   it("reloads the SAC dashboard when the local operation date changes", async () => {

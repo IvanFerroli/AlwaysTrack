@@ -1,7 +1,7 @@
 # TASK-AT-399 - Calendario pessoal de Escalas SAC
 
 ## Metadata
-- status: implemented-partial-local-validation
+- status: completed-local-validation
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-399-sac-personal-schedule-calendar.md
@@ -17,10 +17,11 @@ O calendario pessoal precisa mostrar o que vale de fato, distinguindo turno-base
 
 ## Dependencias
 - satisfeitas: TASK-AT-395, TASK-AT-396 e TASK-AT-397.
-- em aberto: destaque da jornada de hoje no Dashboard SAC; excecoes completas da TASK-AT-396 e evidencia de browser para todos os intents resolvidos nao fazem parte da evidencia local desta tela.
+- em aberto: excecoes completas da TASK-AT-396 e evidencia de browser para todos os intents resolvidos nao fazem parte da evidencia local desta tela.
 
 ## Estado reconciliado em 2026-07-18
-- O calendario self-scoped exibe ocorrencias publicadas, Pausas vinculadas/legadas, extras e negociacoes com polling de 45 segundos; nao enumera calendario nominal de outro atendente para SAC. Falta resumir o dia em destaque no Dashboard.
+- O calendario self-scoped exibe ocorrencias publicadas, Pausas vinculadas/legadas, extras e negociacoes com polling de 45 segundos; nao enumera calendario nominal de outro atendente para SAC. O Dashboard SAC consulta somente `scope=SELF` e destaca turno normal, dobra, folga confirmada ou escala nao publicada.
+- A API deriva `dayStatuses` por data. `OFF` exige assignment/pattern efetivo cujo weekday nao inclui o dia; ausencia de assignment ou turno esperado sem ocorrencia retorna `UNPUBLISHED`, nunca folga inferida.
 
 ## Alvos explicitos
 1. API self-scoped por intervalo e timezone.
@@ -48,7 +49,7 @@ O calendario pessoal precisa mostrar o que vale de fato, distinguindo turno-base
 5. Dashboard SAC informa inequivocamente a jornada de hoje e abre o calendario completo; o bloco nao aparece em dashboard gerencial sem contexto pessoal.
 
 ## Validacao
-- comandos/checks: testes service/HTTP/componentes, acessibilidade, timezone e screenshots.
+- comandos/checks: 116 testes focais API, 26 testes focais Web, typecheck API/Web, tenancy, timezone e `git diff --check`.
 - revisao manual: semana normal, excecao, dobra, Pausa e troca pendente.
 
 ## Riscos

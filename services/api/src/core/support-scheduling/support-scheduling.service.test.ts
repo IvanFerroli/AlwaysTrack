@@ -320,6 +320,70 @@ describe("support scheduling workload rules", () => {
 });
 
 describe("support schedule scope and versioning", () => {
+  function calendarAssignment(
+    options: {
+      weekdays?: number[];
+      assignment?: Record<string, unknown>;
+      pattern?: Record<string, unknown>;
+    } = {},
+  ) {
+    const pattern = {
+      id: "pattern-calendar-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      startMinute: 480,
+      endMinute: 1020,
+      weekdaysJson: JSON.stringify(options.weekdays ?? [1, 2, 3, 4, 5]),
+      timezone: "America/Sao_Paulo",
+      active: true,
+      effectiveFrom: new Date("2028-01-01T00:00:00.000Z"),
+      effectiveTo: null,
+      ...options.pattern,
+    };
+    return {
+      id: "assignment-calendar-1",
+      organizationId: "org-1",
+      teamId: "team-1",
+      userId: "sac-1",
+      patternVersionId: pattern.id,
+      validFrom: new Date("2028-01-01T00:00:00.000Z"),
+      validTo: null,
+      active: true,
+      ...options.assignment,
+      patternVersion: pattern,
+    };
+  }
+
+  function selfCalendarPrisma(
+    options: {
+      occurrences?: Array<Record<string, unknown>>;
+      assignments?: Array<Record<string, unknown>>;
+      memberships?: Array<{ teamId: string }>;
+    } = {},
+  ) {
+    const findOccurrences = vi
+      .fn()
+      .mockResolvedValue(options.occurrences ?? []);
+    const findAssignments = vi
+      .fn()
+      .mockResolvedValue(options.assignments ?? []);
+    return {
+      prisma: {
+        supportTeamMembership: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue(options.memberships ?? [{ teamId: "team-1" }]),
+        },
+        supportShiftOccurrence: { findMany: findOccurrences },
+        supportShiftAssignment: { findMany: findAssignments },
+        supportExtraShiftSlot: { findMany: vi.fn().mockResolvedValue([]) },
+        supportShiftOffer: { findMany: vi.fn().mockResolvedValue([]) },
+      },
+      findAssignments,
+      findOccurrences,
+    };
+  }
+
   it("lists persisted planning data only inside the manager organization and team", async () => {
     const activeRule = rule();
     const pattern = {
@@ -403,6 +467,7 @@ describe("support schedule scope and versioning", () => {
         findMany: vi.fn().mockResolvedValue([{ teamId: "team-1" }]),
       },
       supportShiftOccurrence: { findMany: findOccurrences },
+      supportShiftAssignment: { findMany: vi.fn().mockResolvedValue([]) },
       supportExtraShiftSlot: { findMany: findExtraSlots },
       supportShiftOffer: { findMany: vi.fn().mockResolvedValue([]) },
     };
@@ -428,6 +493,190 @@ describe("support schedule scope and versioning", () => {
         where: expect.objectContaining({ teamId: { in: ["team-1"] } }),
       }),
     );
+  });
+
+  it("returns the golden WORKING day status for one published occurrence", async () => {
+    const localDate = "2028-02-28";
+    const { prisma } = selfCalendarPrisma({
+      occurrences: [
+        {
+          id: "occurrence-regular",
+          organizationId: "org-1",
+          teamId: "team-1",
+          userId: "sac-1",
+          localDate,
+          kind: "REGULAR",
+          status: "PUBLISHED",
+        },
+      ],
+    });
+
+    const result = await listSupportScheduleCalendar(prisma as never, sac, {
+      from: localDate,
+      to: localDate,
+      scope: "SELF",
+    });
+
+    expect(result.dayStatuses).toEqual([
+      {
+        localDate,
+        status: "WORKING",
+        occurrenceIds: ["occurrence-regular"],
+      },
+    ]);
+  });
+
+  it("returns the golden DOUBLE day status with every published occurrence id", async () => {
+    const localDate = "2028-02-28";
+    const { prisma } = selfCalendarPrisma({
+      occurrences: [
+        {
+          id: "occurrence-regular",
+          organizationId: "org-1",
+          teamId: "team-1",
+          userId: "sac-1",
+          localDate,
+          kind: "REGULAR",
+          status: "PUBLISHED",
+        },
+        {
+          id: "occurrence-double",
+          organizationId: "org-1",
+          teamId: "team-1",
+          userId: "sac-1",
+          localDate,
+          kind: "DOUBLE",
+          status: "PUBLISHED",
+        },
+      ],
+    });
+
+    const result = await listSupportScheduleCalendar(prisma as never, sac, {
+      from: localDate,
+      to: localDate,
+      scope: "SELF",
+    });
+
+    expect(result.dayStatuses).toEqual([
+      {
+        localDate,
+        status: "DOUBLE",
+        occurrenceIds: ["occurrence-regular", "occurrence-double"],
+      },
+    ]);
+  });
+
+  it("returns the golden OFF status only for an effective non-working pattern weekday", async () => {
+    const localDate = "2028-03-05";
+    const { prisma } = selfCalendarPrisma({
+      assignments: [calendarAssignment()],
+    });
+
+    const result = await listSupportScheduleCalendar(prisma as never, sac, {
+      from: localDate,
+      to: localDate,
+      scope: "SELF",
+    });
+
+    expect(result.dayStatuses).toEqual([
+      { localDate, status: "OFF", occurrenceIds: [] },
+    ]);
+  });
+
+  it("returns the golden UNPUBLISHED status for missing work and missing assignment", async () => {
+    const localDate = "2028-02-28";
+    const withExpectedWork = selfCalendarPrisma({
+      assignments: [calendarAssignment()],
+    });
+    const withoutAssignment = selfCalendarPrisma();
+
+    const results = await Promise.all([
+      listSupportScheduleCalendar(withExpectedWork.prisma as never, sac, {
+        from: localDate,
+        to: localDate,
+        scope: "SELF",
+      }),
+      listSupportScheduleCalendar(withoutAssignment.prisma as never, sac, {
+        from: localDate,
+        to: localDate,
+        scope: "SELF",
+      }),
+    ]);
+
+    for (const result of results) {
+      expect(result.dayStatuses).toEqual([
+        { localDate, status: "UNPUBLISHED", occurrenceIds: [] },
+      ]);
+    }
+  });
+
+  it("keeps SELF day statuses tenant-scoped and excludes third-party occurrences", async () => {
+    const localDate = "2028-03-05";
+    const crossTenantAssignment = calendarAssignment({
+      pattern: { organizationId: "org-2" },
+    });
+    const { prisma, findAssignments, findOccurrences } = selfCalendarPrisma({
+      assignments: [crossTenantAssignment],
+      occurrences: [
+        {
+          id: "occurrence-third-party",
+          organizationId: "org-2",
+          teamId: "team-1",
+          userId: "sac-2",
+          localDate,
+          kind: "REGULAR",
+          status: "PUBLISHED",
+        },
+      ],
+    });
+
+    const result = await listSupportScheduleCalendar(prisma as never, sac, {
+      from: localDate,
+      to: localDate,
+      scope: "SELF",
+    });
+
+    expect(result.occurrences).toEqual([]);
+    expect(result.dayStatuses).toEqual([
+      { localDate, status: "UNPUBLISHED", occurrenceIds: [] },
+    ]);
+    expect(findOccurrences).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          userId: "sac-1",
+        }),
+      }),
+    );
+    expect(findAssignments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: "org-1",
+          userId: "sac-1",
+        }),
+      }),
+    );
+  });
+
+  it("keeps TEAM calendar responses backward compatible without day statuses", async () => {
+    const prisma = {
+      supportTeam: {
+        findFirst: vi.fn().mockResolvedValue({ id: "team-1", name: "SAC" }),
+      },
+      supportShiftOccurrence: { findMany: vi.fn().mockResolvedValue([]) },
+      supportExtraShiftSlot: { findMany: vi.fn().mockResolvedValue([]) },
+      supportShiftOffer: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    const result = await listSupportScheduleCalendar(prisma as never, admin, {
+      from: "2028-02-28",
+      to: "2028-02-28",
+      scope: "TEAM",
+      teamId: "team-1",
+      userId: "sac-1",
+    });
+
+    expect(result).not.toHaveProperty("dayStatuses");
   });
 
   it("rejects team scope and another operator id for SAC before querying data", async () => {

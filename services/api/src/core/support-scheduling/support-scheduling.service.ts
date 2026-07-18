@@ -79,6 +79,41 @@ export interface SupportCalendarInput {
   userId?: string;
 }
 
+export type SupportScheduleDayStatusValue =
+  | "WORKING"
+  | "DOUBLE"
+  | "OFF"
+  | "UNPUBLISHED";
+
+export interface SupportScheduleDayStatus {
+  localDate: string;
+  status: SupportScheduleDayStatusValue;
+  occurrenceIds: string[];
+}
+
+interface SupportCalendarAssignment {
+  id: string;
+  organizationId: string;
+  teamId: string;
+  userId: string;
+  patternVersionId: string;
+  validFrom: Date;
+  validTo: Date | null;
+  active: boolean;
+  patternVersion: {
+    id: string;
+    organizationId: string;
+    teamId: string;
+    startMinute: number;
+    endMinute: number;
+    weekdaysJson: string;
+    timezone: string;
+    active: boolean;
+    effectiveFrom: Date;
+    effectiveTo: Date | null;
+  };
+}
+
 export interface MaterializeSupportShiftsInput {
   teamId: string;
   from: string;
@@ -1166,6 +1201,101 @@ async function validateUserWorkload(
     throw new SupportSchedulingError("RULE_VIOLATION", violations);
 }
 
+function effectiveAssignmentWeekdays(
+  assignment: SupportCalendarAssignment,
+  localDate: string,
+  organizationId: string,
+  userId: string,
+  visibleTeamIds: Set<string>,
+) {
+  const pattern = assignment.patternVersion;
+  if (
+    !assignment.active ||
+    assignment.organizationId !== organizationId ||
+    assignment.userId !== userId ||
+    !visibleTeamIds.has(assignment.teamId) ||
+    assignment.patternVersionId !== pattern.id ||
+    !pattern.active ||
+    pattern.organizationId !== organizationId ||
+    pattern.teamId !== assignment.teamId
+  ) {
+    return null;
+  }
+  const weekdays = parseWeekdays(pattern.weekdaysJson);
+  if (!weekdays.length) return null;
+  try {
+    const interval = shiftInterval(
+      localDate,
+      pattern.startMinute,
+      pattern.endMinute,
+      pattern.timezone,
+    );
+    if (
+      assignment.validFrom > interval.startsAt ||
+      (assignment.validTo && assignment.validTo < interval.endsAt) ||
+      pattern.effectiveFrom > interval.startsAt ||
+      (pattern.effectiveTo && pattern.effectiveTo <= interval.startsAt)
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  return weekdays;
+}
+
+function deriveSupportScheduleDayStatuses(
+  dates: string[],
+  organizationId: string,
+  userId: string,
+  visibleTeamIds: Set<string>,
+  occurrences: Array<{
+    id: string;
+    localDate: string;
+    kind: string;
+  }>,
+  assignments: SupportCalendarAssignment[],
+): SupportScheduleDayStatus[] {
+  return dates.map((localDate) => {
+    const published = occurrences.filter(
+      (occurrence) => occurrence.localDate === localDate,
+    );
+    if (published.length) {
+      return {
+        localDate,
+        status:
+          published.length > 1 ||
+          published.some((occurrence) => occurrence.kind === "DOUBLE")
+            ? "DOUBLE"
+            : "WORKING",
+        occurrenceIds: published.map((occurrence) => occurrence.id),
+      };
+    }
+
+    const effectiveWeekdays = assignments
+      .map((assignment) =>
+        effectiveAssignmentWeekdays(
+          assignment,
+          localDate,
+          organizationId,
+          userId,
+          visibleTeamIds,
+        ),
+      )
+      .filter((weekdays): weekdays is number[] => weekdays !== null);
+    const weekday = weekdayForLocalDate(localDate);
+    return {
+      localDate,
+      status:
+        effectiveWeekdays.length &&
+        effectiveWeekdays.every((weekdays) => !weekdays.includes(weekday))
+          ? "OFF"
+          : "UNPUBLISHED",
+      occurrenceIds: [],
+    };
+  });
+}
+
 export async function listSupportScheduleCalendar(
   prisma: PrismaClient,
   actor: CurrentUser,
@@ -1174,7 +1304,7 @@ export async function listSupportScheduleCalendar(
   ensurePermission(actor, "read");
   const from = requireLocalDate(input.from);
   const to = requireLocalDate(input.to);
-  localDates(from, to);
+  const dates = localDates(from, to);
   const scope =
     input.scope ?? (isManager(actor) && input.teamId ? "TEAM" : "SELF");
   if (scope !== "SELF" && scope !== "TEAM")
@@ -1223,7 +1353,7 @@ export async function listSupportScheduleCalendar(
   ];
   const teamFilter =
     teamId ?? (scope === "SELF" ? { in: visibleTeamIds } : undefined);
-  const [occurrences, extraSlots, offers] = await Promise.all([
+  const [occurrences, extraSlots, offers, assignments] = await Promise.all([
     prisma.supportShiftOccurrence.findMany({
       where: {
         organizationId: actor.organizationId,
@@ -1322,6 +1452,43 @@ export async function listSupportScheduleCalendar(
       },
       orderBy: { createdAt: "desc" },
     }),
+    scope === "SELF"
+      ? prisma.supportShiftAssignment.findMany({
+          where: {
+            organizationId: actor.organizationId,
+            teamId: teamFilter,
+            userId: actor.id,
+            active: true,
+            validFrom: { lt: utcRange.end },
+            OR: [{ validTo: null }, { validTo: { gt: utcRange.start } }],
+          },
+          select: {
+            id: true,
+            organizationId: true,
+            teamId: true,
+            userId: true,
+            patternVersionId: true,
+            validFrom: true,
+            validTo: true,
+            active: true,
+            patternVersion: {
+              select: {
+                id: true,
+                organizationId: true,
+                teamId: true,
+                startMinute: true,
+                endMinute: true,
+                weekdaysJson: true,
+                timezone: true,
+                active: true,
+                effectiveFrom: true,
+                effectiveTo: true,
+              },
+            },
+          },
+          orderBy: [{ validFrom: "asc" }, { id: "asc" }],
+        })
+      : Promise.resolve([]),
   ]);
 
   const filteredSlots = extraSlots.filter((slot) => {
@@ -1338,15 +1505,39 @@ export async function listSupportScheduleCalendar(
     return date >= from && date <= to;
   });
 
+  const selfTeamIds = new Set(teamId ? [teamId] : visibleTeamIds);
+  const visibleOccurrences =
+    scope === "SELF"
+      ? occurrences.filter(
+          (occurrence) =>
+            occurrence.organizationId === actor.organizationId &&
+            occurrence.userId === actor.id &&
+            occurrence.status === "PUBLISHED" &&
+            selfTeamIds.has(occurrence.teamId),
+        )
+      : occurrences;
+  const dayStatuses =
+    scope === "SELF"
+      ? deriveSupportScheduleDayStatuses(
+          dates,
+          actor.organizationId,
+          actor.id,
+          selfTeamIds,
+          visibleOccurrences,
+          assignments,
+        )
+      : null;
+
   return {
     from,
     to,
     scope,
     teamId: teamId ?? null,
     userId: userId ?? null,
-    occurrences,
+    occurrences: visibleOccurrences,
     extraSlots: filteredSlots,
     offers,
+    ...(dayStatuses ? { dayStatuses } : {}),
   };
 }
 

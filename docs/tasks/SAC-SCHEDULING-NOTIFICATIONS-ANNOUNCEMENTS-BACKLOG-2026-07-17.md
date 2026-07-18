@@ -10,8 +10,8 @@
 Estender a transformacao operacional SAC com escalas efetivas, cobertura integrada a pausas, notificacoes resolviveis, overlays consistentes e Avisos recorrentes governados.
 
 ## Resultado da execucao local
-- Completas no recorte local implementado: TASK-AT-391, TASK-AT-394/395, TASK-AT-397/398, TASK-AT-403 a TASK-AT-406.
-- Parciais ou em execucao contra o contrato vigente: TASK-AT-392/393, TASK-AT-396, TASK-AT-399, TASK-AT-401/402, TASK-AT-408 e TASK-AT-413/414.
+- Completas no recorte local implementado: TASK-AT-391, TASK-AT-394/395, TASK-AT-397 a TASK-AT-399, TASK-AT-403 a TASK-AT-406.
+- Parciais ou em execucao contra o contrato vigente: TASK-AT-392/393, TASK-AT-396, TASK-AT-401/402, TASK-AT-408 e TASK-AT-413/414.
 - TASK-AT-400, TASK-AT-407, TASK-AT-409 e TASK-AT-410 possuem implementacao/testes locais, mas concorrencia, scheduler e alertas production-like permanecem externos.
 - TASK-AT-411 possui suites Web e specs desktop/mobile para SAC, GESTOR e ADMIN; SUPERVISOR, workflows completos, axe/visual e a execucao de Chromium neste host permanecem pendentes.
 - TASK-AT-412 registra API 80,72% e Web 56,53% de linhas, mais cinco harnesses Artillery guardados para leitura, cobertura, idempotencia, claim burst e recorrencia; os planos concorrentes nao foram executados.

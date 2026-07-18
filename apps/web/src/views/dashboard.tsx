@@ -1,13 +1,26 @@
+import { CalendarDays } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { OperationalState } from "../components/operational";
 import { formatSupportDate, formatSupportTime, isSupportManager, supportDateInputValue } from "../support-operations";
+import {
+  formatSupportScheduleTime,
+  supportCalendarTimezone,
+  supportScheduleDate,
+  supportScheduleQuery,
+  type SupportScheduleCalendarResponse,
+  type SupportScheduleDayStatusValue
+} from "../support-scheduling";
 import "../support-dashboard.css";
 
-type DashboardTargetView = "announcements" | "faq" | "wiki" | "supportPauses" | "supportPerformance" | "supportCampaigns";
+type DashboardTargetView = "announcements" | "faq" | "wiki" | "supportSchedules" | "supportPauses" | "supportPerformance" | "supportCampaigns";
 type DashboardMode = "overview" | "pauses" | "quality";
-type DashboardIntent = { faq?: { status?: string }; announcements?: { slug?: string | null } };
+type DashboardIntent = {
+  faq?: { status?: string };
+  announcements?: { slug?: string | null };
+  supportSchedules?: { date?: string; tab?: string };
+};
 
 interface SupportDashboardData {
   date: string;
@@ -120,12 +133,100 @@ function MetricButton({ label, value, detail, onClick }: { label: string; value:
   );
 }
 
+function isOwnScheduleCalendar(calendar: SupportScheduleCalendarResponse, user: CurrentUser, today: string) {
+  return calendar.scope === "SELF"
+    && calendar.userId === user.id
+    && calendar.from <= today
+    && calendar.to >= today
+    && calendar.occurrences.every((occurrence) =>
+      occurrence.userId === user.id && occurrence.organizationId === user.organizationId
+    );
+}
+
+function scheduleDayStatus(calendar: SupportScheduleCalendarResponse | null, date: string): SupportScheduleDayStatusValue | null {
+  return calendar?.dayStatuses?.find((item) => item.localDate === date)?.status ?? null;
+}
+
+function TodayScheduleHighlight({
+  calendar,
+  error,
+  loading,
+  today,
+  onOpen
+}: {
+  calendar: SupportScheduleCalendarResponse | null;
+  error: string | null;
+  loading: boolean;
+  today: string;
+  onOpen: (view: DashboardTargetView, options?: DashboardIntent) => void;
+}) {
+  const occurrences = calendar?.occurrences
+    .filter((occurrence) => occurrence.localDate === today)
+    .sort((left, right) => left.startsAt.localeCompare(right.startsAt)) ?? [];
+  const timezone = supportCalendarTimezone(calendar);
+  const intervals = occurrences.map((occurrence) =>
+    `${formatSupportScheduleTime(occurrence.startsAt, timezone)} a ${formatSupportScheduleTime(occurrence.endsAt, timezone)}`
+  );
+  const dayStatus = scheduleDayStatus(calendar, today);
+  const isDouble = dayStatus === "DOUBLE" || occurrences.length > 1 || occurrences.some((occurrence) => occurrence.kind === "DOUBLE");
+  const missingPublishedIntervals = !occurrences.length && (dayStatus === "WORKING" || dayStatus === "DOUBLE");
+  const title = loading
+    ? "Carregando sua jornada de hoje"
+    : error
+      ? "Escala de hoje indisponível"
+      : occurrences.length
+        ? isDouble
+          ? "Hoje é dobra"
+          : `Hoje você trabalha das ${formatSupportScheduleTime(occurrences[0].startsAt, timezone)} às ${formatSupportScheduleTime(occurrences[0].endsAt, timezone)}`
+        : dayStatus === "OFF"
+          ? "Hoje é folga"
+          : missingPublishedIntervals
+            ? "Escala de hoje indisponível"
+            : "Escala de hoje ainda não publicada";
+  const detail = loading
+    ? "Consultando a escala publicada para a data local de hoje."
+    : error
+      ? error
+      : occurrences.length
+        ? isDouble
+          ? intervals.join(" e ")
+          : "Jornada confirmada na sua escala publicada."
+        : dayStatus === "OFF"
+          ? "Sua escala publicada confirma folga para hoje."
+          : missingPublishedIntervals
+            ? "O status da jornada foi publicado, mas os intervalos não estão disponíveis."
+            : "Ainda não há jornada publicada para confirmar trabalho ou folga.";
+
+  return (
+    <section className="panel support-dashboard-section" aria-labelledby="support-today-schedule-title">
+      <div className="table-panel-toolbar">
+        <div>
+          <p className="eyebrow">Jornada de hoje</p>
+          <h2 id="support-today-schedule-title">{title}</h2>
+        </div>
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => onOpen("supportSchedules", { supportSchedules: { date: today, tab: "calendario" } })}
+        >
+          <CalendarDays aria-hidden="true" size={16} /> Abrir minha escala
+        </button>
+      </div>
+      <p className="muted">{detail}</p>
+    </section>
+  );
+}
+
 export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (view: DashboardTargetView, options?: DashboardIntent) => void }) {
   const canManagePauses = isSupportManager(user);
+  const today = useMemo(() => supportScheduleDate(), []);
   const [date, setDate] = useState(supportDateInputValue());
   const [mode, setMode] = useState<DashboardMode>("overview");
   const [dashboard, setDashboard] = useState<SupportDashboardData | null>(null);
   const [knowledge, setKnowledge] = useState<OperationalKnowledgeData | null>(null);
+  const [todaySchedule, setTodaySchedule] = useState<SupportScheduleCalendarResponse | null>(null);
+  const [todayScheduleLoading, setTodayScheduleLoading] = useState(user.role === "SAC");
+  const [todayScheduleError, setTodayScheduleError] = useState<string | null>(null);
   const [expandedAnnouncement, setExpandedAnnouncement] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +250,31 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
     return () => { cancelled = true; };
   }, [date]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (user.role !== "SAC") {
+      setTodaySchedule(null);
+      setTodayScheduleError(null);
+      setTodayScheduleLoading(false);
+      return () => { cancelled = true; };
+    }
+    setTodaySchedule(null);
+    setTodayScheduleError(null);
+    setTodayScheduleLoading(true);
+    api<SupportScheduleCalendarResponse>(supportScheduleQuery({ date: today, scope: "SELF" })).then((result) => {
+      if (cancelled) return;
+      if (!isOwnScheduleCalendar(result, user, today)) {
+        throw new Error("Não foi possível validar a escala pessoal retornada.");
+      }
+      setTodaySchedule(result);
+    }).catch((caught) => {
+      if (!cancelled) setTodayScheduleError(caught instanceof Error ? caught.message : "Não foi possível carregar sua escala de hoje.");
+    }).finally(() => {
+      if (!cancelled) setTodayScheduleLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [today, user.id, user.organizationId, user.role]);
+
   const criticalSlots = useMemo(() => dashboard?.pauses.timeline.filter((point) => point.critical) ?? [], [dashboard]);
   const showPauses = canManagePauses && (mode === "overview" || mode === "pauses");
   const showQuality = mode === "overview" || mode === "quality";
@@ -161,6 +287,16 @@ export function DashboardView({ user, onOpen }: { user: CurrentUser; onOpen: (vi
 
   return (
     <div className="support-dashboard-page">
+      {user.role === "SAC" ? (
+        <TodayScheduleHighlight
+          calendar={todaySchedule}
+          error={todayScheduleError}
+          loading={todayScheduleLoading}
+          today={today}
+          onOpen={onOpen}
+        />
+      ) : null}
+
       <section className="panel support-dashboard-controls">
         <label>Data<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
         <div className="segmented-control" role="tablist" aria-label="Visão do dashboard">

@@ -5,6 +5,7 @@ export const SUPPORT_SCHEDULE_POLL_INTERVAL_MS = 45_000;
 export const SUPPORT_SCHEDULE_TIMEZONE = "America/Sao_Paulo";
 
 export type SupportScheduleScope = "SELF" | "TEAM";
+export type SupportScheduleDayStatusValue = "WORKING" | "DOUBLE" | "OFF" | "UNPUBLISHED";
 export type SupportShiftKind = "REGULAR" | "EXTRA" | "DOUBLE" | string;
 export type SupportExtraClaimStatus = "PENDING" | "APPROVED" | "REJECTED" | string;
 export type SupportShiftOfferStatus = "OPEN" | "MANAGER_PENDING" | "APPLIED" | "REJECTED" | "CANCELLED" | string;
@@ -30,6 +31,12 @@ export interface SupportSchedulePauseBooking {
     startsAt: string;
     endsAt: string;
   };
+}
+
+export interface SupportScheduleDayStatus {
+  localDate: string;
+  status: SupportScheduleDayStatusValue;
+  occurrenceIds: string[];
 }
 
 export interface SupportShiftOccurrence {
@@ -120,6 +127,8 @@ export interface SupportScheduleCalendarResponse {
   occurrences: SupportShiftOccurrence[];
   extraSlots: SupportExtraShiftSlot[];
   offers: SupportShiftOffer[];
+  /** Present for SELF calendars; TEAM calendars currently omit day-level status. */
+  dayStatuses?: SupportScheduleDayStatus[];
 }
 
 export interface SupportScheduleRosterResponse {
