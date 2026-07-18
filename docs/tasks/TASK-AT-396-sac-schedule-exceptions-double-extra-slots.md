@@ -1,9 +1,9 @@
 # TASK-AT-396 - Excecoes, dobra e slot extra de Escalas SAC
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-396-sac-schedule-exceptions-double-extra-slots.md
 
 ## Modo

@@ -1,9 +1,9 @@
 # TASK-AT-413 - Seed deterministico de Escalas e Avisos
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-413-scheduling-announcement-deterministic-seed.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-414
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: clock injetavel e chaves idempotentes.
-

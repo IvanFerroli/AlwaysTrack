@@ -64,6 +64,13 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 - Falha: `announcement.scheduler.failed`, `failedOccurrenceIds` ou ocorrencia `SCHEDULED` com horario passado.
 - Em `Administracao > Configuracoes > Saude operacional`, observar turnos publicados, trocas/extras pendentes, pausas para reagendar, series ativas, falhas e atrasos.
 
+## Invariantes de seguranca
+- SAC recebe somente Avisos `PUBLISHED`; filtros de query nao ampliam a visibilidade para rascunhos, agendados ou arquivados.
+- Links de Avisos aceitam somente caminhos internos absolutos iniciados por `/` ou URLs `https://`. `http://`, `//`, `javascript:`, `data:` e caracteres de controle sao rejeitados.
+- Publicacao e expiracao recorrentes usam claim e compare-and-set. Cancelamento, arquivamento ou nova versao vencem uma execucao concorrente e nao podem ser ressuscitados pelo job.
+- Repetir candidatura ja pendente/aprovada e idempotente e nao reabre notificacoes lidas da gestao.
+- Toda leitura/escrita de Escalas inclui `organizationId`; gestao informa equipe explicitamente e SAC permanece no proprio escopo.
+
 ## Diagnostico rapido
 | Sintoma | Verificar | Curso de acao |
 | --- | --- | --- |
@@ -85,8 +92,13 @@ Operar Escalas SAC, extras, trocas, pausas subordinadas e Avisos recorrentes sem
 ## Validacao minima
 - `npm run typecheck --workspace @alwaystrack/api`
 - `npm run typecheck --workspace @alwaystrack/web`
-- `npm test --workspace @alwaystrack/api -- --run src/core/support-scheduling/support-scheduling.service.test.ts src/core/support-operations/support-operations.service.test.ts src/core/announcements/announcement-series.service.test.ts`
-- `npm test --workspace @alwaystrack/web -- --run test/support-pauses.test.tsx test/announcements.test.tsx test/notification-center.test.tsx`
+- `npm test --workspace @alwaystrack/api -- --run src/core/support-scheduling/support-scheduling.service.test.ts src/core/support-scheduling/support-scheduling.handlers.http.test.ts src/core/support-operations/support-operations.service.test.ts src/core/announcements/announcement-series.service.test.ts src/core/announcements/announcement-series.handlers.http.test.ts`
+- `npm test --workspace @alwaystrack/web -- --run test/support-schedules.test.tsx test/support-pauses.test.tsx test/announcements.test.tsx test/notification-center.test.tsx`
+- `npm run coverage --workspace @alwaystrack/api`
+- `npm run coverage --workspace @alwaystrack/web`
+- `SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:read`
+- Escrita idempotente somente em banco descartavel: `NODE_ENV=test PERF_ALLOW_TEST_WRITES=true SEED_ADMIN_PASSWORD='<senha-local>' npm run perf:support:idempotency`.
+- `npx playwright test tests/e2e/support-scheduling.desktop.spec.ts --project=desktop`; se o browser do host nao iniciar, registrar a biblioteca de sistema ausente e nao converter o teste listado em evidencia executada.
 - `npm run job:announcement-scheduler` duas vezes; a segunda deve criar zero duplicatas.
 
 ## Gates ainda externos

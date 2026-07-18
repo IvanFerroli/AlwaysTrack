@@ -1,9 +1,9 @@
 # TASK-AT-416 - Gate final de Escalas, Notificacoes e Avisos
 
 ## Metadata
-- status: proposed
+- status: demo-go-rollout-no-go
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-416-scheduling-final-readiness-gate.md
 
 ## Modo

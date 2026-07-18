@@ -1,9 +1,9 @@
 # TASK-AT-410 - Testes de dominio, integracao e concorrencia
 
 ## Metadata
-- status: proposed
+- status: implemented-local-evidence-pending-external
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-410-scheduling-domain-integration-concurrency-tests.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-411
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: separar prova local de prova production-like.
-

@@ -1,9 +1,9 @@
 # TASK-AT-408 - Edicao futura e governanca de Avisos recorrentes
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-408-announcement-future-edits-exceptions-governance.md
 
 ## Modo

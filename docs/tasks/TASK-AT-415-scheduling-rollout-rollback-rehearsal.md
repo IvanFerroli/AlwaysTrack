@@ -1,9 +1,9 @@
 # TASK-AT-415 - Rollout e rollback ensaiados da nova frente
 
 ## Metadata
-- status: proposed
+- status: audit-complete-no-go-production
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-415-scheduling-rollout-rollback-rehearsal.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-416
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: nenhuma promocao live por evidencia local.
-

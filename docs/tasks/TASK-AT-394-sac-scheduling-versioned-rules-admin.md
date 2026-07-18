@@ -1,9 +1,9 @@
 # TASK-AT-394 - Regras versionadas e configuracao gerencial de Escalas
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-394-sac-scheduling-versioned-rules-admin.md
 
 ## Modo
@@ -54,4 +54,3 @@ TASK-AT-395
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: UI estruturada e versao publicada imutavel.
-

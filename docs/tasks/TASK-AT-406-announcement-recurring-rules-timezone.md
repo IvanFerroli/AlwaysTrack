@@ -1,9 +1,9 @@
 # TASK-AT-406 - Regras recorrentes, timezone e vigencia de Avisos
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-406-announcement-recurring-rules-timezone.md
 
 ## Modo
@@ -54,4 +54,3 @@ TASK-AT-407
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: fechar semantica de fevereiro antes do parser definitivo.
-

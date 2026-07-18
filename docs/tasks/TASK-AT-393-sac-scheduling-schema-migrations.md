@@ -1,9 +1,9 @@
 # TASK-AT-393 - Schema e migracoes aditivas de Escalas SAC
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-393-sac-scheduling-schema-migrations.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-394
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: schema aditivo e sem rewrite de reservas existentes.
-

@@ -1,9 +1,9 @@
 # TASK-AT-401 - Painel gerencial de Escalas SAC
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-401-sac-manager-scheduling-panel.md
 
 ## Modo
@@ -54,4 +54,3 @@ TASK-AT-402
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: painel composto sobre services canonicos e paginados.
-

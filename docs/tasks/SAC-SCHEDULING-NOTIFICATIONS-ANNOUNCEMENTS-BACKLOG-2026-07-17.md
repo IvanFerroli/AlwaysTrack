@@ -1,13 +1,20 @@
 # Backlog de Escalas, Notificacoes e Avisos SAC - 2026-07-17
 
 ## Metadata
-- status: proposed
+- status: implemented-local-evidence-complete
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/SAC-SCHEDULING-NOTIFICATIONS-ANNOUNCEMENTS-BACKLOG-2026-07-17.md
 
 ## Objetivo
 Estender a transformacao operacional SAC com escalas efetivas, cobertura integrada a pausas, notificacoes resolviveis, overlays consistentes e Avisos recorrentes governados.
+
+## Resultado da execucao local
+- TASK-AT-391 a TASK-AT-409 e TASK-AT-413/414: implementadas e validadas localmente.
+- TASK-AT-410: suites locais prontas; concorrencia PostgreSQL production-like permanece evidencia externa obrigatoria.
+- TASK-AT-411: componentes, acessibilidade e E2E versionados; execucao Playwright deste host bloqueada por biblioteca de sistema ausente.
+- TASK-AT-412: coverage verde e planos de carga seguros versionados; stress/spike/soak production-like ainda nao executados.
+- TASK-AT-415/416: demo local `GO`; rollout interno/externo `NO-GO` ate os gates do ledger de rollout.
 
 ## Baseline reconciliada
 - `TASK-AT-363` criou a fronteira de times e membership historico SAC.
@@ -70,10 +77,10 @@ Estender a transformacao operacional SAC com escalas efetivas, cobertura integra
 - UI compartilhada: TASK-AT-404 -> TASK-AT-405; novas superficies devem consumir a primitive desde a origem.
 - Fechamento: TASK-AT-409 -> TASK-AT-410 -> TASK-AT-411 -> TASK-AT-412 -> TASK-AT-413 -> TASK-AT-414 -> TASK-AT-415 -> TASK-AT-416.
 
-## Decisoes a fechar antes de implementacao
-1. Politica trabalhista/operacional de limite de horas, descanso e aprovacao para dobra/slot extra.
-2. Tratamento de recorrencia no dia 29 em fevereiro nao bissexto: pular ou antecipar para o ultimo dia.
-3. SLO e transporte de cobertura em tempo real: SSE/WebSocket ou polling com staleness maximo acordado.
-4. Quando troca de turno exige aprovacao gerencial e quando aceite bilateral basta.
-5. Retencao e exibicao de ocorrencias canceladas de Avisos recorrentes.
-6. A branch atual nao possui preferencia persistida de notificacao no Perfil; confirmar qualquer controle inerte surgido na branch de execucao antes de remove-lo, preservando historico e filtros.
+## Decisoes fechadas na implementacao
+1. Limites de jornada, descanso, antecedencia, trocas e aprovacao sao versionados por equipe; pagamento permanece fora do produto.
+2. Fevereiro sem dia 29 usa `SKIP`.
+3. Cobertura usa polling de 45 segundos com atualizacao manual e indicador visivel.
+4. Troca pode ser autoaprovada pela regra; quando a regra exige gestao, aceite bilateral gera pendencia gerencial.
+5. Ocorrencias canceladas/expiradas permanecem auditaveis e nao sao apagadas.
+6. Perfil mantem historico clicavel de notificacoes e nao exibe preferencia sem efeito real.

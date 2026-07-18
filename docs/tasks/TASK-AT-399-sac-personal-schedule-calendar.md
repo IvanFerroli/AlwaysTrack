@@ -1,9 +1,9 @@
 # TASK-AT-399 - Calendario pessoal de Escalas SAC
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-399-sac-personal-schedule-calendar.md
 
 ## Modo
@@ -54,4 +54,3 @@ TASK-AT-400
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: UI somente leitura da fonte efetiva, com acoes explicitas separadas.
-

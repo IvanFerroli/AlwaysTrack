@@ -16,6 +16,9 @@
 - Banco vazio criado pelo schema final; seed concluiu com tres SAC ficticios.
 - Scheduler executado duas vezes: primeira criou 5 ocorrencias; segunda criou 0 e pulou 5, sem falhas.
 - Testes focados de Escalas, Pausas, Avisos, notificacoes e contratos HTTP passaram.
+- Cobertura completa local: API com 780 testes aprovados e Web com 115; os gates configurados passaram apos fechar callbacks do dashboard.
+- Handlers de Escalas e series recorrentes atingiram 100% de linhas e funcoes nos testes focais.
+- Planos Artillery de leitura e idempotencia foram validados com bloqueio de target remoto e escrita opt-in; carga real nao foi executada sem credencial local autorizada.
 - API e Web passaram em typecheck; Web passou em build de producao.
 - Jobs, cron, observabilidade, runbook e rollback foram versionados.
 
@@ -39,6 +42,7 @@
 3. Falta executar corrida real de candidatura, troca e reserva em PostgreSQL production-like.
 4. Falta rehearsal autorizado de backup, restore, disable do scheduler e retomada sem duplicidade.
 5. Falta validar notificacoes/deep links, timezone do host e polling com papeis reais no ambiente alvo.
+6. O E2E de navegador de Escalas esta versionado e listado, mas nao executou neste host por ausencia de `libnspr4.so` no Chromium headless. Isso nao bloqueia a demo manual; bloqueia usar esse run como evidencia automatizada.
 
 ## Abort e rollback
 - Abortar se houver ocorrencia duplicada, publicacao antecipada, atraso acima de dez minutos, vazamento entre equipes ou pausa fora do turno.

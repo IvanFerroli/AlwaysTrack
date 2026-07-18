@@ -1,9 +1,9 @@
 # TASK-AT-411 - Testes Web, E2E, acessibilidade e visual
 
 ## Metadata
-- status: proposed
+- status: implemented-local-browser-evidence-pending
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-411-scheduling-web-e2e-accessibility-visual-tests.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-412
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: evidencia visual revisada e cenarios temporais controlados.
-

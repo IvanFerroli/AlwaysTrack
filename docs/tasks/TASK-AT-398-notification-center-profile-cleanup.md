@@ -1,9 +1,9 @@
 # TASK-AT-398 - Centro de Notificacoes e limpeza do Perfil
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-398-notification-center-profile-cleanup.md
 
 ## Modo
@@ -54,4 +54,3 @@ TASK-AT-399
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: remover somente controles comprovadamente sem efeito.
-

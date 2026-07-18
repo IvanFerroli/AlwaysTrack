@@ -1,9 +1,9 @@
 # TASK-AT-397 - Alvos tipados e deep links de Notificacoes
 
 ## Metadata
-- status: proposed
+- status: completed-local-validation
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-397-typed-notification-targets-deep-links.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-398
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: resolver backend e fallback canonico antes de novos emissores.
-

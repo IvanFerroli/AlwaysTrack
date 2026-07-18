@@ -1,9 +1,9 @@
 # TASK-AT-412 - Carga, coverage, contratos e gates
 
 ## Metadata
-- status: proposed
+- status: implemented-local-load-evidence-pending
 - owner: olympus_taskyfier
-- last-updated: 2026-07-17
+- last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-412-scheduling-load-coverage-contract-gates.md
 
 ## Modo
@@ -55,4 +55,3 @@ TASK-AT-413
 ## Handoff
 - handoff_to: olympus-orchestrator
 - execution_expectation: relogio/massa controlados e evidencia classificada.
-
