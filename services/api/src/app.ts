@@ -177,6 +177,20 @@ import {
   updateSupportKpiEntryHandler,
   updateSupportPausePolicyHandler
 } from "./core/support-operations/support-operations.handlers.js";
+import {
+  acceptSupportShiftOfferHandler,
+  assignSupportShiftPatternHandler,
+  cancelSupportShiftOfferHandler,
+  claimSupportExtraShiftSlotHandler,
+  createSupportExtraShiftSlotHandler,
+  createSupportScheduleRuleVersionHandler,
+  createSupportShiftOfferHandler,
+  createSupportShiftPatternVersionHandler,
+  decideSupportExtraShiftClaimHandler,
+  decideSupportShiftOfferHandler,
+  listSupportScheduleCalendarHandler,
+  materializeSupportShiftOccurrencesHandler
+} from "./core/support-scheduling/support-scheduling.handlers.js";
 import { globalSearchHandler } from "./core/search/search.handlers.js";
 import {
   archiveOperationalAttachmentHandler,
@@ -444,6 +458,84 @@ export function createApp() {
   app.get("/v1/sales/dashboard", requireAuth, requireRole(commercialSalesAccessRoles), salesDashboardHandler);
   app.get("/v1/operations/today", requireAuth, requireRole(commercialAllRoles), operationalTodayHandler);
   app.get("/v1/support/dashboard", requireAuth, requireRole(supportOperationsRoles), supportDashboardHandler);
+  app.get("/v1/support/schedules", requireAuth, requireRole(supportOperationsRoles), listSupportScheduleCalendarHandler);
+  app.post(
+    "/v1/support/schedules/rules",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    createSupportScheduleRuleVersionHandler
+  );
+  app.post(
+    "/v1/support/schedules/patterns",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    createSupportShiftPatternVersionHandler
+  );
+  app.post(
+    "/v1/support/schedules/assignments",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    assignSupportShiftPatternHandler
+  );
+  app.post(
+    "/v1/support/schedules/occurrences/materialize",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    materializeSupportShiftOccurrencesHandler
+  );
+  app.post(
+    "/v1/support/schedules/extra-slots",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    createSupportExtraShiftSlotHandler
+  );
+  app.post(
+    "/v1/support/schedules/extra-slots/:slotId/claim",
+    requireAuth,
+    requireRole(supportOperationsRoles),
+    rateLimits.interaction,
+    claimSupportExtraShiftSlotHandler
+  );
+  app.post(
+    "/v1/support/schedules/extra-claims/:claimId/decision",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    decideSupportExtraShiftClaimHandler
+  );
+  app.post(
+    "/v1/support/schedules/offers",
+    requireAuth,
+    requireRole(supportOperationsRoles),
+    rateLimits.interaction,
+    createSupportShiftOfferHandler
+  );
+  app.post(
+    "/v1/support/schedules/offers/:offerId/accept",
+    requireAuth,
+    requireRole(supportOperationsRoles),
+    rateLimits.interaction,
+    acceptSupportShiftOfferHandler
+  );
+  app.post(
+    "/v1/support/schedules/offers/:offerId/decision",
+    requireAuth,
+    requireRole(commercialManagerRoles),
+    rateLimits.adminSensitive,
+    decideSupportShiftOfferHandler
+  );
+  app.delete(
+    "/v1/support/schedules/offers/:offerId",
+    requireAuth,
+    requireRole(supportOperationsRoles),
+    rateLimits.interaction,
+    cancelSupportShiftOfferHandler
+  );
   app.get("/v1/support/pauses", requireAuth, requireRole(supportOperationsRoles), listSupportPausesHandler);
   app.put("/v1/support/pauses/policy", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, updateSupportPausePolicyHandler);
   app.post("/v1/support/pauses/slots", requireAuth, requireRole(commercialManagerRoles), rateLimits.adminSensitive, createSupportPauseSlotHandler);
