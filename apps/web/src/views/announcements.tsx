@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { commercialAllRoles, commercialManagerRoles, type CurrentUser, type UserRole } from "@alwaystrack/shared";
-import { Archive as ArchiveIcon, CalendarClock, CirclePlus, History, X, XCircle } from "lucide-react";
+import { Archive as ArchiveIcon, CalendarClock, CirclePlus, History, Save, Send, X, XCircle } from "lucide-react";
 import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
@@ -40,6 +40,12 @@ interface AnnouncementItem {
     user?: { id: string; name: string; email: string; role: string };
   }>;
   acknowledgement?: AnnouncementAcknowledgementCompliance | null;
+  occurrence?: {
+    id: string;
+    seriesId: string;
+    localDate: string;
+    status: string;
+  } | null;
 }
 
 interface AnnouncementAcknowledgementPerson {
@@ -94,6 +100,14 @@ interface AnnouncementDraft {
   expiresAt: string;
   targetRoles: UserRole[];
   linksText: string;
+}
+
+interface AnnouncementListFilters {
+  query: string;
+  status: string;
+  priority: string;
+  selectedTag: string;
+  recent: string;
 }
 
 interface AnnouncementSeriesVersionItem {
@@ -347,36 +361,53 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
   async function openBySlug(slug: string) {
     const result = await api<{ announcement: AnnouncementItem }>(`/v1/announcements/by-slug/${encodeURIComponent(slug)}`);
     setSelected(result.announcement);
-    if (canManage) {
+    if (canManage && !result.announcement.occurrence) {
       setEditingId(result.announcement.id);
       setDraft(draftFrom(result.announcement));
+    } else {
+      setEditingId(null);
+      setDraft(emptyDraft());
     }
   }
 
-  async function load(nextSlug = selected?.slug ?? initialSlug ?? "") {
+  async function load(nextSlug = selected?.slug ?? initialSlug ?? "", overrides?: AnnouncementListFilters) {
     setLoading(true);
     setError(null);
+    const nextFilters = overrides ?? { query, status, priority, selectedTag, recent };
     const search = new URLSearchParams();
-    if (query) search.set("query", query);
-    if (status) search.set("status", status);
-    if (priority) search.set("priority", priority);
-    if (selectedTag) search.set("tags", selectedTag);
-    if (recent) search.set("recent", recent);
+    if (nextFilters.query) search.set("query", nextFilters.query);
+    if (nextFilters.status) search.set("status", nextFilters.status);
+    if (nextFilters.priority) search.set("priority", nextFilters.priority);
+    if (nextFilters.selectedTag) search.set("tags", nextFilters.selectedTag);
+    if (nextFilters.recent) search.set("recent", nextFilters.recent);
     try {
       const result = await api<{ items: AnnouncementItem[]; total: number }>(`/v1/announcements?${search.toString()}`);
       setItems(result.items);
       setPage(1);
       const next = result.items.find((item) => item.slug === nextSlug) ?? result.items[0] ?? null;
       setSelected(next);
-      if (canManage && next) {
+      if (canManage && next && !next.occurrence) {
         setEditingId(next.id);
         setDraft(draftFrom(next));
+      } else {
+        setEditingId(null);
+        setDraft(emptyDraft());
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao carregar avisos.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadUnfiltered(nextSlug: string) {
+    const emptyFilters = { query: "", status: "", priority: "", selectedTag: "", recent: "" };
+    setQuery("");
+    setStatus("");
+    setPriority("");
+    setSelectedTag("");
+    setRecent("");
+    await load(nextSlug, emptyFilters);
   }
 
   async function loadSeries() {
@@ -555,13 +586,30 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
     };
   }
 
-  async function save(event: FormEvent) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const shouldPublish = submitter instanceof HTMLButtonElement && submitter.value === "publish";
     await run(async () => {
       const endpoint = editingId ? `/v1/announcements/${editingId}` : "/v1/announcements";
       const method = editingId ? "PATCH" : "POST";
-      const result = await api<{ announcement: AnnouncementItem }>(endpoint, { method, body: JSON.stringify(payloadFromDraft()) });
-      await load(result.announcement.slug);
+      const payload = payloadFromDraft();
+      const selectedBeingEdited = selected?.id === editingId ? selected : null;
+      if (shouldPublish && selectedBeingEdited?.status !== "PUBLISHED") {
+        payload.status = selectedBeingEdited?.status ?? "DRAFT";
+      }
+      const saved = await api<{ announcement: AnnouncementItem }>(endpoint, { method, body: JSON.stringify(payload) });
+      let announcement = saved.announcement;
+      if (shouldPublish && announcement.status !== "PUBLISHED") {
+        try {
+          const published = await api<{ announcement: AnnouncementItem }>(`/v1/announcements/${announcement.id}/publish`, { method: "POST" });
+          announcement = published.announcement;
+        } catch (caught) {
+          await loadUnfiltered(announcement.slug);
+          throw caught;
+        }
+      }
+      await loadUnfiltered(announcement.slug);
     });
   }
 
@@ -569,7 +617,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
     if (!selected) return;
     await run(async () => {
       const result = await api<{ announcement: AnnouncementItem }>(`/v1/announcements/${selected.id}/publish`, { method: "POST" });
-      await load(result.announcement.slug);
+      await loadUnfiltered(result.announcement.slug);
     });
   }
 
@@ -577,7 +625,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
     if (!selected) return;
     await run(async () => {
       const result = await api<{ announcement: AnnouncementItem }>(`/v1/announcements/${selected.id}/archive`, { method: "POST" });
-      await load(result.announcement.slug);
+      await loadUnfiltered(result.announcement.slug);
     });
   }
 
@@ -893,7 +941,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
               <h2>Lista</h2>
             </div>
             {canManage ? (
-              <button className="secondary" type="button" onClick={() => { setEditingId(null); setDraft(emptyDraft()); }}>
+              <button className="secondary" type="button" onClick={() => { setSelected(null); setEditingId(null); setDraft(emptyDraft()); }}>
                 Novo aviso
               </button>
             ) : null}
@@ -913,6 +961,7 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                 >
                   <strong>{item.pinned ? "Fixado · " : ""}{item.title}</strong>
                   <span>{priorityLabel(item.priority)} / {statusLabel(item.status)}</span>
+                  {item.occurrence ? <small>Ocorrência da série · {formatDateBr(`${item.occurrence.localDate}T12:00:00.000Z`)}</small> : null}
                   {item.summary ? <small>{item.summary}</small> : null}
                   {item.tags?.length ? <small>{item.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
                 </button>
@@ -941,7 +990,15 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
                     </button>
                   ) : null}
                   {canManage ? (
-                    <>
+                    selected.occurrence ? (
+                      <button
+                        className="secondary"
+                        type="button"
+                        onClick={() => document.getElementById("announcement-series-title")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      >
+                        <CalendarClock aria-hidden="true" size={16} /> Gerenciar série
+                      </button>
+                    ) : <>
                       <button className="secondary" type="button" disabled={saving || selected.status === "PUBLISHED"} onClick={() => void publish()}>
                         Publicar
                       </button>
@@ -1008,7 +1065,15 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
         </section>
       </div>
 
-      {canManage ? (
+      {canManage && selected?.occurrence ? (
+        <section className="panel form-panel">
+          <OperationalState
+            state="empty"
+            title="Ocorrência gerenciada pela série"
+            detail="Conteúdo, público, agenda e arquivamento desta ocorrência devem ser alterados em Avisos recorrentes."
+          />
+        </section>
+      ) : canManage ? (
         <section className="panel form-panel">
           <form onSubmit={save}>
             <div className="table-panel-toolbar">
@@ -1034,8 +1099,15 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
               </label>
               <label>
                 Status
-                <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}>
-                  {statusOptions.slice(0, 3).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                <select
+                  disabled={["PUBLISHED", "ARCHIVED", "EXPIRED"].includes(draft.status)}
+                  value={draft.status}
+                  onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value }))}
+                >
+                  {(["PUBLISHED", "ARCHIVED", "EXPIRED"].includes(draft.status)
+                    ? statusOptions.filter((option) => option.value === draft.status)
+                    : statusOptions.filter((option) => option.value === "DRAFT" || option.value === "SCHEDULED")
+                  ).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
               <label>
@@ -1092,7 +1164,14 @@ export function AnnouncementsView({ user, initialSlug }: { user: CurrentUser; in
               </label>
             </div>
             <div className="form-actions">
-              <button disabled={saving || !draft.title.trim() || !draft.content.trim()}>Salvar aviso</button>
+              <button name="intent" value="save" disabled={saving || !draft.title.trim() || !draft.content.trim()}>
+                <Save aria-hidden="true" size={16} /> {editingId ? "Salvar alterações" : "Salvar rascunho"}
+              </button>
+              {draft.status !== "PUBLISHED" ? (
+                <button name="intent" value="publish" disabled={saving || !draft.title.trim() || !draft.content.trim()}>
+                  <Send aria-hidden="true" size={16} /> Salvar e publicar
+                </button>
+              ) : null}
             </div>
           </form>
         </section>

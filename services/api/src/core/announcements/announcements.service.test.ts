@@ -4,6 +4,7 @@ import { InputValidationError } from "../validation/input-validation.js";
 import {
   acknowledgeAnnouncement,
   AnnouncementError,
+  archiveAnnouncement,
   createAnnouncement,
   getAnnouncementBySlug,
   getAnnouncementsAcknowledgementCompliance,
@@ -193,6 +194,59 @@ describe("announcements service", () => {
 
     expect(prisma.announcement.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "PUBLISHED" }) }));
     expect(prisma.inAppNotification.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ href: "/avisos/aviso" }) }));
+  });
+
+  it("rejects standalone publication outside its active window", async () => {
+    const prisma = prismaMock();
+    prisma.announcement.findFirst.mockResolvedValueOnce({
+      id: "ann-future",
+      startsAt: new Date("2099-09-14T00:00:00.000Z"),
+      expiresAt: new Date("2099-09-15T00:00:00.000Z"),
+      occurrence: null
+    });
+
+    await expect(publishAnnouncement(prisma as never, admin, "ann-future")).rejects.toEqual(new AnnouncementError("CONFLICT"));
+    expect(prisma.announcement.update).not.toHaveBeenCalled();
+    expect(prisma.inAppNotification.upsert).not.toHaveBeenCalled();
+  });
+
+  it("keeps recurring occurrences under series governance", async () => {
+    const recurring = {
+      id: "ann-recurring",
+      organizationId: "org-1",
+      slug: "rotina-20990914-v1",
+      title: "Rotina recorrente",
+      summary: null,
+      content: "Conteúdo",
+      tagsJson: "[]",
+      linksJson: "[]",
+      targetRolesJson: '["SAC"]',
+      status: "SCHEDULED",
+      priority: "HIGH",
+      pinned: false,
+      requiresAck: true,
+      startsAt: new Date("2099-09-14T00:00:00.000Z"),
+      expiresAt: new Date("2099-09-15T00:00:00.000Z"),
+      publishedAt: null,
+      archivedAt: null,
+      createdById: "admin-1",
+      updatedById: "admin-1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      occurrence: { id: "occurrence-1" }
+    };
+    const actions = [
+      (prismaClient: ReturnType<typeof prismaMock>) => updateAnnouncement(prismaClient as never, admin, recurring.id, { title: "Alterado" }),
+      (prismaClient: ReturnType<typeof prismaMock>) => publishAnnouncement(prismaClient as never, admin, recurring.id),
+      (prismaClient: ReturnType<typeof prismaMock>) => archiveAnnouncement(prismaClient as never, admin, recurring.id)
+    ];
+
+    for (const action of actions) {
+      const prisma = prismaMock();
+      prisma.announcement.findFirst.mockResolvedValueOnce(recurring);
+      await expect(action(prisma)).rejects.toEqual(new AnnouncementError("CONFLICT"));
+      expect(prisma.announcement.update).not.toHaveBeenCalled();
+    }
   });
 
   it("scopes seller listing and acknowledgement", async () => {

@@ -16,6 +16,10 @@ Passada final de hardening dos Avisos para encerrar a frente antes da proxima ro
 - Central Operacional Hoje abre o aviso clicado por slug.
 - Gestores recebem recibos de ciencia na listagem para leitura de alcance.
 - Teste de operacoes cobre avisos ativos na Central.
+- Jornada gerencial agora diferencia `Salvar rascunho` de `Salvar e publicar`, limpa a selecao anterior e recarrega o aviso mutado sem filtros que possam oculta-lo.
+- Publicacao pelo editor chama explicitamente `/v1/announcements/:id/publish`, preservando auditoria e notificacao deduplicada.
+- Ocorrencias recorrentes agora carregam metadados da serie na leitura, ficam bloqueadas no editor unitario e apontam para a governanca recorrente.
+- Publicacao avulsa fora da janela de vigencia falha fechada, sem alterar status nem emitir notificacao prematura.
 
 ## Validacao
 - `npm run typecheck --workspace @alwaystrack/api`
@@ -23,3 +27,6 @@ Passada final de hardening dos Avisos para encerrar a frente antes da proxima ro
 - `npm run test --workspace @alwaystrack/api -- announcements.service.test.ts search.service.test.ts operations.service.test.ts`
 - `npm run build --workspace @alwaystrack/web`
 - `git diff --check`
+- `npm exec --workspace @alwaystrack/web vitest run -- test/announcements.test.tsx test/notification-center.test.tsx test/notification-navigation.test.ts test/navigation-roles.test.tsx test/accessibility.test.tsx`
+- `npm exec --workspace @alwaystrack/api vitest run -- src/core/announcements/announcements.service.test.ts`
+- Resultado da regressao final: 34 testes Web adjacentes e 23 testes de servico de Avisos aprovados, com builds Web/API aprovados.

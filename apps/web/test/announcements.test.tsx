@@ -198,6 +198,92 @@ describe("AnnouncementsView acknowledgement", () => {
   });
 });
 
+describe("AnnouncementsView publication", () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+  });
+
+  it("clears the previous selection and saves a new draft through the explicit publish endpoint", async () => {
+    const existing = announcement();
+    const draft = {
+      ...announcement([]),
+      id: "announcement-new",
+      slug: "novo-aviso-operacional",
+      title: "Novo aviso operacional",
+      summary: null,
+      content: "Confira a atualização antes de iniciar.",
+      targetRoles: ["SAC"],
+      status: "DRAFT",
+      priority: "NORMAL",
+      pinned: false,
+      requiresAck: false,
+      publishedAt: null
+    };
+    const published = { ...draft, status: "PUBLISHED", publishedAt: "2026-07-18T18:00:00.000Z" };
+    let publicationCompleted = false;
+
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/v1/announcements/series" && !init) return Promise.resolve({ items: [], total: 0 });
+      if (path.startsWith("/v1/announcements?") && !init) {
+        const items = publicationCompleted ? [published, existing] : [existing];
+        return Promise.resolve({ items, total: items.length });
+      }
+      if (path === "/v1/announcements" && init?.method === "POST") return Promise.resolve({ announcement: draft });
+      if (path === `/v1/announcements/${draft.id}/publish` && init?.method === "POST") {
+        publicationCompleted = true;
+        return Promise.resolve({ announcement: published });
+      }
+      return Promise.reject(new Error(`Unexpected API call: ${path}`));
+    });
+
+    const user = userEvent.setup();
+    render(<AnnouncementsView user={users.manager} />);
+    expect(await screen.findByRole("heading", { name: existing.title })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Novo aviso" }));
+    expect(screen.queryByRole("heading", { name: existing.title })).not.toBeInTheDocument();
+
+    const form = screen.getByRole("heading", { name: "Novo aviso" }).closest("form")!;
+    await user.type(within(form).getByLabelText("Titulo"), draft.title);
+    await user.type(within(form).getByLabelText("Conteudo"), draft.content);
+    await user.click(within(form).getByRole("button", { name: "Salvar e publicar" }));
+
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith("/v1/announcements", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining('"status":"DRAFT"')
+    })));
+    expect(apiMock).toHaveBeenCalledWith(`/v1/announcements/${draft.id}/publish`, { method: "POST" });
+    expect(await screen.findByRole("heading", { name: draft.title })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar" })).toBeDisabled();
+  });
+
+  it("routes recurring occurrences to series governance instead of the standalone editor", async () => {
+    const recurringOccurrence = {
+      ...announcement(),
+      id: "announcement-recurring",
+      slug: "plantao-mensal-20990814-v1",
+      title: "Plantão mensal de agosto",
+      status: "SCHEDULED",
+      publishedAt: null,
+      startsAt: "2099-08-14T12:30:00.000Z",
+      expiresAt: "2099-08-15T12:30:00.000Z",
+      occurrence: { id: "occurrence-1", seriesId: "series-1", localDate: "2099-08-14", status: "SCHEDULED" }
+    };
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/announcements?")) return Promise.resolve({ items: [recurringOccurrence], total: 1 });
+      if (path === "/v1/announcements/series") return Promise.resolve({ items: [recurringSeries], total: 1 });
+      return Promise.reject(new Error(`Unexpected API call: ${path}`));
+    });
+
+    render(<AnnouncementsView user={users.manager} />);
+
+    expect(await screen.findByRole("button", { name: "Gerenciar série" })).toBeInTheDocument();
+    expect(screen.getByText("Ocorrência gerenciada pela série")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Publicar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Editar aviso" })).not.toBeInTheDocument();
+  });
+});
+
 describe("AnnouncementsView recurring series", () => {
   beforeEach(() => {
     apiMock.mockReset();

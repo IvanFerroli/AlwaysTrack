@@ -396,7 +396,8 @@ export async function listAnnouncements(prisma: PrismaClient, actor: CurrentUser
       include: {
         createdBy: { select: { id: true, name: true, email: true, role: true } },
         updatedBy: { select: { id: true, name: true, email: true, role: true } },
-        readReceipts: isManager(actor) ? { orderBy: { updatedAt: "desc" } } : { where: { userId: actor.id }, take: 1 }
+        readReceipts: isManager(actor) ? { orderBy: { updatedAt: "desc" } } : { where: { userId: actor.id }, take: 1 },
+        occurrence: { select: { id: true, seriesId: true, localDate: true, status: true } }
       },
       orderBy: [{ pinned: "desc" }, { priority: "desc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
       take: 100
@@ -430,7 +431,8 @@ export async function getAnnouncementBySlug(prisma: PrismaClient, actor: Current
         where: isManager(actor) ? undefined : { userId: actor.id },
         include: { user: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { updatedAt: "desc" }
-      }
+      },
+      occurrence: { select: { id: true, seriesId: true, localDate: true, status: true } }
     }
   });
   if (!item) throw new AnnouncementError("NOT_FOUND");
@@ -491,8 +493,12 @@ export async function createAnnouncement(prisma: PrismaClient, actor: CurrentUse
 export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string, input: AnnouncementInput) {
   ensureManager(actor);
   const targetRoles = input.targetRoles === undefined ? undefined : strictRoles(input.targetRoles);
-  const current = await prisma.announcement.findFirst({ where: { id: announcementId, organizationId: actor.organizationId } });
+  const current = await prisma.announcement.findFirst({
+    where: { id: announcementId, organizationId: actor.organizationId },
+    include: { occurrence: { select: { id: true } } }
+  });
   if (!current) throw new AnnouncementError("NOT_FOUND");
+  if (current.occurrence) throw new AnnouncementError("CONFLICT");
   const nextSlug = input.slug === undefined ? current.slug : slugify(input.slug ?? input.title ?? current.title);
   if (nextSlug !== current.slug) {
     const existing = await prisma.announcement.findFirst({ where: { organizationId: actor.organizationId, slug: nextSlug, id: { not: current.id } } });
@@ -588,11 +594,19 @@ export async function updateAnnouncement(prisma: PrismaClient, actor: CurrentUse
 
 export async function publishAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string) {
   ensureManager(actor);
-  const item = await prisma.announcement.findFirst({ where: { id: announcementId, organizationId: actor.organizationId } });
+  const item = await prisma.announcement.findFirst({
+    where: { id: announcementId, organizationId: actor.organizationId },
+    include: { occurrence: { select: { id: true } } }
+  });
   if (!item) throw new AnnouncementError("NOT_FOUND");
+  if (item.occurrence) throw new AnnouncementError("CONFLICT");
+  const now = new Date();
+  if ((item.startsAt && item.startsAt > now) || (item.expiresAt && item.expiresAt < now)) {
+    throw new AnnouncementError("CONFLICT");
+  }
   const published = await prisma.announcement.update({
     where: { id: item.id },
-    data: { status: "PUBLISHED", publishedAt: item.publishedAt ?? new Date(), archivedAt: null, updatedById: actor.id }
+    data: { status: "PUBLISHED", publishedAt: item.publishedAt ?? now, archivedAt: null, updatedById: actor.id }
   });
   await recordAuditLog(prisma, {
     organizationId: actor.organizationId,
@@ -608,8 +622,12 @@ export async function publishAnnouncement(prisma: PrismaClient, actor: CurrentUs
 
 export async function archiveAnnouncement(prisma: PrismaClient, actor: CurrentUser, announcementId: string) {
   ensureManager(actor);
-  const item = await prisma.announcement.findFirst({ where: { id: announcementId, organizationId: actor.organizationId } });
+  const item = await prisma.announcement.findFirst({
+    where: { id: announcementId, organizationId: actor.organizationId },
+    include: { occurrence: { select: { id: true } } }
+  });
   if (!item) throw new AnnouncementError("NOT_FOUND");
+  if (item.occurrence) throw new AnnouncementError("CONFLICT");
   const archived = await prisma.announcement.update({
     where: { id: item.id },
     data: { status: "ARCHIVED", archivedAt: new Date(), updatedById: actor.id }
