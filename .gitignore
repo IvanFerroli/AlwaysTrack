@@ -18,3 +18,17 @@ test-results/
 playwright-report/
 services/api/coverage/
 apps/web/coverage/
+
+# Local agent configuration and memory
+/.agents/
+/.antigravity/
+/.codex/
+/AGENTS.md
+/BOOTSTRAP.md
+/HEARTBEAT.md
+/IDENTITY.md
+/MEMORY.md
+/SOUL.md
+/TOOLS.md
+/USER.md
+/memory/
