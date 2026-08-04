@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@alwaystrack/shared": "file:../../packages/shared",
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
