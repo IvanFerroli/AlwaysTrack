@@ -24,7 +24,7 @@
   "dependencies": {
     "@alwaystrack/shared": "file:../../packages/shared",
     "@prisma/client": "6.19.3",
-    "bullmq": "^5.78.0",
+    "bullmq": "^6.0.5",
     "cookie": "^1.0.2",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
