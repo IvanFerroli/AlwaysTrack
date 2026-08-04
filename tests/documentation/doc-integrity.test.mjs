@@ -71,6 +71,8 @@ test("accepts references to generated paths that are absent from a clean checkou
     "docs/guide.md": [
       "# Generated paths",
       "",
+      "`docs/generated/coverage/index.html`",
+      "`docs/generated/typedoc/index.html`",
       "`docs/performance/reports/`",
       "`docs/performance/reports/smoke-example.html`",
       "`services/api/.storage/`"

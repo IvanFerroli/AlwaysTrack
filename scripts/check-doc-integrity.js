@@ -9,6 +9,7 @@ const EXCLUDED_DOC_SCOPES = [
   { prefix: "docs/performance/reports/", owner: "quality", reason: "generated performance evidence is immutable" }
 ];
 const GENERATED_PATH_SCOPES = [
+  { prefix: "docs/generated/", owner: "docs", reason: "TypeDoc, coverage and local workbench output are generated and ignored by Git" },
   { prefix: "docs/performance/reports/", owner: "quality", reason: "performance evidence is generated and ignored by Git" },
   { prefix: "services/api/.storage/", owner: "api", reason: "local operational storage is generated and ignored by Git" }
 ];
