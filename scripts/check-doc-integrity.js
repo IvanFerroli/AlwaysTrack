@@ -8,6 +8,10 @@ const EXCLUDED_DOC_SCOPES = [
   { prefix: "docs/generated/", owner: "docs", reason: "TypeDoc and local workbench output is generated" },
   { prefix: "docs/performance/reports/", owner: "quality", reason: "generated performance evidence is immutable" }
 ];
+const GENERATED_PATH_SCOPES = [
+  { prefix: "docs/performance/reports/", owner: "quality", reason: "performance evidence is generated and ignored by Git" },
+  { prefix: "services/api/.storage/", owner: "api", reason: "local operational storage is generated and ignored by Git" }
+];
 const METADATA_FIELDS = ["status", "owner", "last-updated", "source-of-truth"];
 const METADATA_SCOPES = [
   /^docs\/adr\/ADR-\d+.*\.md$/,
@@ -58,6 +62,10 @@ function lineNumber(text, index) {
 
 function isExcluded(path) {
   return EXCLUDED_DOC_SCOPES.some(({ prefix }) => path.startsWith(prefix));
+}
+
+function isGeneratedPath(path) {
+  return GENERATED_PATH_SCOPES.some(({ prefix }) => path === prefix.slice(0, -1) || path.startsWith(prefix));
 }
 
 function githubSlug(value) {
@@ -156,6 +164,7 @@ export function checkDocumentationIntegrity({ root = process.cwd() } = {}) {
   const failures = [];
   for (const [scope, exception] of [
     ...EXCLUDED_DOC_SCOPES.map((entry) => [entry.prefix, entry]),
+    ...GENERATED_PATH_SCOPES.map((entry) => [entry.prefix, entry]),
     ...METADATA_ALLOWLIST,
     ...PATH_ALLOWLIST
   ]) {
@@ -191,7 +200,12 @@ export function checkDocumentationIntegrity({ root = process.cwd() } = {}) {
       if (/\s|[<>{}*$]/.test(candidate) || /docs\/tasks\/TASK-AT-\d{3}$/.test(candidate)) continue;
       const checkPath = staticPathPrefix(candidate.split("#", 1)[0]);
       const allowlistKey = `${file}::${candidate}`;
-      if (checkPath && !existsSync(resolve(root, checkPath)) && !PATH_ALLOWLIST.has(allowlistKey)) {
+      if (
+        checkPath &&
+        !existsSync(resolve(root, checkPath)) &&
+        !isGeneratedPath(checkPath) &&
+        !PATH_ALLOWLIST.has(allowlistKey)
+      ) {
         failures.push(`${file}:${lineNumber(markdown, match.index)} broken repository path: ${match[1]}`);
       }
     }
@@ -227,6 +241,7 @@ export function checkDocumentationIntegrity({ root = process.cwd() } = {}) {
     failures,
     checkedFiles: files.length,
     exclusions: EXCLUDED_DOC_SCOPES,
+    generatedPathScopes: GENERATED_PATH_SCOPES,
     metadataAllowlist: METADATA_ALLOWLIST,
     pathAllowlist: PATH_ALLOWLIST
   };
@@ -242,6 +257,7 @@ if (isMain) {
   } else {
     console.log(`Documentation integrity OK: ${result.checkedFiles} active Markdown file(s) checked.`);
     console.log(`Excluded scopes: ${result.exclusions.map(({ prefix, owner }) => `${prefix} (${owner})`).join(", ")}.`);
+    console.log(`Generated path scopes: ${result.generatedPathScopes.map(({ prefix, owner }) => `${prefix} (${owner})`).join(", ")}.`);
     console.log(`Metadata allowlist: ${result.metadataAllowlist.size} owned pre-existing exception(s).`);
     console.log(`Path allowlist: ${result.pathAllowlist.size} owned pre-existing exception(s).`);
   }

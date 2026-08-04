@@ -65,3 +65,17 @@ test("keeps historical and generated scopes outside the active contract", async 
   t.after(() => rm(root, { recursive: true, force: true }));
   assert.deepEqual(checkDocumentationIntegrity({ root }).failures, []);
 });
+
+test("accepts references to generated paths that are absent from a clean checkout", async (t) => {
+  const root = await fixture({
+    "docs/guide.md": [
+      "# Generated paths",
+      "",
+      "`docs/performance/reports/`",
+      "`docs/performance/reports/smoke-example.html`",
+      "`services/api/.storage/`"
+    ].join("\n")
+  });
+  t.after(() => rm(root, { recursive: true, force: true }));
+  assert.deepEqual(checkDocumentationIntegrity({ root }).failures, []);
+});
