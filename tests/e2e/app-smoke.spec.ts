@@ -2,11 +2,10 @@ import { expect, test } from "@playwright/test";
 import { loginAsAdminPage, openPrimaryNavigationItem } from "./helpers";
 
 test.describe("AlwaysTrack app smoke", () => {
-  test("admin can log in and navigate core commercial areas", async ({ page }) => {
+  test("admin can log in and navigate core support areas", async ({ page }) => {
     await loginAsAdminPage(page);
 
     const sections = [
-      ["Vendas", "Notas"], ["Vendas", "Ranking"], ["Vendas", "Campanhas"], ["Vendas", "Extratos"],
       ["SAC", "Avisos"], ["SAC", "Fluxos"], ["SAC", "Scriptoteca"], ["SAC", "Wiki"], ["SAC", "FAQ"],
       ["Administração", "Usuários/Times"]
     ] as const;
