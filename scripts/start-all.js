@@ -295,7 +295,6 @@ async function prepareDatabase() {
   }
   try {
     await run(`npx prisma generate --schema ${schemaPath}`, "Gerando Prisma Client");
-    await run("npm run build --workspace @alwaystrack/shared", "Compilando contratos compartilhados");
 
     if (shouldCreateLocalDatabase()) {
       await run(

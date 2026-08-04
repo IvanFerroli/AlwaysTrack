@@ -73,7 +73,7 @@ describeRedis("BullMQ queue with Redis", () => {
       expect(completed.attemptsMade).toBeGreaterThanOrEqual(1);
       expect(processed).toBe(1);
 
-      const job = await queue.getJob(dedupeKey);
+      const job = await queue.getJob(first.job.id);
       expect(await job?.returnvalue).toEqual({ doubled: 42 });
     } finally {
       await worker.close();

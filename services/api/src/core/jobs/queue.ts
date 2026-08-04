@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Queue, type JobsOptions, type Processor, Worker } from "bullmq";
 import { loadEnv } from "../../config/env.js";
 import { logEvent } from "../diagnostics/logger.js";
@@ -63,6 +64,10 @@ function redisConnection() {
   };
 }
 
+export function bullMqJobId(dedupeKey: string) {
+  return `dedupe-${createHash("sha256").update(dedupeKey).digest("hex")}`;
+}
+
 export async function enqueueJob<TData, TResult>(config: QueueJobConfig<TData, TResult>): Promise<EnqueuedJob<TResult>> {
   const env = loadEnv();
   if (env.jobQueueDriver !== "bullmq") {
@@ -86,7 +91,7 @@ export async function enqueueJob<TData, TResult>(config: QueueJobConfig<TData, T
 
   const queue = new Queue(config.queueName, { connection });
   const job = await queue.add(config.jobName, config.data, {
-    jobId: config.dedupeKey,
+    jobId: bullMqJobId(config.dedupeKey),
     attempts: 3,
     backoff: { type: "exponential", delay: 5_000 },
     removeOnComplete: 100,
@@ -131,7 +136,7 @@ export async function getQueueJobStatus(queueName: string, jobName: string, dedu
 
   const queue = new Queue(queueName, { connection });
   try {
-    const job = await queue.getJob(dedupeKey);
+    const job = await queue.getJob(bullMqJobId(dedupeKey));
     if (!job) {
       return {
         id: dedupeKey,
