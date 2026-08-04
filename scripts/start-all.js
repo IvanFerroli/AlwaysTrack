@@ -294,8 +294,6 @@ async function prepareDatabase() {
     );
   }
   try {
-    await run(`npx prisma generate --schema ${schemaPath}`, "Gerando Prisma Client");
-
     if (shouldCreateLocalDatabase()) {
       await run(
         `npx prisma migrate diff --from-empty --to-schema-datamodel ${schemaPath} --script > ${fullSchemaSqlPath}`,
