@@ -25,7 +25,7 @@
     "@alwaystrack/shared": "file:../../packages/shared",
     "@prisma/client": "6.19.3",
     "bullmq": "^5.78.0",
-    "cookie": "^1.0.2",
+    "cookie": "^2.0.1",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "pdf-parse": "^2.4.5"
