@@ -10,6 +10,7 @@ import {
   openBrowserUrls,
   presentationUrls
 } from "./local-workbench.mjs";
+import { evidenceOptions } from "./start-all-options.mjs";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const schemaPath = "services/api/prisma/schema.prisma";
@@ -22,20 +23,18 @@ const noStudio = process.argv.includes("--no-studio");
 const noDocs = process.argv.includes("--no-docs");
 const noOpen = process.argv.includes("--no-open");
 const skipInstall = process.argv.includes("--skip-install") || process.argv.includes("--no-install");
-const noPerfSmoke = process.argv.includes("--no-perf-smoke");
-const noCoverage = process.argv.includes("--no-coverage");
-const noE2e = process.argv.includes("--no-e2e");
+const { noPerfSmoke, noCoverage, noE2e, refreshArtifacts } = evidenceOptions(process.argv.slice(2));
 const noSmartScript = process.argv.includes("--no-smartscript");
 const noSmartScriptDemo = process.argv.includes("--no-smartscript-demo");
-const refreshArtifacts = process.argv.includes("--refresh-artifacts");
 const hubOnly = process.argv.includes("--hub-only");
 const openAll = process.argv.includes("--open-all");
 const allowRemoteDatabase = process.argv.includes("--allow-remote-database");
 const defaultDatabaseUrl = "file:./dev.db";
 const devSeedPassword = "AlwaysTrackDev123!";
-const workbenchPort = Number(process.env.WORKBENCH_PORT ?? "4173");
-const webPort = Number(process.env.WEB_PORT ?? "5173");
-const studioPort = Number(process.env.STUDIO_PORT ?? "5555");
+function envOrDefault(name, fallback) {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
 
 function loadDotEnv(filePath = resolve(rootDir, ".env")) {
   if (!existsSync(filePath)) return;
@@ -50,23 +49,28 @@ function loadDotEnv(filePath = resolve(rootDir, ".env")) {
 
 loadDotEnv();
 
+const workbenchPort = Number(envOrDefault("WORKBENCH_PORT", "4173"));
+const webPort = Number(envOrDefault("WEB_PORT", "5173"));
+const studioPort = Number(envOrDefault("STUDIO_PORT", "5555"));
+
 const env = {
   ...process.env,
-  DATABASE_URL: process.env.DATABASE_URL ?? defaultDatabaseUrl,
-  ALWAYSTRACK_API_URL: process.env.ALWAYSTRACK_API_URL ?? `http://localhost:${process.env.API_PORT ?? "3333"}`,
-  SESSION_SECRET: process.env.SESSION_SECRET ?? "dev-session-secret",
-  API_PORT: process.env.API_PORT ?? "3333",
-  SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD ?? devSeedPassword,
-  SEED_SAC_PASSWORD: process.env.SEED_SAC_PASSWORD ?? devSeedPassword,
-  SEED_FINANCEIRO_PASSWORD: process.env.SEED_FINANCEIRO_PASSWORD ?? devSeedPassword,
-  SEED_SELLER_PASSWORD: process.env.SEED_SELLER_PASSWORD ?? devSeedPassword,
-  SEED_SUPERVISOR_PASSWORD: process.env.SEED_SUPERVISOR_PASSWORD ?? devSeedPassword,
-  SEED_RT_PASSWORD: process.env.SEED_RT_PASSWORD ?? devSeedPassword,
-  ALWAYSTRACK_EMAIL: process.env.ALWAYSTRACK_EMAIL ?? "sac@example.com",
-  ALWAYSTRACK_PASSWORD: process.env.ALWAYSTRACK_PASSWORD ?? process.env.SEED_SAC_PASSWORD ?? devSeedPassword
+  DATABASE_URL: envOrDefault("DATABASE_URL", defaultDatabaseUrl),
+  ALWAYSTRACK_API_URL: envOrDefault("ALWAYSTRACK_API_URL", `http://localhost:${envOrDefault("API_PORT", "3333")}`),
+  SESSION_SECRET: envOrDefault("SESSION_SECRET", "dev-session-secret"),
+  API_PORT: envOrDefault("API_PORT", "3333"),
+  SEED_ADMIN_PASSWORD: envOrDefault("SEED_ADMIN_PASSWORD", devSeedPassword),
+  SEED_SAC_PASSWORD: envOrDefault("SEED_SAC_PASSWORD", devSeedPassword),
+  SEED_FINANCEIRO_PASSWORD: envOrDefault("SEED_FINANCEIRO_PASSWORD", devSeedPassword),
+  SEED_SELLER_PASSWORD: envOrDefault("SEED_SELLER_PASSWORD", devSeedPassword),
+  SEED_SUPERVISOR_PASSWORD: envOrDefault("SEED_SUPERVISOR_PASSWORD", devSeedPassword),
+  SEED_RT_PASSWORD: envOrDefault("SEED_RT_PASSWORD", devSeedPassword),
+  ALWAYSTRACK_EMAIL: envOrDefault("ALWAYSTRACK_EMAIL", "sac@example.com"),
+  ALWAYSTRACK_PASSWORD: envOrDefault("ALWAYSTRACK_PASSWORD", envOrDefault("SEED_SAC_PASSWORD", devSeedPassword))
 };
 
 function shellQuote(value) {
+  if (process.platform === "win32") return `"${value.replaceAll('"', '""')}"`;
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
@@ -76,7 +80,7 @@ function shouldCreateLocalDatabase() {
 
 function migrationDatabaseUrl() {
   if (env.DATABASE_URL === defaultDatabaseUrl) {
-    return `file:${resolve(rootDir, devDatabasePath)}`;
+    return `file:${resolve(rootDir, devDatabasePath).replaceAll("\\", "/")}`;
   }
 
   return env.DATABASE_URL;
@@ -235,6 +239,9 @@ function spawnService(name, command, args, colorCode) {
 
   return child;
 }
+
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 
 function runDetached(name, command, args, colorCode) {
   console.log(`\n[AlwaysTrack Setup] Rodando ${name} em background...`);
@@ -410,7 +417,10 @@ function installSignalHandlers(processes, servers) {
     stopping = true;
     console.log(`\n[AlwaysTrack Setup] ${signal}: encerrando somente servicos desta sessao...`);
     for (const child of processes) child.kill("SIGTERM");
-    await Promise.all(servers.map((server) => new Promise((resolvePromise) => server.close(resolvePromise))));
+    await Promise.all(servers.map((server) => new Promise((resolvePromise) => {
+      server.close(resolvePromise);
+      server.closeAllConnections?.();
+    })));
     if (!noSmartScript) {
       try {
         await run("npm run smartscript:stop", "Desativando SmartScript Local Companion");
@@ -459,20 +469,20 @@ async function main() {
   await ensureService({
     name: "API",
     url: `http://127.0.0.1:${env.API_PORT}/health/ready`,
-    start: () => spawnService("api", "npm", ["run", "dev:api"], "34"),
+    start: () => spawnService("api", npmCommand, ["run", "dev:api"], "34"),
     processes
   });
   await ensureService({
     name: "Web",
     url: `http://127.0.0.1:${webPort}`,
-    start: () => spawnService("web", "npm", ["run", "dev", "--workspace", "@alwaystrack/web", "--", "--port", String(webPort), "--strictPort"], "32"),
+    start: () => spawnService("web", npmCommand, ["run", "dev", "--workspace", "@alwaystrack/web", "--", "--port", String(webPort), "--strictPort"], "32"),
     processes
   });
   if (!noStudio) {
     await ensureService({
       name: "Prisma Studio",
       url: `http://127.0.0.1:${studioPort}`,
-      start: () => spawnService("studio", "npx", ["prisma", "studio", `--schema=${schemaPath}`, "--port", String(studioPort), "--browser", "none"], "35"),
+      start: () => spawnService("studio", npxCommand, ["prisma", "studio", `--schema=${schemaPath}`, "--port", String(studioPort), "--browser", "none"], "35"),
       processes
     });
   }

@@ -58,29 +58,28 @@ Todos os acessos de negócio devem respeitar `organizationId`, role e escopo do 
 ### Pré-requisitos
 
 - Node.js 22 e npm.
-- Chromium instalado para Playwright e validações da extensão.
+- Um navegador instalado para abrir a bancada local.
+- Chromium/Playwright somente para `npm run up:full` e validações E2E.
 - Redis somente para testar o driver BullMQ.
 - Chrome Stable e perfil exclusivo apenas para validação manual do Companion.
 
-### Primeiro setup
+### Primeira execução — `main` recém-baixada
 
 ```bash
-cp .env.example .env
-npm ci
-npm run setup -- --skip-install --no-coverage --no-e2e
+npm run up
 ```
 
-O setup instala dependências quando necessário, gera o Prisma Client, alinha o SQLite local, aplica o seed, materializa avisos recorrentes e gera a documentação técnica. Sem as flags acima ele também pode atualizar coverage e o relatório E2E, portanto é mais demorado.
+Esse único comando instala as dependências pelo lockfile quando necessário, gera o Prisma Client, cria/alinha o SQLite, aplica o seed, sobe API, Web, Prisma Studio e Hub e abre o Hub no navegador. O `.env` é opcional: sem ele, os mesmos defaults locais seguros são aplicados. Se um `.env` pré-configurado foi fornecido separadamente, coloque-o na raiz antes de executar o comando e transporte-o somente por um canal privado.
 
-Para credenciais locais determinísticas, configure no `.env`:
+Credenciais fake determinísticas da demo:
 
-```dotenv
-SEED_ADMIN_PASSWORD="..."
-SEED_SAC_PASSWORD="..."
-SEED_FINANCEIRO_PASSWORD="..."
-SEED_SELLER_PASSWORD="..."
-SEED_SUPERVISOR_PASSWORD="..."
-```
+- `admin@example.com` — administrador;
+- `sac@example.com`, `sac2@example.com`, `sac3@example.com` — atendimento;
+- `financeiro@example.com` — financeiro;
+- `vendedor@example.com` — vendedor;
+- `supervisor@example.com` — supervisor.
+
+Todos usam `AlwaysTrackDev123!` no ambiente local padrão. Um `.env` pré-configurado pode substituir a senha pelas variáveis `SEED_*_PASSWORD`.
 
 O banco armazena somente hashes de senha. Se uma senha for perdida, defina um novo valor e rode o seed/reset local; não tente extrair o hash. `SEED_RT_PASSWORD` existe apenas para o legado SyLembra quando `ENABLE_LEGACY_SYLEMBRA=true`.
 
@@ -90,11 +89,15 @@ O banco armazena somente hashes de senha. Se uma senha for perdida, defina um no
 npm run up
 ```
 
-Por padrão, o comando prepara o banco e os artefatos, sobe API, Web, Prisma Studio e o hub local, inicializa o SmartScript, prepara/reinicia a integração opcional com Espanso e pode executar um smoke de carga. Use `--no-smartscript` quando não quiser esse efeito. Atalhos úteis para um ciclo mais leve:
+Por padrão, o comando prepara banco e documentação, sobe API, Web, Prisma Studio e Hub, inicializa o SmartScript e prepara a integração opcional com Espanso. Coverage, E2E e carga ficam fora do caminho de demonstração para reduzir tempo e dependências do sistema.
+
+Para também regenerar todas as evidências técnicas e abrir cada superfície em uma aba:
 
 ```bash
-npm run up -- --skip-install --no-open --no-perf-smoke --no-coverage --no-e2e --no-smartscript
+npm run up:full
 ```
+
+Use `npm run up -- --no-open` em ambientes sem interface gráfica e `npm run up -- --no-smartscript` quando não quiser preparar SmartScript/Espanso.
 
 Superfícies locais:
 
@@ -149,7 +152,8 @@ Produção rejeita SQLite, segredo de sessão fraco, origem HTTP pública e conf
 | Comando | Uso |
 | --- | --- |
 | `npm run setup` | prepara banco, seed e artefatos sem manter os serviços ativos |
-| `npm run up` | sobe a bancada local integrada |
+| `npm run up` | instala o necessário e sobe a bancada local integrada |
+| `npm run up:full` | sobe a bancada e regenera coverage, E2E e carga |
 | `npm run dev:api` / `npm run dev:web` | desenvolvimento isolado de API e Web |
 | `npm run build` | build dos seis workspaces |
 | `npm run caseflow:typecheck` | contratos, Host e extensão do CaseFlow |

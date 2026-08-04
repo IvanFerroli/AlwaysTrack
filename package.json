@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "apps/*",
     "services/*",
@@ -16,8 +19,9 @@
     "companion:host:build": "npm run build --workspace @alwaystrack/companion-host",
     "companion:host:start": "npm run start --workspace @alwaystrack/companion-host",
     "companion:extension:build": "npm run build --workspace @alwaystrack/companion-extension",
-    "up": "node scripts/start-all.js",
-    "setup": "node scripts/start-all.js --setup-only",
+    "up": "node scripts/start-all-bootstrap.js",
+    "up:full": "node scripts/start-all-bootstrap.js --with-evidence --open-all",
+    "setup": "node scripts/start-all-bootstrap.js --setup-only",
     "smartscript:start": "tsx apps/smartscript-companion/src/cli.ts start",
     "smartscript:stop": "tsx apps/smartscript-companion/src/cli.ts stop",
     "smartscript:status": "tsx apps/smartscript-companion/src/cli.ts status",

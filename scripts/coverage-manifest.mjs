@@ -96,7 +96,11 @@ function normalizeMetric(metric) {
 
 function gitSha(rootDir) {
   try {
-    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: rootDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
   } catch {
     return "unknown";
   }

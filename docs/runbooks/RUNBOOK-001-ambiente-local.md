@@ -11,16 +11,16 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 
 ## Pre-condicoes
 - Node 22+ e npm instalados.
-- Repo clonado.
+- `main` recém-baixada ou clonada.
 - Nenhuma credencial real salva em arquivo versionado.
 
 ## Passos operacionais
-1. Criar `.env` a partir de `.env.example`.
-2. Manter `NOTIFICATION_PROVIDER=fake` para desenvolvimento sem Meta.
-3. Rodar `npm install`.
-4. Rodar `npm run env:check`.
-5. Rodar `npm run setup` para gerar Prisma Client, alinhar SQLite e aplicar seed.
-6. Rodar `npm run up -- --no-open` para API, web e Prisma Studio.
+1. Se houver um `.env` pré-configurado, colocá-lo na raiz por canal privado; sem ele, os defaults locais são suficientes.
+2. Rodar `npm run up` para instalar pelo lockfile, preparar banco/seed e subir API, Web, Prisma Studio e Hub.
+3. Validar os serviços no Hub aberto automaticamente.
+4. Encerrar a bancada com `Ctrl+C`.
+
+`npm run setup` continua disponível para preparar banco/seed sem manter serviços ativos. `npm run up:full` também regenera coverage, E2E e carga e exige as dependências de sistema do Playwright.
 
 ## Runtime local esperado
 - Web: Vite/React em `http://localhost:5173`.
@@ -33,7 +33,7 @@ Subir a base local do AlwaysTrack sem secrets reais e com banco/storage de desen
 ## Validacao
 - `npm run check`
 - `curl http://localhost:3333/health`
-- Login local: `admin@example.com` / valor impresso pelo seed ou `SEED_ADMIN_PASSWORD`
+- Login local padrão: `admin@example.com` / `AlwaysTrackDev123!`; um `.env` pré-configurado pode substituir esse valor.
 
 ## Seed local
 - `npm run setup` alinha o banco local e aplica o seed idempotente.
