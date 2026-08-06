@@ -17,6 +17,8 @@ Padronizar ciclos pequenos de desenvolvimento com handoff, evidencia e validacao
 5. `docs-keeper` atualiza apenas memoria necessaria.
 6. `orchestrator` entrega resumo final e proximo passo.
 
+Quando o especialista for `product-ux`, aplicar tambem `docs/pipeline/product-ux-protocol.md`. Product UX nao implementa nem emite aceite final; implementacao e verificacao permanecem handoffs separados.
+
 ## Contrato de handoff
 Todo handoff material deve conter:
 - `cycle_id`

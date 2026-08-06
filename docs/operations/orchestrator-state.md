@@ -3,8 +3,21 @@
 ## Metadata
 - status: active
 - owner: olympus_orchestrator
-- last-updated: 2026-07-15
+- last-updated: 2026-08-05
 - source-of-truth: docs/operations/orchestrator-state.md
+
+## Roteamento Product UX - 2026-08-05
+
+- modo oficial: product-ux
+- especialista: olympus_product_ux
+- artefatos roteáveis: ux-audit, ux-specification, visual-evidence-package e ux-review-report
+- contrato: docs/pipeline/product-ux-protocol.md
+- estado: docs/operations/product-ux-state.md
+- handoff exige capability mode, um artefato primário, problem/user/job, target matrix surface/role/state/setup/navigation/viewport, limite de ambiente e destino de validação independente
+- blockers HUMAN_INPUT_REQUIRED e VISUAL_ACQUISITION_BLOCKED devem voltar tipados ao Taskyfier
+- implementação frontend, alteração de baseline e aprovação final nunca são roteadas para Product UX
+- task que misture UX, implementação e aceite deve voltar ao Taskyfier para quebra
+- scripts/harness pertencem ao Runtime Builder; contratos machine-readable adicionais pertencem ao Contracts Builder
 
 ## Ciclo ativo
 Buildout do produto AlwaysTrack como ferramenta comercial para empresa de suplementos: upload de DANFE por vendedor, extracao, ranking, campanhas, dashboard e extratos.

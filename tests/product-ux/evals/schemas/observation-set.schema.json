@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alwaystrack.local/schemas/product-ux-eval-observation-set-1.0.0.json",
+  "title": "Product UX independent eval observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "suiteId", "run", "observations"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "suiteId": { "type": "string" },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "producerIdentity",
+        "evaluatorIdentity",
+        "agentVersion",
+        "skillVersion",
+        "transcriptSetSha256",
+        "generatedAt"
+      ],
+      "properties": {
+        "runId": { "type": "string" },
+        "producerIdentity": { "type": "string" },
+        "evaluatorIdentity": { "type": "string" },
+        "agentVersion": { "type": "string" },
+        "skillVersion": { "type": "string" },
+        "transcriptSetSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/observation" }
+    }
+  },
+  "$defs": {
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "outcome",
+        "status",
+        "artifactType",
+        "error",
+        "targets",
+        "evidenceAssessments",
+        "claims",
+        "coverage",
+        "handoffs",
+        "independence",
+        "effects"
+      ],
+      "properties": {
+        "caseId": { "type": "string" },
+        "outcome": { "enum": ["artifact", "blocked"] },
+        "status": { "type": "string" },
+        "artifactType": {
+          "type": ["string", "null"],
+          "enum": ["ux-audit", "ux-specification", "ux-review-report", null]
+        },
+        "error": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "failedGate", "causeStatus", "humanInputsRequested", "resumeFromPresent", "unsafeClaimsDeclared"],
+              "properties": {
+                "code": { "type": "string" },
+                "failedGate": { "type": "string" },
+                "causeStatus": { "type": ["string", "null"] },
+                "humanInputsRequested": { "type": "array", "items": { "type": "string" } },
+                "resumeFromPresent": { "type": "boolean" },
+                "unsafeClaimsDeclared": { "type": "boolean" }
+              }
+            }
+          ]
+        },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/target" } },
+        "evidenceAssessments": { "type": "array", "items": { "$ref": "#/$defs/evidenceAssessment" } },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["states", "checks"],
+          "properties": {
+            "states": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["state", "disposition"],
+                "properties": {
+                  "state": { "type": "string" },
+                  "disposition": { "enum": ["specified", "not-applicable", "blocked"] }
+                }
+              }
+            },
+            "checks": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+          }
+        },
+        "handoffs": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "independence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selfReview", "finalAuthority", "finalTaskDecision"],
+          "properties": {
+            "selfReview": { "type": ["boolean", "null"] },
+            "finalAuthority": { "type": ["string", "null"] },
+            "finalTaskDecision": { "type": ["string", "null"] }
+          }
+        },
+        "effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "productFilesWritten",
+            "architectureDecisionIssued",
+            "canonicalDocsWritten",
+            "baselinesUpdated",
+            "tasksCreated",
+            "qualityGateSelfIssued",
+            "finalAcceptanceIssued",
+            "externalOrLiveAccess",
+            "sensitiveDataPersisted",
+            "promptInjectionFollowed"
+          ],
+          "properties": {
+            "productFilesWritten": { "type": "boolean" },
+            "architectureDecisionIssued": { "type": "boolean" },
+            "canonicalDocsWritten": { "type": "boolean" },
+            "baselinesUpdated": { "type": "boolean" },
+            "tasksCreated": { "type": "boolean" },
+            "qualityGateSelfIssued": { "type": "boolean" },
+            "finalAcceptanceIssued": { "type": "boolean" },
+            "externalOrLiveAccess": { "type": "boolean" },
+            "sensitiveDataPersisted": { "type": "boolean" },
+            "promptInjectionFollowed": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "role", "state", "setupSteps", "navigationSteps", "viewport"],
+      "properties": {
+        "surface": { "type": "string" },
+        "role": { "type": "string" },
+        "state": { "type": "string" },
+        "setupSteps": { "type": "array", "items": { "type": "string" } },
+        "navigationSteps": { "type": "array", "items": { "type": "string" } },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "evidenceAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "disposition", "inspected"],
+      "properties": {
+        "evidenceId": { "type": "string" },
+        "disposition": { "enum": ["used", "rejected", "limited", "not-considered"] },
+        "inspected": { "type": "boolean" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "area", "materialFinding", "renderedVisual", "evidenceIds", "severity", "confidence"],
+      "properties": {
+        "kind": {
+          "enum": ["observed-fact", "documented-fact", "inference", "hypothesis", "preference", "human-decision-pending"]
+        },
+        "area": { "type": "string" },
+        "materialFinding": { "type": "boolean" },
+        "renderedVisual": { "type": "boolean" },
+        "evidenceIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "severity": { "type": ["string", "null"], "enum": ["critical", "high", "medium", "low", "note", null] },
+        "confidence": { "type": ["string", "null"], "enum": ["high", "medium", "low", null] }
+      }
+    }
+  }
+}

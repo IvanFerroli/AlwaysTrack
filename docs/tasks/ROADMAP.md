@@ -3,11 +3,13 @@
 ## Metadata
 - status: active-product
 - owner: product-builder
-- last-updated: 2026-07-11
+- last-updated: 2026-08-05
 - source-of-truth: docs/tasks/ROADMAP.md
 
 ## Objetivo
 Construir o AlwaysTrack como ferramenta comercial para empresa de suplementos: vendedores sobem DANFEs, o sistema extrai dados, alimenta ranking/campanhas, dashboard e extratos por role.
+
+Esta atualização adiciona, de forma aditiva, duas frentes do produto SAC atual: Comunicação Interna independente e Treinamento/onboarding/simulados baseados em Fluxos. Ela não reabre o legado SyLembra nem converte Fluxos em domínio genérico.
 
 ## Legado
 O dominio SyLembra/licencas/compliance fica como legado tecnico reaproveitavel. Nao usar profissionais, licencas, RT, COREN, vencimento ou regularizacao como backlog ativo.
@@ -533,3 +535,103 @@ Fonte canonica: `docs/tasks/COVERAGE-PRESENTATION-BACKLOG-2026-07-15.md`.
 ## Hub integrado para apresentacao
 
 1. `TASK-AT-349`: Presentation Hub integrado, catalogo pesquisavel de capacidades e visao intencional de evolucao. Status: completed-local-validation.
+
+## Nota de continuidade após TASK-AT-349
+
+Os manifests `TASK-AT-350` a `TASK-AT-416` já existem. Esta atualização não reconcilia retrospectivamente seus status no roadmap: as fontes especializadas continuam sendo `docs/tasks/SAC-OPERATIONS-TRANSFORMATION-BACKLOG-2026-07-17.md` e `docs/tasks/SAC-SCHEDULING-NOTIFICATIONS-ANNOUNCEMENTS-BACKLOG-2026-07-17.md`, além dos próprios manifests.
+
+## Frentes de Comunicação Interna e Treinamento (TASK-AT-417 a TASK-AT-439)
+
+Fonte canônica: `docs/tasks/INTERNAL-COMMUNICATION-TRAINING-BACKLOG-2026-08-05.md`.
+
+### Ordem global recomendada
+
+1. Aprovar em paralelo os contratos `TASK-AT-417` e `TASK-AT-428`.
+2. Fechar RBAC/tenancy/auditoria e persistência antes de qualquer UI.
+3. Entregar e validar primeiro o MVP textual de Comunicação (`TASK-AT-418` a `TASK-AT-424`).
+4. Entregar o MVP de Treinamento (`TASK-AT-429` a `TASK-AT-437`), reutilizando somente versões/grafo/helpers puros de Fluxos.
+5. Priorizar fase 2 (`TASK-AT-425` a `TASK-AT-427`, `TASK-AT-438` e `TASK-AT-439`) apenas após GO dos respectivos gates e decisões humanas.
+
+### Épico A — Comunicação Interna independente
+
+1. `TASK-AT-417`: contrato do domínio, fronteiras, invariantes e recorte MVP. Prioridade: P0. Dependências: inventário atual. Status: proposed.
+2. `TASK-AT-418`: RBAC, tenancy, membership e taxonomia de auditoria. Prioridade: P0. Dependências: `TASK-AT-417`. Status: proposed.
+3. `TASK-AT-419`: persistência de conversas, participantes, mensagens e read state. Prioridade: P0. Dependências: `TASK-AT-417`/`418`. Status: proposed.
+4. `TASK-AT-420`: API de criação/lista, envio, histórico, cursor e leitura. Prioridade: P0. Dependências: `TASK-AT-419`. Status: proposed.
+5. `TASK-AT-421`: workspace Web textual com polling limitado. Prioridade: P1. Dependências: `TASK-AT-420`. Status: proposed.
+6. `TASK-AT-422`: unread próprio, notificações deduplicadas e deep links autorizados. Prioridade: P1. Dependências: `TASK-AT-420`/`421` e baseline `TASK-AT-397`/`398`. Status: proposed.
+7. `TASK-AT-423`: denúncia, moderação reversível, retenção e auditoria. Prioridade: P1. Dependências: `TASK-AT-418` a `TASK-AT-420` e decisão de privacidade. Status: proposed.
+8. `TASK-AT-424`: seed, testes e gate de prontidão do MVP. Prioridade: P1. Dependências: `TASK-AT-417` a `TASK-AT-423`. Status: proposed.
+9. `TASK-AT-425`: transporte realtime e presença efêmera. Prioridade: P2. Dependências: GO da `TASK-AT-424` e decisão de infraestrutura/privacidade. Status: proposed-phase-2.
+10. `TASK-AT-426`: anexos e compartilhamento tipado de recursos. Prioridade: P2. Dependências: GO da `TASK-AT-424` e políticas de arquivo. Status: proposed-phase-2.
+11. `TASK-AT-427`: replies, reações, edição e exclusão lógica. Prioridade: P2. Dependências: `TASK-AT-423`/`424` e políticas de lifecycle. Status: proposed-phase-2.
+
+Caminho crítico: `417 -> 418 -> 419 -> 420 -> 421 -> 422 -> 423 -> 424`.
+
+### Épico B — Treinamento, onboarding e simulados
+
+1. `TASK-AT-428`: contrato de modos, snapshot/versionamento e isolamento métrico. Prioridade: P0. Dependências: inventário atual. Status: proposed.
+2. `TASK-AT-429`: RBAC, tenancy, escopo temporal de equipe e auditoria. Prioridade: P0. Dependências: `TASK-AT-428`. Status: proposed.
+3. `TASK-AT-430`: persistência versionada de programas, itens, assignments, enrollments, attempts e respostas. Prioridade: P0. Dependências: `TASK-AT-428`/`429`. Status: proposed.
+4. `TASK-AT-431`: runtime assistido de FlowVersion em TrainingAttempt própria. Prioridade: P0. Dependências: `TASK-AT-430` e baseline `TASK-AT-244`/`249`. Status: proposed.
+5. `TASK-AT-432`: cenários, questões, feedback, score e tentativas. Prioridade: P0. Dependências: `TASK-AT-430`/`431` e decisões pedagógicas. Status: proposed.
+6. `TASK-AT-433`: trilhas, conteúdo combinado, publicação, vigência e atribuições role/team/user. Prioridade: P1. Dependências: `TASK-AT-430`/`432`. Status: proposed.
+7. `TASK-AT-434`: hub do aluno, progresso, retomada e resultados próprios. Prioridade: P1. Dependências: `TASK-AT-431` a `TASK-AT-433`. Status: proposed.
+8. `TASK-AT-435`: resultados/compliance por responsável e export mínimo. Prioridade: P1. Dependências: `TASK-AT-429`, `TASK-AT-433` e `TASK-AT-434`. Status: proposed.
+9. `TASK-AT-436`: notificações, targets, deep links e lembretes idempotentes. Prioridade: P1. Dependências: `TASK-AT-433` a `TASK-AT-435` e baseline `TASK-AT-397`/`398`. Status: proposed.
+10. `TASK-AT-437`: seed, testes e gate do MVP, incluindo prova de zero contaminação operacional. Prioridade: P1. Dependências: `TASK-AT-428` a `TASK-AT-436`. Status: proposed.
+11. `TASK-AT-438`: rubrica e revisão humana de respostas abertas. Prioridade: P2. Dependências: GO da `TASK-AT-437` e decisão de owner/SLA. Status: proposed-phase-2.
+12. `TASK-AT-439`: mídia, materiais e tracking honesto de conclusão. Prioridade: P2. Dependências: GO da `TASK-AT-437` e decisão de provider/retention. Status: proposed-phase-2.
+
+Caminho crítico: `428 -> 429 -> 430 -> 431 -> 432 -> 433 -> 434 -> (435 e 436) -> 437`.
+
+### Invariantes de execução
+
+1. Comunicação não depende de Fluxos, CaseFlow ou do conector AlwaysChat.
+2. Treino não grava `ServiceFlowSession`, eventos ou métricas operacionais; reutiliza somente versão, grafo e helpers puros.
+3. Attempt/enrollment permanece preso à versão/snapshot publicado; mudança futura não reescreve progresso ou resultado.
+4. Toda rota valida organization, role, team/self scope e membership no backend.
+5. Conteúdo privado e respostas abertas não entram em audit metadata, logs ou notificações.
+
+## Especialista Product UX Olympus (TASK-AT-440 a TASK-AT-450)
+
+Fonte canônica: `docs/tasks/PRODUCT-UX-SPECIALIST-BACKLOG-2026-08-05.md`.
+
+### Ordem global recomendada
+
+1. Formalizar fronteiras e contratos antes de materializar agente, skill ou routing.
+2. Tornar aquisição visual determinística, sanitizada e fail-closed uma capacidade de primeira classe.
+3. Provar comportamento em golden cases, forward evals e ataques adversariais antes dos pilotos.
+4. Pilotar jornadas reproduzíveis sem implementar correções de produto.
+5. Ativar somente superfícies aprovadas pelo gate independente.
+
+### Fundação e contratos — P0
+
+1. `TASK-AT-440`: decisão canônica, fronteiras e não objetivos. Dependências: inventário Olympus/UX existente. Status: proposed.
+2. `TASK-AT-441`: scaffold estrutural do skill package. Dependências: `TASK-AT-440`. Status: proposed.
+3. `TASK-AT-442`: contrato público de audit, interaction spec e advisory review. Dependências: `TASK-AT-440`/`441`. Status: proposed.
+4. `TASK-AT-443`: contrato de aquisição, privacidade e classificação da evidência visual. Dependências: `TASK-AT-440` a `TASK-AT-442`. Status: proposed.
+
+### Materialização do especialista — P0
+
+1. `TASK-AT-444`: harness determinístico de aquisição visual local. Dependências: `TASK-AT-443` e baselines `TASK-AT-312` a `TASK-AT-314`/`336`. Status: proposed.
+2. `TASK-AT-445`: skill package completo, rubricas e templates. Dependências: `TASK-AT-442` a `TASK-AT-444`. Status: proposed.
+3. `TASK-AT-446`: agente Codex, bundle Antigravity e routing do Orchestrator. Dependências: `TASK-AT-440` a `TASK-AT-445`. Status: proposed.
+
+### Qualidade, operação e fechamento — P1
+
+1. `TASK-AT-447`: golden cases, forward evals adversariais e quality gate. Dependências: `TASK-AT-442` a `TASK-AT-446`. Status: proposed.
+2. `TASK-AT-448`: runbook, estado operacional e protocolo de evidência. Dependências: `TASK-AT-440` a `TASK-AT-447`. Status: proposed.
+3. `TASK-AT-449`: pilotos ponta a ponta em jornadas reproduzíveis. Dependências: `TASK-AT-440` a `TASK-AT-448`. Status: proposed.
+4. `TASK-AT-450`: gate final independente de prontidão e ativação. Dependências: `TASK-AT-440` a `TASK-AT-449`. Status: proposed.
+
+Caminho crítico: `440 -> 441 -> 442 -> 443 -> 444 -> 445 -> 446 -> 447 -> 448 -> 449 -> 450`.
+
+### Invariantes de execução
+
+1. Product UX audita, especifica e revisa; Runtime Builder implementa; Quality Builder mede; Task Verifier aceita.
+2. Leitura de JSX/CSS, build ou teste lógico não substitui evidência visual quando a conclusão é visual.
+3. Browser, seed, login, role, rota, estado, viewport ou sanitização indisponível gera blocker fail-closed.
+4. O especialista solicita referência humana quando o alvo estético, estado externo ou decisão de produto não é reproduzível.
+5. Evidência não pode persistir secrets, cookies, tokens, PII ou dados reais sem autorização e redaction.
+6. Gate forward/adversarial, routing, pilotos e privacidade incompletos impedem ativação da superfície afetada.

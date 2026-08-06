@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarios": [
+    {
+      "id": "login-mobile",
+      "preset": "login-mobile"
+    },
+    {
+      "id": "sac-script-library-mobile",
+      "surface": "Scriptoteca SAC",
+      "state": "default",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "fixedTime": "2026-08-05T12:00:00.000Z",
+      "expectedTerminalCondition": "heading Scriptoteca is visible",
+      "steps": [
+        {
+          "type": "login-role",
+          "role": "SAC"
+        },
+        {
+          "type": "open-navigation",
+          "group": "SAC",
+          "item": "Scriptoteca"
+        },
+        {
+          "type": "wait-role",
+          "role": "heading",
+          "name": "Scriptoteca",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "finance-profile-desktop",
+      "surface": "Perfil Financeiro",
+      "state": "default",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "fixedTime": "2026-08-05T12:00:00.000Z",
+      "expectedTerminalCondition": "heading Perfil is visible",
+      "steps": [
+        {
+          "type": "login-role",
+          "role": "FINANCEIRO"
+        },
+        {
+          "type": "wait-role",
+          "role": "heading",
+          "name": "Perfil",
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "admin-dashboard-desktop",
+      "surface": "Dashboard Admin",
+      "state": "default",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "fixedTime": "2026-08-05T12:00:00.000Z",
+      "expectedTerminalCondition": "heading Dashboard is visible",
+      "steps": [
+        {
+          "type": "login-role",
+          "role": "ADMIN"
+        },
+        {
+          "type": "wait-role",
+          "role": "heading",
+          "name": "Dashboard",
+          "exact": true
+        }
+      ]
+    }
+  ]
+}

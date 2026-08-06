@@ -20,6 +20,7 @@ Fornecer um pipeline de desenvolvimento de codigo que seja:
 - `protocol.md`: fluxo operacional.
 - `documentation-budget.md`: regras para reduzir token usage sem perder historia.
 - `llm-engine-policy.md`: contrato para manter independencia de modelos/providers.
+- `product-ux-protocol.md`: contrato especializado para auditoria, especificacao, evidencia e revisao UX independentes da implementacao.
 
 ## Papeis logicos
 Os nomes abaixo sao papeis, nao ferramentas obrigatorias:
@@ -28,6 +29,7 @@ Os nomes abaixo sao papeis, nao ferramentas obrigatorias:
 - `specialist`: executa ou devolve plano bloqueado.
 - `verifier`: valida evidencia, risco e aceite.
 - `docs-keeper`: atualiza memoria operacional quando necessario.
+- `product-ux`: especialista nao implementador para auditoria, especificacao, evidencia e revisao de experiencia.
 
 Um unico agente pode simular todos os papeis no mesmo turno, desde que os handoffs fiquem registrados quando houver decisao material.
 

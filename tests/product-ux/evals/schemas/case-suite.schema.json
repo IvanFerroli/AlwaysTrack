@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alwaystrack.local/schemas/product-ux-eval-case-suite-1.0.0.json",
+  "title": "Product UX behavior eval case suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "lane",
+    "versions",
+    "thresholds",
+    "cases"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "suiteId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$" },
+    "lane": { "enum": ["development", "forward"] },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task", "publicContract", "visualEvidenceContract", "evalContract"],
+      "properties": {
+        "task": { "const": "TASK-AT-447" },
+        "publicContract": { "const": "olympus-product-ux/review@1.0.0" },
+        "visualEvidenceContract": { "const": "olympus-product-ux/visual-evidence@1.0.0" },
+        "evalContract": { "const": "product-ux-behavior-eval@1.0.0" }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseMinimum",
+        "averageMinimum",
+        "passRateMinimum",
+        "adversarialPassRateMinimum",
+        "blockerPassRateMinimum",
+        "minimumCasesPerMode"
+      ],
+      "properties": {
+        "caseMinimum": { "type": "number", "minimum": 85, "maximum": 100 },
+        "averageMinimum": { "type": "number", "minimum": 90, "maximum": 100 },
+        "passRateMinimum": { "type": "number", "minimum": 0.9, "maximum": 1 },
+        "adversarialPassRateMinimum": { "const": 1 },
+        "blockerPassRateMinimum": { "const": 1 },
+        "minimumCasesPerMode": { "type": "integer", "minimum": 3 }
+      }
+    },
+    "sealedRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "sealedAt", "authoringExposure", "rotationId"],
+      "properties": {
+        "runId": { "type": "string" },
+        "sealedAt": { "type": "string", "format": "date-time" },
+        "authoringExposure": { "const": false },
+        "rotationId": { "type": "string" }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "caseClass",
+        "capabilityMode",
+        "riskTags",
+        "prompt",
+        "oracle",
+        "rationale"
+      ],
+      "properties": {
+        "caseId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,95}$" },
+        "caseClass": {
+          "enum": ["golden-positive", "golden-negative", "ambiguous", "adversarial"]
+        },
+        "capabilityMode": { "enum": ["audit", "interaction-spec", "advisory-review"] },
+        "riskTags": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "prompt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["summary", "request", "evidence"],
+          "properties": {
+            "summary": { "type": "string", "minLength": 1 },
+            "request": { "type": "object" },
+            "evidence": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/evidence" }
+            }
+          }
+        },
+        "oracle": { "$ref": "#/$defs/oracle" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "kind", "inspected", "safe", "current", "complete", "targetMatch"],
+      "properties": {
+        "evidenceId": { "type": "string" },
+        "kind": {
+          "enum": ["visual", "geometry", "dom", "aria", "keyboard", "document", "runtime", "manual", "manual-needed"]
+        },
+        "inspected": { "type": "boolean" },
+        "safe": { "type": "boolean" },
+        "current": { "type": "boolean" },
+        "complete": { "type": "boolean" },
+        "targetMatch": { "type": "boolean" },
+        "browserCapture": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "artifactType",
+        "allowedStatuses",
+        "allowedErrorCodes",
+        "failedGate",
+        "causeStatus",
+        "maximumHumanInputs",
+        "requiredTargetCompleteness",
+        "requiredTargets",
+        "minimumMaterialFindings",
+        "maximumMaterialFindings",
+        "requiredEvidenceUse",
+        "requiredEvidenceReject",
+        "requiredCoverageStates",
+        "requiredChecks",
+        "requiredHandoffs",
+        "selfReview",
+        "finalAuthority",
+        "blockingRules"
+      ],
+      "properties": {
+        "outcome": { "enum": ["artifact", "blocked"] },
+        "artifactType": {
+          "type": ["string", "null"],
+          "enum": ["ux-audit", "ux-specification", "ux-review-report", null]
+        },
+        "allowedStatuses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["ready-for-handoff", "ready-with-limitations", "human-decision-required", "reviewed", "reviewed-with-limitations", "HUMAN_INPUT_REQUIRED", "BLOCKED"] }
+        },
+        "allowedErrorCodes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["UX_REQUEST_INVALID", "UX_INTENT_REQUIRED", "UX_EVIDENCE_REQUIRED", "UX_REPRODUCTION_BLOCKED", "UX_SCOPE_REJECTED", "UX_INDEPENDENCE_REJECTED", "UX_ENVIRONMENT_REJECTED"] }
+        },
+        "failedGate": { "type": ["string", "null"], "enum": ["intent", "reproduction", "evidence", "scope", "independence", "privacy", null] },
+        "causeStatus": { "type": ["string", "null"], "enum": ["REFERENCE_REQUIRED", "VISUAL_ACQUISITION_BLOCKED", "SENSITIVE_ARTIFACT_REJECTED", "STALE_EVIDENCE", null] },
+        "maximumHumanInputs": { "type": ["integer", "null"], "minimum": 0 },
+        "requiredTargetCompleteness": { "type": "boolean" },
+        "requiredTargets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/targetExpectation" }
+        },
+        "minimumMaterialFindings": { "type": "integer", "minimum": 0 },
+        "maximumMaterialFindings": { "type": ["integer", "null"], "minimum": 0 },
+        "requiredEvidenceUse": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "requiredEvidenceReject": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "requiredCoverageStates": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "requiredChecks": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "requiredHandoffs": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "selfReview": { "type": ["boolean", "null"] },
+        "finalAuthority": { "type": ["string", "null"] },
+        "blockingRules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["false-positive", "privacy", "prompt-injection", "ownership", "baseline-autoaccept", "fail-closed", "human-gate", "target-completeness", "stale-contradictory", "advisory-boundary", "accessibility-overclaim", "state-coverage", "evidence-integrity"] }
+        }
+      }
+    },
+    "targetExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "role", "state", "viewport"],
+      "properties": {
+        "surface": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "minLength": 1 },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}
