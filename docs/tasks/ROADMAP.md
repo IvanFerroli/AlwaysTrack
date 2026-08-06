@@ -607,23 +607,23 @@ Fonte canônica: `docs/tasks/PRODUCT-UX-SPECIALIST-BACKLOG-2026-08-05.md`.
 
 ### Fundação e contratos — P0
 
-1. `TASK-AT-440`: decisão canônica, fronteiras e não objetivos. Dependências: inventário Olympus/UX existente. Status: proposed.
-2. `TASK-AT-441`: scaffold estrutural do skill package. Dependências: `TASK-AT-440`. Status: proposed.
-3. `TASK-AT-442`: contrato público de audit, interaction spec e advisory review. Dependências: `TASK-AT-440`/`441`. Status: proposed.
-4. `TASK-AT-443`: contrato de aquisição, privacidade e classificação da evidência visual. Dependências: `TASK-AT-440` a `TASK-AT-442`. Status: proposed.
+1. `TASK-AT-440`: decisão canônica, fronteiras e não objetivos. Dependências: inventário Olympus/UX existente. Status: completed-pilot-ready.
+2. `TASK-AT-441`: scaffold estrutural do skill package. Dependências: `TASK-AT-440`. Status: completed-pilot-ready.
+3. `TASK-AT-442`: contrato público de audit, interaction spec e advisory review. Dependências: `TASK-AT-440`/`441`. Status: completed-pilot-ready.
+4. `TASK-AT-443`: contrato de aquisição, privacidade e classificação da evidência visual. Dependências: `TASK-AT-440` a `TASK-AT-442`. Status: completed-pilot-ready.
 
 ### Materialização do especialista — P0
 
-1. `TASK-AT-444`: harness determinístico de aquisição visual local. Dependências: `TASK-AT-443` e baselines `TASK-AT-312` a `TASK-AT-314`/`336`. Status: proposed.
-2. `TASK-AT-445`: skill package completo, rubricas e templates. Dependências: `TASK-AT-442` a `TASK-AT-444`. Status: proposed.
-3. `TASK-AT-446`: agente Codex, bundle Antigravity e routing do Orchestrator. Dependências: `TASK-AT-440` a `TASK-AT-445`. Status: proposed.
+1. `TASK-AT-444`: harness determinístico de aquisição visual local. Dependências: `TASK-AT-443` e baselines `TASK-AT-312` a `TASK-AT-314`/`336`. Status: completed-pilot-ready.
+2. `TASK-AT-445`: skill package completo, rubricas e templates. Dependências: `TASK-AT-442` a `TASK-AT-444`. Status: completed-pilot-ready.
+3. `TASK-AT-446`: agente Codex, bundle Antigravity e routing do Orchestrator. Dependências: `TASK-AT-440` a `TASK-AT-445`. Status: completed-pilot-ready.
 
 ### Qualidade, operação e fechamento — P1
 
-1. `TASK-AT-447`: golden cases, forward evals adversariais e quality gate. Dependências: `TASK-AT-442` a `TASK-AT-446`. Status: proposed.
-2. `TASK-AT-448`: runbook, estado operacional e protocolo de evidência. Dependências: `TASK-AT-440` a `TASK-AT-447`. Status: proposed.
-3. `TASK-AT-449`: pilotos ponta a ponta em jornadas reproduzíveis. Dependências: `TASK-AT-440` a `TASK-AT-448`. Status: proposed.
-4. `TASK-AT-450`: gate final independente de prontidão e ativação. Dependências: `TASK-AT-440` a `TASK-AT-449`. Status: proposed.
+1. `TASK-AT-447`: golden cases, forward evals adversariais e quality gate. Dependências: `TASK-AT-442` a `TASK-AT-446`. Status: completed-pilot-ready.
+2. `TASK-AT-448`: runbook, estado operacional e protocolo de evidência. Dependências: `TASK-AT-440` a `TASK-AT-447`. Status: completed-pilot-ready.
+3. `TASK-AT-449`: pilotos ponta a ponta em jornadas reproduzíveis. Dependências: `TASK-AT-440` a `TASK-AT-448`. Status: completed-pilot-ready.
+4. `TASK-AT-450`: gate final independente de prontidão e ativação. Dependências: `TASK-AT-440` a `TASK-AT-449`. Status: completed-with-residual (GO-WITH-RISK pilot-ready, NO-GO para active irrestrito; ver docs/testing/product-ux-final-readiness-gate-2026-08-06.md).
 
 Caminho crítico: `440 -> 441 -> 442 -> 443 -> 444 -> 445 -> 446 -> 447 -> 448 -> 449 -> 450`.
 

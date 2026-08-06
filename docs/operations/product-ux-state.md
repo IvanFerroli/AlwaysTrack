@@ -2,10 +2,12 @@
 
 ## Metadata
 
-- status: draft
+- status: pilot-ready
 - owner: olympus_product_ux
-- last-updated: 2026-08-05
+- last-updated: 2026-08-06
 - source-of-truth: docs/operations/product-ux-state.md
+- gate: docs/testing/product-ux-final-readiness-gate-2026-08-06.md (TASK-AT-450, GO-WITH-RISK por superfície, NO-GO para active irrestrito)
+- piloto: docs/testing/product-ux-pilot-report-2026-08-05.md (TASK-AT-449, evidência atualizada em 2026-08-06)
 
 ## Missão vigente
 
@@ -115,7 +117,9 @@ Os agentes Olympus anteriores ainda usam chaves legadas system_prompt e reasonin
 
 ## Próximo estado esperado
 
-Promover para evaluation-ready somente após consolidar scripts/harness, contratos e evals dos especialistas responsáveis e executar validação estrutural e forward-test seguro.
+`pilot-ready` desde 2026-08-06: harness, evals de referência (37/37 testes, eval de calibração `gate: GO`), captura advisory taskless real e três modos de capacidade exercitados em contexto fresh sob pressão adversarial (`REFERENCE_REQUIRED`, ownership aggregation, self-review) foram verificados de forma independente — ver gate acima.
+
+Promover para `active` irrestrito exige fechar o residual explícito do gate: completar os 6 slots restantes da rotação selada forward (`FWD-AUD-01`, `FWD-AUD-03`, `FWD-SPEC-01`, `FWD-SPEC-02`, `FWD-REV-02`, `FWD-REV-03`) sob o mesmo protocolo cego de autoria/execução/avaliação, obter `gate: GO` certificado por `run-evals.mjs --cases ... --observations ...` com os 9 slots completos, e corrigir a inconsistência de envelope formal identificada em `FWD-SPEC-03`. Até lá, uso é supervisionado: task-backed audit/spec/review com aceite humano, não autônomo em alto volume.
 
 ## Regra de precedência
 
