@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ServiceFlowsView } from "../src/views/service-flows";
+import { ServiceFlowsView, serviceFlowViewHref } from "../src/views/service-flows";
 
 const apiMock = vi.fn();
 const clipboardWriteMock = vi.fn();
@@ -200,12 +200,27 @@ function successfulApi(path: string, init?: RequestInit) {
 
 describe("ServiceFlowsView", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
     apiMock.mockReset().mockImplementation(successfulApi);
     clipboardWriteMock.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: clipboardWriteMock }
     });
+  });
+
+  it("restores the selected flow from the URL intent and keeps unrelated query params", async () => {
+    const otherFlow = { ...baseFlow, id: "flow-2", slug: "segunda-via", title: "Segunda via" };
+    window.history.replaceState(null, "", "/fluxos?flowId=flow-2&source=shared");
+    apiMock.mockImplementation((path: string, init?: RequestInit) => path.startsWith("/v1/service-flows?")
+      ? Promise.resolve({ items: [baseFlow, otherFlow], canManage: false })
+      : successfulApi(path, init));
+
+    render(<ServiceFlowsView user={users.sac} initialIntent={{ flowId: otherFlow.id }} />);
+
+    expect(await screen.findByRole("combobox", { name: "Selecionar fluxo" })).toHaveValue(otherFlow.id);
+    await waitFor(() => expect(`${window.location.pathname}${window.location.search}`).toBe("/fluxos?flowId=flow-2&source=shared"));
+    expect(serviceFlowViewHref(baseFlow.id, "?source=shared&flowId=old")).toBe("/fluxos?source=shared&flowId=flow-1");
   });
 
   it("keeps loading visible, lists sanitized API data and renders the empty state", async () => {

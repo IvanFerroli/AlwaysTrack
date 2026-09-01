@@ -1,10 +1,56 @@
 import { Check, Clipboard } from "lucide-react";
-import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
 import { OperationalFilters, OperationalState, PaginationControls } from "../components/operational";
 import { formatDateBr } from "../sales";
+import type { NotificationNavigationIntent } from "../notification-navigation";
+
+export type ScriptLibraryMode = "attendance" | "smartscript" | "management";
+export type SmartScriptState = "GENERATED_TODAY" | "IN_REVIEW" | "IN_USE";
+type ScriptLibraryIntent = NonNullable<NotificationNavigationIntent["scriptLibrary"]>;
+
+function scriptLibraryMode(value: string | undefined, canManage: boolean): ScriptLibraryMode {
+  if (value === "smartscript") return value;
+  if (value === "management" && canManage) return value;
+  return "attendance";
+}
+
+function parseSmartScriptState(value: string | undefined): SmartScriptState {
+  return value === "IN_REVIEW" || value === "IN_USE" ? value : "GENERATED_TODAY";
+}
+
+export function scriptLibraryViewHref(input: {
+  mode: ScriptLibraryMode;
+  categoryId?: string;
+  scriptId?: string;
+  packId?: string;
+  smartScriptState?: SmartScriptState;
+  smartScriptId?: string;
+}, currentSearch = window.location.search) {
+  const search = new URLSearchParams(currentSearch);
+  search.set("mode", input.mode);
+  if (input.categoryId) search.set("categoryId", input.categoryId);
+  else search.delete("categoryId");
+  if (input.packId) {
+    search.set("packId", input.packId);
+    search.delete("scriptId");
+  } else {
+    search.delete("packId");
+    if (input.scriptId) search.set("scriptId", input.scriptId);
+    else search.delete("scriptId");
+  }
+  if (input.mode === "smartscript") {
+    search.set("smartScriptState", input.smartScriptState ?? "GENERATED_TODAY");
+    if (input.smartScriptId) search.set("smartScriptId", input.smartScriptId);
+    else search.delete("smartScriptId");
+  } else {
+    search.delete("smartScriptState");
+    search.delete("smartScriptId");
+  }
+  return `/scriptoteca${search.size ? `?${search.toString()}` : ""}`;
+}
 
 interface ScriptCategoryItem {
   id: string;
@@ -250,15 +296,16 @@ function payloadDate(value: string) {
   return value ? new Date(`${value}T12:00:00.000Z`).toISOString() : null;
 }
 
-export function ScriptLibraryView({ user }: { user: CurrentUser }) {
+export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; initialIntent?: ScriptLibraryIntent }) {
+  const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const [categories, setCategories] = useState<ScriptCategoryItem[]>([]);
   const [scripts, setScripts] = useState<OperationalScriptItem[]>([]);
   const [packs, setPacks] = useState<ScriptPackItem[]>([]);
   const [suggestions, setSuggestions] = useState<ScriptSuggestionItem[]>([]);
   const [smartScriptItems, setSmartScriptItems] = useState<SmartScriptItem[]>([]);
   const [smartScriptCounts, setSmartScriptCounts] = useState<Record<string, number>>({});
-  const [smartScriptState, setSmartScriptState] = useState<"GENERATED_TODAY" | "IN_REVIEW" | "IN_USE">("GENERATED_TODAY");
-  const [selectedSmartScriptId, setSelectedSmartScriptId] = useState("");
+  const [smartScriptState, setSmartScriptState] = useState<SmartScriptState>(() => parseSmartScriptState(initialIntent?.smartScriptState));
+  const [selectedSmartScriptId, setSelectedSmartScriptId] = useState(initialIntent?.smartScriptId ?? "");
   const [smartScriptDraft, setSmartScriptDraft] = useState(smartScriptDraftFrom());
   const [numberedReview, setNumberedReview] = useState("");
   const [smartScriptExport, setSmartScriptExport] = useState("");
@@ -267,9 +314,9 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [wikiPages, setWikiPages] = useState<Array<{ id: string; slug: string; title: string }>>([]);
   const [faqThreads, setFaqThreads] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [total, setTotal] = useState(0);
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [selectedId, setSelectedId] = useState("");
-  const [selectedPackId, setSelectedPackId] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState(initialIntent?.categoryId ?? "");
+  const [selectedId, setSelectedId] = useState(initialIntent?.scriptId ?? "");
+  const [selectedPackId, setSelectedPackId] = useState(initialIntent?.packId ?? "");
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState("");
   const [status, setStatus] = useState("");
@@ -279,7 +326,7 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [page, setPage] = useState(1);
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
-  const [mode, setMode] = useState<"attendance" | "smartscript" | "management">("attendance");
+  const [mode, setMode] = useState<ScriptLibraryMode>(() => scriptLibraryMode(initialIntent?.mode, canManage));
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
@@ -292,9 +339,10 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const canRestore = user.role === "ADMIN";
   const pageSize = 8;
+  const requestedInitialScriptId = useRef(initialIntent?.scriptId ?? "");
+  const requestedInitialSmartScriptId = useRef(initialIntent?.smartScriptId ?? "");
 
   async function load(nextSelectedId = selectedId) {
     setLoading(true);
@@ -316,7 +364,10 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
       setMetrics(result.metrics ?? null);
       setTotal(result.total);
       setPage(1);
-      const next = nextSelectedId && result.scripts.some((script) => script.id === nextSelectedId) ? nextSelectedId : result.scripts[0]?.id ?? "";
+      if (selectedCategoryId && !result.categories.some((category) => category.id === selectedCategoryId)) setSelectedCategoryId("");
+      const nextPackId = selectedPackId && result.packs?.some((pack) => pack.id === selectedPackId) ? selectedPackId : "";
+      setSelectedPackId(nextPackId);
+      const next = nextPackId ? "" : nextSelectedId && result.scripts.some((script) => script.id === nextSelectedId) ? nextSelectedId : result.scripts[0]?.id ?? "";
       setSelectedId(next);
       const nextScript = result.scripts.find((script) => script.id === next);
       if (nextScript) setScriptDraft(draftFrom(nextScript));
@@ -349,16 +400,29 @@ export function ScriptLibraryView({ user }: { user: CurrentUser }) {
   }
 
   useEffect(() => {
-    void load();
-  }, []);
-
-  useEffect(() => {
-    if (mode === "smartscript") void loadSmartScript("");
+    if (mode !== "smartscript") return;
+    const requestedId = requestedInitialSmartScriptId.current;
+    requestedInitialSmartScriptId.current = "";
+    void loadSmartScript(requestedId);
   }, [mode, smartScriptState]);
 
   useEffect(() => {
-    void load("");
+    const requestedId = requestedInitialScriptId.current || selectedId;
+    requestedInitialScriptId.current = "";
+    void load(requestedId);
   }, [selectedCategoryId, selectedTag, includeObsolete, reviewDueOnly]);
+
+  useEffect(() => {
+    if (loading || window.location.pathname !== "/scriptoteca") return;
+    window.history.replaceState(null, "", scriptLibraryViewHref({
+      mode,
+      categoryId: selectedCategoryId,
+      scriptId: selectedId,
+      packId: selectedPackId,
+      smartScriptState,
+      smartScriptId: selectedSmartScriptId
+    }));
+  }, [loading, mode, selectedCategoryId, selectedId, selectedPackId, selectedSmartScriptId, smartScriptState]);
 
   useEffect(() => {
     async function loadReferences() {

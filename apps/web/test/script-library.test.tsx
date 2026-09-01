@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ScriptLibraryView } from "../src/views/script-library";
+import { ScriptLibraryView, scriptLibraryViewHref } from "../src/views/script-library";
 
 const apiMock = vi.fn();
 const clipboardWriteMock = vi.fn();
@@ -135,12 +135,40 @@ function deferred<T>() {
 
 describe("ScriptLibraryView", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/");
     apiMock.mockImplementation((path: string) => Promise.resolve(responseFor(path)));
     clipboardWriteMock.mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText: clipboardWriteMock }
     });
+  });
+
+  it("restores shareable navigation state, preserves deep-link params and rejects unauthorized management mode", async () => {
+    window.history.replaceState(null, "", "/scriptoteca?suggestionId=suggestion-1&mode=management&categoryId=category-delivery&scriptId=script-tracking");
+    const managerView = render(<ScriptLibraryView
+      user={users.manager}
+      initialIntent={{ mode: "management", categoryId: category.id, scriptId: script.id, suggestionId: suggestion.id }}
+    />);
+
+    expect(await screen.findByRole("button", { name: "Gestão" })).toHaveClass("active");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/scriptoteca");
+      expect(window.location.search).toContain("suggestionId=suggestion-1");
+      expect(window.location.search).toContain("mode=management");
+      expect(window.location.search).toContain(`categoryId=${category.id}`);
+      expect(window.location.search).toContain(`scriptId=${script.id}`);
+    });
+    managerView.unmount();
+
+    window.history.replaceState(null, "", "/scriptoteca?mode=management");
+    render(<ScriptLibraryView user={users.sac} initialIntent={{ mode: "management" }} />);
+    expect(await screen.findByRole("button", { name: "Atendimento" })).toHaveClass("active");
+    await waitFor(() => expect(window.location.search).toContain("mode=attendance"));
+    expect(screen.queryByRole("button", { name: "Gestão" })).not.toBeInTheDocument();
+
+    expect(scriptLibraryViewHref({ mode: "smartscript", smartScriptState: "IN_USE", smartScriptId: "smart-1" }, "?suggestionId=suggestion-1"))
+      .toBe("/scriptoteca?suggestionId=suggestion-1&mode=smartscript&smartScriptState=IN_USE&smartScriptId=smart-1");
   });
 
   it("keeps the loading state visible until the sanitized library listing arrives", async () => {
@@ -250,7 +278,7 @@ describe("ScriptLibraryView", () => {
     apiMock.mockImplementation((path: string) => {
       if (path.startsWith("/v1/script-library?")) {
         libraryRequests += 1;
-        return libraryRequests <= 2
+        return libraryRequests === 1
           ? Promise.reject(new Error("Scriptoteca temporariamente indisponível."))
           : Promise.resolve(libraryResponse());
       }
@@ -264,6 +292,6 @@ describe("ScriptLibraryView", () => {
 
     expect(await screen.findByRole("heading", { name: script.title })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(libraryRequests).toBeGreaterThanOrEqual(3);
+    expect(libraryRequests).toBe(2);
   });
 });

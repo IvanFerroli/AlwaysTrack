@@ -115,4 +115,28 @@ describe("notification navigation resolver", () => {
     expect(resolveNotificationNavigation({ target: { type: "SALES_DOCUMENT", status: "AVAILABLE", params: { documentId: "document-1" } } }))
       .toMatchObject({ state: "READY", href: "/notas?documentId=document-1", view: "dashboard" });
   });
+
+  it("parses shareable Script Library and Service Flow state", () => {
+    expect(resolveNotificationNavigation({
+      href: "/scriptoteca?mode=smartscript&categoryId=category-1&scriptId=script-1&smartScriptState=IN_REVIEW&smartScriptId=smart-1&suggestionId=suggestion-1"
+    })).toMatchObject({
+      state: "READY",
+      view: "scriptLibrary",
+      intent: {
+        scriptLibrary: {
+          mode: "smartscript",
+          categoryId: "category-1",
+          scriptId: "script-1",
+          smartScriptState: "IN_REVIEW",
+          smartScriptId: "smart-1",
+          suggestionId: "suggestion-1"
+        }
+      }
+    });
+    expect(resolveNotificationNavigation({ href: "/fluxos?flowId=flow-1" })).toMatchObject({
+      state: "READY",
+      view: "serviceFlows",
+      intent: { serviceFlows: { flowId: "flow-1" } }
+    });
+  });
 });

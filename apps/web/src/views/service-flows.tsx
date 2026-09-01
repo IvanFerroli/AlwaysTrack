@@ -1,5 +1,5 @@
 import { Check, Clipboard, GitBranch, Plus, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { commercialManagerRoles, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
@@ -9,6 +9,16 @@ import {
   parseProductQuantityItems
 } from "../components/product-quantity-selector";
 import { formatDateBr } from "../sales";
+import type { NotificationNavigationIntent } from "../notification-navigation";
+
+type ServiceFlowsIntent = NonNullable<NotificationNavigationIntent["serviceFlows"]>;
+
+export function serviceFlowViewHref(flowId: string, currentSearch = window.location.search) {
+  const search = new URLSearchParams(currentSearch);
+  if (flowId) search.set("flowId", flowId);
+  else search.delete("flowId");
+  return `/fluxos${search.size ? `?${search.toString()}` : ""}`;
+}
 
 interface FlowScript {
   id: string;
@@ -365,13 +375,13 @@ function wordsFor(value: string) {
   );
 }
 
-export function ServiceFlowsView({ user }: { user: CurrentUser }) {
+export function ServiceFlowsView({ user, initialIntent }: { user: CurrentUser; initialIntent?: ServiceFlowsIntent }) {
   const [flows, setFlows] = useState<ServiceFlowItem[]>([]);
   const [scripts, setScripts] = useState<FlowScript[]>([]);
   const [productCatalog, setProductCatalog] = useState<Array<{ name: string; sku?: string | null }>>([]);
   const [personalScripts, setPersonalScripts] = useState<PersonalScriptItem[]>([]);
   const [metrics, setMetrics] = useState<ServiceFlowMetrics | null>(null);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialIntent?.flowId ?? "");
   const [flowPickerQuery, setFlowPickerQuery] = useState("");
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState("");
@@ -393,6 +403,7 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestedInitialFlowId = useRef(initialIntent?.flowId ?? "");
   const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const selected = flows.find((flow) => flow.id === selectedId) ?? flows[0] ?? null;
   const isAlwaysFitHealthPilot = selected?.slug === "saude-dev-troca-estorno";
@@ -474,8 +485,15 @@ export function ServiceFlowsView({ user }: { user: CurrentUser }) {
   }
 
   useEffect(() => {
-    void load("");
+    const requestedId = requestedInitialFlowId.current || selectedId;
+    requestedInitialFlowId.current = "";
+    void load(requestedId);
   }, [tag, status]);
+
+  useEffect(() => {
+    if (loading || window.location.pathname !== "/fluxos") return;
+    window.history.replaceState(null, "", serviceFlowViewHref(selectedId));
+  }, [loading, selectedId]);
 
   useEffect(() => {
     setActiveSession(null);

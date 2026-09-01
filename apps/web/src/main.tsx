@@ -4265,18 +4265,20 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const startsInHelp = helpAnchorIds.has(initialHelpId) && visibleNav.some((item) => item.key === "help");
   const startsInWiki = window.location.pathname === "/wiki" || window.location.pathname.startsWith("/wiki/");
   const startsInAnnouncements = window.location.pathname === "/avisos" || window.location.pathname.startsWith("/avisos/");
-  const initialSupportNavigation = window.location.pathname === "/escalas" || window.location.pathname === "/pausas"
+  const initialSupportNavigation = ["/escalas", "/pausas", "/fluxos", "/scriptoteca"].includes(window.location.pathname)
     ? resolveNotificationNavigation({ href: `${window.location.pathname}${window.location.search}` })
     : null;
   const startsInSchedules = initialSupportNavigation?.view === "supportSchedules" && visibleNavByKey.has("supportSchedules");
   const startsInPauses = initialSupportNavigation?.view === "supportPauses" && visibleNavByKey.has("supportPauses");
-  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInSchedules ? "supportSchedules" : startsInPauses ? "supportPauses" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
+  const startsInServiceFlows = initialSupportNavigation?.view === "serviceFlows" && visibleNavByKey.has("serviceFlows");
+  const startsInScriptLibrary = initialSupportNavigation?.view === "scriptLibrary" && visibleNavByKey.has("scriptLibrary");
+  const [activeView, setActiveView] = useState<ViewKey>(startsInHelp ? "help" : startsInSchedules ? "supportSchedules" : startsInPauses ? "supportPauses" : startsInServiceFlows ? "serviceFlows" : startsInScriptLibrary ? "scriptLibrary" : startsInWiki ? "wiki" : startsInAnnouncements ? "announcements" : visibleNav[0]?.key ?? "dashboard");
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
   const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
-  const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules || startsInPauses ? initialSupportNavigation?.intent as ViewIntent : {});
+  const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules || startsInPauses || startsInServiceFlows || startsInScriptLibrary ? initialSupportNavigation?.intent as ViewIntent : {});
   const topNavRef = useRef<HTMLElement>(null);
   const activeItem = visibleNav.find((item) => item.key === activeView) ?? visibleNav[0];
   const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
@@ -4323,13 +4325,19 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
       window.history.replaceState(null, "", "/escalas");
     } else if (key === "supportPauses") {
       window.history.replaceState(null, "", "/pausas");
+    } else if (key === "serviceFlows") {
+      window.history.replaceState(null, "", "/fluxos");
+    } else if (key === "scriptLibrary") {
+      window.history.replaceState(null, "", "/scriptoteca");
     } else if (
       window.location.pathname === "/wiki" ||
       window.location.pathname.startsWith("/wiki/") ||
       window.location.pathname === "/avisos" ||
       window.location.pathname.startsWith("/avisos/") ||
       window.location.pathname === "/escalas" ||
-      window.location.pathname === "/pausas"
+      window.location.pathname === "/pausas" ||
+      window.location.pathname === "/fluxos" ||
+      window.location.pathname === "/scriptoteca"
     ) {
       window.history.replaceState(null, "", "/");
     }
@@ -4611,11 +4619,11 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
         ) : activeItem.key === "announcements" ? (
           <AnnouncementsView user={user} initialSlug={viewIntent.announcements?.slug ?? initialAnnouncementSlug} />
         ) : activeItem.key === "serviceFlows" ? (
-          <ServiceFlowsView user={user} />
+          <ServiceFlowsView user={user} initialIntent={viewIntent.serviceFlows} />
         ) : activeItem.key === "caseFlowHealth" ? (
           <CaseFlowHealthView />
         ) : activeItem.key === "scriptLibrary" ? (
-          <ScriptLibraryView user={user} />
+          <ScriptLibraryView user={user} initialIntent={viewIntent.scriptLibrary} />
         ) : activeItem.key === "users" ? (
           <UsersTeamsView />
         ) : activeItem.key === "professionals" ? (

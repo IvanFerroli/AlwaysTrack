@@ -22,8 +22,16 @@ vi.mock("../src/views/help", () => ({ HelpView: () => <div id="visao-geral">Ajud
 vi.mock("../src/views/notes", () => ({ NotesView: () => <div>Notas operacionais</div> }));
 vi.mock("../src/views/profile", () => ({ ProfileView: () => <div>Perfil operacional</div> }));
 vi.mock("../src/views/ranking", () => ({ RankingView: () => <div>Ranking operacional</div> }));
-vi.mock("../src/views/script-library", () => ({ ScriptLibraryView: () => <div>Scriptoteca operacional</div> }));
-vi.mock("../src/views/service-flows", () => ({ ServiceFlowsView: () => <div>Fluxos operacionais</div> }));
+vi.mock("../src/views/script-library", () => ({
+  ScriptLibraryView: ({ initialIntent }: { initialIntent?: Record<string, string> }) => (
+    <div>Scriptoteca operacional<output data-testid="script-library-intent">{JSON.stringify(initialIntent ?? {})}</output></div>
+  )
+}));
+vi.mock("../src/views/service-flows", () => ({
+  ServiceFlowsView: ({ initialIntent }: { initialIntent?: Record<string, string> }) => (
+    <div>Fluxos operacionais<output data-testid="service-flows-intent">{JSON.stringify(initialIntent ?? {})}</output></div>
+  )
+}));
 vi.mock("../src/views/settings", () => ({ SettingsView: () => <div>Configurações operacionais</div> }));
 vi.mock("../src/views/statements", () => ({ StatementsView: () => <div>Extratos operacionais</div> }));
 vi.mock("../src/views/support-pauses", () => ({
@@ -76,6 +84,7 @@ describe("Web bootstrap, session and role matrix", () => {
   beforeEach(() => {
     vi.resetModules();
     document.body.innerHTML = '<div id="root"></div>';
+    window.history.replaceState(null, "", "/");
     apiMock.mockReset();
   });
 
@@ -208,5 +217,23 @@ describe("Web bootstrap, session and role matrix", () => {
     if (supportGroup.getAttribute("aria-expanded") !== "true") fireEvent.click(supportGroup);
     fireEvent.click(navigation.getByRole("button", { name: /^Pausas$/ }));
     expect(window.location.pathname).toBe("/pausas");
+  });
+
+  it.each([
+    ["/fluxos?flowId=flow-7", "Fluxos operacionais", "service-flows-intent", { flowId: "flow-7" }],
+    ["/scriptoteca?mode=smartscript&smartScriptState=IN_REVIEW&smartScriptId=smart-2", "Scriptoteca operacional", "script-library-intent", { mode: "smartscript", smartScriptState: "IN_REVIEW", smartScriptId: "smart-2" }]
+  ])("boots directly into %s and forwards its navigation intent", async (href, content, testId, intent) => {
+    window.history.replaceState(null, "", href);
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/auth/me") return Promise.resolve({ user: userFor("SAC") });
+      if (path.startsWith("/v1/search")) return Promise.resolve({ groups: [] });
+      return Promise.resolve({ configured: false });
+    });
+
+    await import("../src/main");
+
+    expect(await screen.findByText(content, { exact: false })).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toHaveTextContent(JSON.stringify(intent));
+    expect(`${window.location.pathname}${window.location.search}`).toBe(href);
   });
 });

@@ -46,6 +46,15 @@ export interface NotificationNavigationIntent {
   supportCampaigns?: { campaignId?: string };
   supportPerformance?: { metric?: string; userId?: string; teamId?: string; legacySource?: "ranking" | "statements" };
   serviceFlows?: { flowId?: string };
+  scriptLibrary?: {
+    mode?: string;
+    categoryId?: string;
+    scriptId?: string;
+    packId?: string;
+    smartScriptState?: string;
+    smartScriptId?: string;
+    suggestionId?: string;
+  };
   dashboard?: { section?: string };
 }
 
@@ -203,7 +212,25 @@ function knownRoute(value: string | null | undefined): KnownRoute | null {
   if (path === "/fluxos") {
     return { href, collectionHref: "/fluxos", view: "serviceFlows", intent: { query, serviceFlows: { flowId: queryValue(url.searchParams, "flowId") } } };
   }
-  if (path === "/scriptoteca") return { href, collectionHref: "/scriptoteca", view: "scriptLibrary", intent: { query } };
+  if (path === "/scriptoteca") {
+    return {
+      href,
+      collectionHref: "/scriptoteca",
+      view: "scriptLibrary",
+      intent: {
+        query,
+        scriptLibrary: {
+          mode: queryValue(url.searchParams, "mode"),
+          categoryId: queryValue(url.searchParams, "categoryId"),
+          scriptId: queryValue(url.searchParams, "scriptId"),
+          packId: queryValue(url.searchParams, "packId"),
+          smartScriptState: queryValue(url.searchParams, "smartScriptState"),
+          smartScriptId: queryValue(url.searchParams, "smartScriptId"),
+          suggestionId: queryValue(url.searchParams, "suggestionId")
+        }
+      }
+    };
+  }
   if (path === "/audit") return { href, collectionHref: "/audit", view: "audit", intent: { query } };
   if (path === "/settings") return { href, collectionHref: "/settings", view: "settings", intent: { query } };
   if (path === "/profile") return { href, collectionHref: "/profile", view: "profile", intent: { query } };
