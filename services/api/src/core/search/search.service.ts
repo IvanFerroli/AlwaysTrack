@@ -135,7 +135,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
           id: item.id,
           title: item.name,
           subtitle: `${item.status} · ${item.team?.name ?? "Todo o SAC"}`,
-          href: "/campanhas",
+          href: `/campanhas?campaignId=${encodeURIComponent(item.id)}`,
           meta: item.description
         })
       )
@@ -163,7 +163,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
           id: item.id,
           title: item.title,
           subtitle: item.status,
-          href: "/faq",
+          href: `/faq?threadId=${encodeURIComponent(item.id)}`,
           meta: item.body
         })
       )
@@ -191,7 +191,7 @@ export async function globalSearch(prisma: PrismaClient, actor: CurrentUser, inp
           id: item.id,
           title: item.title,
           subtitle: `${item.category.name} · ${item.channel}`,
-          href: "/scriptoteca",
+          href: `/scriptoteca?scriptId=${encodeURIComponent(item.id)}`,
           meta: item.tagsJson
         })
       )

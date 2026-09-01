@@ -56,9 +56,10 @@ describe("global search service", () => {
 
     expect(result.total).toBe(5);
     expect(result.groups.map((group) => group.key)).toEqual(["campaigns", "wiki", "faq", "announcements", "scripts"]);
-    expect(result.groups[0].items[0]).toMatchObject({ type: "campaign", title: "CSAT acima de 92", href: "/campanhas" });
-    expect(result.groups.find((group) => group.key === "faq")?.items[0]).toMatchObject({ type: "faq" });
+    expect(result.groups[0].items[0]).toMatchObject({ type: "campaign", title: "CSAT acima de 92", href: "/campanhas?campaignId=campaign-1" });
+    expect(result.groups.find((group) => group.key === "faq")?.items[0]).toMatchObject({ type: "faq", href: "/faq?threadId=faq-1" });
     expect(result.groups.find((group) => group.key === "announcements")?.items[0]).toMatchObject({ type: "announcement" });
+    expect(result.groups.find((group) => group.key === "scripts")?.items[0]).toMatchObject({ type: "script", href: "/scriptoteca?scriptId=script-1" });
     expect(prisma.supportCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
   });
 
