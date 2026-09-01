@@ -156,7 +156,7 @@ describe("script library service", () => {
       status: "VALIDATED",
       reviewDueAt: new Date("2026-07-01")
     });
-    expect(parseScriptFilters({ query: " pedido ", includeObsolete: "1", reviewDue: "true" })).toMatchObject({ query: "pedido", includeObsolete: true, reviewDue: true });
+    expect(parseScriptFilters({ scriptId: " script-99 ", query: " pedido ", includeObsolete: "1", reviewDue: "true" })).toMatchObject({ scriptId: "script-99", query: "pedido", includeObsolete: true, reviewDue: true });
   });
 
   it("scopes SAC listing to validated scripts", async () => {
@@ -165,6 +165,20 @@ describe("script library service", () => {
 
     expect(prisma.operationalScript.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: "VALIDATED" }) }));
     expect(prisma.operationalScriptSearchEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ query: "sem resultado", resultCount: 0 }) }));
+  });
+
+  it("looks up a linked script without dropping tenant and visibility constraints", async () => {
+    const prisma = prismaMock();
+    await listScriptLibrary(prisma as never, sac, { scriptId: "script-99" });
+
+    expect(prisma.operationalScript.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: "script-99",
+        organizationId: "org-1",
+        status: "VALIDATED",
+        category: { active: true }
+      })
+    }));
   });
 
   it("creates and validates scripts with audit/revision", async () => {

@@ -54,6 +54,7 @@ export interface OperationalScriptInput {
 }
 
 export interface ScriptFilters {
+  scriptId?: string;
   query?: string;
   categoryId?: string;
   channel?: string;
@@ -307,6 +308,7 @@ export function parseOperationalScriptInput(payload: unknown): OperationalScript
 
 export function parseScriptFilters(query: Record<string, unknown>): ScriptFilters {
   return {
+    scriptId: optionalString(query, "scriptId", { maxLength: 80 }),
     query: optionalString(query, "query", { maxLength: 160 }),
     categoryId: optionalString(query, "categoryId", { maxLength: 80 }),
     channel: optionalUpperEnum(query, "channel", channelValues),
@@ -490,6 +492,7 @@ function withScriptPackFormat<T extends { tagsJson?: string | null; items?: Arra
 export async function listScriptLibrary(prisma: PrismaClient, actor: CurrentUser, filters: ScriptFilters = {}) {
   const scriptWhere: Prisma.OperationalScriptWhereInput = {
     ...scriptVisibilityWhere(actor),
+    id: filters.scriptId,
     categoryId: filters.categoryId,
     channel: filters.channel,
     status: filters.status ?? (filters.includeObsolete || isManager(actor) ? undefined : "VALIDATED"),
