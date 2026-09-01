@@ -17,7 +17,11 @@ vi.mock("../src/views/dashboard", () => ({ DashboardView: () => <div>Dashboard o
 vi.mock("../src/views/announcements", () => ({ AnnouncementsView: () => <div>Avisos operacionais</div> }));
 vi.mock("../src/views/audit", () => ({ AuditView: () => <div>Auditoria administrativa</div> }));
 vi.mock("../src/views/campaigns", () => ({ CampaignsView: () => <div>Campanhas operacionais</div> }));
-vi.mock("../src/views/faq", () => ({ FaqThreadsView: () => <div>FAQ operacional</div> }));
+vi.mock("../src/views/faq", () => ({
+  FaqThreadsView: ({ initialThreadId }: { initialThreadId?: string }) => (
+    <div>FAQ operacional<output data-testid="faq-intent">{initialThreadId ?? ""}</output></div>
+  )
+}));
 vi.mock("../src/views/help", () => ({ HelpView: () => <div id="visao-geral">Ajuda operacional</div> }));
 vi.mock("../src/views/notes", () => ({ NotesView: () => <div>Notas operacionais</div> }));
 vi.mock("../src/views/profile", () => ({ ProfileView: () => <div>Perfil operacional</div> }));
@@ -225,6 +229,7 @@ describe("Web bootstrap, session and role matrix", () => {
 
   it.each([
     ["/campanhas?campaignId=campaign-7", "Campanhas SAC operacionais", "support-campaigns-intent", "campaign-7"],
+    ["/faq?threadId=thread-7", "FAQ operacional", "faq-intent", "thread-7"],
     ["/fluxos?flowId=flow-7", "Fluxos operacionais", "service-flows-intent", { flowId: "flow-7" }],
     ["/scriptoteca?mode=smartscript&smartScriptState=IN_REVIEW&smartScriptId=smart-2", "Scriptoteca operacional", "script-library-intent", { mode: "smartscript", smartScriptState: "IN_REVIEW", smartScriptId: "smart-2" }]
   ])("boots directly into %s and forwards its navigation intent", async (href, content, testId, intent) => {

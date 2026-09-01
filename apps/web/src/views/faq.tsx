@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { canUseCommercialPermission, type CurrentUser } from "@alwaystrack/shared";
 import { api, uploadOperationalImage } from "../api";
 import { MarkdownContent, MarkdownEditor } from "../components/markdown-editor";
@@ -57,11 +57,11 @@ function parseTagsText(value: string) {
 
 const defaultKnowledgeTags = ["vendas", "notas", "processo", "treinamento", "sac", "ranking", "campanhas"];
 
-export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; initialStatus?: string }) {
+export function FaqThreadsView({ user, initialStatus, initialThreadId }: { user: CurrentUser; initialStatus?: string; initialThreadId?: string }) {
   const [threads, setThreads] = useState<FaqThreadItem[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatus ?? "");
   const [selectedTag, setSelectedTag] = useState("");
   const [recent, setRecent] = useState("");
   const [page, setPage] = useState(1);
@@ -74,6 +74,9 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestedInitialThreadId = useRef(initialThreadId ?? "");
+  const lastIntentThreadId = useRef(initialThreadId ?? "");
+  const pendingFocusThreadId = useRef(initialThreadId ?? "");
   const canModerate = canUseCommercialPermission(user.role, "faq.moderate");
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
 
   const pageSize = 8;
 
-  async function load(nextSelectedId = selectedId, pageOverride = page) {
+  async function load(nextSelectedId = selectedId, pageOverride = page, lookupThreadId?: string) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
@@ -94,7 +97,13 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
     search.set("page", String(pageOverride));
     search.set("pageSize", String(pageSize));
     try {
-      const result = await api<{ items: FaqThreadItem[]; total: number; page?: number }>(`/v1/faq/threads?${search.toString()}`);
+      if (lookupThreadId) search.set("threadId", lookupThreadId);
+      let result = await api<{ items: FaqThreadItem[]; total: number; page?: number }>(`/v1/faq/threads?${search.toString()}`);
+      if (lookupThreadId && result.items.length === 0) {
+        search.delete("threadId");
+        result = await api<{ items: FaqThreadItem[]; total: number; page?: number }>(`/v1/faq/threads?${search.toString()}`);
+        pendingFocusThreadId.current = "";
+      }
       setThreads(result.items);
       setTotal(result.total);
       setPage(result.page ?? pageOverride);
@@ -108,8 +117,27 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
   }
 
   useEffect(() => {
-    void load();
+    const requestedId = requestedInitialThreadId.current;
+    requestedInitialThreadId.current = "";
+    void load(requestedId, 1, requestedId || undefined);
   }, []);
+
+  useEffect(() => {
+    const requestedId = initialThreadId ?? "";
+    if (!requestedId || requestedId === lastIntentThreadId.current) return;
+    lastIntentThreadId.current = requestedId;
+    pendingFocusThreadId.current = requestedId;
+    void load(requestedId, 1, requestedId);
+  }, [initialThreadId]);
+
+  useEffect(() => {
+    const requestedId = pendingFocusThreadId.current;
+    if (!requestedId || selectedId !== requestedId || !threads.some((thread) => thread.id === requestedId)) return;
+    const target = document.getElementById(`faq-thread-${encodeURIComponent(requestedId)}`);
+    target?.focus();
+    target?.scrollIntoView?.({ block: "nearest" });
+    pendingFocusThreadId.current = "";
+  }, [selectedId, threads]);
 
   async function run(action: () => Promise<void>) {
     setSaving(true);
@@ -281,7 +309,7 @@ export function FaqThreadsView({ user, initialStatus }: { user: CurrentUser; ini
           ) : (
             <div className="wiki-page-list wiki-page-list-paginated">
               {paginatedThreads.map((thread) => (
-                <button className={selectedId === thread.id ? "wiki-page-button active" : "wiki-page-button"} key={thread.id} type="button" onClick={() => setSelectedId(thread.id)}>
+                <button className={selectedId === thread.id ? "wiki-page-button active" : "wiki-page-button"} id={`faq-thread-${encodeURIComponent(thread.id)}`} key={thread.id} type="button" onClick={() => setSelectedId(thread.id)}>
                   <strong>{thread.title}</strong>
                   {thread.tags?.length ? <small>{thread.tags.map((tag) => `#${tag}`).join(" ")}</small> : null}
                   <span>{thread.status} / {thread.comments.length} resposta(s)</span>
