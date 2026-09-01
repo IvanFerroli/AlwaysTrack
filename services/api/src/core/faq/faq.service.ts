@@ -53,6 +53,7 @@ export interface FaqThreadInput {
 }
 
 export interface FaqThreadFilters {
+  threadId?: string;
   query?: string;
   status?: string;
   tags?: string[];
@@ -244,6 +245,7 @@ export function parseFaqThreadInput(payload: unknown): FaqThreadInput {
 export function parseFaqThreadFilters(query: Record<string, unknown>): FaqThreadFilters {
   const tags = optionalString(query, "tags", { maxLength: 500 });
   return {
+    threadId: optionalString(query, "threadId", { maxLength: 80 }),
     query: optionalString(query, "query", { maxLength: 120 }),
     status: optionalEnum(query, "status", ["OPEN", "ANSWERED", "RESOLVED", "ARCHIVED"]),
     tags: normalizedTags(String(tags ?? "").split(",")),
@@ -381,6 +383,7 @@ const faqThreadInclude = {
 function faqThreadWhere(actor: CurrentUser, filters: FaqThreadFilters = {}): Prisma.FaqThreadWhereInput {
   return {
     organizationId: actor.organizationId,
+    id: filters.threadId,
     status: filters.status,
     updatedAt: recentSince(filters.recent) ? { gte: recentSince(filters.recent) } : undefined,
     AND: tagWhere(filters.tags),

@@ -78,7 +78,8 @@ describe("faq service", () => {
       status: undefined,
       tags: ["nota-fiscal", "vendas"]
     });
-    expect(parseFaqThreadFilters({ query: " nota ", status: "OPEN", tags: " vendas,nota fiscal ", recent: "30" })).toEqual({
+    expect(parseFaqThreadFilters({ threadId: " thread-1 ", query: " nota ", status: "OPEN", tags: " vendas,nota fiscal ", recent: "30" })).toEqual({
+      threadId: "thread-1",
       query: "nota",
       status: "OPEN",
       tags: ["nota-fiscal", "vendas"],
@@ -271,12 +272,13 @@ describe("faq service", () => {
       faqThread: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) }
     };
 
-    await listFaqThreads(prisma as never, admin, { query: "nota", tags: ["vendas"], recent: "30" });
+    await listFaqThreads(prisma as never, admin, { threadId: "thread-1", query: "nota", tags: ["vendas"], recent: "30" });
 
     expect(prisma.faqThread.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           organizationId: "org-1",
+          id: "thread-1",
           updatedAt: expect.objectContaining({ gte: expect.any(Date) }),
           AND: expect.arrayContaining([{ tagsJson: { contains: "\"vendas\"" } }]),
           OR: expect.arrayContaining([{ tagsJson: { contains: "nota" } }])
