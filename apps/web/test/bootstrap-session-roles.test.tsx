@@ -236,4 +236,19 @@ describe("Web bootstrap, session and role matrix", () => {
     expect(screen.getByTestId(testId)).toHaveTextContent(JSON.stringify(intent));
     expect(`${window.location.pathname}${window.location.search}`).toBe(href);
   });
+
+  it("falls back to the default view when a direct internal route is not allowed for the role", async () => {
+    window.history.replaceState(null, "", "/scriptoteca?mode=management");
+    apiMock.mockImplementation((path: string) => {
+      if (path === "/v1/auth/me") return Promise.resolve({ user: userFor("FINANCEIRO") });
+      if (path.startsWith("/v1/search")) return Promise.resolve({ groups: [] });
+      return Promise.resolve({ configured: false });
+    });
+
+    await import("../src/main");
+
+    expect(await screen.findByText("Perfil operacional")).toBeInTheDocument();
+    await waitFor(() => expect(`${window.location.pathname}${window.location.search}`).toBe("/"));
+    expect(screen.queryByText("Scriptoteca operacional", { exact: false })).not.toBeInTheDocument();
+  });
 });

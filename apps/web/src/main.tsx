@@ -4284,6 +4284,12 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const directSidebarItems = ["dashboard", "profile", "help"].flatMap((key) => visibleNavByKey.get(key as ViewKey) ?? []);
   const activeNavGroup = navGroupForView(activeView)?.key ?? null;
 
+  useEffect(() => {
+    const requestedView = initialSupportNavigation?.view as ViewKey | undefined;
+    if (!requestedView || visibleNavByKey.has(requestedView)) return;
+    window.history.replaceState(null, "", "/");
+  }, [initialSupportNavigation?.view, visibleNavByKey]);
+
   useDismissibleLayer({
     open: openTopNavGroup !== null,
     layerRef: topNavRef,
