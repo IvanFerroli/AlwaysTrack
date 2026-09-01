@@ -342,9 +342,11 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   const canRestore = user.role === "ADMIN";
   const pageSize = 8;
   const requestedInitialScriptId = useRef(initialIntent?.scriptId ?? "");
+  const lastIntentScriptId = useRef(initialIntent?.scriptId ?? "");
+  const pendingFocusScriptId = useRef(initialIntent?.scriptId ?? "");
   const requestedInitialSmartScriptId = useRef(initialIntent?.smartScriptId ?? "");
 
-  async function load(nextSelectedId = selectedId) {
+  async function load(nextSelectedId = selectedId, lookupScriptId?: string) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
@@ -356,7 +358,13 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
     if (includeObsolete) search.set("includeObsolete", "1");
     if (reviewDueOnly) search.set("reviewDue", "1");
     try {
-      const result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
+      if (lookupScriptId) search.set("scriptId", lookupScriptId);
+      let result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
+      if (lookupScriptId && result.scripts.length === 0) {
+        search.delete("scriptId");
+        result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
+        pendingFocusScriptId.current = "";
+      }
       setCategories(result.categories);
       setScripts(result.scripts);
       setPacks(result.packs ?? []);
@@ -407,10 +415,28 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   }, [mode, smartScriptState]);
 
   useEffect(() => {
-    const requestedId = requestedInitialScriptId.current || selectedId;
+    const initialRequestedId = requestedInitialScriptId.current;
+    const requestedId = initialRequestedId || selectedId;
     requestedInitialScriptId.current = "";
-    void load(requestedId);
+    void load(requestedId, initialRequestedId || undefined);
   }, [selectedCategoryId, selectedTag, includeObsolete, reviewDueOnly]);
+
+  useEffect(() => {
+    const requestedId = initialIntent?.scriptId ?? "";
+    if (!requestedId || requestedId === lastIntentScriptId.current) return;
+    lastIntentScriptId.current = requestedId;
+    pendingFocusScriptId.current = requestedId;
+    void load(requestedId, requestedId);
+  }, [initialIntent?.scriptId]);
+
+  useEffect(() => {
+    const requestedId = pendingFocusScriptId.current;
+    if (!requestedId || selectedId !== requestedId || !scripts.some((script) => script.id === requestedId)) return;
+    const target = document.getElementById(`script-library-item-${encodeURIComponent(requestedId)}`);
+    target?.focus();
+    target?.scrollIntoView?.({ block: "nearest" });
+    pendingFocusScriptId.current = "";
+  }, [scripts, selectedId]);
 
   useEffect(() => {
     if (loading || window.location.pathname !== "/scriptoteca") return;
@@ -813,6 +839,7 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
                 {paginatedScripts.map((script) => (
                   <button
                     className={selectedId === script.id ? "wiki-page-button active" : "wiki-page-button"}
+                    id={`script-library-item-${encodeURIComponent(script.id)}`}
                     key={script.id}
                     type="button"
                     onClick={() => {
@@ -1168,6 +1195,7 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
               {paginatedScripts.map((script) => (
                 <button
                   className={selectedId === script.id ? "wiki-page-button active" : "wiki-page-button"}
+                  id={`script-library-item-${encodeURIComponent(script.id)}`}
                   key={script.id}
                   type="button"
                   onClick={() => {

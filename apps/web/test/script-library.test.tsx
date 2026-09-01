@@ -136,6 +136,7 @@ function deferred<T>() {
 describe("ScriptLibraryView", () => {
   beforeEach(() => {
     window.history.replaceState(null, "", "/");
+    apiMock.mockReset();
     apiMock.mockImplementation((path: string) => Promise.resolve(responseFor(path)));
     clipboardWriteMock.mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -173,6 +174,42 @@ describe("ScriptLibraryView", () => {
 
     expect(scriptLibraryViewHref({ mode: "smartscript", smartScriptState: "IN_USE", smartScriptId: "smart-1" }, "?suggestionId=suggestion-1"))
       .toBe("/scriptoteca?suggestionId=suggestion-1&mode=smartscript&smartScriptState=IN_USE&smartScriptId=smart-1");
+  });
+
+  it("requests and focuses a deep-linked script even when it is outside the default listing", async () => {
+    const linkedScript = { ...script, id: "script-outside-first-100", title: "Script encontrado fora do limite" };
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/script-library?")) {
+        const params = new URL(path, "https://example.invalid").searchParams;
+        return Promise.resolve(params.get("scriptId") === linkedScript.id
+          ? libraryResponse({ scripts: [linkedScript], total: 1 })
+          : libraryResponse({ scripts: Array.from({ length: 100 }, (_, index) => ({ ...script, id: `script-${index}` })), total: 101 }));
+      }
+      return Promise.resolve(responseFor(path));
+    });
+
+    render(<ScriptLibraryView user={users.sac} initialIntent={{ scriptId: linkedScript.id }} />);
+
+    expect(await screen.findByRole("heading", { name: linkedScript.title })).toBeInTheDocument();
+    const target = document.getElementById(`script-library-item-${encodeURIComponent(linkedScript.id)}`)!;
+    await waitFor(() => expect(target).toHaveFocus());
+    expect(apiMock).toHaveBeenCalledWith(expect.stringContaining(`scriptId=${linkedScript.id}`));
+  });
+
+  it("falls back to the regular script list when a linked target is not visible", async () => {
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/script-library?")) {
+        const params = new URL(path, "https://example.invalid").searchParams;
+        return Promise.resolve(params.has("scriptId") ? libraryResponse({ scripts: [], total: 0 }) : libraryResponse());
+      }
+      return Promise.resolve(responseFor(path));
+    });
+
+    render(<ScriptLibraryView user={users.sac} initialIntent={{ scriptId: "script-forbidden" }} />);
+
+    expect(await screen.findByRole("heading", { name: script.title })).toBeInTheDocument();
+    await waitFor(() => expect(apiMock.mock.calls.filter(([path]) => String(path).startsWith("/v1/script-library?")).length).toBe(2));
   });
 
   it("keeps the loading state visible until the sanitized library listing arrives", async () => {
