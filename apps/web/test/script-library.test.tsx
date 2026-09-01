@@ -145,6 +145,7 @@ describe("ScriptLibraryView", () => {
   });
 
   it("restores shareable navigation state, preserves deep-link params and rejects unauthorized management mode", async () => {
+    const user = userEvent.setup();
     window.history.replaceState(null, "", "/scriptoteca?suggestionId=suggestion-1&mode=management&categoryId=category-delivery&scriptId=script-tracking");
     const managerView = render(<ScriptLibraryView
       user={users.manager}
@@ -159,6 +160,9 @@ describe("ScriptLibraryView", () => {
       expect(window.location.search).toContain(`categoryId=${category.id}`);
       expect(window.location.search).toContain(`scriptId=${script.id}`);
     });
+    await user.click(screen.getByRole("button", { name: "Atendimento" }));
+    await waitFor(() => expect(window.location.search).toContain("mode=attendance"));
+    expect(window.location.search).toContain("suggestionId=suggestion-1");
     managerView.unmount();
 
     window.history.replaceState(null, "", "/scriptoteca?mode=management");

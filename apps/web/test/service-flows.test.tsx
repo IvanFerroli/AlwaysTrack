@@ -210,6 +210,7 @@ describe("ServiceFlowsView", () => {
   });
 
   it("restores the selected flow from the URL intent and keeps unrelated query params", async () => {
+    const user = userEvent.setup();
     const otherFlow = { ...baseFlow, id: "flow-2", slug: "segunda-via", title: "Segunda via" };
     window.history.replaceState(null, "", "/fluxos?flowId=flow-2&source=shared");
     apiMock.mockImplementation((path: string, init?: RequestInit) => path.startsWith("/v1/service-flows?")
@@ -220,6 +221,8 @@ describe("ServiceFlowsView", () => {
 
     expect(await screen.findByRole("combobox", { name: "Selecionar fluxo" })).toHaveValue(otherFlow.id);
     await waitFor(() => expect(`${window.location.pathname}${window.location.search}`).toBe("/fluxos?flowId=flow-2&source=shared"));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Selecionar fluxo" }), baseFlow.id);
+    await waitFor(() => expect(`${window.location.pathname}${window.location.search}`).toBe("/fluxos?flowId=flow-1&source=shared"));
     expect(serviceFlowViewHref(baseFlow.id, "?source=shared&flowId=old")).toBe("/fluxos?source=shared&flowId=flow-1");
   });
 
