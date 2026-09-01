@@ -1,5 +1,5 @@
 import { CircleStop, Pause, Pencil, Play, Plus, RefreshCw, Save, X } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { CurrentUser } from "@alwaystrack/shared";
 import { api } from "../api";
 import { ConfirmButton, OperationalState } from "../components/operational";
@@ -56,7 +56,7 @@ function CampaignTrend({ campaign }: { campaign: SupportCampaign }) {
   );
 }
 
-export function SupportCampaignsView({ user }: { user: CurrentUser }) {
+export function SupportCampaignsView({ user, initialCampaignId }: { user: CurrentUser; initialCampaignId?: string }) {
   const canManage = isSupportManager(user);
   const [items, setItems] = useState<SupportCampaign[] | null>(null);
   const [agents, setAgents] = useState<SupportAgent[]>([]);
@@ -67,6 +67,7 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const focusedCampaignId = useRef("");
 
   async function load(showLoading = true) {
     if (showLoading) setLoading(true);
@@ -90,6 +91,19 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!items || !initialCampaignId || focusedCampaignId.current === initialCampaignId) return;
+    if (!items.some((item) => item.id === initialCampaignId)) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`support-campaign-${initialCampaignId}`);
+      if (!target) return;
+      focusedCampaignId.current = initialCampaignId;
+      target.focus();
+      target.scrollIntoView({ block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialCampaignId, items]);
 
   async function saveCampaign(event: FormEvent) {
     event.preventDefault();
@@ -245,7 +259,12 @@ export function SupportCampaignsView({ user }: { user: CurrentUser }) {
             <table aria-label="Campanhas SAC">
               <thead><tr><th scope="col">Campanha</th><th scope="col">Métrica</th><th scope="col">Regra</th><th scope="col">Resultado</th><th scope="col">Escopo</th><th scope="col">Período</th><th scope="col">Status</th>{canManage ? <th scope="col">Ações</th> : null}</tr></thead>
               <tbody>{filteredItems.map((item) => (
-                <tr key={item.id}>
+                <tr
+                  className={item.id === initialCampaignId ? "support-campaign-target" : undefined}
+                  id={`support-campaign-${item.id}`}
+                  key={item.id}
+                  tabIndex={-1}
+                >
                   <td><strong>{item.name}</strong>{item.description ? <small>{item.description}</small> : null}</td>
                   <td>{supportMetricLabels[item.metric]}<small>{supportSeriesContext(item)}{supportMetricDefinition(item.metric, item.unit).status !== "CURRENT" ? " · somente leitura" : ""}</small></td>
                   <td><strong>{item.comparison === "GTE" ? "≥" : "≤"} {formatSupportMetricValue(item.metric, item.targetValue, item.unit)}</strong></td>

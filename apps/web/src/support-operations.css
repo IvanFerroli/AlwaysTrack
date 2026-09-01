@@ -729,6 +729,13 @@
   padding: 0 10px;
 }
 
+.support-campaign-target {
+  background: var(--color-primary-soft);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  scroll-margin-block: 24px;
+}
+
 .support-campaigns-view details summary {
   color: var(--color-accent-dark);
   cursor: pointer;

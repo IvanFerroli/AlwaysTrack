@@ -40,7 +40,11 @@ vi.mock("../src/views/support-pauses", () => ({
   )
 }));
 vi.mock("../src/views/support-performance", () => ({ SupportPerformanceView: () => <div>Performance SAC operacional</div> }));
-vi.mock("../src/views/support-campaigns", () => ({ SupportCampaignsView: () => <div>Campanhas SAC operacionais</div> }));
+vi.mock("../src/views/support-campaigns", () => ({
+  SupportCampaignsView: ({ initialCampaignId }: { initialCampaignId?: string }) => (
+    <div>Campanhas SAC operacionais<output data-testid="support-campaigns-intent">{initialCampaignId ?? ""}</output></div>
+  )
+}));
 vi.mock("../src/views/users-teams", () => ({ UsersTeamsView: () => <div>Usuários operacionais</div> }));
 vi.mock("../src/views/wiki", () => ({ WikiView: () => <div>Wiki operacional</div> }));
 vi.mock("../src/views/case-flow/health", () => ({ CaseFlowHealthView: () => <div>Saúde CaseFlow operacional</div> }));
@@ -220,6 +224,7 @@ describe("Web bootstrap, session and role matrix", () => {
   });
 
   it.each([
+    ["/campanhas?campaignId=campaign-7", "Campanhas SAC operacionais", "support-campaigns-intent", "campaign-7"],
     ["/fluxos?flowId=flow-7", "Fluxos operacionais", "service-flows-intent", { flowId: "flow-7" }],
     ["/scriptoteca?mode=smartscript&smartScriptState=IN_REVIEW&smartScriptId=smart-2", "Scriptoteca operacional", "script-library-intent", { mode: "smartscript", smartScriptState: "IN_REVIEW", smartScriptId: "smart-2" }]
   ])("boots directly into %s and forwards its navigation intent", async (href, content, testId, intent) => {
@@ -233,7 +238,7 @@ describe("Web bootstrap, session and role matrix", () => {
     await import("../src/main");
 
     expect(await screen.findByText(content, { exact: false })).toBeInTheDocument();
-    expect(screen.getByTestId(testId)).toHaveTextContent(JSON.stringify(intent));
+    expect(screen.getByTestId(testId)).toHaveTextContent(typeof intent === "string" ? intent : JSON.stringify(intent));
     expect(`${window.location.pathname}${window.location.search}`).toBe(href);
   });
 

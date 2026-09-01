@@ -72,11 +72,20 @@ describe("SupportCampaignsView", () => {
   beforeEach(() => {
     apiMock.mockReset();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
     apiMock.mockImplementation((path: string) => {
       if (path === "/v1/support/campaigns") return Promise.resolve(campaignResponse);
       if (path === "/v1/support/performance") return Promise.resolve(performanceResponse);
       return Promise.resolve({});
     });
+  });
+
+  it("focuses and highlights the campaign requested by a deep link", async () => {
+    render(<SupportCampaignsView user={sac} initialCampaignId={campaign.id} />);
+
+    const row = (await screen.findByText(campaign.name)).closest("tr")!;
+    expect(row).toHaveClass("support-campaign-target");
+    await waitFor(() => expect(row).toHaveFocus());
   });
 
   it("keeps SAC on a unit-aware read-only campaign table", async () => {
