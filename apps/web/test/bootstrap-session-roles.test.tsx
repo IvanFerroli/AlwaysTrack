@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiMock = vi.fn();
 
@@ -94,6 +94,10 @@ describe("Web bootstrap, session and role matrix", () => {
     document.body.innerHTML = '<div id="root"></div>';
     window.history.replaceState(null, "", "/");
     apiMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("covers loading, expired session, retry, every operational role and guarded navigation", async () => {
@@ -245,6 +249,25 @@ describe("Web bootstrap, session and role matrix", () => {
     expect(await screen.findByText(content, { exact: false })).toBeInTheDocument();
     expect(screen.getByTestId(testId)).toHaveTextContent(typeof intent === "string" ? intent : JSON.stringify(intent));
     expect(`${window.location.pathname}${window.location.search}`).toBe(href);
+  });
+
+  it("keeps organizationId links on the public FAQ without starting an authenticated session", async () => {
+    window.history.replaceState(null, "", "/faq?organizationId=organization-public");
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: () => Promise.resolve({
+        ok: true,
+        data: { organization: { id: "organization-public", name: "FAQ Pública" }, items: [], total: 0 }
+      })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await import("../src/main");
+
+    expect(await screen.findByRole("heading", { name: "FAQ" })).toBeInTheDocument();
+    expect(await screen.findByText("FAQ Pública")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/v1/public-faq?organizationId=organization-public");
+    expect(apiMock).not.toHaveBeenCalledWith("/v1/auth/me");
+    expect(screen.queryByText("FAQ operacional")).not.toBeInTheDocument();
   });
 
   it("falls back to the default view when a direct internal route is not allowed for the role", async () => {

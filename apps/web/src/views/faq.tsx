@@ -90,14 +90,22 @@ export function FaqThreadsView({ user, initialStatus, initialThreadId }: { user:
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
-    if (query) search.set("query", query);
-    if (status) search.set("status", status);
-    if (selectedTag) search.set("tags", selectedTag);
-    if (recent) search.set("recent", recent);
-    search.set("page", String(pageOverride));
+    if (lookupThreadId) {
+      setQuery("");
+      setStatus("");
+      setSelectedTag("");
+      setRecent("");
+      setUnansweredOnly(false);
+      search.set("threadId", lookupThreadId);
+    } else {
+      if (query) search.set("query", query);
+      if (status) search.set("status", status);
+      if (selectedTag) search.set("tags", selectedTag);
+      if (recent) search.set("recent", recent);
+    }
+    search.set("page", String(lookupThreadId ? 1 : pageOverride));
     search.set("pageSize", String(pageSize));
     try {
-      if (lookupThreadId) search.set("threadId", lookupThreadId);
       let result = await api<{ items: FaqThreadItem[]; total: number; page?: number }>(`/v1/faq/threads?${search.toString()}`);
       if (lookupThreadId && result.items.length === 0) {
         search.delete("threadId");
@@ -106,7 +114,7 @@ export function FaqThreadsView({ user, initialStatus, initialThreadId }: { user:
       }
       setThreads(result.items);
       setTotal(result.total);
-      setPage(result.page ?? pageOverride);
+      setPage(result.page ?? (lookupThreadId ? 1 : pageOverride));
       const nextId = nextSelectedId && result.items.some((item) => item.id === nextSelectedId) ? nextSelectedId : result.items[0]?.id ?? "";
       setSelectedId(nextId);
     } catch (caught) {
