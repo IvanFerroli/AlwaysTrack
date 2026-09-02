@@ -3,7 +3,7 @@
 ## Metadata
 - status: active
 - owner: olympus_taskyfier
-- last-updated: 2026-08-05
+- last-updated: 2026-09-02
 - source-of-truth: docs/operations/taskyfier-memory.md
 
 ## Estado atual
@@ -12,6 +12,15 @@
 - `TASK-AT-122`: completed. Auditoria recente de testes/docs criada.
 - Backlog formal aberto: `TASK-AT-074`, bloqueada por prints reais.
 - Padrao solicitado pelo usuario: quando ele pedir pipeline, usar Taskyfier + Orchestrator como fluxo padrao mesmo sem mencao `@` funcional.
+
+## Frente de correcao pontual (SAC/Busca)
+- Duplicatas externas descartadas: T-2522/T-3137 foram consolidadas em T-2315; T-2513/T-3146 foram consolidadas em T-2317 (`TASK-AT-451`).
+- T-2315 concluida: Scriptoteca e Fluxos sincronizam/restauram o estado previsto no contrato de query string, com fallback de permissao. Metadados preservados da duplicata mais completa: GA, 3 SP e integracao GitHub.
+- `TASK-AT-451`/T-2317 concluida em 2026-09-02. Os hrefs de `campaigns`/`faq`/`scripts` usam `campaignId`/`threadId`/`scriptId`, e os consumidores revelam o alvo autorizado mesmo com filtros conflitantes ou IDs sucessivos.
+- Decisao de produto registrada: um deep link novo tem prioridade sobre filtros visuais atuais. Back/Forward permanece fora do escopo.
+- Seguranca/fallback: FAQ e Scriptoteca mantem filtros de tenancy/visibilidade no backend; alvo ausente ou proibido cai para a listagem autorizada sem revelar sua existencia.
+- Colisao de rota resolvida: `/faq?organizationId=...` permanece publica e `/faq?threadId=...` e interna/autenticada.
+- Proxima task recomendada: nenhuma nesta frente; reportar conclusao e commits na daily.
 
 ## Regras para proximas taskificacoes
 1. Nao reabrir tasks concluidas sem motivo explicito.
