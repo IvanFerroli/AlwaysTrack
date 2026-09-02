@@ -88,6 +88,21 @@ describe("SupportCampaignsView", () => {
     await waitFor(() => expect(row).toHaveFocus());
   });
 
+  it("lets a new deep link override active filters while the view stays mounted", async () => {
+    const user = userEvent.setup();
+    const view = render(<SupportCampaignsView user={sac} />);
+    const section = (await screen.findByRole("heading", { name: "Campanhas SAC" })).closest("section")!;
+
+    await user.selectOptions(within(section).getByLabelText("Tipo"), "EXPECTATION");
+    expect(screen.queryByText(campaign.name)).not.toBeInTheDocument();
+
+    view.rerender(<SupportCampaignsView user={sac} initialCampaignId={campaign.id} />);
+
+    const row = (await screen.findByText(campaign.name)).closest("tr")!;
+    expect(within(section).getByLabelText("Tipo")).toHaveValue("");
+    await waitFor(() => expect(row).toHaveFocus());
+  });
+
   it("keeps SAC on a unit-aware read-only campaign table", async () => {
     render(<SupportCampaignsView user={sac} />);
     const table = await screen.findByRole("table", { name: "Campanhas SAC" });

@@ -56,13 +56,15 @@ function CampaignTrend({ campaign }: { campaign: SupportCampaign }) {
   );
 }
 
+const emptyCampaignFilters = { status: "", metric: "", channel: "", granularity: "", observationType: "" };
+
 export function SupportCampaignsView({ user, initialCampaignId }: { user: CurrentUser; initialCampaignId?: string }) {
   const canManage = isSupportManager(user);
   const [items, setItems] = useState<SupportCampaign[] | null>(null);
   const [agents, setAgents] = useState<SupportAgent[]>([]);
   const [teams, setTeams] = useState<SupportTeam[]>([]);
   const [draft, setDraft] = useState<SupportCampaignDraft>(emptySupportCampaignDraft);
-  const [filters, setFilters] = useState({ status: "", metric: "", channel: "", granularity: "", observationType: "" });
+  const [filters, setFilters] = useState(emptyCampaignFilters);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +97,10 @@ export function SupportCampaignsView({ user, initialCampaignId }: { user: Curren
   useEffect(() => {
     if (!items || !initialCampaignId || focusedCampaignId.current === initialCampaignId) return;
     if (!items.some((item) => item.id === initialCampaignId)) return;
+    if (Object.values(filters).some(Boolean)) {
+      setFilters(emptyCampaignFilters);
+      return;
+    }
     const frame = window.requestAnimationFrame(() => {
       const target = document.getElementById(`support-campaign-${initialCampaignId}`);
       if (!target) return;
@@ -103,7 +109,7 @@ export function SupportCampaignsView({ user, initialCampaignId }: { user: Curren
       target.scrollIntoView({ block: "center" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [initialCampaignId, items]);
+  }, [filters, initialCampaignId, items]);
 
   async function saveCampaign(event: FormEvent) {
     event.preventDefault();
