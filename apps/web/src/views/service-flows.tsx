@@ -404,6 +404,8 @@ export function ServiceFlowsView({ user, initialIntent }: { user: CurrentUser; i
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestedInitialFlowId = useRef(initialIntent?.flowId ?? "");
+  const lastIntentFlowId = useRef(initialIntent?.flowId ?? "");
+  const skipNextVisualReload = useRef(false);
   const canManage = (commercialManagerRoles as readonly string[]).includes(user.role);
   const selected = flows.find((flow) => flow.id === selectedId) ?? flows[0] ?? null;
   const isAlwaysFitHealthPilot = selected?.slug === "saude-dev-troca-estorno";
@@ -452,13 +454,21 @@ export function ServiceFlowsView({ user, initialIntent }: { user: CurrentUser; i
     : false;
   const sessionReport = activeSession?.report?.trim() || (activeSession ? `Atendimento - ${activeSession.flow.title}` : "");
 
-  async function load(nextSelectedId = selectedId) {
+  async function load(nextSelectedId = selectedId, prioritizeFlowId = false) {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
-    if (query) params.set("query", query);
-    if (tag) params.set("tag", tag);
-    if (status) params.set("status", status);
+    if (prioritizeFlowId) {
+      skipNextVisualReload.current = Boolean(tag || status);
+      setQuery("");
+      setTag("");
+      setStatus("");
+      setFlowPickerQuery("");
+    } else {
+      if (query) params.set("query", query);
+      if (tag) params.set("tag", tag);
+      if (status) params.set("status", status);
+    }
     try {
       const [flowResult, scriptResult, productResult] = await Promise.all([
         api<ServiceFlowsResponse>(`/v1/service-flows?${params.toString()}`),
@@ -485,10 +495,22 @@ export function ServiceFlowsView({ user, initialIntent }: { user: CurrentUser; i
   }
 
   useEffect(() => {
-    const requestedId = requestedInitialFlowId.current || selectedId;
+    if (skipNextVisualReload.current) {
+      skipNextVisualReload.current = false;
+      return;
+    }
+    const initialRequestedId = requestedInitialFlowId.current;
+    const requestedId = initialRequestedId || selectedId;
     requestedInitialFlowId.current = "";
-    void load(requestedId);
+    void load(requestedId, Boolean(initialRequestedId));
   }, [tag, status]);
+
+  useEffect(() => {
+    const requestedId = initialIntent?.flowId ?? "";
+    if (!requestedId || requestedId === lastIntentFlowId.current) return;
+    lastIntentFlowId.current = requestedId;
+    void load(requestedId, true);
+  }, [initialIntent?.flowId]);
 
   useEffect(() => {
     if (loading || window.location.pathname !== "/fluxos") return;

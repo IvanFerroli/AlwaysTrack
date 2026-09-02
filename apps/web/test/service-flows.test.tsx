@@ -226,6 +226,34 @@ describe("ServiceFlowsView", () => {
     expect(serviceFlowViewHref(baseFlow.id, "?source=shared&flowId=old")).toBe("/fluxos?source=shared&flowId=flow-1");
   });
 
+  it("reacts to successive flow intents and lets them override mounted filters", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/fluxos");
+    const otherFlow = { ...baseFlow, id: "flow-2", slug: "segunda-via", title: "Segunda via", tags: ["documento"] };
+    const thirdFlow = { ...baseFlow, id: "flow-3", slug: "cancelamento", title: "Cancelamento", tags: ["cancelamento"] };
+    apiMock.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/v1/service-flows?") return Promise.resolve({ items: [baseFlow, otherFlow, thirdFlow], canManage: false });
+      if (path.startsWith("/v1/service-flows?")) return Promise.resolve({ items: [baseFlow], canManage: false });
+      return successfulApi(path, init);
+    });
+    const view = render(<ServiceFlowsView user={users.sac} />);
+    await screen.findByRole("heading", { name: baseFlow.title });
+
+    await user.type(screen.getByRole("textbox", { name: "Busca" }), "troca");
+    await user.click(screen.getByRole("button", { name: "Filtrar" }));
+    await user.type(screen.getByRole("textbox", { name: "Buscar fluxo" }), "troca");
+    view.rerender(<ServiceFlowsView user={users.sac} initialIntent={{ flowId: otherFlow.id }} />);
+
+    expect(await screen.findByRole("combobox", { name: "Selecionar fluxo" })).toHaveValue(otherFlow.id);
+    expect(screen.getByRole("textbox", { name: "Busca" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Buscar fluxo" })).toHaveValue("");
+    expect(apiMock).toHaveBeenCalledWith("/v1/service-flows?");
+
+    view.rerender(<ServiceFlowsView user={users.sac} initialIntent={{ flowId: thirdFlow.id }} />);
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Selecionar fluxo" })).toHaveValue(thirdFlow.id));
+    await waitFor(() => expect(window.location.search).toContain(`flowId=${thirdFlow.id}`));
+  });
+
   it("keeps loading visible, lists sanitized API data and renders the empty state", async () => {
     const pendingFlows = deferred<{ items: typeof baseFlow[]; canManage: boolean }>();
     apiMock.mockImplementation((path: string, init?: RequestInit) => path.startsWith("/v1/service-flows?")
