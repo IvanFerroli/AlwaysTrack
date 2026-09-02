@@ -48,6 +48,8 @@ const script = {
   revisions: [],
   events: []
 };
+const linkedScript = { ...script, id: "script-outside-first-100", title: "Script encontrado fora do limite" };
+const nextLinkedScript = { ...script, id: "script-next-target", title: "Próximo script encontrado" };
 
 const suggestion = {
   id: "suggestion-1",
@@ -147,10 +149,10 @@ describe("ScriptLibraryView", () => {
 
   it("restores shareable navigation state, preserves deep-link params and rejects unauthorized management mode", async () => {
     const user = userEvent.setup();
-    window.history.replaceState(null, "", "/scriptoteca?suggestionId=suggestion-1&mode=management&categoryId=category-delivery&scriptId=script-tracking");
+    window.history.replaceState(null, "", "/scriptoteca?suggestionId=suggestion-1&mode=management&categoryId=category-delivery");
     const managerView = render(<ScriptLibraryView
       user={users.manager}
-      initialIntent={{ mode: "management", categoryId: category.id, scriptId: script.id, suggestionId: suggestion.id }}
+      initialIntent={{ mode: "management", categoryId: category.id, suggestionId: suggestion.id }}
     />);
 
     expect(await screen.findByRole("button", { name: "Gestão" })).toHaveClass("active");
@@ -159,7 +161,6 @@ describe("ScriptLibraryView", () => {
       expect(window.location.search).toContain("suggestionId=suggestion-1");
       expect(window.location.search).toContain("mode=management");
       expect(window.location.search).toContain(`categoryId=${category.id}`);
-      expect(window.location.search).toContain(`scriptId=${script.id}`);
     });
     await user.click(screen.getByRole("button", { name: "Atendimento" }));
     await waitFor(() => expect(window.location.search).toContain("mode=attendance"));
@@ -177,7 +178,6 @@ describe("ScriptLibraryView", () => {
   });
 
   it("requests and focuses a deep-linked script even when it is outside the default listing", async () => {
-    const linkedScript = { ...script, id: "script-outside-first-100", title: "Script encontrado fora do limite" };
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
     apiMock.mockImplementation((path: string) => {
       if (path.startsWith("/v1/script-library?")) {
@@ -195,6 +195,51 @@ describe("ScriptLibraryView", () => {
     const target = document.getElementById(`script-library-item-${encodeURIComponent(linkedScript.id)}`)!;
     await waitFor(() => expect(target).toHaveFocus());
     expect(apiMock).toHaveBeenCalledWith(expect.stringContaining(`scriptId=${linkedScript.id}`));
+  });
+
+  it("switches from SmartScript and lets successive script targets override visual filters", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/script-library/smartscript/items?")) return Promise.resolve({ items: [], counts: {} });
+      if (path === "/v1/script-library/smartscript/metrics") return Promise.resolve({
+        summary: { generatedToday: 0, inReview: 0, inUse: 0, rejected: 0, exported: 0, batches: 0, exports: 0, approved: 0, used: 0, suggestedCanonical: 0 },
+        mostUsed: [],
+        readyToCanonical: []
+      });
+      if (path.startsWith("/v1/script-library?")) {
+        const params = new URL(path, "https://example.invalid").searchParams;
+        if (params.get("scriptId") === linkedScript.id) return Promise.resolve(libraryResponse({ scripts: [linkedScript], total: 1 }));
+        if (params.get("scriptId") === nextLinkedScript.id) return Promise.resolve(libraryResponse({ scripts: [nextLinkedScript], total: 1 }));
+        return Promise.resolve(libraryResponse());
+      }
+      return Promise.resolve(responseFor(path));
+    });
+    const view = render(<ScriptLibraryView user={users.sac} />);
+    await screen.findByRole("heading", { name: script.title });
+
+    await user.type(screen.getByRole("textbox", { name: "Busca" }), "filtro conflitante");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Canal" }), "EMAIL");
+    await user.click(screen.getByRole("button", { name: "Entrega" }));
+    await user.click(screen.getByRole("button", { name: "SmartScript" }));
+    expect(screen.getByRole("button", { name: "SmartScript" })).toHaveClass("active");
+
+    view.rerender(<ScriptLibraryView user={users.sac} initialIntent={{ mode: "smartscript", categoryId: category.id, scriptId: linkedScript.id }} />);
+
+    expect(await screen.findByRole("heading", { name: linkedScript.title })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Atendimento" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Todas" })).toHaveClass("active");
+    expect(screen.getByRole("textbox", { name: "Busca" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Canal" })).toHaveValue("");
+    const firstTargetRequest = String(apiMock.mock.calls.find(([path]) => String(path).includes(`scriptId=${linkedScript.id}`))?.[0]);
+    expect(firstTargetRequest).not.toContain("query=");
+    expect(firstTargetRequest).not.toContain("categoryId=");
+    expect(firstTargetRequest).not.toContain("channel=");
+
+    view.rerender(<ScriptLibraryView user={users.sac} initialIntent={{ scriptId: nextLinkedScript.id }} />);
+    expect(await screen.findByRole("heading", { name: nextLinkedScript.title })).toBeInTheDocument();
+    const target = document.getElementById(`script-library-item-${encodeURIComponent(nextLinkedScript.id)}`)!;
+    await waitFor(() => expect(target).toHaveFocus());
   });
 
   it("falls back to the regular script list when a linked target is not visible", async () => {

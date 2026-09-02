@@ -314,9 +314,9 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   const [wikiPages, setWikiPages] = useState<Array<{ id: string; slug: string; title: string }>>([]);
   const [faqThreads, setFaqThreads] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [total, setTotal] = useState(0);
-  const [selectedCategoryId, setSelectedCategoryId] = useState(initialIntent?.categoryId ?? "");
+  const [selectedCategoryId, setSelectedCategoryId] = useState(initialIntent?.scriptId ? "" : initialIntent?.categoryId ?? "");
   const [selectedId, setSelectedId] = useState(initialIntent?.scriptId ?? "");
-  const [selectedPackId, setSelectedPackId] = useState(initialIntent?.packId ?? "");
+  const [selectedPackId, setSelectedPackId] = useState(initialIntent?.scriptId ? "" : initialIntent?.packId ?? "");
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState("");
   const [status, setStatus] = useState("");
@@ -326,7 +326,7 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   const [page, setPage] = useState(1);
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [copyFeedback, setCopyFeedback] = useState("");
-  const [mode, setMode] = useState<ScriptLibraryMode>(() => scriptLibraryMode(initialIntent?.mode, canManage));
+  const [mode, setMode] = useState<ScriptLibraryMode>(() => initialIntent?.scriptId ? "attendance" : scriptLibraryMode(initialIntent?.mode, canManage));
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [scriptDraft, setScriptDraft] = useState(emptyScriptDraft());
@@ -345,20 +345,35 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   const lastIntentScriptId = useRef(initialIntent?.scriptId ?? "");
   const pendingFocusScriptId = useRef(initialIntent?.scriptId ?? "");
   const requestedInitialSmartScriptId = useRef(initialIntent?.smartScriptId ?? "");
+  const skipNextVisualReload = useRef(false);
 
   async function load(nextSelectedId = selectedId, lookupScriptId?: string) {
     setLoading(true);
     setError(null);
     const search = new URLSearchParams();
-    if (query) search.set("query", query);
-    if (selectedCategoryId) search.set("categoryId", selectedCategoryId);
-    if (channel) search.set("channel", channel);
-    if (status) search.set("status", status);
-    if (selectedTag) search.set("tags", selectedTag);
-    if (includeObsolete) search.set("includeObsolete", "1");
-    if (reviewDueOnly) search.set("reviewDue", "1");
+    if (lookupScriptId) {
+      skipNextVisualReload.current = Boolean(selectedCategoryId || selectedTag || includeObsolete || reviewDueOnly);
+      setMode("attendance");
+      setQuery("");
+      setSelectedCategoryId("");
+      setChannel("");
+      setStatus("");
+      setSelectedTag("");
+      setIncludeObsolete(false);
+      setReviewDueOnly(false);
+      setSelectedPackId("");
+      setPage(1);
+      search.set("scriptId", lookupScriptId);
+    } else {
+      if (query) search.set("query", query);
+      if (selectedCategoryId) search.set("categoryId", selectedCategoryId);
+      if (channel) search.set("channel", channel);
+      if (status) search.set("status", status);
+      if (selectedTag) search.set("tags", selectedTag);
+      if (includeObsolete) search.set("includeObsolete", "1");
+      if (reviewDueOnly) search.set("reviewDue", "1");
+    }
     try {
-      if (lookupScriptId) search.set("scriptId", lookupScriptId);
       let result = await api<ScriptLibraryResponse>(`/v1/script-library?${search.toString()}`);
       if (lookupScriptId && result.scripts.length === 0) {
         search.delete("scriptId");
@@ -372,8 +387,8 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
       setMetrics(result.metrics ?? null);
       setTotal(result.total);
       setPage(1);
-      if (selectedCategoryId && !result.categories.some((category) => category.id === selectedCategoryId)) setSelectedCategoryId("");
-      const nextPackId = selectedPackId && result.packs?.some((pack) => pack.id === selectedPackId) ? selectedPackId : "";
+      if (!lookupScriptId && selectedCategoryId && !result.categories.some((category) => category.id === selectedCategoryId)) setSelectedCategoryId("");
+      const nextPackId = !lookupScriptId && selectedPackId && result.packs?.some((pack) => pack.id === selectedPackId) ? selectedPackId : "";
       setSelectedPackId(nextPackId);
       const next = nextPackId ? "" : nextSelectedId && result.scripts.some((script) => script.id === nextSelectedId) ? nextSelectedId : result.scripts[0]?.id ?? "";
       setSelectedId(next);
@@ -415,6 +430,10 @@ export function ScriptLibraryView({ user, initialIntent }: { user: CurrentUser; 
   }, [mode, smartScriptState]);
 
   useEffect(() => {
+    if (skipNextVisualReload.current) {
+      skipNextVisualReload.current = false;
+      return;
+    }
     const initialRequestedId = requestedInitialScriptId.current;
     const requestedId = initialRequestedId || selectedId;
     requestedInitialScriptId.current = "";
