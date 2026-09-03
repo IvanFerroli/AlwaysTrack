@@ -1,7 +1,7 @@
 # TASK-AT-457 - Corrigir semântica acessível de checklists Markdown
 
 ## Metadata
-- status: proposed
+- status: completed-with-risk
 - owner: Runtime Builder Web
 - last-updated: 2026-09-02
 - source-of-truth: docs/tasks/TASK-AT-457-markdown-checklist-accessible-semantics.md
@@ -60,6 +60,14 @@ As referências advisory são `INS-011`, `INS-013` e `INS-014`; os PNGs não dev
 
 ## Definição de pronto
 - Testes do renderer e das três superfícies passam, zero controles sem nome é comprovado e a leitura manual do estado é registrada.
+
+## Fechamento — 2026-09-02
+- implementação: commits `56f2f35f` (`fix(web): torna checklist markdown semanticamente acessivel`) e `3dfa6bbd` (`test(e2e): cobre checklists markdown compartilhados`), publicados em `origin/main`.
+- validação do builder: Vitest focal 6/6; Web completo 28 arquivos/171 testes; typecheck e build aprovados; Playwright focal 1/1 com Fluxos, Wiki e FAQ; três snapshots task-backed inspecionados em resolução original.
+- verificação independente: `GO-WITH-RISK`; toda a validação automatizada foi reexecutada e aprovada, sem regressão funcional identificada.
+- critérios fechados: zero checkbox/tabstop falso; estado `Concluído`/`Pendente` associado ao texto na árvore de acessibilidade; distinção visual por glifo e tachado, não apenas cor; lista comum preservada; preview e publicado reutilizam `MarkdownContent` com a mesma semântica.
+- risco residual aceito: demais recursos Markdown não receberam um teste focal novo, embora a suíte Web completa tenha passado; anúncio exato varia por leitor/browser.
+- manual-needed: Orca, NVDA e Narrator não estavam disponíveis no host, portanto leitura com tecnologia assistiva real não foi alegada nem registrada como concluída.
 
 ## Sugestão de commit semântico
 - `fix(web): torna checklist markdown semanticamente acessivel`
