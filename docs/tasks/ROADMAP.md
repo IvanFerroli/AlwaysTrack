@@ -635,3 +635,34 @@ Caminho crítico: `440 -> 441 -> 442 -> 443 -> 444 -> 445 -> 446 -> 447 -> 448 -
 4. O especialista solicita referência humana quando o alvo estético, estado externo ou decisão de produto não é reproduzível.
 5. Evidência não pode persistir secrets, cookies, tokens, PII ou dados reais sem autorização e redaction.
 6. Gate forward/adversarial, routing, pilotos e privacidade incompletos impedem ativação da superfície afetada.
+
+## Follow-ups do audit das superfícies web ativas (TASK-AT-454 a TASK-AT-457)
+
+Fonte canônica: `docs/tasks/UXREQ-ALWAYSTRACK-ACTIVE-AUDIT-20260902-001-ux-audit.md`.
+
+### Ordem recomendada
+
+1. Solicitar em paralelo a decisão humana `TASK-AT-454`; ela não autoriza implementação até o PO escolher preservar jobs comerciais ou promover o sunset.
+2. Rotear primeiro `TASK-AT-456`, P0 técnico, para conter o overflow de Configurações.
+3. Executar `TASK-AT-457`, correção compartilhada de acessibilidade do renderer Markdown.
+4. Executar `TASK-AT-455`, compactação do estado expandido da navegação mobile, preservando o gate de overflow anterior.
+
+### Pacote deduplicado
+
+1. `TASK-AT-454`: decisão de produto para `FINANCEIRO`, `VENDEDOR` e `SUPERVISOR`. Prioridade P0; severidade critical; confiança high; status: proposed-human-input-required. Dependências: decisão do PO. Esforço: 2-4h de decisão/documentação.
+2. `TASK-AT-456`: corrigir overflow mobile de Configurações. Prioridade P0; severidade high; confiança high; status: proposed. Dependências abertas: nenhuma. Esforço: 4-6h.
+3. `TASK-AT-457`: corrigir semântica acessível de checklists Markdown. Prioridade P1; severidade medium; confiança high; status: proposed. Dependências abertas: nenhuma para contrato informativo. Esforço: 4-6h.
+4. `TASK-AT-455`: preservar primeiro viewport após selecionar filhos no menu mobile. Prioridade P1; severidade medium; confiança high; status: proposed. Dependências abertas: nenhuma; coordenar CSS com `TASK-AT-456`. Esforço: 4-8h.
+
+### Duplicidades e absorções
+
+1. `UX-001` se relaciona a `TASK-AT-362`/`381`, mas não é absorvido: essas tasks pressupõem sunset e não substituem uma decisão aceita entre duas direções ainda conflitantes.
+2. `UX-002` é follow-up de regressão da concluída `TASK-AT-351`; `TASK-AT-314` fornece baseline/helpers, mas não contém entrega aberta equivalente.
+3. `UX-003` é regressão focal de Configurações após `TASK-AT-314`; nenhuma task existente isola seu overflow e seus controles.
+4. `UX-004` não é absorvido por `TASK-AT-312`, `385` ou `411`: são gates amplos/outras matrizes e não corrigem a associação semântica do renderer compartilhado.
+
+### Invariantes
+
+1. Capturas advisory deste request são transitórias, `same-request-only`, não promovíveis; cada task visual readquire evidência task-backed.
+2. `TASK-AT-454` é gate humano de discovery/decisão e não deve conter hipótese de implementação.
+3. A primeira task tecnicamente roteável é `TASK-AT-456`.
