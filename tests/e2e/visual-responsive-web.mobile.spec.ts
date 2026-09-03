@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdminPage, loginPage, openPrimaryNavigationItem } from "./helpers";
+import { loginAsAdminPage, loginPage, openPrimaryNavigationItem, primaryNavigation } from "./helpers";
 import {
   expectControlsInsideViewport,
+  expectMobileFirstViewportContent,
   expectNoUnexpectedOverflow,
   expectRegionsNotOverlapping,
   expectVisualBaseline,
@@ -72,6 +73,71 @@ test.describe("visual responsive web mobile", () => {
     await expectVisualBaseline(page, "web-sac-flows-390x844.png");
   });
 
+  test("keeps SAC's first viewport free of the expanded nav tree after selecting Fluxos, and reopens the group with aria-current", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginPage(page, "sac@example.com");
+    await openPrimaryNavigationItem(page, /^SAC/, /^Fluxos$/);
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
+    await stabilizeVisualPage(page);
+    await expectMobileShellGeometry(page);
+    await expectMobileFirstViewportContent(page, { firstBlockSelector: ".operational-filters" });
+
+    const toggle = primaryNavigation(page).getByRole("button", { name: /^SAC/ });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toHaveClass(/active/);
+    await expect(page.getByRole("group", { name: "Opções de SAC" })).toHaveCount(0);
+
+    // Touch/click reopens the group and keeps the active child identifiable.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(primaryNavigation(page).getByRole("button", { name: /^Fluxos/ })).toHaveAttribute("aria-current", "page");
+
+    // Keyboard activation (Enter, then Space) toggles the group the same way as touch.
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await page.keyboard.press("Space");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("keeps Administração's first viewport free of the expanded nav tree after selecting Usuários/Times", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginAsAdminPage(page);
+    await openPrimaryNavigationItem(page, /^Administração/, /^Usuários\/Times$/);
+    await expect(page.getByRole("heading", { name: "Usuários/Times", exact: true })).toBeVisible();
+    await stabilizeVisualPage(page);
+    await expectMobileShellGeometry(page);
+    await expectMobileFirstViewportContent(page, { firstBlockSelector: ".operational-filters" });
+
+    const toggle = primaryNavigation(page).getByRole("button", { name: /^Administração/ });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toHaveClass(/active/);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(primaryNavigation(page).getByRole("button", { name: /^Usuários\/Times/ })).toHaveAttribute("aria-current", "page");
+  });
+
+  test("SAC Fluxos keeps the collapsed nav tree free of overflow at the narrower 320x700 field viewport", async ({ page }) => {
+    // Smoke coverage for acceptance criterion 5 (no overflow/overlap at 320x700). The sidebar
+    // nav-tree stays compact here too (same collapse-on-select fix as 390x844); first-viewport
+    // *content* is not asserted at this narrower width because the topbar's own top-nav/account
+    // row wraps onto multiple lines independently of the nav-group fix — see the task closure for
+    // that pre-existing, out-of-scope residual.
+    await page.setViewportSize({ width: 320, height: 700 });
+    await loginPage(page, "sac@example.com");
+    await openPrimaryNavigationItem(page, /^SAC/, /^Fluxos$/);
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
+    await stabilizeVisualPage(page);
+    await expectMobileShellGeometry(page);
+
+    // The nav-group collapse itself (this task's actual scope) holds at 320px too: no expanded
+    // submenu role in the tree, and the sidebar stays compact instead of consuming the viewport.
+    await expect(page.getByRole("group", { name: "Opções de SAC" })).toHaveCount(0);
+    const sidebarHeight = await page.locator(".sidebar").evaluate((element) => element.getBoundingClientRect().height);
+    expect(sidebarHeight, "sidebar should stay compact (collapsed nav-group) at 320x700").toBeLessThan(320);
+  });
+
   test("CaseFlow backup controls stack at the narrow management viewport", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await loginAsAdminPage(page);
@@ -103,5 +169,16 @@ test.describe("visual responsive web mobile", () => {
     await expectNoUnexpectedOverflow(page, ["body", ".app-frame", ".workspace", ".permission-matrix-panel"]);
     await expectControlsInsideViewport(page);
     await expectSettingsVisualBaseline(page, "web-settings-1440x900.png");
+  });
+
+  test("keeps the desktop active-group-expanded navigation baseline after selecting a child", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loginPage(page, "sac@example.com");
+    await openPrimaryNavigationItem(page, /^SAC/, /^Fluxos$/);
+    await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
+
+    const toggle = primaryNavigation(page).getByRole("button", { name: /^SAC/ });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(primaryNavigation(page).getByRole("button", { name: /^Fluxos/ })).toHaveAttribute("aria-current", "page");
   });
 });

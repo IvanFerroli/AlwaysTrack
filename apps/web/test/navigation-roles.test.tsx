@@ -1,5 +1,18 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+function mockMobileNavViewport() {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const mediaQueryList = {
+    matches: true,
+    media: "(max-width: 860px)",
+    addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener),
+    addListener: (listener: (event: MediaQueryListEvent) => void) => listeners.add(listener),
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener)
+  };
+  (window as unknown as { matchMedia: (query: string) => typeof mediaQueryList }).matchMedia = () => mediaQueryList;
+}
 
 const apiMock = vi.fn();
 
@@ -56,6 +69,10 @@ describe("role navigation guards", () => {
       if (path.startsWith("/v1/search")) return Promise.resolve({ groups: [] });
       return Promise.resolve({});
     });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
   });
 
   it("hides admin destinations from SAC and exposes them after an admin login", async () => {
@@ -124,5 +141,54 @@ describe("role navigation guards", () => {
     expect(screen.getByRole("heading", { name: "Escalas" })).toBeInTheDocument();
     expect(window.location.pathname).toBe("/escalas");
     expect(window.location.search).toContain("offerId=offer-7");
+  });
+
+  it("collapses the active group on mobile after selecting a child, keeps it identifiable and reopens with aria-current", async () => {
+    mockMobileNavViewport();
+    await import("../src/main");
+
+    const navigation = await screen.findByRole("navigation", { name: "Navegação principal" });
+    const primaryNav = within(navigation);
+    const sacToggle = primaryNav.getByRole("button", { name: /^SAC/ });
+    fireEvent.click(sacToggle);
+    expect(sacToggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(primaryNav.getByRole("button", { name: /^Fluxos/ }));
+
+    // Selecting the child navigates and, on mobile, collapses the submenu so the chosen
+    // page's own first viewport is not consumed by the expanded nav tree (UX-002).
+    expect(await screen.findByText("Fluxos de atendimento")).toBeInTheDocument();
+    expect(sacToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("group", { name: "Opções de SAC" })).not.toBeInTheDocument();
+    // The group stays identifiable as active even while collapsed.
+    expect(sacToggle).toHaveClass("active");
+
+    // Reopening by touch/keyboard (Enter/Space both dispatch a click on a native button) reveals
+    // the active child again with aria-current="page".
+    fireEvent.click(sacToggle);
+    expect(sacToggle).toHaveAttribute("aria-expanded", "true");
+    const reopenedGroup = screen.getByRole("group", { name: "Opções de SAC" });
+    expect(within(reopenedGroup).getByRole("button", { name: /^Fluxos/ })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not auto-expand a directly loaded child's group on mobile, while desktop keeps it expanded", async () => {
+    window.history.replaceState(null, "", "/fluxos");
+    mockMobileNavViewport();
+    await import("../src/main");
+
+    expect(await screen.findByText("Fluxos de atendimento")).toBeInTheDocument();
+    const mobileNavigation = screen.getByRole("navigation", { name: "Navegação principal" });
+    expect(within(mobileNavigation).queryByRole("group", { name: "Opções de SAC" })).not.toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole("button", { name: /^SAC/ })).toHaveAttribute("aria-expanded", "false");
+
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+    vi.resetModules();
+    document.body.innerHTML = '<div id="root"></div>';
+    window.history.replaceState(null, "", "/fluxos");
+    await import("../src/main");
+
+    expect(await screen.findByText("Fluxos de atendimento")).toBeInTheDocument();
+    const desktopNavigation = screen.getByRole("navigation", { name: "Navegação principal" });
+    expect(within(desktopNavigation).getByRole("button", { name: /^SAC/ })).toHaveAttribute("aria-expanded", "true");
+    expect(within(desktopNavigation).getByRole("group", { name: "Opções de SAC" })).toHaveTextContent("Fluxos");
   });
 });

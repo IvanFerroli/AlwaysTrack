@@ -569,6 +569,15 @@ function navGroupForView(key: ViewKey) {
   return navGroups.find((group) => group.children.some((child) => child.key === key));
 }
 
+// Matches the shell breakpoint in styles.css where .app-frame collapses to a single column
+// and the sidebar nav-list becomes a horizontally scrolling row.
+const mobileNavMediaQuery = "(max-width: 860px)";
+
+function isMobileNavViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(mobileNavMediaQuery).matches;
+}
+
 const helpAnchorIds = new Set([
   "visao-geral",
   "primeiro-acesso",
@@ -4278,7 +4287,10 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
   const [pendingHelpHash, setPendingHelpHash] = useState<string | null>(startsInHelp ? `#${initialHelpId}` : null);
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettingsResponse | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() => navGroupForView(activeView)?.key ?? null);
+  const [isMobileNav, setIsMobileNav] = useState(() => isMobileNavViewport());
+  const [expandedNavGroup, setExpandedNavGroup] = useState<NavGroupKey | null>(() =>
+    isMobileNavViewport() ? null : navGroupForView(activeView)?.key ?? null
+  );
   const [openTopNavGroup, setOpenTopNavGroup] = useState<NavGroupKey | null>(null);
   const [viewIntent, setViewIntent] = useState<ViewIntent>(() => startsInSchedules || startsInPauses || startsInCampaigns || startsInFaq || startsInServiceFlows || startsInScriptLibrary ? initialSupportNavigation?.intent as ViewIntent : {});
   const topNavRef = useRef<HTMLElement>(null);
@@ -4298,6 +4310,28 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     restoreFocus: false,
     onDismiss: () => setOpenTopNavGroup(null)
   });
+
+  useEffect(() => {
+    // Only reacts to a genuine breakpoint crossing (resize/orientation change) after mount; the
+    // useState initializers above already give mount-time state its correct value, so this
+    // effect never issues a redundant setState during mount/StrictMode's double-invoke.
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    const query = window.matchMedia(mobileNavMediaQuery);
+    function handleChange(event: MediaQueryListEvent) {
+      setIsMobileNav(event.matches);
+      // Crossing the breakpoint re-syncs the expanded group deterministically: mobile collapses
+      // so a selected child's first viewport is not consumed by the nav tree (UX-002), desktop
+      // restores the active-group-expanded baseline.
+      setExpandedNavGroup(event.matches ? null : navGroupForView(activeView)?.key ?? null);
+    }
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", handleChange);
+      return () => query.removeEventListener("change", handleChange);
+    }
+    // Safari < 14 fallback.
+    query.addListener(handleChange);
+    return () => query.removeListener(handleChange);
+  }, [activeView]);
 
   function clearHelpHash() {
     if (helpAnchorIds.has(window.location.hash.replace("#", ""))) {
@@ -4322,7 +4356,11 @@ function AppShell({ user, onLogout, onUserChange }: { user: CurrentUser; onLogou
     }
     setViewIntent(intent ?? {});
     setPendingHelpHash(null);
-    setExpandedNavGroup(navGroupForView(key)?.key ?? null);
+    // On mobile, selecting (or directly loading) a child keeps the group and item identifiable
+    // via the "active" classes/aria-current below without leaving the submenu expanded, so the
+    // chosen page's own first viewport is not consumed by the nav tree (UX-002). Desktop keeps
+    // the active group auto-expanded.
+    setExpandedNavGroup(isMobileNav ? null : navGroupForView(key)?.key ?? null);
     setOpenTopNavGroup(null);
     clearHelpHash();
     if (key === "wiki") {

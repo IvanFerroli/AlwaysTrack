@@ -115,6 +115,29 @@ export async function expectRegionsNotOverlapping(page: Page, pairs: readonly Se
   expect(failures, "Critical regions overlap").toEqual([]);
 }
 
+export async function expectMobileFirstViewportContent(page: Page, options: { firstBlockSelector: string }) {
+  const result = await page.evaluate(({ firstBlockSelector }) => {
+    const heading = document.querySelector("h1");
+    const firstBlock = document.querySelector(firstBlockSelector);
+    const headingBounds = heading?.getBoundingClientRect() ?? null;
+    const blockBounds = firstBlock?.getBoundingClientRect() ?? null;
+    return {
+      scrollY: window.scrollY,
+      viewportHeight: window.innerHeight,
+      headingFound: Boolean(heading),
+      headingBottom: headingBounds ? headingBounds.bottom : null,
+      blockFound: Boolean(firstBlock),
+      blockTop: blockBounds ? blockBounds.top : null
+    };
+  }, options);
+
+  expect(result.scrollY, "page should land at the top after selecting the child, not pre-scrolled").toBeLessThanOrEqual(1);
+  expect(result.headingFound, "workspace title/context (h1) not found").toBe(true);
+  expect(result.headingBottom as number, "title/context (h1) must be visible in the first viewport without scrolling").toBeLessThanOrEqual(result.viewportHeight);
+  expect(result.blockFound, `first useful block "${options.firstBlockSelector}" not found`).toBe(true);
+  expect(result.blockTop as number, `first useful block "${options.firstBlockSelector}" must start within the first viewport without scrolling`).toBeLessThanOrEqual(result.viewportHeight);
+}
+
 export async function expectVisualBaseline(page: Page, name: string, fullPage = false) {
   await stabilizeVisualPage(page);
   await expect(page).toHaveScreenshot(name, {
