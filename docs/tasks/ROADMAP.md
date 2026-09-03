@@ -666,3 +666,37 @@ Fonte canônica: `docs/tasks/UXREQ-ALWAYSTRACK-ACTIVE-AUDIT-20260902-001-ux-audi
 1. Capturas advisory deste request são transitórias, `same-request-only`, não promovíveis; cada task visual readquire evidência task-backed.
 2. `TASK-AT-454` é gate humano de discovery/decisão e não deve conter hipótese de implementação.
 3. A primeira task tecnicamente roteável é `TASK-AT-456`.
+
+## Follow-ups do audit complementar de uploads (TASK-AT-458 a TASK-AT-462)
+
+Fonte canônica: `docs/tasks/UXREQ-ALWAYSTRACK-COMPLEMENTARY-AUDIT-20260903-001-ux-audit.md`.
+
+### Ordem recomendada
+
+1. Solicitar em paralelo o gate humano `TASK-AT-460`; nenhuma implementação de drop pode nascer antes da decisão.
+2. Executar `TASK-AT-459`, P0, para erro e retry do upload compartilhado.
+3. Executar `TASK-AT-458`, P1, serialmente no mesmo componente para remover o controle invisível.
+4. Executar `TASK-AT-461`, P1, para fechar a relação tab/panel de Escalas.
+5. Executar `TASK-AT-462`, P1, para o residual conhecido de CaseFlow Backup em 360px.
+
+### Pacote deduplicado
+
+1. `TASK-AT-459`: feedback e recuperação no erro de upload Markdown. Prioridade P0; severidade high; confiança medium; esforço 4-6h; status proposed.
+2. `TASK-AT-458`: picker de imagem com um único gatilho acessível. Prioridade P1; severidade medium; confiança high; esforço 2-4h; status proposed.
+3. `TASK-AT-461`: relação tab/panel no vazio/loading/error de Escalas. Prioridade P1; severidade medium; confiança high; esforço 2-4h; status proposed.
+4. `TASK-AT-462`: overflow da topbar no Backup CaseFlow a 360px. Prioridade P1; severidade medium; confiança high; esforço 2-4h; status proposed.
+5. `TASK-AT-460`: decisão `picker-only` versus `hybrid picker + drop`. Prioridade P2; severidade low; confiança high para ausência; esforço 1-3h; status proposed-human-input-required.
+
+### Duplicidades absorvidas e limites
+
+1. `TASK-AT-101/108/146/150/151` absorvem backend, segurança, lifecycle e storage; `TASK-AT-458/459` contêm somente o delta UX do componente compartilhado.
+2. `TASK-AT-153` é reordenação de scripts e não upload; não foi fundida ao gate `TASK-AT-460`.
+3. `TASK-AT-312/411` são gates amplos e não absorvem o `aria-controls` órfão de Escalas.
+4. `TASK-AT-455` não foi reaberta: seu residual CaseFlow era explicitamente fora de escopo; por isso virou `TASK-AT-462`. `TASK-AT-456/457` permanecem concluídas, sem regressão reproduzida.
+5. CSV de profissionais, licença pública e DANFE são fluxos independentes e ficam fora deste pacote; DANFE continua condicionado ao gate comercial `TASK-AT-454`.
+
+### Invariantes
+
+1. Evidências advisory deste request são transitórias, não reutilizáveis e não promovíveis; cada implementação readquire evidência task-backed.
+2. `TASK-AT-460` é somente discovery/decisão humana, nunca implementação presumida.
+3. Primeira task tecnicamente roteável: `TASK-AT-459`.

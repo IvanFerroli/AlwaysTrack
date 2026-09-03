@@ -89,3 +89,13 @@
 - Risco residual honesto (não coberto, `manual-needed`, no mesmo padrão de `456`/`457`): teclado completo/ordem de foco fora do toggle não exercitados; zoom 200%, orientação landscape e tecnologia assistiva real não disponíveis neste host; em 320x700 o `.top-nav`/`.topbar-account` do próprio topbar (elemento pré-existente, fora do escopo de `expandedNavGroup`) ainda empurra o primeiro bloco útil (`.operational-filters`) para baixo da dobra em pelo menos uma superfície testada (Usuários/Times) — a árvore de navegação lateral (escopo real desta task) permanece compacta e sem overflow nos dois viewports, mas o critério de aceite 1 (conteúdo útil no primeiro viewport) só foi validado e fechado para 390x844, não para 320x700; registrado como achado, não como decisão de produto arbitrária.
 - Arquivo solto mencionado pelo usuário (`tests/e2e/task-at-457-orca-manual.desktop.spec.ts`) não existe neste working tree (nem em `git log --all`); nada para incluir ou excluir do commit.
 - Pacote do audit `TASK-AT-454` a `457` está tecnicamente completo: `454` segue bloqueada por decisão humana explícita (não retomada); `455`/`456`/`457` `completed-with-risk`.
+
+## Taskificação do audit complementar de uploads — 2026-09-03
+- Fonte: `UXREQ-ALWAYSTRACK-COMPLEMENTARY-AUDIT-20260903-001`; audit lido integralmente e deduplicado contra todos os 455 manifests existentes entre `TASK-AT-001..457` (gaps históricos `022`/`167`), incluindo estado corrente de ROADMAP/memory.
+- Novas tasks: `TASK-AT-458` (picker Markdown sem controle invisível), `TASK-AT-459` (erro/retry do upload Markdown), `TASK-AT-460` (gate humano picker-only versus drop híbrido), `TASK-AT-461` (tabpanel de Escalas no vazio) e `TASK-AT-462` (overflow CaseFlow Backup 360px).
+- Dedupe: `101/108/146/150/151` continuam canônicas para upload/backend/segurança/storage; o novo pacote é somente o delta UX. `TASK-AT-153` trata reordenação, não upload. `312/411` não corrigem o ramo sem painel de Escalas.
+- `TASK-AT-455` não foi reaberta: C05 era residual preexistente registrado como fora de escopo, portanto ganhou task focal `462`. `TASK-AT-456/457` permanecem concluídas; Configurações passou a geometria e checklist Markdown não regrediu.
+- CSV de profissionais, licença pública e DANFE permanecem fluxos independentes; nenhum foi fundido. DANFE continua subordinado à decisão comercial `TASK-AT-454`.
+- Ordem: solicitar `460` em paralelo; tecnicamente executar `459` -> `458` -> `461` -> `462`. Primeira task técnica: `TASK-AT-459`.
+- PNGs/record do audit seguem advisory, transitórios e não promovíveis; aceite futuro exige aquisição task-backed.
+- Rodada exclusivamente documental: nenhum produto, Asana, commit ou push foi alterado/executado.
