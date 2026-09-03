@@ -593,7 +593,7 @@ Caminho crítico: `428 -> 429 -> 430 -> 431 -> 432 -> 433 -> 434 -> (435 e 436) 
 4. Toda rota valida organization, role, team/self scope e membership no backend.
 5. Conteúdo privado e respostas abertas não entram em audit metadata, logs ou notificações.
 
-## Especialista Product UX Olympus (TASK-AT-440 a TASK-AT-450)
+## Especialista Product UX Olympus (TASK-AT-440 a TASK-AT-453)
 
 Fonte canônica: `docs/tasks/PRODUCT-UX-SPECIALIST-BACKLOG-2026-08-05.md`.
 
@@ -625,7 +625,12 @@ Fonte canônica: `docs/tasks/PRODUCT-UX-SPECIALIST-BACKLOG-2026-08-05.md`.
 3. `TASK-AT-449`: pilotos ponta a ponta em jornadas reproduzíveis. Dependências: `TASK-AT-440` a `TASK-AT-448`. Status: completed-pilot-ready.
 4. `TASK-AT-450`: gate final independente de prontidão e ativação. Dependências: `TASK-AT-440` a `TASK-AT-449`. Status: completed-with-residual (GO-WITH-RISK pilot-ready, NO-GO para active irrestrito; ver docs/testing/product-ux-final-readiness-gate-2026-08-06.md).
 
-Caminho crítico: `440 -> 441 -> 442 -> 443 -> 444 -> 445 -> 446 -> 447 -> 448 -> 449 -> 450`.
+### Fechamento do residual forward — P0
+
+1. `TASK-AT-452`: completar os 6 slots restantes da rotação selada forward (`FWD-AUD-01`, `FWD-AUD-03`, `FWD-SPEC-01`, `FWD-SPEC-02`, `FWD-REV-02`, `FWD-REV-03`) sob o mesmo protocolo cego, corrigir o envelope de `FWD-SPEC-03` e certificar `run-evals.mjs --lane forward` 9/9 via CLI. Dependências: `TASK-AT-440` a `TASK-AT-450`. Status: **complete — certified NO-GO** (2026-09-03) — retomada da pausa de 2026-09-02 executou a certificação real: as 6 execuções e avaliações cegas existentes foram normalizadas ao schema (ledger auditável, sem alterar conclusões), combinadas com os 3 slots de agosto e submetidas ao CLI real (`run-evals.mjs`), que certificou `gate: NO-GO` (0/9 casos passando, averageScore 68.05, sem bypass e sem tocar o scorer; calibração de referência segue GO 1/1/1; 37/37 testes). Causas classificadas em 5 classes: 4 casos autorados sobre premissas falsas verificadas no repo (agente correto em todos); contrato sem fundamentação para leitura de código fora do catálogo; semântica de disposition vs catálogo; tokens exatos privados do oracle inalcançáveis por avaliador cego; gaps residuais menores de tipagem/envelope do agente. Substituição cega de casos não foi fabricada: o tipo de agente executor da rodada de setembro (`subagent_type: olympus-product-ux`) não existe no ambiente atual (blocker registrado). Evidência e hashes em `test-results/product-ux/evals/forward/RUN-2026-09-02-002/STATUS.md` (git-ignorado, seção "Fechamento 2026-09-03").
+2. `TASK-AT-453`: gate final independente de promoção a `active`, com leitura integral dos 9 transcripts, reprodução do CLI e diff Codex/Antigravity. Dependências: `TASK-AT-452`. Status: **aberta, aguardando prerequisitos de rotação** — com `NO-GO` certificado pela `TASK-AT-452`, a promoção a `active` não pode ocorrer; os prerequisitos de uma futura rotação GO estão registrados no fechamento da `TASK-AT-452` (premissas verificadas antes de selar, tokens deriváveis do ticket, catálogos coerentes com a semântica de "used", adendo de vocabulário ao protocolo de avaliação e superfície de execução que seja o especialista registrado). Enquanto isso, o especialista permanece `pilot-ready` (uso supervisionado). Quando esta task rodar, continua valendo: leitura integral dos 9 transcripts, reprodução independente do CLI e diff Codex/Antigravity.
+
+Caminho crítico: `440 -> 441 -> 442 -> 443 -> 444 -> 445 -> 446 -> 447 -> 448 -> 449 -> 450 -> 452 -> 453`.
 
 ### Invariantes de execução
 
