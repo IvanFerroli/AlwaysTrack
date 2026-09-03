@@ -402,10 +402,15 @@ export function MarkdownEditor({
               {uploadingImage ? "Enviando..." : "Imagem"}
             </button>
             <span className="sr-only" aria-live="polite">{uploadingImage ? "Enviando imagem." : ""}</span>
+            {/* O botão "Imagem" é o único gatilho acessível: o input fica fora da
+                árvore de acessibilidade e da navegação por teclado, mas permanece
+                renderizado para o clique programático abrir o picker nativo. */}
             <input
               ref={imageInputRef}
               accept="image/png,image/jpeg,image/webp"
+              aria-hidden="true"
               className="visually-hidden-input"
+              tabIndex={-1}
               type="file"
               onChange={(event) => void uploadImage(event.target.files?.[0])}
             />

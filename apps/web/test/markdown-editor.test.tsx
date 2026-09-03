@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../src/components/markdown-editor";
@@ -173,5 +174,86 @@ describe("MarkdownEditor upload", () => {
 
     expect(textarea).toHaveValue("![primeira.png](https://cdn.exemplo.test/primeira.png)\nprimeira linha\nsegunda linha");
     expect(screen.getByRole("button", { name: "Imagem" })).toBeEnabled();
+  });
+});
+
+// TASK-AT-458: o botão "Imagem" é o único gatilho acessível do picker;
+// o input de arquivo fica fora da árvore de acessibilidade e da ordem de Tab.
+describe("MarkdownEditor gatilho de imagem acessível", () => {
+  it("input de arquivo fica fora da árvore de acessibilidade e da ordem de Tab; botão Imagem é o único gatilho", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<EditorHarness onUploadImage={vi.fn()} />);
+    const input = fileInput(container);
+
+    // Removido da árvore de acessibilidade e da navegação por teclado,
+    // porém renderizado para o clique programático abrir o picker nativo.
+    expect(input).toHaveAttribute("aria-hidden", "true");
+    expect(input.tabIndex).toBe(-1);
+
+    // Exatamente um gatilho acessível de imagem na toolbar.
+    const toolbar = container.querySelector<HTMLElement>(".wiki-editor-toolbar")!;
+    expect(within(toolbar).getAllByRole("button", { name: "Imagem" })).toHaveLength(1);
+    expect(Array.from(toolbar.querySelectorAll("input"))).toEqual([input]);
+
+    // Zero unnamed-interactive: o único controle oculto da árvore é o próprio
+    // input de arquivo; todo controle acessível tem nome.
+    const interactives = Array.from(container.querySelectorAll<HTMLElement>("button, input, select, textarea"));
+    expect(interactives.filter((element) => element.closest("[aria-hidden='true']"))).toEqual([input]);
+    for (const element of interactives) {
+      if (element === input) continue;
+      const name = (element.getAttribute("aria-label") ?? element.textContent ?? "").trim();
+      expect(name, element.outerHTML).not.toBe("");
+    }
+
+    // Tab a partir do botão Imagem pula o input invisível e vai direto ao textarea.
+    screen.getByRole("button", { name: "Imagem" }).focus();
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Conteudo" }));
+  });
+
+  it("gatilho abre o picker por clique, Enter e Space e permanece nomeado durante o envio", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const pickerSpy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const trigger = screen.getByRole("button", { name: "Imagem" });
+
+    await user.click(trigger);
+    expect(pickerSpy).toHaveBeenCalledTimes(1);
+    expect(pickerSpy.mock.contexts[0]).toBe(fileInput(container));
+    await user.keyboard("{Enter}");
+    expect(pickerSpy).toHaveBeenCalledTimes(2);
+    await user.keyboard(" ");
+    expect(pickerSpy).toHaveBeenCalledTimes(3);
+
+    // O diálogo é nativo; a seleção simulada dispara o caminho de upload existente.
+    await selectFile(fileInput(container), syntheticFile());
+    expect(screen.getByRole("button", { name: "Enviando..." })).toBeDisabled();
+
+    await act(async () => {
+      pending.resolve(successMarkdown);
+    });
+
+    expect(screen.getByRole("button", { name: "Imagem" })).toBeEnabled();
+  });
+
+  it("fluxo completo: clique no gatilho aciona o picker e a seleção do arquivo insere o markdown uma vez", async () => {
+    const upload = vi.fn().mockResolvedValue(successMarkdown);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const pickerSpy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Imagem" }));
+    expect(pickerSpy).toHaveBeenCalled();
+
+    const file = syntheticFile("fluxo.png");
+    await selectFile(fileInput(container), file);
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledWith(file);
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Conteudo" })).toHaveValue(`${successMarkdown}\n${initialContent}`)
+    );
   });
 });
