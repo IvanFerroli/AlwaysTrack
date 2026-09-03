@@ -80,7 +80,7 @@ Run `test-results/olympus-bridge/run-SYNTH-2026-09-03-001/` (harmless fictional 
 
 ## 7. Known ZCode limitations (proven, not assumed)
 
-1. **No hot-reload**: custom agents load at session start only. Native Tier-2 invocation is therefore **PENDING** until the next fresh ZCode session (the adapter session predates the bridge and cannot test it).
+1. **No hot-reload; registry snapshotted at session creation.** Custom agents load when a session is created, and a *resumed* session keeps the registry it was created with. Proven 2026-09-03: six probes (`olympus-product-ux`, `olympus-runtime-builder`, `olympus-quality-builder`, `olympus-task-verifier`, `olympus-taskyfier`, `olympus-blind-evaluator`) in the adapter session — created 14:36 local, bridge files written 15:38 local — all returned `Agent type '…' not found`. Native Tier-2 invocation is therefore **PENDING** until a genuinely NEW ZCode session is opened (resuming this conversation does not count).
 2. **No nested subagents**: subagents cannot spawn subagents; the top-level agent must host the Orchestrator (authoring) role.
 3. **Session-scoped registry**: mid-session creation of agent files or config profiles has no effect (probed: workspace `.zcode/agents/`, `~/.zcode/agents/`, workspace `config.json` `subagents.profiles` — all inert until restart; the runtime bundle does read `config.subagents.profiles`, an undocumented secondary path, untested here).
 4. `effort:` frontmatter hints from the canonical definitions are ignored by ZCode (lossless for behavior; effort tuning would require explicit `model`+`thoughtLevel`, deliberately not pinned).
@@ -94,17 +94,24 @@ mkdir -p ~/.zcode/agents && for f in /path/to/repo/.claude/agents/olympus-*.md; 
 
 ## 9. PENDING — Tier 2 native invocation (first fresh ZCode session)
 
-Minimal smoke test (exact prompt for the next fresh session — paste as the first user message):
+Minimal smoke test (exact prompt for a genuinely NEW session — paste as the first user message; do not resume a pre-bridge session):
 
 ```
 Registration smoke test for the Olympus ZCode bridge. Do exactly this, in order:
-1. Call the Agent tool with subagent_type "olympus-probe" and prompt "Reply with the line specified in your definition." Report the reply verbatim.
-2. Call the Agent tool with subagent_type "olympus-product-ux" and prompt: "Você é um probe de registro. Responda com uma única linha: PROBE-OK olympus-product-ux registered. Não leia arquivos." Report the reply verbatim.
-3. Call the Agent tool with subagent_type "olympus-blind-evaluator" and prompt: "Você é um probe de registro. Responda com uma única linha: PROBE-OK olympus-blind-evaluator registered. Não leia arquivos." Report the reply verbatim.
-4. Report each agentId returned, then stop. Do not run any Olympus protocol.
+1. Call the Agent tool six times, once per subagent_type below, each with the prompt
+   "Probe de registro. Responda com uma única linha no formato: REGISTERED <seu nome de agente> | <uma frase do seu papel canônico>. Não leia nenhum arquivo."
+   - olympus-product-ux
+   - olympus-runtime-builder
+   - olympus-quality-builder
+   - olympus-task-verifier
+   - olympus-taskyfier
+   - olympus-blind-evaluator
+2. Report each reply verbatim together with the agentId the Agent tool returns for that call.
+3. If any type returns "Agent type '…' not found", stop and report which ones failed.
+4. Do not run any Olympus protocol. Do not read any sealed files.
 ```
 
-Expected: three `PROBE-OK` replies from three distinct fresh contexts, each with a distinct agentId. If any type is "not found", the symlink step (section 8) or the filename/name match (section 2) is broken — fix and restart the session.
+Expected: six `REGISTERED …` replies from six distinct fresh contexts, each with a distinct agentId. A reply that echoes the canonical role charter (e.g. Product UX naming its audit/spec/review-without-implementing mandate) without any charter text in the dispatch is the confirmation that the system prompt came from the registered definition, not a stand-in. If any type is "not found": re-run the relink (section 8), confirm all files lint clean (name matches filename), and check the probe file has no exotic frontmatter keys — then open the new session again.
 
 After the smoke test passes, a legitimate new Product UX rotation may only be opened by a NEW CLEAN session (never this adapter session — it has seen the sealed oracles), following `tests/product-ux/evals/forward/README.md` with the provenance protocol of section 5. The first fresh context that resumes certification work must be given exactly this framing:
 
