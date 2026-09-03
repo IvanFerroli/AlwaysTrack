@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { NotificationCenter } from "../src/components/notification-center";
-import { MarkdownEditor } from "../src/components/markdown-editor";
+import { MarkdownContent, MarkdownEditor } from "../src/components/markdown-editor";
 import { CaseFlowAdminView } from "../src/views/case-flow/admin";
 import { keyboardTabIndex } from "../src/accessibility/tabs";
 import { contrastRatio, expectNoCriticalAccessibilityViolations } from "./accessibility-assertions";
@@ -43,6 +43,31 @@ describe("critical accessibility gate", () => {
     expect(screen.getByRole("tab", { name: "Preview" })).toHaveFocus();
     expect(screen.getByRole("tabpanel")).toHaveTextContent("Ajuda");
     expectNoCriticalAccessibilityViolations(container);
+  });
+
+  it("exposes markdown checklist state as informative content in published and preview renderers", async () => {
+    const checklist = "- [x] Conferir cadastro\n- [ ] Enviar retorno\n- Item comum";
+    const user = userEvent.setup();
+    const published = render(<MarkdownContent content={checklist} />);
+    const publishedItems = within(published.container).getAllByRole("listitem");
+
+    expect(publishedItems).toHaveLength(3);
+    expect(publishedItems[0]).toHaveTextContent("Concluído. Conferir cadastro");
+    expect(publishedItems[0]).toHaveAttribute("data-checked", "true");
+    expect(publishedItems[1]).toHaveTextContent("Pendente. Enviar retorno");
+    expect(publishedItems[1]).toHaveAttribute("data-checked", "false");
+    expect(publishedItems[2]).toHaveTextContent("Item comum");
+    expect(published.container.querySelector("input[type='checkbox']")).not.toBeInTheDocument();
+    expect(published.container.querySelector("[tabindex]")).not.toBeInTheDocument();
+    expectNoCriticalAccessibilityViolations(published.container);
+
+    const editor = render(<MarkdownEditor label="Conteúdo" value={checklist} onChange={vi.fn()} />);
+    await user.click(within(editor.container).getByRole("tab", { name: "Preview" }));
+    const previewItems = within(editor.container).getAllByRole("listitem");
+
+    expect(previewItems.map((item) => item.textContent)).toEqual(publishedItems.map((item) => item.textContent));
+    expect(editor.container.querySelector("input[type='checkbox']")).not.toBeInTheDocument();
+    expectNoCriticalAccessibilityViolations(editor.container);
   });
 
   it("dismisses and navigates the emoji menu while preserving the intended focus", async () => {

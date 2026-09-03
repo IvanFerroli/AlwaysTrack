@@ -96,10 +96,14 @@ export function MarkdownContent({ content, emptyText = "Sem conteudo publicado."
       while (index < lines.length && (/^[-*]\s+/.test(lines[index]) || /^-\s+\[[ xX]\]\s+/.test(lines[index]))) {
         const checkbox = lines[index].match(/^-\s+\[([ xX])\]\s+(.+)$/);
         if (checkbox) {
+          const checked = checkbox[1].toLowerCase() === "x";
           items.push(
-            <li key={index} className="wiki-check-item">
-              <input checked={checkbox[1].toLowerCase() === "x"} readOnly type="checkbox" />
-              <span>{renderMarkdownInline(checkbox[2])}</span>
+            <li key={index} className="wiki-check-item" data-checked={checked}>
+              <span className="wiki-check-marker" aria-hidden="true">{checked ? "☑" : "☐"}</span>
+              <span className="wiki-check-label">
+                <span className="sr-only">{checked ? "Concluído. " : "Pendente. "}</span>
+                {renderMarkdownInline(checkbox[2])}
+              </span>
             </li>
           );
         } else {

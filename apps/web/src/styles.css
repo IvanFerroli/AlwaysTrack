@@ -3044,6 +3044,17 @@ legend {
   margin-left: -20px;
 }
 
+.wiki-check-marker {
+  flex: 0 0 auto;
+  font-size: 1.1em;
+  line-height: 1.35;
+}
+
+.wiki-check-item[data-checked="true"] .wiki-check-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
 .wiki-table-wrap {
   overflow-x: auto;
 }
