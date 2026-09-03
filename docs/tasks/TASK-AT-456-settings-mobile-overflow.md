@@ -1,7 +1,7 @@
 # TASK-AT-456 - Corrigir overflow mobile de Configurações
 
 ## Metadata
-- status: proposed
+- status: completed-with-risk
 - owner: Runtime Builder Web
 - last-updated: 2026-09-02
 - source-of-truth: docs/tasks/TASK-AT-456-settings-mobile-overflow.md
@@ -59,6 +59,14 @@ A referência advisory é `INS-016`; seu PNG transitório não deve ser copiado 
 
 ## Definição de pronto
 - Geometria passa nos dois viewports, scroller fica contido, screenshot task-backed é inspecionado e desktop permanece estável.
+
+## Fechamento — 2026-09-02
+- implementação: commit `b1265dfc` (`fix(web): contain settings mobile overflow`), publicado em `origin/main`.
+- validação do builder: Playwright focal 3/3 em duas execuções, Web typecheck, Web build e Web unit (28 arquivos/170 testes) aprovados; três snapshots task-backed inspecionados em resolução original.
+- verificação independente: `GO-WITH-RISK`; Playwright focal 3/3, Web typecheck, Web build e `git diff --check` reaprovados.
+- critérios fechados: documento sem overflow em 390x844 e 320x700; matriz larga contida em `.table-scroll` com `overflow-x: auto`; controles dentro do viewport; sidebar/workspace sem sobreposição; matriz desktop íntegra.
+- risco residual aceito: teclado/ordem de foco não exercitados; screenshots focam o painel da matriz e não cobrem shell/formulário/observabilidade completos; sem zoom 200%, landscape, browser móvel real ou tecnologia assistiva.
+- decisão: não foi encontrada regressão bloqueante; as lacunas acima permanecem manuais e impedem declarar validação visual irrestrita.
 
 ## Sugestão de commit semântico
 - `fix(web): contem overflow mobile de configuracoes`
