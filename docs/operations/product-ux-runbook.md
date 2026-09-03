@@ -6,9 +6,9 @@
 - capability-status: consultar `docs/operations/product-ux-state.md`
 - owner: olympus_product_ux
 - harness-owner: olympus_runtime_builder
-- last-updated: 2026-08-05
+- last-updated: 2026-09-03
 - source-of-truth: docs/operations/product-ux-runbook.md
-- related-task: TASK-AT-448
+- related-task: TASK-AT-448, TASK-AT-464
 
 ## Finalidade
 
@@ -88,12 +88,19 @@ Para cada cenário, registre antes do browser:
 O documento de cenário usa `schemaVersion: 1.0.0`, fica dentro do repositório e contém de 1 a 30 cenários. O adapter atual aceita:
 
 - presets `login-desktop`, `login-mobile`, `admin-caseflow-connectors` e `sac-service-flows-mobile`;
-- steps `goto`, `login-role`, `open-navigation`, `click-role`, `wait-role`, `press-role`, `fill-label`, `select-label` e `check-label`;
+- steps `goto`, `login-role`, `open-navigation`, `click-role`, `wait-role`, `press-role`, `fill-label`, `select-label`, `check-label` e `set-file-label`;
 - viewports entre 320 e 1920 px de largura e 568 e 1200 px de altura;
 - `fixedTime` ISO-8601 terminado em `Z`;
 - seletores de overflow e pares de regiões críticas dentro da allowlist.
 
 O primeiro step deve ser `goto` ou `login-role`; o último deve ser `wait-role`. `expectedTerminalCondition` deve descrever esse estado final. O harness não aceita `evaluate`, script arbitrário, query/fragment em navegação, URL externa, credential-bearing input ou role fora da allowlist.
+
+`set-file-label` seleciona arquivo sintético pelo controle acessível do upload: `label` é o nome acessível do botão/controle que abre o chooser de arquivo (o input de arquivo pode estar deliberadamente fora da árvore de acessibilidade, como no `MarkdownEditor`). Restrições contratuais:
+
+- o arquivo é restrito às fixtures sintéticas versionadas em `tests/product-ux/fixtures/files/`, referenciadas apenas pelo nome lógico no campo `fixture`; bytes, tamanho e SHA-256 são pinados no contrato e verificados a cada uso;
+- caminho de host, path arbitrário, fixture ausente ou bytes divergentes falham fechados com `UNSAFE_FILE_FIXTURE`, `MISSING_FILE_FIXTURE` ou `FIXTURE_MISMATCH`; nenhum arquivo arbitrário do host é aceito;
+- o executor intercepta o file chooser nativo disparado pelo clique no controle allowlistado e aplica somente os bytes pinados; `evaluate`, seletor arbitrário e automação de dialog nativo continuam proibidos;
+- limitação: o step prova o contrato de seleção/upload via o controle acessível; a affordance do dialog nativo do SO e interação touch real não são provadas.
 
 O runtime de captura cria SQLite temporário, aplica o schema, executa seed sintético e sobe API/Web somente em loopback nas portas 3334/5174. A role `GESTOR` é criada de forma controlada no runtime isolado. Nunca copie e-mail ou senha de seed para cenário, evidência ou runbook.
 
@@ -400,7 +407,7 @@ Mapeamento de erro:
 | --- | --- | --- | --- |
 | `BROWSER_UNAVAILABLE`, `BROWSER_RUNTIME_CACHE_*`, `BROWSER_RUNTIME_BOOTSTRAP_FAILED`, `UNSUPPORTED_BROWSER_RUNTIME_PLATFORM`, `PORT_IN_USE`, `E2E_START_FAILED`, `E2E_START_TIMEOUT` | `VISUAL_ACQUISITION_BLOCKED` | `BLOCKED` / `UX_REPRODUCTION_BLOCKED` | Runtime Builder via Orchestrator; corrigir ambiente e repetir bootstrap/preflight |
 | `GESTOR_SETUP_FAILED`, `ROLE_UNAVAILABLE`, terminal state/fixture ausente | `VISUAL_ACQUISITION_BLOCKED` | `BLOCKED` / `UX_REPRODUCTION_BLOCKED` | owner do setup/role via Orchestrator; criar estado sintético determinístico |
-| `INVALID_*`, `UNSAFE_BASE_URL`, `UNSAFE_CLASSIFICATION`, `UNSAFE_PATH`, `UNSAFE_STEP`, path/symlink, output existente, worktree dirty não autorizada, artifact ausente ou checksum inicial inválido | `VISUAL_ACQUISITION_BLOCKED` | `BLOCKED` / `UX_EVIDENCE_REQUIRED` | corrigir request/scenario/pacote; não abrir artefato inseguro |
+| `INVALID_*`, `UNSAFE_BASE_URL`, `UNSAFE_CLASSIFICATION`, `UNSAFE_PATH`, `UNSAFE_STEP`, `UNSAFE_FILE_FIXTURE`, `MISSING_FILE_FIXTURE`, `FIXTURE_MISMATCH` (na montagem da captura), path/symlink, output existente, worktree dirty não autorizada, artifact ausente ou checksum inicial inválido | `VISUAL_ACQUISITION_BLOCKED` | `BLOCKED` / `UX_EVIDENCE_REQUIRED` | corrigir request/scenario/pacote; fixture de arquivo somente pelo nome lógico allowlistado; não abrir artefato inseguro |
 | `SENSITIVE_INPUT`, `SENSITIVE_EVIDENCE`, `UNSAFE_ARTIFACT`, `UNSAFE_REDACTION` | `SENSITIVE_ARTIFACT_REJECTED` | `BLOCKED` / `UX_EVIDENCE_REQUIRED` | privacy/evidence owner; descartar com segurança e readquirir |
 | checksum/revisão/fixture/referência divergente durante reuse | `STALE_EVIDENCE` | `BLOCKED` / `UX_EVIDENCE_REQUIRED` | Product UX; rejeitar claim atual e readquirir com novo Evidence ID |
 | target visual/brand authority ausente | `REFERENCE_REQUIRED` | `HUMAN_INPUT_REQUIRED` / `UX_INTENT_REQUIRED` | pedir uma decisão/referência mínima |
@@ -489,7 +496,7 @@ Nunca persistir:
 - HTML, payload de rede, console ou snapshot ARIA/DOM brutos;
 - screenshot live/production-like sem autorização, redaction e retenção prévias.
 
-O adapter atual aceita apenas `fake` e `local`, bloqueia rede externa, mascara valores sensíveis detectáveis, persiste apenas digests/contagens e exige `redaction: applied`. A inspeção humana/visual continua necessária porque detecção automática não prova ausência de todo dado sensível.
+O adapter atual aceita apenas `fake` e `local`, bloqueia rede externa, mascara valores sensíveis detectáveis, persiste apenas digests/contagens e exige `redaction: applied`. A fixture sintética de upload do `set-file-label` é versionada, pequena, gerada sem PII e sem credencial, e verificada pelo SHA-256 pinado antes de cada uso. A inspeção humana/visual continua necessária porque detecção automática não prova ausência de todo dado sensível.
 
 Retenção padrão:
 

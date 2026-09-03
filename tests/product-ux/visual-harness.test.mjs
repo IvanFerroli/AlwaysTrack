@@ -24,10 +24,13 @@ import {
   redactText,
   resolveAdvisoryOutputDirectory,
   resolveCaptureAnchor,
+  resolveFileFixture,
   resolveOutputDirectory,
   runPreflight,
+  sanitizeStepForReport,
   sha256File,
   sensitiveFindings,
+  splitReportedSteps,
   validateClassification,
   validateAdvisoryCaptureRecord,
   validateEvidencePack,
@@ -36,6 +39,8 @@ import {
 } from "../../.agents/skills/olympus-product-ux/scripts/visual-harness-lib.mjs";
 
 const fixture = resolve(REPO_ROOT, "tests/product-ux/fixtures/login-scenario.json");
+const uploadFixture = resolve(REPO_ROOT, "tests/product-ux/fixtures/wiki-upload-scenario.json");
+const uploadFileFixture = resolve(REPO_ROOT, "tests/product-ux/fixtures/files/wiki-attachment.png");
 const validatorCli = resolve(REPO_ROOT, ".agents/skills/olympus-product-ux/scripts/validate-evidence.mjs");
 const advisoryValidatorCli = resolve(REPO_ROOT, ".agents/skills/olympus-product-ux/scripts/validate-advisory-capture.mjs");
 const baselinePng = resolve(REPO_ROOT, "tests/e2e/visual-responsive-web.desktop.spec.ts-snapshots/web-login-1024x768-desktop-linux.png");
@@ -223,6 +228,86 @@ test("scenario contract rejects arbitrary execution and sensitive fill values", 
       ...base.scenarios[0],
       expectedTerminalCondition: "login page is visible",
       steps: [{ type: "goto", path: "/" }]
+    }]
+  }), "MISSING_TERMINAL_CONDITION");
+});
+
+test("file fixture resolution accepts only the pinned synthetic repo fixture", () => {
+  const resolved = resolveFileFixture("wiki-attachment.png");
+  assert.deepEqual(
+    { name: resolved.name, mediaType: resolved.mediaType, byteLength: resolved.byteLength },
+    { name: "wiki-attachment.png", mediaType: "image/png", byteLength: 136 }
+  );
+  assert.equal(resolved.buffer.length, 136);
+  assert.equal(sha256File(uploadFileFixture), "ae52fe47be085f8c08c1975052313f677dbb182ca2a64abc347e7c825c806854");
+  expectCode(() => resolveFileFixture("secrets.zip"), "UNSAFE_FILE_FIXTURE");
+  expectCode(() => resolveFileFixture("../../../../etc/passwd"), "UNSAFE_FILE_FIXTURE");
+  expectCode(() => resolveFileFixture("/etc/passwd"), "UNSAFE_FILE_FIXTURE");
+});
+
+test("set-file-label normalization accepts the contract and reports only safe fields", () => {
+  const document = readScenarioFile(uploadFixture, REPO_ROOT);
+  const scenario = document.scenarios[0];
+  assert.deepEqual(scenario.steps.map((step) => step.type), [
+    "login-role",
+    "goto",
+    "wait-role",
+    "set-file-label",
+    "click-role",
+    "wait-role"
+  ]);
+  assert.deepEqual(scenario.steps[3], { type: "set-file-label", label: "Imagem", fixture: "wiki-attachment.png", exact: true });
+  assert.equal(scenario.expectedTerminalCondition, "img wiki-attachment.png is visible");
+  const { setupSteps, navigationSteps } = splitReportedSteps(scenario.steps);
+  assert.deepEqual(setupSteps.filter((step) => step.type === "set-file-label"), [
+    { type: "set-file-label", label: "Imagem", fixture: "wiki-attachment.png", exact: true }
+  ]);
+  const reported = JSON.stringify(setupSteps);
+  assert.doesNotMatch(reported, /buffer|REPO_ROOT|\/home\/|fixtures\/files/);
+  const sanitized = sanitizeStepForReport(scenario.steps[3]);
+  assert.deepEqual(Object.keys(sanitized).sort(), ["exact", "fixture", "label", "type"]);
+});
+
+test("file step contract rejects non-allowlisted fixtures and step misuse fail-closed", () => {
+  const base = {
+    schemaVersion: "1.0.0",
+    scenarios: [{
+      id: "unsafe-upload",
+      surface: "Unsafe",
+      state: "default",
+      viewport: { width: 1024, height: 768 },
+      steps: [
+        { type: "goto", path: "/" },
+        { type: "wait-role", role: "heading", name: "Entrar", exact: true }
+      ]
+    }]
+  };
+  const withFileStep = (step) => ({
+    ...base,
+    scenarios: [{
+      ...base.scenarios[0],
+      steps: [base.scenarios[0].steps[0], step, base.scenarios[0].steps[1]]
+    }]
+  });
+  expectCode(() => validateScenarioDocument(withFileStep({ type: "set-file-label", label: "Imagem", fixture: "host-file.png" })), "UNSAFE_FILE_FIXTURE");
+  expectCode(() => validateScenarioDocument(withFileStep({ type: "set-file-label", label: "Imagem", fixture: "../tests/product-ux/fixtures/files/wiki-attachment.png" })), "UNSAFE_FILE_FIXTURE");
+  expectCode(() => validateScenarioDocument(withFileStep({ type: "set-file-label", label: "Imagem", fixture: "wiki-attachment.png", path: "/etc/passwd" })), "UNSUPPORTED_FIELD");
+  expectCode(() => validateScenarioDocument(withFileStep({ type: "set-file-label", label: "Imagem" })), "INVALID_STRING");
+  expectCode(() => validateScenarioDocument({
+    ...base,
+    scenarios: [{
+      ...base.scenarios[0],
+      steps: [
+        { type: "set-file-label", label: "Imagem", fixture: "wiki-attachment.png" },
+        { type: "wait-role", role: "heading", name: "Entrar", exact: true }
+      ]
+    }]
+  }), "NON_DETERMINISTIC_START");
+  expectCode(() => validateScenarioDocument({
+    ...base,
+    scenarios: [{
+      ...base.scenarios[0],
+      steps: [{ type: "goto", path: "/" }, { type: "set-file-label", label: "Imagem", fixture: "wiki-attachment.png" }]
     }]
   }), "MISSING_TERMINAL_CONDITION");
 });

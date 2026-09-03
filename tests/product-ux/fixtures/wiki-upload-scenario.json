@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarios": [
+    {
+      "id": "wiki-image-upload-desktop",
+      "surface": "Wiki",
+      "state": "upload-imagem",
+      "viewport": { "width": 1280, "height": 800 },
+      "fixedTime": "2026-09-03T12:00:00.000Z",
+      "expectedTerminalCondition": "img wiki-attachment.png is visible",
+      "steps": [
+        { "type": "login-role", "role": "ADMIN" },
+        { "type": "goto", "path": "/wiki" },
+        { "type": "wait-role", "role": "heading", "name": "Nova pagina", "exact": true },
+        { "type": "set-file-label", "label": "Imagem", "fixture": "wiki-attachment.png" },
+        { "type": "click-role", "role": "tab", "name": "Preview", "exact": true },
+        { "type": "wait-role", "role": "img", "name": "wiki-attachment.png", "exact": true }
+      ]
+    }
+  ]
+}
