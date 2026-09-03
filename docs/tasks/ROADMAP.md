@@ -652,7 +652,7 @@ Fonte canônica: `docs/tasks/UXREQ-ALWAYSTRACK-ACTIVE-AUDIT-20260902-001-ux-audi
 1. `TASK-AT-454`: decisão de produto para `FINANCEIRO`, `VENDEDOR` e `SUPERVISOR`. Prioridade P0; severidade critical; confiança high; status: proposed-human-input-required. Dependências: decisão do PO. Esforço: 2-4h de decisão/documentação.
 2. `TASK-AT-456`: corrigir overflow mobile de Configurações. Prioridade P0; severidade high; confiança high; status: proposed. Dependências abertas: nenhuma. Esforço: 4-6h.
 3. `TASK-AT-457`: corrigir semântica acessível de checklists Markdown. Prioridade P1; severidade medium; confiança high; status: proposed. Dependências abertas: nenhuma para contrato informativo. Esforço: 4-6h.
-4. `TASK-AT-455`: preservar primeiro viewport após selecionar filhos no menu mobile. Prioridade P1; severidade medium; confiança high; status: proposed. Dependências abertas: nenhuma; coordenar CSS com `TASK-AT-456`. Esforço: 4-8h.
+4. `TASK-AT-455`: preservar primeiro viewport após selecionar filhos no menu mobile. Prioridade P1; severidade medium; confiança high; status: **completed-with-risk** (2026-09-03; commit `77804d76`, ver "Fechamento" em `docs/tasks/TASK-AT-455-mobile-navigation-first-viewport.md`). Dependências abertas: nenhuma; coordenado com `TASK-AT-456` sem regredir seu gate. Esforço: 4-8h.
 
 ### Duplicidades e absorções
 
