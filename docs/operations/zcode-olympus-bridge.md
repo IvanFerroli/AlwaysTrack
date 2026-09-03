@@ -2,7 +2,7 @@
 
 ## Metadata
 
-- status: checkpointed — Tier 1 proven; Tier 2 (native subagent invocation) pending first fresh ZCode session
+- status: Tier 2 registration root cause fixed (symlinks do not register; regular-file copies deployed) — native registration retest pending the NEXT fresh ZCode session
 - owner: olympus_orchestrator (bridge infrastructure)
 - last-updated: 2026-09-03
 - source-of-truth: this file
@@ -20,6 +20,7 @@ Make the Olympus multi-agent architecture natively invokable in ZCode, with the 
 - Subagents run as genuinely separate child sessions (`taskType: subagent_child`, own context window, `parentSessionId` linkage only) and **cannot spawn further subagents** — the top-level agent therefore hosts the Orchestrator role.
 - Plugin-contributed agents (e.g. `document-skills:judge`) are the mechanism this client already exercises; user-level `~/.zcode/agents/` is the documented custom path and is what this bridge uses.
 - Agent results carry a stable `agentId` — this is the provenance anchor for executor/evaluator contexts.
+- **Agent files that are symlinks do NOT register.** Proven 2026-09-03 (fresh session `sess_5eeb92f2`): the only regular file in `~/.zcode/agents/` (`olympus-probe.md`) appeared in the registry, while all 12 olympus-* symlinks were absent (`Agent type '…' not found. Available agents: general-purpose, Explore, olympus-probe, document-skills:judge, judge`), with the canonical targets' frontmatter linting clean (name matches filename, supported keys). The registry evidently does not follow symlinks for agent definitions. Deployment is therefore by **regular-file copy** (see `scripts/sync-zcode-agents.sh`), not symlink.
 
 ## 3. Architecture mapping
 
@@ -45,7 +46,7 @@ The ten canonical `SKILL.md` kits under `.agents/skills/` are untouched and rema
 Created:
 - `.claude/agents/olympus-blind-evaluator.md` — new canonical evaluator definition (tools restricted to Read+Bash; fail-closed blindness rules; observation charter).
 - `.claude/agents/olympus-plan-auditor.md` — new canonical definition for the role that existed only in Antigravity/skill form.
-- `~/.zcode/agents/olympus-*.md` — 12 symlinks to the canonical definitions + `olympus-probe.md` (registration self-test).
+- `~/.zcode/agents/olympus-*.md` — 12 **regular-file copies** of the canonical definitions (replaced the original symlinks after the 2026-09-03 registration failure; symlinks do not register) + `olympus-probe.md` (registration self-test). Refreshed deterministically by `scripts/sync-zcode-agents.sh`.
 - `test-results/olympus-bridge/` (git-ignored): synthetic sandbox `sandbox-greeter/`, artifacts `sandbox-ux-artifacts/`, `sandbox-runtime/`, and the full synthetic run `run-SYNTH-2026-09-03-001/` (ticket, sealed case + digests, dispatches + digests, execution transcript, observation, provenance.json, refusal-probe record).
 
 Modified: nothing else. No Olympus skill, contract, `.codex/`, `.antigravity/`, scorer, or product file changed.
@@ -84,17 +85,22 @@ Run `test-results/olympus-bridge/run-SYNTH-2026-09-03-001/` (harmless fictional 
 2. **No nested subagents**: subagents cannot spawn subagents; the top-level agent must host the Orchestrator (authoring) role.
 3. **Session-scoped registry**: mid-session creation of agent files or config profiles has no effect (probed: workspace `.zcode/agents/`, `~/.zcode/agents/`, workspace `config.json` `subagents.profiles` — all inert until restart; the runtime bundle does read `config.subagents.profiles`, an undocumented secondary path, untested here).
 4. `effort:` frontmatter hints from the canonical definitions are ignored by ZCode (lossless for behavior; effort tuning would require explicit `model`+`thoughtLevel`, deliberately not pinned).
-5. User-scope `~/.zcode/agents/` is per-machine; a new checkout needs the one-command relink from section 8.
+5. User-scope `~/.zcode/agents/` is per-machine; a new checkout needs the one-command sync from section 8.
+6. **Symlinked agent files never register** (proven 2026-09-03, see section 2). A symlink-based relink is not a valid deployment; use regular-file copies via `scripts/sync-zcode-agents.sh`.
 
 ## 8. Rebuild / re-link procedure (one command per machine)
 
 ```bash
-mkdir -p ~/.zcode/agents && for f in /path/to/repo/.claude/agents/olympus-*.md; do ln -sf "$f" ~/.zcode/agents/$(basename "$f"); done
+bash /path/to/repo/scripts/sync-zcode-agents.sh
 ```
 
-## 9. PENDING — Tier 2 native invocation (first fresh ZCode session)
+Copies every canonical `.claude/agents/olympus-*.md` into `~/.zcode/agents/` as a **regular file** (never a symlink — symlinks do not register), verifies filename↔frontmatter name and byte-identical content, and is idempotent. (The original symlink relink documented here before 2026-09-03 is obsolete: see section 7 item 6.)
 
-Minimal smoke test (exact prompt for a genuinely NEW session — paste as the first user message; do not resume a pre-bridge session):
+## 9. Tier 2 native invocation (retest in the NEXT fresh ZCode session)
+
+Execution record 2026-09-03: the smoke test below was run as the first message of fresh session `sess_5eeb92f2` (~16:32 local). **All six types returned `Agent type '…' not found`** (registry available agents: `general-purpose, Explore, olympus-probe, document-skills:judge, judge`). Diagnosis (registration failure only): the 12 olympus-* entries were **symlinks** with lint-clean canonical frontmatter, while the one regular file (`olympus-probe.md`) registered — symlinks do not register. Fix: `scripts/sync-zcode-agents.sh` replaced them with regular-file copies (validated: 0 symlinks remaining, sha256 parity 12/12 vs canonical, name↔filename match).
+
+This session cannot retest: the registry is snapshotted at session creation, and the copies were deployed mid-session. Retest requires the NEXT fresh session, re-running exactly this prompt (paste as the first user message; do not resume a pre-fix session):
 
 ```
 Registration smoke test for the Olympus ZCode bridge. Do exactly this, in order:
@@ -130,5 +136,5 @@ com dispatches apenas de ticket / apenas de transcript+catálogo+schema, e regis
 ## 10. Status summary
 
 - Complete and proven in-session (Tier 1): registration artifacts, blind protocol mechanics, refusal rule, role boundaries, verifier separation.
-- Pending (Tier 2): native `subagent_type` invocation of the 12 Olympus types — requires the next fresh ZCode session (smoke test above, ~2 minutes).
+- Tier 2 registration: root cause of the first fresh-session failure identified and fixed (symlinks do not register; regular-file copies deployed 2026-09-03). Native registration **retest pending the next fresh ZCode session** (section 9 prompt, ~2 minutes).
 - Not started / intentionally untouched: new real forward rotation, TASK-AT-452 (closed), TASK-AT-453, `product-ux-state.md` (stays `pilot-ready`).
