@@ -3,7 +3,7 @@
 ## Metadata
 - status: completed-with-risk
 - owner: Runtime Builder Web
-- last-updated: 2026-09-02
+- last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-457-markdown-checklist-accessible-semantics.md
 - mode: implementation
 - priority: P1
@@ -67,7 +67,15 @@ As referências advisory são `INS-011`, `INS-013` e `INS-014`; os PNGs não dev
 - verificação independente: `GO-WITH-RISK`; toda a validação automatizada foi reexecutada e aprovada, sem regressão funcional identificada.
 - critérios fechados: zero checkbox/tabstop falso; estado `Concluído`/`Pendente` associado ao texto na árvore de acessibilidade; distinção visual por glifo e tachado, não apenas cor; lista comum preservada; preview e publicado reutilizam `MarkdownContent` com a mesma semântica.
 - risco residual aceito: demais recursos Markdown não receberam um teste focal novo, embora a suíte Web completa tenha passado; anúncio exato varia por leitor/browser.
-- manual-needed: Orca, NVDA e Narrator não estavam disponíveis no host, portanto leitura com tecnologia assistiva real não foi alegada nem registrada como concluída.
+- validação assistiva inicialmente pendente: Orca, NVDA e Narrator não estavam disponíveis no primeiro fechamento.
+
+## Validação assistiva real — 2026-09-03
+- ambiente: Ubuntu local, dados sintéticos, Orca `46.1`, Chromium for Testing, Speech Dispatcher `0.12.0-rc2` e eSpeak NG `1.51`.
+- superfície: conteúdo publicado da Wiki usando o mesmo `MarkdownContent` compartilhado por Fluxos, Wiki e FAQ.
+- procedimento: navegador visível ativado explicitamente; navegação estrutural do Orca por itens de lista; inspeção do `SPEECH OUTPUT` efetivamente enviado ao Speech Dispatcher.
+- resultado observado: Orca anunciou `List with 3 items`, seguido de `Concluído.` / `Conferir cadastro.`, `Pendente.` / `Enviar retorno.` e `Item comum.`; não anunciou papel `checkbox` nem solicitou ação ou foco sobre os marcadores.
+- conclusão da pendência: o estado e o texto chegaram ao leitor de tela real com o contrato informativo esperado. Nenhum código ou baseline precisou ser alterado nesta validação.
+- limite residual: a validação cobre Orca + Chromium no Linux; não demonstra paridade de anúncio em NVDA, Narrator, VoiceOver ou TalkBack, nem substitui estudo de usabilidade com pessoa usuária de tecnologia assistiva.
 
 ## Sugestão de commit semântico
 - `fix(web): torna checklist markdown semanticamente acessivel`
