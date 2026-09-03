@@ -184,6 +184,17 @@ function applyMarkdownFormat(value: string, selectionStart: number, selectionEnd
   return { nextValue: value, cursor: selectionEnd };
 }
 
+const imageUploadTypeMessage = "Formato de imagem não suportado. Use PNG, JPG ou WebP.";
+const imageUploadSizeMessage = "A imagem excede o tamanho máximo permitido. Envie um arquivo menor.";
+const imageUploadFallbackMessage = "Não foi possível enviar a imagem. Tente novamente.";
+
+function imageUploadMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (/unsupported/i.test(message) && /type/i.test(message)) return imageUploadTypeMessage;
+  if (/too large/i.test(message)) return imageUploadSizeMessage;
+  return imageUploadFallbackMessage;
+}
+
 export function MarkdownEditor({
   label,
   value,
@@ -199,6 +210,7 @@ export function MarkdownEditor({
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadActiveRef = useRef(false);
   const writeTabRef = useRef<HTMLButtonElement | null>(null);
   const previewTabRef = useRef<HTMLButtonElement | null>(null);
   const emojiTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -206,6 +218,7 @@ export function MarkdownEditor({
   const editorId = useId().replace(/:/g, "");
   const [preview, setPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [activeEmojiIndex, setActiveEmojiIndex] = useState(0);
 
@@ -291,7 +304,9 @@ export function MarkdownEditor({
   }
 
   async function uploadImage(file: File | undefined) {
-    if (!file || !onUploadImage) return;
+    if (!file || !onUploadImage || uploadActiveRef.current) return;
+    uploadActiveRef.current = true;
+    setUploadError(null);
     setUploadingImage(true);
     try {
       const markdown = await onUploadImage(file);
@@ -307,7 +322,10 @@ export function MarkdownEditor({
         const cursor = selectionStart + prefix.length + markdown.length + suffix.length;
         textarea?.setSelectionRange(cursor, cursor);
       });
+    } catch (error) {
+      setUploadError(imageUploadMessage(error));
     } finally {
+      uploadActiveRef.current = false;
       setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
     }
@@ -383,6 +401,7 @@ export function MarkdownEditor({
             <button className="ghost-button small" type="button" disabled={uploadingImage} onClick={() => imageInputRef.current?.click()}>
               {uploadingImage ? "Enviando..." : "Imagem"}
             </button>
+            <span className="sr-only" aria-live="polite">{uploadingImage ? "Enviando imagem." : ""}</span>
             <input
               ref={imageInputRef}
               accept="image/png,image/jpeg,image/webp"
@@ -393,6 +412,7 @@ export function MarkdownEditor({
           </>
         ) : null}
       </div>
+      {uploadError ? <p className="error" role="alert">{uploadError}</p> : null}
       {preview ? <div id={`${editorId}-preview-panel`} role="tabpanel" aria-labelledby={`${editorId}-preview-tab`}><MarkdownContent content={value} /></div> : <div id={`${editorId}-write-panel`} role="tabpanel" aria-labelledby={`${editorId}-write-tab`}><textarea aria-label={label} ref={ref} rows={rows} value={value} onChange={(event) => onChange(event.target.value)} /></div>}
     </div>
   );
