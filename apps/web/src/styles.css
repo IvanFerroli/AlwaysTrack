@@ -2602,7 +2602,13 @@ button .icon {
 }
 
 .permission-matrix-panel {
+  min-width: 0;
   padding: 18px;
+}
+
+.permission-matrix-panel > .table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .permission-legend {
@@ -4946,6 +4952,14 @@ legend {
   .diagnostics-grid {
     grid-template-columns: 1fr;
   }
+
+  .observability-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .observability-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -5120,6 +5134,20 @@ legend {
 
   h1 {
     font-size: 25px;
+  }
+
+  .observability-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .organization-settings-panel .section-heading,
+  .observability-panel .section-heading,
+  .permission-matrix-panel .section-heading {
+    flex-direction: column;
+  }
+
+  .permission-matrix-panel .permission-legend {
+    justify-content: flex-start;
   }
 
   table {
