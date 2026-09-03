@@ -1,7 +1,7 @@
 # TASK-AT-457 - Corrigir semântica acessível de checklists Markdown
 
 ## Metadata
-- status: completed-with-risk
+- status: completed
 - owner: Runtime Builder Web
 - last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-457-markdown-checklist-accessible-semantics.md
@@ -76,6 +76,13 @@ As referências advisory são `INS-011`, `INS-013` e `INS-014`; os PNGs não dev
 - resultado observado: Orca anunciou `List with 3 items`, seguido de `Concluído.` / `Conferir cadastro.`, `Pendente.` / `Enviar retorno.` e `Item comum.`; não anunciou papel `checkbox` nem solicitou ação ou foco sobre os marcadores.
 - conclusão da pendência: o estado e o texto chegaram ao leitor de tela real com o contrato informativo esperado. Nenhum código ou baseline precisou ser alterado nesta validação.
 - limite residual: a validação cobre Orca + Chromium no Linux; não demonstra paridade de anúncio em NVDA, Narrator, VoiceOver ou TalkBack, nem substitui estudo de usabilidade com pessoa usuária de tecnologia assistiva.
+
+## Verificação independente final — 2026-09-03
+- veredito: `GO`; o status foi promovido de `completed-with-risk` para `completed` porque a única parcela manual pendente da definição de pronto foi executada com leitor de tela real.
+- evidência confirmada: o log temporário do Orca `46.1` registra `SPEECH OUTPUT` e envio ao Speech Dispatcher para `List with 3 items`, `Concluído.`, `Conferir cadastro.`, `Pendente.`, `Enviar retorno.` e `Item comum.`.
+- ausência de falso controle: na navegação do conteúdo não houve anúncio de `checkbox`; os únicos textos `check box` no log pertencem ao registro genérico dos atalhos do próprio Orca, não à árvore ou fala do checklist.
+- higiene: o teste E2E temporário usado para conduzir a sessão assistiva não está rastreado nem presente como alteração no worktree; o commit `7be2fc3f` altera somente este manifesto.
+- limites não bloqueantes: não há comprovação de paridade em NVDA, Narrator, VoiceOver ou TalkBack, nem estudo com pessoa usuária de tecnologia assistiva. Esses limites restringem generalização entre plataformas, mas não invalidam o aceite definido para ao menos uma tecnologia assistiva disponível.
 
 ## Sugestão de commit semântico
 - `fix(web): torna checklist markdown semanticamente acessivel`
