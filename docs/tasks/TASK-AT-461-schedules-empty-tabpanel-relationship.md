@@ -1,7 +1,9 @@
 # TASK-AT-461 - Preservar relação tab/panel no vazio de Escalas
 
 ## Metadata
-- status: proposed
+- status: ready-to-execute
+- pipeline: READY_TO_EXECUTE
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — reconciliação do audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-007` (Grupo B). Vigência reconfirmada em código no HEAD `3088088a`: `apps/web/src/views/support-schedules.tsx:865` (`aria-controls` incondicional) versus ramos `OperationalState` (linhas 889–898) sem painel correspondente.
 - owner: Runtime Builder Web
 - last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-461-schedules-empty-tabpanel-relationship.md

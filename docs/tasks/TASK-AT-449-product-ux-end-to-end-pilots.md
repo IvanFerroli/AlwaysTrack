@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed
+- pipeline: ALREADY_COVERED
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — reconciliação de higiene do audit repo-wide (seção O.6): os pilotos reais deste escopo já foram executados e registrados em 2026-08-06 (`docs/testing/product-ux-final-readiness-gate-2026-08-06.md`, `product-ux-pilot-report-2026-08-05.md`); o `status: proposed` está órfão/obsoleto. Classificação: ALREADY_COVERED — não ressuscitar; owner de lifecycle pode consolidar o status em atualização própria
 - owner: olympus_taskyfier
 - last-updated: 2026-08-05
 - source-of-truth: docs/tasks/TASK-AT-449-product-ux-end-to-end-pilots.md

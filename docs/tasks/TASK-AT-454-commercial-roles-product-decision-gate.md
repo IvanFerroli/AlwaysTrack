@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed-human-input-required
+- pipeline: BLOCKED_BY_DECISION
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-001` (seção K.1, Grupo A: nenhuma derivação do domínio comercial antes desta decisão)
 - owner: Product Owner
 - last-updated: 2026-09-02
 - source-of-truth: docs/tasks/TASK-AT-454-commercial-roles-product-decision-gate.md

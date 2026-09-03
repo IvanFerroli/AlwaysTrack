@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed-human-input-required
+- pipeline: BLOCKED_BY_DECISION
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-006` (seção K.2, Grupo A; não bloqueia 458/459/461/462)
 - owner: Product Owner / Design Owner
 - last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-460-markdown-file-drop-product-decision.md

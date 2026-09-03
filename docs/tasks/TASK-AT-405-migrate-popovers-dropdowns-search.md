@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: implemented-local-browser-evidence-pending
+- pipeline: ALREADY_COVERED
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-014`: a parcela aberta (teclado/foco dos consumidores do dismissible-layer, onda 2 de aquisição browser) é devidamente de propriedade deste doc; nenhuma task nova derivada
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-405-migrate-popovers-dropdowns-search.md

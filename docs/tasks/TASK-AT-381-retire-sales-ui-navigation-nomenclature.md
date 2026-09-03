@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed
+- pipeline: BLOCKED_BY_DECISION
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, seção K.1: a cadeia 362/365/381 assume sunset de Vendas e só pode ser ratificada/ajustada pela decisão humana de `TASK-AT-454` (finding `ATUX-001`); não executar antes
 - owner: olympus_taskyfier
 - last-updated: 2026-07-17
 - source-of-truth: docs/tasks/TASK-AT-381-retire-sales-ui-navigation-nomenclature.md

@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed
+- pipeline: BLOCKED_BY_DEPENDENCY
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`: escopo amplo demais para execução direta por um trio fresh (precisa derivação em fatias); declara satisfeitas TASK-AT-381/382/384, mas 381 é `proposed` e está a montante do gate humano `TASK-AT-454` (ATUX-001); a parcela de Escalas/Pausas/Avisos já é de propriedade de `TASK-AT-411`. Não executar antes da decisão 454 e da derivação de escopo
 - owner: olympus_taskyfier
 - last-updated: 2026-07-17
 - source-of-truth: docs/tasks/TASK-AT-385-sac-web-e2e-accessibility-visual-tests.md

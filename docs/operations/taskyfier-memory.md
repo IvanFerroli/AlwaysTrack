@@ -130,3 +130,14 @@
 - Ordem: solicitar `460` em paralelo; tecnicamente executar `459` -> `458` -> `461` -> `462`. Primeira task técnica: `TASK-AT-459`.
 - PNGs/record do audit seguem advisory, transitórios e não promovíveis; aceite futuro exige aquisição task-backed.
 - Rodada exclusivamente documental: nenhum produto, Asana, commit ou push foi alterado/executado.
+
+## Pipeline contínuo Olympus — Taskyfier run #1 (2026-09-03)
+- Pipeline producer/consumer ativado pelo orchestrator (novo ciclo de execução contínua): Runtime Builder consome a primeira task `READY_TO_EXECUTE` assim que existir.
+- Fonte consumida: `docs/testing/product-ux-repo-wide-audit-2026-09-03.md` (seção L = registro de 19 findings ATUX-001..019; seção M = grupos de dependência; seção K = decisões humanas), reconciliado contra TASK-AT-454..462.
+- Reconciliação: ATUX-001/TASK-AT-454 e ATUX-006/TASK-AT-460 confirmadas como gates humanos (BLOCKED_BY_DECISION; não classificadas neste run). Candidatas prontas reavaliadas com verificação de código em HEAD `3088088a`: 458/459/461/462.
+- Primeira task executável escolhida: **TASK-AT-459** (ATUX-005, P0, erro/recuperação do upload Markdown) — REUTILIZADA e atualizada in place; nenhuma task nova criada. Justificativa: P0/severidade high, sem decisão humana, implementação não depende do file step do harness; critérios de aceite expressáveis como intenção de UX testável.
+- Dependência em aberto resolvida no doc (código verificado): rejeições de `uploadWikiImage`/`uploadOperationalImage` chegam como `Error` via `api()` (`payload.error.message`), sem causa tipada — diferenciação tipo/tamanho só se a mensagem do servidor distinguir.
+- Gate de aceite reescopado no doc: fechável com Vitest determinístico + typecheck/build + suítes focais; evidência visual browser do erro ADIADA (harness sem file step, ATUX-012/HIST-013) para aquisição task-backed posterior; e2e NÃO pode exigir suíte global verde (10 falhas browser pré-existentes em main, HIST-016).
+- Convenção de classificação: linha de metadata `pipeline: READY_TO_EXECUTE` + `status: ready-to-execute` (extensão do bloco Metadata existente, sem conflito com convenções anteriores).
+- Escopo do run: exclusivamente planejamento — nenhum código de produto alterado, nenhum build/teste executado, nada commitado. TASK-AT-458/461/462 intocadas (run #2 do Taskyfier as classifica em paralelo). ROADMAP, artifact do audit, HANDOFF e TASK-AT-453 intocados.
+- Ordem provável das próximas: 459 (pipeline) → 458 → 461 → 462; 454/460 aguardando decisão humana; revalidações task-backed de 455/456 (ATUX-002/003) e grupo D/E do audit depois.

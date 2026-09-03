@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: implemented-partial-browser-evidence-pending
+- pipeline: ALREADY_COVERED
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-015`: a parcela pendente de evidência browser de agendamento é devidamente de propriedade deste doc; sequenciar a reaquisição DEPOIS de `TASK-AT-461` (o finding UX-C04 provou que a parcela não cobria o branch vazio corrigido por 461); nenhuma task nova derivada
 - owner: olympus_taskyfier
 - last-updated: 2026-07-18
 - source-of-truth: docs/tasks/TASK-AT-411-scheduling-web-e2e-accessibility-visual-tests.md

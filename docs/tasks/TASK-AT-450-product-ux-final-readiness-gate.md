@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: proposed
+- pipeline: ALREADY_COVERED
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — reconciliação de higiene do audit repo-wide (seção O.6): o gate final deste escopo já foi executado e registrado em 2026-08-06 (`docs/testing/product-ux-final-readiness-gate-2026-08-06.md`: GO-WITH-RISK pilot-ready / NO-GO active), com sequência posterior em `TASK-AT-452` (fechada, NO-GO certificado) e `TASK-AT-453` (paused-by-product-decision); o `status: proposed` está órfão/obsoleto. Classificação: ALREADY_COVERED — não ressuscitar
 - owner: olympus_taskyfier
 - last-updated: 2026-08-05
 - source-of-truth: docs/tasks/TASK-AT-450-product-ux-final-readiness-gate.md

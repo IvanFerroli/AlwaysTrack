@@ -1,7 +1,9 @@
 # TASK-AT-458 - Remover controle invisível do picker de imagem Markdown
 
 ## Metadata
-- status: proposed
+- status: ready-to-execute
+- pipeline: READY_TO_EXECUTE
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — reconciliação do audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-004` (Grupo B). Vigência reconfirmada em código no HEAD `3088088a`: `apps/web/src/components/markdown-editor.tsx:383-392` (input invisível sem nome) e `apps/web/src/styles.css:4845-4852` (`.visually-hidden-input`) permanecem como descrito.
 - owner: Runtime Builder Web
 - last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-458-markdown-image-picker-accessibility.md

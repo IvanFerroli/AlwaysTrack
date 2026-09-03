@@ -2,6 +2,8 @@
 
 ## Metadata
 - status: implementation-complete-manual-validation-pending
+- pipeline: BLOCKED_BY_DECISION
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-016` (parcelas manuais NVDA/side-panel/zoom; prazo expirou silenciosamente em 2026-07-31; seção K.7: agendar execução ou aposentar formalmente como risco aceito — exceção parcial: TASK-AT-457 executou Orca real no seu recorte)
 - owner: olympus_orchestrator
 - last-updated: 2026-07-15
 - source-of-truth: docs/tasks/TASK-AT-312-accessibility-keyboard-regression.md

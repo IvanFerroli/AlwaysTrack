@@ -1,7 +1,9 @@
 # TASK-AT-462 - Corrigir overflow da topbar no Backup CaseFlow mobile
 
 ## Metadata
-- status: proposed
+- status: ready-to-execute
+- pipeline: READY_TO_EXECUTE
+- classified-by: olympus-taskyfier run #2 (2026-09-03) — reconciliação do audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-008` (Grupo B). Vigência reconfirmada em código no HEAD `3088088a`: o caso "CaseFlow backup controls stack at the narrow management viewport" segue em `tests/e2e/visual-responsive-web.mobile.spec.ts` (~linha 141) com gate geométrico vermelho em `main` (HIST-016).
 - owner: Runtime Builder Web
 - last-updated: 2026-09-03
 - source-of-truth: docs/tasks/TASK-AT-462-caseflow-backup-mobile-topbar-overflow.md
