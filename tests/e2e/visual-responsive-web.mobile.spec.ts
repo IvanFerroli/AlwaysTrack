@@ -15,6 +15,28 @@ async function expectMobileShellGeometry(page: import("@playwright/test").Page) 
   await expectRegionsNotOverlapping(page, [[".sidebar", ".workspace"]]);
 }
 
+// Focal assert for TASK-AT-462: the top-nav group chips are the elements that clipped at
+// ~360px ("Administração" shrunk below its nowrap content and spilled past the topbar).
+// Each chip must contain its own content instead of painting over neighbors.
+async function expectTopNavChipsContained(page: import("@playwright/test").Page) {
+  const failures = await page.evaluate(() => {
+    const tolerance = 1;
+    return Array.from(document.querySelectorAll<HTMLElement>(".top-nav button"))
+      .filter((chip) => {
+        const style = getComputedStyle(chip);
+        return style.display !== "none" && style.visibility !== "hidden" && chip.clientWidth > 0;
+      })
+      .flatMap((chip) => {
+        const label = chip.textContent?.trim() ?? chip.tagName;
+        return chip.scrollWidth > chip.clientWidth + tolerance
+          ? [`top-nav chip "${label}": content ${chip.scrollWidth}px > box ${chip.clientWidth}px`]
+          : [];
+      });
+  });
+
+  expect(failures, "Top navigation chip content clipped").toEqual([]);
+}
+
 async function openSettings(page: import("@playwright/test").Page) {
   await loginAsAdminPage(page);
   await openPrimaryNavigationItem(page, /^Administração/, /^Configurações$/);
@@ -70,6 +92,7 @@ test.describe("visual responsive web mobile", () => {
     await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
+    await expectTopNavChipsContained(page);
     await expectVisualBaseline(page, "web-sac-flows-390x844.png");
   });
 
@@ -80,6 +103,7 @@ test.describe("visual responsive web mobile", () => {
     await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
+    await expectTopNavChipsContained(page);
     await expectMobileFirstViewportContent(page, { firstBlockSelector: ".operational-filters" });
 
     const toggle = primaryNavigation(page).getByRole("button", { name: /^SAC/ });
@@ -107,6 +131,7 @@ test.describe("visual responsive web mobile", () => {
     await expect(page.getByRole("heading", { name: "Usuários/Times", exact: true })).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
+    await expectTopNavChipsContained(page);
     await expectMobileFirstViewportContent(page, { firstBlockSelector: ".operational-filters" });
 
     const toggle = primaryNavigation(page).getByRole("button", { name: /^Administração/ });
@@ -130,6 +155,7 @@ test.describe("visual responsive web mobile", () => {
     await expect(page.getByRole("heading", { name: "Fluxos", exact: true })).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
+    await expectTopNavChipsContained(page);
 
     // The nav-group collapse itself (this task's actual scope) holds at 320px too: no expanded
     // submenu role in the tree, and the sidebar stays compact instead of consuming the viewport.
@@ -142,12 +168,12 @@ test.describe("visual responsive web mobile", () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await loginAsAdminPage(page);
     await openPrimaryNavigationItem(page, /^Administração/, /^CaseFlow Admin$/);
-    // The geometry gate below still reports the sidebar overlap; DOM activation lets the visual baseline capture the blocked panel itself.
     await page.getByRole("tab", { name: "Backup" }).evaluate((tab: HTMLElement) => tab.click());
     await expect(page.getByLabel("Envelope de backup")).toBeVisible();
     await stabilizeVisualPage(page);
     await expectMobileShellGeometry(page);
     await expectNoUnexpectedOverflow(page, [".caseflow-admin", ".caseflow-backup-layout"]);
+    await expectTopNavChipsContained(page);
     await expectVisualBaseline(page, "web-caseflow-backup-360x800.png");
   });
 

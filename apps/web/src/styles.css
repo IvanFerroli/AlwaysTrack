@@ -5129,6 +5129,11 @@ legend {
 
   .top-nav-domain {
     flex: 1 1 140px;
+    /* TASK-AT-462: `min-width: 0` (regra base) permite o chip de grupo encolher abaixo do
+       próprio conteúdo; em ~360px o rótulo "Administração" (nowrap) transborda o chip e o
+       chevron furará a borda da topbar (3px de overflow). Respeitar max-content faz o chip
+       quebrar para a própria linha em vez de cortar controles. */
+    min-width: max-content;
   }
 
   .top-nav-domain > .top-nav-item {
