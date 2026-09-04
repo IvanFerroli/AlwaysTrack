@@ -282,6 +282,70 @@ describe("MarkdownEditor drop de imagem", () => {
     expect(upload).toHaveBeenCalledTimes(1);
   });
 
+  it("reconcilia seleção não vazia quando há inserção concorrente antes dela", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteudo" });
+    textarea.focus();
+    textarea.setSelectionRange(15, 22);
+
+    dropFiles(imageDropTarget(container), [syntheticFile()]);
+    fireEvent.change(textarea, { target: { value: `nova linha\n${initialContent}` } });
+    await act(async () => pending.resolve(successMarkdown));
+
+    expect(textarea).toHaveValue(`nova linha\nprimeira linha\n${successMarkdown}\n linha`);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("não apaga uma edição concorrente dentro da seleção original", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteudo" });
+    textarea.focus();
+    textarea.setSelectionRange(0, 8);
+
+    dropFiles(imageDropTarget(container), [syntheticFile()]);
+    fireEvent.change(textarea, { target: { value: "PRIMEIRA EDITADA linha\nsegunda linha" } });
+    await act(async () => pending.resolve(successMarkdown));
+
+    expect(textarea).toHaveValue(`PRIMEIRA EDITADA\n${successMarkdown}\n linha\nsegunda linha`);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconcilia seleção não vazia após deleção concorrente antes do marcador", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteudo" });
+    textarea.focus();
+    textarea.setSelectionRange(15, 22);
+
+    dropFiles(imageDropTarget(container), [syntheticFile()]);
+    fireEvent.change(textarea, { target: { value: "linha\nsegunda linha" } });
+    await act(async () => pending.resolve(successMarkdown));
+
+    expect(textarea).toHaveValue(`linha\n${successMarkdown}\n linha`);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("em conflito ambíguo preserva integralmente a edição e insere sem substituir", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteudo" });
+    textarea.focus();
+    textarea.setSelectionRange(4, 20);
+
+    dropFiles(imageDropTarget(container), [syntheticFile()]);
+    fireEvent.change(textarea, { target: { value: "conteúdo totalmente refeito" } });
+    await act(async () => pending.resolve(successMarkdown));
+
+    expect(textarea).toHaveValue(`conteúdo totalmente refeito\n${successMarkdown}`);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it("falha, preserva conteúdo e aceita retry pelo drop", async () => {
     const upload = vi.fn<() => Promise<string>>()
       .mockRejectedValueOnce(new Error("Wiki attachment is too large."))

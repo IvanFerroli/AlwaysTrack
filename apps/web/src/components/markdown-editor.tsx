@@ -198,6 +198,41 @@ function imageUploadMessage(error: unknown) {
   return imageUploadFallbackMessage;
 }
 
+function reconcileImageInsertionRange(
+  originalValue: string,
+  currentValue: string,
+  selectionStart: number,
+  selectionEnd: number
+) {
+  const originalStart = Math.min(selectionStart, originalValue.length);
+  const originalEnd = Math.min(Math.max(selectionEnd, originalStart), originalValue.length);
+  if (originalValue === currentValue) return { start: originalStart, end: originalEnd };
+
+  let unchangedPrefix = 0;
+  const maxPrefix = Math.min(originalValue.length, currentValue.length);
+  while (unchangedPrefix < maxPrefix && originalValue[unchangedPrefix] === currentValue[unchangedPrefix]) unchangedPrefix += 1;
+
+  let unchangedSuffix = 0;
+  const maxSuffix = Math.min(originalValue.length - unchangedPrefix, currentValue.length - unchangedPrefix);
+  while (
+    unchangedSuffix < maxSuffix
+    && originalValue[originalValue.length - 1 - unchangedSuffix] === currentValue[currentValue.length - 1 - unchangedSuffix]
+  ) unchangedSuffix += 1;
+
+  const originalChangeEnd = originalValue.length - unchangedSuffix;
+  const currentChangeEnd = currentValue.length - unchangedSuffix;
+  if (originalChangeEnd <= originalStart) {
+    const offset = currentChangeEnd - originalChangeEnd;
+    return { start: originalStart + offset, end: originalEnd + offset };
+  }
+  if (unchangedPrefix >= originalEnd) return { start: originalStart, end: originalEnd };
+
+  // A edição concorrente cruza a seleção original. Não há como distinguir com
+  // segurança texto do usuário de texto selecionado: inserimos após o delta e
+  // não removemos nenhum caractere do valor mais recente.
+  return { start: currentChangeEnd, end: currentChangeEnd };
+}
+
 export function MarkdownEditor({
   label,
   value,
@@ -317,6 +352,7 @@ export function MarkdownEditor({
       return;
     }
     const textarea = ref.current;
+    const originalValue = latestValueRef.current;
     const selectionStart = textarea?.selectionStart ?? latestValueRef.current.length;
     const selectionEnd = textarea?.selectionEnd ?? latestValueRef.current.length;
     uploadActiveRef.current = true;
@@ -325,8 +361,9 @@ export function MarkdownEditor({
     try {
       const markdown = await onUploadImage(file);
       const currentValue = latestValueRef.current;
-      const currentStart = Math.min(selectionStart, currentValue.length);
-      const currentEnd = Math.min(Math.max(selectionEnd, currentStart), currentValue.length);
+      const insertionRange = reconcileImageInsertionRange(originalValue, currentValue, selectionStart, selectionEnd);
+      const currentStart = insertionRange.start;
+      const currentEnd = insertionRange.end;
       const prefix = currentStart > 0 && currentValue[currentStart - 1] !== "\n" ? "\n" : "";
       const suffix = currentEnd < currentValue.length && currentValue[currentEnd] !== "\n" ? "\n" : "";
       const nextValue = `${currentValue.slice(0, currentStart)}${prefix}${markdown}${suffix}${currentValue.slice(currentEnd)}`;
