@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useDismissibleLayer } from "./dismissible-layer";
 
 const emojiOptions = ["✅", "⚠️", "📌", "📎", "💬", "📦", "🚚", "🔁", "💰", "🧾", "🔍", "⭐", "👍", "🙏", "🙂"];
@@ -187,6 +187,9 @@ function applyMarkdownFormat(value: string, selectionStart: number, selectionEnd
 const imageUploadTypeMessage = "Formato de imagem não suportado. Use PNG, JPG ou WebP.";
 const imageUploadSizeMessage = "A imagem excede o tamanho máximo permitido. Envie um arquivo menor.";
 const imageUploadFallbackMessage = "Não foi possível enviar a imagem. Tente novamente.";
+const imageDropEmptyMessage = "Nenhuma imagem foi encontrada. Solte um arquivo PNG, JPG ou WebP.";
+const imageDropMultipleMessage = "Solte apenas uma imagem por vez.";
+const acceptedImageTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function imageUploadMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "";
@@ -211,6 +214,8 @@ export function MarkdownEditor({
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const uploadActiveRef = useRef(false);
+  const dragDepthRef = useRef(0);
+  const latestValueRef = useRef(value);
   const writeTabRef = useRef<HTMLButtonElement | null>(null);
   const previewTabRef = useRef<HTMLButtonElement | null>(null);
   const emojiTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -219,8 +224,10 @@ export function MarkdownEditor({
   const [preview, setPreview] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imageDragActive, setImageDragActive] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [activeEmojiIndex, setActiveEmojiIndex] = useState(0);
+  latestValueRef.current = value;
 
   useDismissibleLayer({
     open: emojiOpen,
@@ -305,21 +312,28 @@ export function MarkdownEditor({
 
   async function uploadImage(file: File | undefined) {
     if (!file || !onUploadImage || uploadActiveRef.current) return;
+    if (!acceptedImageTypes.has(file.type)) {
+      setUploadError(imageUploadTypeMessage);
+      return;
+    }
+    const textarea = ref.current;
+    const selectionStart = textarea?.selectionStart ?? latestValueRef.current.length;
+    const selectionEnd = textarea?.selectionEnd ?? latestValueRef.current.length;
     uploadActiveRef.current = true;
     setUploadError(null);
     setUploadingImage(true);
     try {
       const markdown = await onUploadImage(file);
-      const textarea = ref.current;
-      const selectionStart = textarea?.selectionStart ?? value.length;
-      const selectionEnd = textarea?.selectionEnd ?? value.length;
-      const prefix = selectionStart > 0 && value[selectionStart - 1] !== "\n" ? "\n" : "";
-      const suffix = selectionEnd < value.length && value[selectionEnd] !== "\n" ? "\n" : "";
-      const nextValue = `${value.slice(0, selectionStart)}${prefix}${markdown}${suffix}${value.slice(selectionEnd)}`;
+      const currentValue = latestValueRef.current;
+      const currentStart = Math.min(selectionStart, currentValue.length);
+      const currentEnd = Math.min(Math.max(selectionEnd, currentStart), currentValue.length);
+      const prefix = currentStart > 0 && currentValue[currentStart - 1] !== "\n" ? "\n" : "";
+      const suffix = currentEnd < currentValue.length && currentValue[currentEnd] !== "\n" ? "\n" : "";
+      const nextValue = `${currentValue.slice(0, currentStart)}${prefix}${markdown}${suffix}${currentValue.slice(currentEnd)}`;
       onChange(nextValue);
       window.requestAnimationFrame(() => {
         textarea?.focus();
-        const cursor = selectionStart + prefix.length + markdown.length + suffix.length;
+        const cursor = currentStart + prefix.length + markdown.length + suffix.length;
         textarea?.setSelectionRange(cursor, cursor);
       });
     } catch (error) {
@@ -329,6 +343,42 @@ export function MarkdownEditor({
       setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = "";
     }
+  }
+
+  function handleImageDragEnter(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (uploadActiveRef.current) return;
+    dragDepthRef.current += 1;
+    setImageDragActive(true);
+    setUploadError(null);
+  }
+
+  function handleImageDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleImageDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setImageDragActive(false);
+  }
+
+  function handleImageDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setImageDragActive(false);
+    if (uploadActiveRef.current) return;
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length === 0) {
+      setUploadError(imageDropEmptyMessage);
+      return;
+    }
+    if (files.length !== 1) {
+      setUploadError(imageDropMultipleMessage);
+      return;
+    }
+    void uploadImage(files[0]);
   }
 
   return (
@@ -417,6 +467,20 @@ export function MarkdownEditor({
           </>
         ) : null}
       </div>
+      {onUploadImage ? (
+        <div
+          className={`wiki-editor-image-drop${imageDragActive ? " is-drag-over" : ""}${uploadingImage ? " is-disabled" : ""}`}
+          aria-disabled={uploadingImage}
+          aria-live="polite"
+          onDragEnter={handleImageDragEnter}
+          onDragOver={handleImageDragOver}
+          onDragLeave={handleImageDragLeave}
+          onDrop={handleImageDrop}
+        >
+          <span aria-hidden="true">↧</span>
+          <span>{imageDragActive ? "Solte a imagem aqui" : "Arraste e solte uma imagem PNG, JPG ou WebP"}</span>
+        </div>
+      ) : null}
       {uploadError ? <p className="error" role="alert">{uploadError}</p> : null}
       {preview ? <div id={`${editorId}-preview-panel`} role="tabpanel" aria-labelledby={`${editorId}-preview-tab`}><MarkdownContent content={value} /></div> : <div id={`${editorId}-write-panel`} role="tabpanel" aria-labelledby={`${editorId}-write-tab`}><textarea aria-label={label} ref={ref} rows={rows} value={value} onChange={(event) => onChange(event.target.value)} /></div>}
     </div>

@@ -4235,6 +4235,43 @@ legend {
   gap: 6px;
 }
 
+.wiki-editor-image-drop {
+  align-items: center;
+  background: var(--color-surface-soft);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  display: none;
+  gap: 8px;
+  justify-content: center;
+  min-height: 56px;
+  padding: 10px 14px;
+  text-align: center;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.wiki-editor-image-drop > span[aria-hidden="true"] {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.wiki-editor-image-drop.is-drag-over {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.wiki-editor-image-drop.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wiki-editor-image-drop {
+    display: flex;
+  }
+}
+
 .wiki-editor-tabs button {
   background: white;
   border: 1px solid var(--color-border);

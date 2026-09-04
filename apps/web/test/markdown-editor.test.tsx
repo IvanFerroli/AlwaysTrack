@@ -38,6 +38,16 @@ function uploadLiveRegion(container: HTMLElement) {
   return region;
 }
 
+function imageDropTarget(container: HTMLElement) {
+  const target = container.querySelector<HTMLElement>(".wiki-editor-image-drop");
+  if (!target) throw new Error("área de drop de imagem ausente");
+  return target;
+}
+
+function dropFiles(target: HTMLElement, files: File[]) {
+  fireEvent.drop(target, { dataTransfer: { files } });
+}
+
 async function selectFile(input: HTMLInputElement, file: File) {
   fireEvent.change(input, { target: { files: [file] } });
 }
@@ -174,6 +184,119 @@ describe("MarkdownEditor upload", () => {
 
     expect(textarea).toHaveValue("![primeira.png](https://cdn.exemplo.test/primeira.png)\nprimeira linha\nsegunda linha");
     expect(screen.getByRole("button", { name: "Imagem" })).toBeEnabled();
+  });
+});
+
+describe("MarkdownEditor drop de imagem", () => {
+  it("expõe affordance desktop e mantém o picker como fallback", () => {
+    const { container } = render(<EditorHarness onUploadImage={vi.fn()} />);
+
+    expect(imageDropTarget(container)).toHaveTextContent("Arraste e solte uma imagem PNG, JPG ou WebP");
+    expect(imageDropTarget(container)).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByRole("button", { name: "Imagem" })).toBeEnabled();
+  });
+
+  it("mantém feedback estável ao atravessar filhos e limpa ao sair do destino", () => {
+    const { container } = render(<EditorHarness onUploadImage={vi.fn()} />);
+    const target = imageDropTarget(container);
+    const child = within(target).getByText("Arraste e solte uma imagem PNG, JPG ou WebP");
+
+    fireEvent.dragEnter(target, { dataTransfer: { files: [syntheticFile()] } });
+    fireEvent.dragEnter(child, { dataTransfer: { files: [syntheticFile()] } });
+    expect(target).toHaveClass("is-drag-over");
+    expect(target).toHaveTextContent("Solte a imagem aqui");
+
+    fireEvent.dragLeave(child, { dataTransfer: { files: [syntheticFile()] } });
+    expect(target).toHaveClass("is-drag-over");
+    fireEvent.dragLeave(target, { dataTransfer: { files: [syntheticFile()] } });
+    expect(target).not.toHaveClass("is-drag-over");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("encaminha exatamente um PNG ao pipeline compartilhado e insere uma vez", async () => {
+    const upload = vi.fn().mockResolvedValue(successMarkdown);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const file = syntheticFile();
+
+    dropFiles(imageDropTarget(container), [file]);
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledWith(file);
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Conteudo" })).toHaveValue(`${successMarkdown}\n${initialContent}`));
+  });
+
+  it.each([
+    { name: "vazio", files: [], message: "Nenhuma imagem foi encontrada" },
+    { name: "múltiplo", files: [syntheticFile("a.png"), syntheticFile("b.png")], message: "Solte apenas uma imagem por vez" },
+    { name: "tipo inválido", files: [new File(["x"], "nota.txt", { type: "text/plain" })], message: "Formato de imagem não suportado" }
+  ])("rejeita drop $name sem chamar upload", ({ files, message }) => {
+    const upload = vi.fn();
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+
+    dropFiles(imageDropTarget(container), files);
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("aceita JPEG e WebP sem introduzir validação local de tamanho", async () => {
+    const upload = vi.fn().mockResolvedValue(successMarkdown);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+
+    dropFiles(imageDropTarget(container), [new File(["jpeg"], "foto.jpg", { type: "image/jpeg" })]);
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+
+    dropFiles(imageDropTarget(container), [new File(["webp"], "foto.webp", { type: "image/webp" })]);
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+  });
+
+  it("bloqueia drop concorrente durante upload", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const target = imageDropTarget(container);
+
+    dropFiles(target, [syntheticFile("primeira.png")]);
+    dropFiles(target, [syntheticFile("concorrente.png")]);
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(target).toHaveClass("is-disabled");
+    expect(target).toHaveAttribute("aria-disabled", "true");
+    await act(async () => pending.resolve(successMarkdown));
+    expect(target).not.toHaveClass("is-disabled");
+  });
+
+  it("preserva edição concorrente e a seleção capturada enquanto aguarda upload", async () => {
+    const pending = deferred();
+    const upload = vi.fn(() => pending.promise);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const textarea = screen.getByRole("textbox", { name: "Conteudo" });
+    textarea.focus();
+    textarea.setSelectionRange(0, 0);
+
+    dropFiles(imageDropTarget(container), [syntheticFile()]);
+    fireEvent.change(textarea, { target: { value: `${initialContent}\nedição durante upload` } });
+    await act(async () => pending.resolve(successMarkdown));
+
+    expect(textarea).toHaveValue(`${successMarkdown}\n${initialContent}\nedição durante upload`);
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
+  it("falha, preserva conteúdo e aceita retry pelo drop", async () => {
+    const upload = vi.fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new Error("Wiki attachment is too large."))
+      .mockResolvedValueOnce(successMarkdown);
+    const { container } = render(<EditorHarness onUploadImage={upload} />);
+    const target = imageDropTarget(container);
+
+    dropFiles(target, [syntheticFile()]);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("excede o tamanho máximo"));
+    expect(screen.getByRole("textbox", { name: "Conteudo" })).toHaveValue(initialContent);
+
+    dropFiles(target, [syntheticFile()]);
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getByRole("textbox", { name: "Conteudo" })).toHaveValue(`${successMarkdown}\n${initialContent}`);
+    expect(upload).toHaveBeenCalledTimes(2);
   });
 });
 
