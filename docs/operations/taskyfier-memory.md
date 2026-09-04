@@ -150,3 +150,11 @@
 - Escopo obrigatório registrado: affordance desktop; drag-over/drop; arquivo único; rejeição de tipo/tamanho/múltiplos; integração ao loading/erro/retry da `459`; sem duplicação; preservação de conteúdo/seleção/edição concorrente; fallback universal.
 - Fora: DANFE, CSV, licença pública, reordenação `153`, paste, pasta e múltiplos.
 - Rodada documental: nenhum código de produto, commit ou push foi realizado; `.claude/`, HANDOFF e `TASK-AT-453` não foram tocados.
+
+## Execução TASK-AT-466 — 2026-09-04
+- Modelo híbrido `picker + drag-and-drop` implementado somente no `MarkdownEditor` compartilhado; os dez mounts em Wiki, FAQ, Fluxos, Scriptoteca e Avisos herdaram o comportamento sem handlers duplicados.
+- Commits: `390b3da0` (runtime/unitários), `173d355a` (Playwright/baselines) e `fd0e0942` (reconciliação de seleção concorrente).
+- Aceite independente: `ACCEPT-WITH-LIMITATIONS`, status `completed-with-risk`; todos os nove critérios atendidos após corrigir a rejeição intermediária do critério 6.
+- Validação final: focal 24/24, Web 202/202, Playwright 2/2, typecheck/build/diff-check verdes; snapshots desktop/mobile inspecionados.
+- Limites: Chromium apenas, mobile emulado sem touch real e sem Firefox/Safari; conflito concorrente ambíguo preserva texto e pode reposicionar a imagem.
+- DANFE, CSV, licença pública, paste, pasta, múltiplos e reordenação `TASK-AT-153` permaneceram fora; nenhuma outra task foi iniciada.

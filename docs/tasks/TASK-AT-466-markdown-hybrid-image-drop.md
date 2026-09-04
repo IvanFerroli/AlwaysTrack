@@ -1,8 +1,8 @@
 # TASK-AT-466 - Adicionar drop de imagem ao MarkdownEditor compartilhado
 
 ## Metadata
-- status: ready-to-execute
-- pipeline: READY_TO_EXECUTE
+- status: completed-with-risk
+- pipeline: COMPLETED_WITH_RISK
 - owner: Runtime Builder Web
 - verifier: Task Verifier fresh
 - last-updated: 2026-09-04
@@ -112,6 +112,15 @@ O delta deve permanecer no componente compartilhado usado por Wiki, FAQ, Fluxos,
 2. Cinco consumidores usam somente a implementação compartilhada.
 3. Contratos concluídos de `TASK-AT-458/459` permanecem verdes.
 4. Evidência task-backed e verificação independente registram limitações sem reutilizar advisory.
+
+## Fechamento — 2026-09-04
+
+- implementação: `390b3da0` adicionou drop compartilhado, CSS local e matriz unitária; `173d355a` adicionou browser desktop/mobile e duas baselines task-backed; `fd0e0942` reconciliou seleção com edições concorrentes sem apagar texto.
+- qualidade: 24/24 testes focais, 202/202 testes Web, Playwright 2/2, typecheck, build e `git diff --check` aprovados. A flutuação anterior de `navigation-roles` não se reproduziu em cinco rodadas isoladas.
+- evidência: snapshots desktop 906x374 e mobile 323x386 inspecionados em resolução original; desktop apresenta botão e área de drop destacada sem overflow, mobile mantém apenas o picker universal.
+- aceite independente: `ACCEPT-WITH-LIMITATIONS`; critérios 1–9 atendidos. Uma rejeição intermediária do critério 6 foi corrigida por `fd0e0942` e reverificada.
+- política de conflito: edições antes da seleção deslocam os marcadores; edições posteriores mantêm o range; conflito que cruza a seleção preserva integralmente o texto atual e posiciona a imagem após o delta, sem duplicar upload.
+- limitações não bloqueantes: browser focal somente Chromium; Firefox/Safari e dispositivo touch real não exercitados. Em edição concorrente estruturalmente ambígua, preservar texto tem precedência sobre manter a intenção exata da posição original.
 
 ## Sugestão de commit semântico
 - `feat(web): adiciona drop de imagem ao editor markdown`
