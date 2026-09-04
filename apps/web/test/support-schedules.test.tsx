@@ -168,6 +168,27 @@ const planning = {
   assignments: []
 };
 
+// TASK-AT-461: doc criteria 1-3 — exactly one selected tab whose aria-controls
+// resolves to a named role="tabpanel" carrying the state relevant to the branch.
+function expectActiveTabPanelRelationship(): HTMLElement {
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>("[role='tablist'][aria-label='Áreas de escalas'] [role='tab']"));
+  expect(tabs.length).toBeGreaterThan(0);
+  const selected = tabs.filter((tab) => tab.getAttribute("aria-selected") === "true");
+  expect(selected).toHaveLength(1);
+  const active = selected[0];
+  const controls = active.getAttribute("aria-controls");
+  expect(controls).toBeTruthy();
+  const panel = document.getElementById(controls ?? "");
+  expect(panel).not.toBeNull();
+  expect(panel).toHaveAttribute("role", "tabpanel");
+  expect(panel).toHaveAttribute("aria-labelledby", active.id);
+  return panel!;
+}
+
+function coverageTabFocus() {
+  screen.getByRole("tab", { name: "Cobertura" }).focus();
+}
+
 describe("SupportSchedulesView", () => {
   let response: SupportScheduleCalendarResponse;
 
@@ -356,5 +377,131 @@ describe("SupportSchedulesView", () => {
     const coverage = document.getElementById("support-schedules-coverage-panel")!;
     await waitFor(() => expect(coverage).toHaveFocus());
     expect(screen.queryByRole("tab", { name: "Minha semana" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the selected manager tab controlling the empty-state panel before a team is chosen", async () => {
+    response = managerCalendar;
+    const user = userEvent.setup();
+    const { container } = render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15" }} />);
+
+    expect(await screen.findByText("Nenhuma equipe é selecionada automaticamente.")).toBeInTheDocument();
+    expect(apiMock.mock.calls.some(([path]) => String(path).startsWith("/v1/support/schedules?"))).toBe(false);
+    const panel = expectActiveTabPanelRelationship();
+    expect(panel).toHaveAttribute("id", "support-schedules-coverage-panel");
+    expect(panel).toHaveTextContent("Selecione uma equipe");
+    expectNoCriticalAccessibilityViolations(container);
+
+    coverageTabFocus();
+    await user.keyboard("{ArrowRight}");
+    const pendingTab = screen.getByRole("tab", { name: /Pendências/ });
+    expect(pendingTab).toHaveFocus();
+    expect(pendingTab).toHaveAttribute("aria-selected", "true");
+    const pendingPanel = expectActiveTabPanelRelationship();
+    expect(pendingPanel).toHaveAttribute("id", "support-schedules-pending-panel");
+    expect(pendingPanel).toHaveTextContent("Selecione uma equipe");
+
+    await user.selectOptions(screen.getByLabelText("Equipe"), team.id);
+    expect(await screen.findByRole("table", { name: "Candidaturas a turnos extras" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Pendências/ })).toHaveAttribute("aria-selected", "true");
+    const loadedPanel = expectActiveTabPanelRelationship();
+    expect(loadedPanel).toHaveAttribute("id", "support-schedules-pending-panel");
+    expect(within(loadedPanel).getByRole("table", { name: "Candidaturas a turnos extras" })).toBeInTheDocument();
+  });
+
+  it("keeps the selected manager tab controlling the panel while the roster loads and after it fails", async () => {
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/support/pauses?")) return Promise.reject(new Error("Escopo indisponível"));
+      return Promise.resolve({});
+    });
+    const { container } = render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15" }} />);
+
+    const loadingPanel = expectActiveTabPanelRelationship();
+    expect(loadingPanel).toHaveAttribute("id", "support-schedules-coverage-panel");
+    expect(loadingPanel).toHaveTextContent("Carregando equipes");
+
+    expect(await screen.findByText("Equipes indisponíveis")).toBeInTheDocument();
+    const errorPanel = expectActiveTabPanelRelationship();
+    expect(errorPanel).toHaveAttribute("id", "support-schedules-coverage-panel");
+    expect(errorPanel).toHaveTextContent("Escopo indisponível");
+    expectNoCriticalAccessibilityViolations(container);
+  });
+
+  it("keeps the active SAC tab controlling the loading panel and preserves the panel id after the calendar resolves", async () => {
+    let resolveCalendar: (value: SupportScheduleCalendarResponse) => void = () => {};
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/support/pauses?")) return Promise.resolve(roster);
+      if (path.startsWith("/v1/support/schedules?")) {
+        return new Promise((resolve) => { resolveCalendar = resolve; });
+      }
+      return Promise.resolve({});
+    });
+    render(<SupportSchedulesView user={sac} initialIntent={{ date: "2099-07-15" }} />);
+
+    const loadingPanel = expectActiveTabPanelRelationship();
+    expect(loadingPanel).toHaveAttribute("id", "support-schedules-week-panel");
+    expect(loadingPanel).toHaveTextContent("Carregando a semana");
+
+    resolveCalendar(sacCalendar);
+    expect(await screen.findByRole("heading", { name: "Turnos da semana" })).toBeInTheDocument();
+    expectActiveTabPanelRelationship();
+    const weekPanel = document.getElementById("support-schedules-week-panel")!;
+    expect(weekPanel).toHaveAttribute("role", "tabpanel");
+    expect(weekPanel).toHaveTextContent("Turnos da semana");
+  });
+
+  it("keeps the active tab controlling the retry panel after a calendar failure and recovers on retry", async () => {
+    apiMock.mockImplementation((path: string) => {
+      if (path.startsWith("/v1/support/pauses?")) return Promise.resolve(roster);
+      if (path.startsWith("/v1/support/schedules?")) return Promise.reject(new Error("Serviço de escalas fora do ar"));
+      return Promise.resolve({});
+    });
+    const user = userEvent.setup();
+    const { container } = render(<SupportSchedulesView user={sac} initialIntent={{ date: "2099-07-15" }} />);
+
+    expect(await screen.findByText("Escala indisponível")).toBeInTheDocument();
+    const panel = expectActiveTabPanelRelationship();
+    expect(panel).toHaveAttribute("id", "support-schedules-week-panel");
+    expect(panel).toHaveTextContent("Serviço de escalas fora do ar");
+    const retry = within(panel).getByRole("button", { name: "Tentar novamente" });
+    expectNoCriticalAccessibilityViolations(container);
+
+    apiMock.mockImplementation((path: string, options?: RequestInit) => {
+      if (path.startsWith("/v1/support/pauses?")) return Promise.resolve(roster);
+      if (path.startsWith("/v1/support/schedules?") && !options) return Promise.resolve(sacCalendar);
+      return Promise.resolve({});
+    });
+    await user.click(retry);
+    expect(await screen.findByRole("heading", { name: "Turnos da semana" })).toBeInTheDocument();
+    expectActiveTabPanelRelationship();
+    expect(document.getElementById("support-schedules-week-panel")).toHaveAttribute("role", "tabpanel");
+  });
+
+  it("switches manager calendar tabs by keyboard while every active tab controls its panel", async () => {
+    response = managerCalendar;
+    const user = userEvent.setup();
+    render(<SupportSchedulesView user={manager} initialIntent={{ date: "2099-07-15", teamId: team.id }} />);
+
+    await screen.findByRole("heading", { name: "Cobertura semanal" });
+    const coveragePanel = expectActiveTabPanelRelationship();
+    expect(coveragePanel).toHaveAttribute("id", "support-schedules-coverage-panel");
+    expect(coveragePanel).toHaveTextContent("Cobertura semanal");
+
+    coverageTabFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: /Pendências/ })).toHaveFocus();
+    const pendingPanel = expectActiveTabPanelRelationship();
+    expect(pendingPanel).toHaveAttribute("id", "support-schedules-pending-panel");
+    expect(pendingPanel).toHaveTextContent("Candidaturas pendentes");
+
+    await user.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "Planejamento" })).toHaveFocus();
+    const managementPanel = expectActiveTabPanelRelationship();
+    expect(managementPanel).toHaveAttribute("id", "support-schedules-management-panel");
+    expect(managementPanel).toHaveTextContent("Planejamento vigente e futuro");
+
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("tab", { name: "Cobertura" })).toHaveFocus();
+    const homePanel = expectActiveTabPanelRelationship();
+    expect(homePanel).toHaveAttribute("id", "support-schedules-coverage-panel");
   });
 });

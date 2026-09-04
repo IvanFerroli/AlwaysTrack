@@ -885,20 +885,7 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
       {rosterError ? <p className="error" role="alert">{rosterError}</p> : null}
       {planningError ? <p className="error" role="alert">{planningError}</p> : null}
 
-      {canManage && !teamId ? (
-        <OperationalState
-          state={rosterLoading ? "loading" : rosterError ? "error" : "empty"}
-          title={rosterLoading ? "Carregando equipes" : rosterError ? "Equipes indisponíveis" : "Selecione uma equipe"}
-          detail={rosterLoading ? "Consultando o escopo operacional." : rosterError ?? "Nenhuma equipe é selecionada automaticamente."}
-        />
-      ) : loading && !calendar ? (
-        <OperationalState state="loading" title="Carregando a semana" detail="Consultando turnos, extras e negociações publicadas." />
-      ) : !calendar && error ? (
-        <div className="support-retry-state">
-          <OperationalState state="error" title="Escala indisponível" detail={error} />
-          <button type="button" onClick={() => void loadCalendar(true)}><RefreshCw size={16} /> Tentar novamente</button>
-        </div>
-      ) : calendar ? (
+      {calendar ? (
         <>
           {tab === "week" && !canManage ? (
             <div id="support-schedules-week-panel" role="tabpanel" aria-labelledby="support-schedules-week-tab" className="support-tab-panel">
@@ -1236,7 +1223,29 @@ export function SupportSchedulesView({ user, initialIntent }: { user: CurrentUse
             </div>
           ) : null}
         </>
-      ) : null}
+      ) : (
+        <div
+          id={`support-schedules-${tab}-panel`}
+          role="tabpanel"
+          aria-labelledby={`support-schedules-${tab}-tab`}
+          className="support-tab-panel"
+        >
+          {canManage && !teamId ? (
+            <OperationalState
+              state={rosterLoading ? "loading" : rosterError ? "error" : "empty"}
+              title={rosterLoading ? "Carregando equipes" : rosterError ? "Equipes indisponíveis" : "Selecione uma equipe"}
+              detail={rosterLoading ? "Consultando o escopo operacional." : rosterError ?? "Nenhuma equipe é selecionada automaticamente."}
+            />
+          ) : loading ? (
+            <OperationalState state="loading" title="Carregando a semana" detail="Consultando turnos, extras e negociações publicadas." />
+          ) : error ? (
+            <div className="support-retry-state">
+              <OperationalState state="error" title="Escala indisponível" detail={error} />
+              <button type="button" onClick={() => void loadCalendar(true)}><RefreshCw size={16} /> Tentar novamente</button>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <span className="sr-only" aria-live="polite">Período exibido: {formatSupportScheduleDay(weekDates[0])} a {formatSupportScheduleDay(weekDates[6])}.</span>
     </section>
