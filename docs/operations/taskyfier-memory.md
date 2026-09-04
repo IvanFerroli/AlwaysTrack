@@ -141,3 +141,12 @@
 - Convenção de classificação: linha de metadata `pipeline: READY_TO_EXECUTE` + `status: ready-to-execute` (extensão do bloco Metadata existente, sem conflito com convenções anteriores).
 - Escopo do run: exclusivamente planejamento — nenhum código de produto alterado, nenhum build/teste executado, nada commitado. TASK-AT-458/461/462 intocadas (run #2 do Taskyfier as classifica em paralelo). ROADMAP, artifact do audit, HANDOFF e TASK-AT-453 intocados.
 - Ordem provável das próximas: 459 (pipeline) → 458 → 461 → 462; 454/460 aguardando decisão humana; revalidações task-backed de 455/456 (ATUX-002/003) e grupo D/E do audit depois.
+
+## Decisão humana TASK-AT-460 e derivação — 2026-09-04
+- Product Owner decidiu explicitamente pelo modelo híbrido `picker + drag-and-drop` no `MarkdownEditor`, com exatamente um arquivo por vez e botão/picker preservado para teclado, mobile e touch.
+- `TASK-AT-460` fechada como `completed-decision-approved`; nenhuma implementação foi atribuída ao gate documental.
+- Dedupe contra `TASK-AT-001..465`: `101/108/146/150/151` cobrem infraestrutura/segurança; `458/459` cobrem picker acessível e erro/retry; `464` cobre file step do harness; `153` é reordenação. Nenhuma delas implementa drop de arquivo no produto.
+- Exatamente uma derivação criada: `TASK-AT-466-markdown-hybrid-image-drop.md`, `ready-to-execute`, P1, 6-10h, restrita a Wiki/FAQ/Fluxos/Scriptoteca/Avisos por composição do componente compartilhado.
+- Escopo obrigatório registrado: affordance desktop; drag-over/drop; arquivo único; rejeição de tipo/tamanho/múltiplos; integração ao loading/erro/retry da `459`; sem duplicação; preservação de conteúdo/seleção/edição concorrente; fallback universal.
+- Fora: DANFE, CSV, licença pública, reordenação `153`, paste, pasta e múltiplos.
+- Rodada documental: nenhum código de produto, commit ou push foi realizado; `.claude/`, HANDOFF e `TASK-AT-453` não foram tocados.

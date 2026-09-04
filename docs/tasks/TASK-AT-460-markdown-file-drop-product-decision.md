@@ -1,18 +1,18 @@
 # TASK-AT-460 - Decidir picker-only ou upload híbrido com drop
 
 ## Metadata
-- status: proposed-human-input-required
-- pipeline: BLOCKED_BY_DECISION
+- status: completed-decision-approved
+- pipeline: DECISION_APPROVED
 - classified-by: olympus-taskyfier run #2 (2026-09-03) — audit repo-wide `docs/testing/product-ux-repo-wide-audit-2026-09-03.md`, finding `ATUX-006` (seção K.2, Grupo A; não bloqueia 458/459/461/462)
-- owner: Product Owner / Design Owner
-- last-updated: 2026-09-03
+- owner: Product Owner (decisão humana explícita)
+- last-updated: 2026-09-04
 - source-of-truth: docs/tasks/TASK-AT-460-markdown-file-drop-product-decision.md
 - mode: discovery-decision
 - priority: P2
 - severity: low
 - confidence: high para ausência; valor de produto não medido
 - estimated-effort: 1-3h de discovery e decisão
-- execution-order: gate humano em paralelo; não bloqueia TASK-AT-458/459/461/462
+- execution-order: concluída; desbloqueia TASK-AT-466
 
 ## Objetivo único
 Decidir e documentar se o `MarkdownEditor` continuará `picker-only` ou adotará modelo híbrido `picker + drag-and-drop` para um único arquivo de imagem.
@@ -36,7 +36,8 @@ As referências advisory `INS-C004-C008`, `INS-C012`, `INS-C017` e `INS-C018` n�
 
 ## Dependências
 - satisfeitas: inventário estrutural e audit complementar.
-- em aberto: decisão explícita de Product Owner/Design Owner e evidência mínima de valor quando exigida pelo owner.
+- satisfeitas em 2026-09-04: decisão explícita do Product Owner pelo modelo híbrido `picker + drag-and-drop`.
+- em aberto: nenhuma para encerrar esta decisão; implementação pertence à `TASK-AT-466`.
 
 ## Matriz de decisão
 
@@ -67,6 +68,23 @@ As referências advisory `INS-C004-C008`, `INS-C012`, `INS-C017` e `INS-C018` n�
 
 ## Definição de pronto
 - Decisão humana rastreável e, se híbrido, handoff para nova task técnica; nenhum código nesta task.
+
+## Decisão humana aprovada — 2026-09-04
+
+- owner da decisão: Product Owner, por manifestação humana explícita encaminhada ao pipeline.
+- decisão: adotar modelo híbrido `picker + drag-and-drop` no `MarkdownEditor` compartilhado.
+- alcance: somente Wiki, FAQ, Fluxos, Scriptoteca e Avisos, por composição do mesmo componente.
+- contrato aprovado: affordance de drop explícita em desktop; exatamente um arquivo por tentativa; manter botão/picker como fallback universal para teclado, mobile e touch; integrar loading, erro e retry ao contrato já entregue pela `TASK-AT-459`.
+- limites aprovados: não inclui DANFE, CSV de profissionais, licença pública, reordenação da `TASK-AT-153`, paste, pasta ou múltiplos arquivos.
+- justificativa: o drop oferece um caminho mais direto para autoria em desktop, enquanto a preservação do picker evita transformar gesto de ponteiro em requisito e mantém o fluxo já acessível. Centralizar a interação no componente compartilhado evita cinco implementações divergentes.
+- handoff técnico: `TASK-AT-466` materializa o delta; esta task permanece documental e não implementa produto.
+
+## Resultado dos critérios de aceite
+
+1. Decisão datada e atribuída: atendido.
+2. Superfícies, arquivo único e fallback mobile/teclado: atendido.
+3. Matriz mínima do modelo híbrido: atendida e detalhada na `TASK-AT-466`.
+4. Separação entre decisão e implementação: atendida; nenhum código pertence a esta task.
 
 ## Sugestão de commit semântico
 - `docs(product): decide contrato de upload por picker ou drop`

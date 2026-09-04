@@ -705,3 +705,14 @@ Fonte canônica: `docs/tasks/UXREQ-ALWAYSTRACK-COMPLEMENTARY-AUDIT-20260903-001-
 1. Evidências advisory deste request são transitórias, não reutilizáveis e não promovíveis; cada implementação readquire evidência task-backed.
 2. `TASK-AT-460` é somente discovery/decisão humana, nunca implementação presumida.
 3. Primeira task tecnicamente roteável: `TASK-AT-459`.
+
+## Decisão de upload híbrido e derivação técnica (TASK-AT-460/466)
+
+Registro incremental de 2026-09-04:
+
+1. `TASK-AT-460`: decisão humana concluída e aprovada pelo Product Owner — modelo híbrido `picker + drag-and-drop`, um arquivo por vez, restrito ao `MarkdownEditor` de Wiki, FAQ, Fluxos, Scriptoteca e Avisos. Status: `completed-decision-approved`.
+2. `TASK-AT-466`: única derivação técnica da decisão. Implementa affordance desktop, drag-over/drop e rejeições reutilizando `TASK-AT-458/459`, com picker preservado para teclado/mobile/touch. Prioridade P1; severidade low; confiança high; esforço 6-10h; status `ready-to-execute`.
+
+Dependências satisfeitas: `TASK-AT-458/459/460`; `TASK-AT-464` fornece file step para picker, mas não substitui testes de drop. Fora do pacote: DANFE, CSV, licença pública, reordenação `TASK-AT-153`, paste, pasta e múltiplos arquivos.
+
+Próxima task deste fluxo: `TASK-AT-466`.
